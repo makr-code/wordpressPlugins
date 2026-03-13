@@ -50,7 +50,7 @@
 			<div style="display:inline-flex;align-items:center;gap:0.875rem;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:0.875rem 1.5rem;">
 				<span style="color:#50e6ff;font-weight:700;font-family:'Cascadia Code',Consolas,monospace">$</span>
 				<code style="font-family:'Cascadia Code','SFMono-Regular',Consolas,monospace;font-size:0.875rem;color:#cdd9e5">docker pull themisdb/themisdb:v3-latest</code>
-				<button onclick="navigator.clipboard.writeText('docker pull themisdb/themisdb:v3-latest')" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.4);font-size:0.9rem;padding:0;line-height:1;" title="Copy" aria-label="Copy docker command">⎘</button>
+				<button data-copy-text="docker pull themisdb/themisdb:v3-latest" class="tv3-code-copy-btn" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.4);font-size:0.9rem;padding:0;line-height:1;" title="Copy" aria-label="Copy docker command">⎘</button>
 			</div>
 			<p style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin:0.625rem 0 0">Also available: <a href="/downloads" style="color:rgba(255,255,255,0.55);text-decoration:underline">binary</a> · <a href="https://github.com/makr-code/wordpressPlugins" style="color:rgba(255,255,255,0.55);text-decoration:underline">source</a></p>
 		</div>

@@ -24,6 +24,7 @@
 		initAnnouncementBar();
 		initScrollHeader();
 		initCodeCopyButtons();
+		initDataCopyButtons();
 		initActiveNavLinks();
 		initCardHoverEffects();
 
@@ -187,6 +188,58 @@
 					document.body.removeChild( ta );
 					copyBtn.textContent = '✓ Copied!';
 					setTimeout( function () { copyBtn.textContent = 'Copy'; }, 2000 );
+				}
+			} );
+		} );
+	}
+
+	/* ----------------------------------------------------------
+	   Data-Attribute Copy Buttons
+	   Handles buttons with data-copy-text (static string) or
+	   data-copy-selector (CSS selector whose textContent to copy).
+	   Replaces inline onclick handlers to comply with CSP.
+	   ---------------------------------------------------------- */
+	function initDataCopyButtons() {
+		var buttons = document.querySelectorAll( '[data-copy-text], [data-copy-selector]' );
+
+		buttons.forEach( function ( btn ) {
+			btn.addEventListener( 'click', function () {
+				var text = '';
+
+				if ( btn.hasAttribute( 'data-copy-text' ) ) {
+					text = btn.getAttribute( 'data-copy-text' );
+				} else {
+					var selector = btn.getAttribute( 'data-copy-selector' );
+					var target   = selector ? document.querySelector( selector ) : null;
+					if ( ! target ) return;
+					text = target.textContent || '';
+				}
+
+				var originalText  = btn.textContent;
+				var originalColor = btn.style.color;
+
+				if ( navigator.clipboard && navigator.clipboard.writeText ) {
+					navigator.clipboard.writeText( text ).then( function () {
+						btn.textContent  = '✓';
+						btn.style.color  = '#50e6ff';
+						setTimeout( function () {
+							btn.textContent = originalText;
+							btn.style.color = originalColor;
+						}, 2000 );
+					} ).catch( function () {
+						// Clipboard write failed – silently ignore
+					} );
+				} else {
+					// Fallback for browsers without Clipboard API
+					var ta        = document.createElement( 'textarea' );
+					ta.value      = text;
+					ta.style.cssText = 'position:absolute;left:-9999px;top:-9999px;';
+					document.body.appendChild( ta );
+					ta.select();
+					try { document.execCommand( 'copy' ); } catch ( e ) {}
+					document.body.removeChild( ta );
+					btn.textContent = '✓';
+					setTimeout( function () { btn.textContent = originalText; }, 2000 );
 				}
 			} );
 		} );

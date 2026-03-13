@@ -344,7 +344,7 @@ function themisdb_v3_cleanup_head() {
 	remove_action( 'wp_head', 'rest_output_link_wp_head' );
 	remove_action( 'wp_head', 'wp_oembed_add_discovery_links' );
 }
-add_action( 'after_setup_theme', 'themisdb_v3_cleanup_head' );
+add_action( 'after_setup_theme', 'themisdb_v3_cleanup_head', 11 );
 
 add_filter( 'xmlrpc_enabled', '__return_false' );
 

@@ -42,6 +42,7 @@
 	function initCounters() {
 		var counters = document.querySelectorAll( '.themis-v3-counter' );
 		if ( ! counters.length ) return;
+		if ( ! window.IntersectionObserver ) return;
 
 		var observer = new IntersectionObserver( function ( entries ) {
 			entries.forEach( function ( entry ) {

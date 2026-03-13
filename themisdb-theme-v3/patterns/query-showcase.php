@@ -30,7 +30,7 @@
 		<div id="tv3-showcase-sql" class="themis-v3-tab-panel" style="padding:0;background:#0d1821;">
 			<div style="padding:0.625rem 1rem;background:rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;">
 				<span style="font-size:0.75rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.06em;font-weight:600">SQL</span>
-				<button onclick="navigator.clipboard.writeText(document.querySelector('#tv3-showcase-sql code').textContent)" style="background:none;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);font-size:0.75rem;padding:0.2rem 0.6rem;border-radius:4px;cursor:pointer;transition:all 0.2s">Copy</button>
+				<button data-copy-selector="#tv3-showcase-sql code" class="tv3-code-copy-btn" style="background:none;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);font-size:0.75rem;padding:0.2rem 0.6rem;border-radius:4px;cursor:pointer;transition:all 0.2s">Copy</button>
 			</div>
 			<pre style="margin:0;background:transparent;border:none;border-radius:0;padding:1.75rem;font-family:'Cascadia Code','SFMono-Regular',Consolas,monospace;font-size:0.9rem;color:#cdd9e5;line-height:1.8;overflow-x:auto;"><code style="background:none;color:inherit;padding:0;border:none;"><span style="color:#6c7f96">-- Multi-model query: vector + relational + time-series</span>
 <span style="color:#0078d4">SELECT</span>
@@ -47,7 +47,7 @@
 		<div id="tv3-showcase-json" class="themis-v3-tab-panel" style="padding:0;background:#0d1821;display:none;">
 			<div style="padding:0.625rem 1rem;background:rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;">
 				<span style="font-size:0.75rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.06em;font-weight:600">JSON API</span>
-				<button onclick="navigator.clipboard.writeText(document.querySelector('#tv3-showcase-json code').textContent)" style="background:none;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);font-size:0.75rem;padding:0.2rem 0.6rem;border-radius:4px;cursor:pointer;transition:all 0.2s">Copy</button>
+				<button data-copy-selector="#tv3-showcase-json code" class="tv3-code-copy-btn" style="background:none;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);font-size:0.75rem;padding:0.2rem 0.6rem;border-radius:4px;cursor:pointer;transition:all 0.2s">Copy</button>
 			</div>
 			<pre style="margin:0;background:transparent;border:none;border-radius:0;padding:1.75rem;font-family:'Cascadia Code','SFMono-Regular',Consolas,monospace;font-size:0.9rem;color:#cdd9e5;line-height:1.8;overflow-x:auto;"><code style="background:none;color:inherit;padding:0;border:none;"><span style="color:#0078d4">POST</span> /api/v3/multi-query
 <span style="color:#6c7f96">Authorization: Bearer &lt;token&gt;</span>
@@ -74,7 +74,7 @@
 		<div id="tv3-showcase-python" class="themis-v3-tab-panel" style="padding:0;background:#0d1821;display:none;">
 			<div style="padding:0.625rem 1rem;background:rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;">
 				<span style="font-size:0.75rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.06em;font-weight:600">Python SDK</span>
-				<button onclick="navigator.clipboard.writeText(document.querySelector('#tv3-showcase-python code').textContent)" style="background:none;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);font-size:0.75rem;padding:0.2rem 0.6rem;border-radius:4px;cursor:pointer;transition:all 0.2s">Copy</button>
+				<button data-copy-selector="#tv3-showcase-python code" class="tv3-code-copy-btn" style="background:none;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);font-size:0.75rem;padding:0.2rem 0.6rem;border-radius:4px;cursor:pointer;transition:all 0.2s">Copy</button>
 			</div>
 			<pre style="margin:0;background:transparent;border:none;border-radius:0;padding:1.75rem;font-family:'Cascadia Code','SFMono-Regular',Consolas,monospace;font-size:0.9rem;color:#cdd9e5;line-height:1.8;overflow-x:auto;"><code style="background:none;color:inherit;padding:0;border:none;"><span style="color:#0078d4">import</span> themisdb
 <span style="color:#0078d4">from</span> themisdb.ai <span style="color:#0078d4">import</span> embed
