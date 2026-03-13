@@ -55,9 +55,6 @@
 						}
 					} )
 					.catch( function () {
-						if ( typeof onFailure === 'function' ) {
-							onFailure();
-						}
 						fallbackCopy();
 					} );
 			} else {
