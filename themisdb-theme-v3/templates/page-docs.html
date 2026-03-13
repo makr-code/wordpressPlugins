@@ -7,12 +7,12 @@
 <main class="wp-block-group site-main tv3-docs-main" style="padding-top:var(--wp--preset--spacing--10);padding-bottom:var(--wp--preset--spacing--20)">
 
 	<!-- Two-column docs layout: sidebar + content -->
-	<!-- wp:columns {"className":"tv3-docs-layout","style":{"spacing":{"blockGap":{"left":"var:preset|spacing|8"}}}} -->
-	<div class="wp-block-columns tv3-docs-layout" style="align-items:start">
+	<!-- wp:columns {"className":"tv3-docs-layout","verticalAlignment":"top","style":{"spacing":{"blockGap":{"left":"var:preset|spacing|8"}}}} -->
+	<div class="wp-block-columns tv3-docs-layout" style="align-items:start;column-gap:var(--wp--preset--spacing--8)">
 
 		<!-- Docs Sidebar (sticky) -->
 		<!-- wp:column {"width":"280px","className":"tv3-docs-sidebar-col"} -->
-		<div class="wp-block-column tv3-docs-sidebar-col" style="flex-basis:280px;position:sticky;top:80px">
+		<div class="wp-block-column tv3-docs-sidebar-col" style="flex-basis:280px">
 			<!-- wp:template-part {"slug":"sidebar-docs","tagName":"aside"} /-->
 		</div>
 		<!-- /wp:column -->
