@@ -5,6 +5,11 @@
 
 (function($) {
     'use strict';
+
+    // Retry configuration for loading KaTeX
+    const KATEX_MAX_RETRIES = 50;
+    const KATEX_RETRY_INITIAL_DELAY = 100;
+    let katexRetryCount = 0;
     
     /**
      * Initialize formula rendering
@@ -12,10 +17,24 @@
     function initFormulaRendering() {
         // Wait for KaTeX to be available
         if (typeof renderMathInElement === 'undefined') {
-            console.warn('KaTeX auto-render not loaded yet, retrying...');
-            setTimeout(initFormulaRendering, 100);
+            if (katexRetryCount >= KATEX_MAX_RETRIES) {
+                console.error('KaTeX auto-render not available after maximum retries. Skipping formula rendering.');
+                return;
+            }
+            
+            katexRetryCount++;
+            const retryDelay = Math.min(
+                KATEX_RETRY_INITIAL_DELAY * Math.pow(2, katexRetryCount - 1),
+                2000
+            );
+            
+            console.warn('KaTeX auto-render not loaded yet, retrying... (' + katexRetryCount + '/' + KATEX_MAX_RETRIES + ')');
+            setTimeout(initFormulaRendering, retryDelay);
             return;
         }
+
+        // Reset retry counter once KaTeX is available
+        katexRetryCount = 0;
         
         // Get settings from localized script
         var autoRender = typeof themisdbFormula !== 'undefined' && typeof themisdbFormula.autoRender !== 'undefined' 
