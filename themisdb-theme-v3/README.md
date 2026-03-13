@@ -258,15 +258,15 @@ Das Theme styled alle ThemisDB-Plugin-Ausgaben automatisch:
 |---|---|---|
 | Feature Matrix | `[themisdb_feature_matrix]` | `.themisdb-feature-wrapper` |
 | Benchmark Visualizer | `[themisdb_benchmark_visualizer]` | `.themisdb-benchmark-wrapper` |
-| Docker Downloads | `[themisdb_docker_tags]`, `[themisdb_docker_latest]` | `.themisdb-docker-wrapper` |
+| Docker Downloads | `[themisdb_docker_tags]`, `[themisdb_docker_latest]` | `.themisdb-docker-downloads-container` |
 | Downloads | `[themisdb_downloads]`, `[themisdb_latest]` | `.themisdb-downloads-wrapper` |
 | Compendium | `[themisdb_compendium_downloads]` | `.themisdb-downloads-wrapper` |
 | Release Timeline | `[themisdb_release_timeline]` | `.themisdb-timeline-wrapper` |
-| Order/License | `[themisdb_order_flow]`, `[themisdb_license_portal]` | `.themisdb-order-form` |
+| Order/License | `[themisdb_order_flow]`, `[themisdb_license_portal]` | `.themisdb-order-form`, `.themisdb-order-flow`, `.themisdb-license-portal` |
 | Taxonomy | `[themisdb_taxonomy]`, `[themisdb_term_card]` | `.themisdb-taxonomy-list` |
 | Gallery | `[themisdb_gallery]` | `.themisdb-gallery-grid` |
-| Architecture | `[themisdb_architecture]` | `.themisdb-diagram-wrapper` |
-| Query Playground | Shortcode | `.themisdb-playground-wrapper` |
+| Architecture | `[themisdb_architecture]` | `.themisdb-diagram-container`, `.themisdb-architecture-wrapper` |
+| Query Playground | Shortcode | `.themisdb-playground-wrapper`, `.themisdb-query-wrapper` |
 | TCO Calculator | `[themisdb_tco_calculator]` | `.themisdb-tco-wrapper` |
 | Formula Renderer | `[themisdb_formula]` | `.themisdb-formula-wrapper` |
 

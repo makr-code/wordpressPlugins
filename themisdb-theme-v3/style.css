@@ -1811,6 +1811,114 @@ tr:hover td { background: var(--tv3-gray-50); }
     border-radius: var(--tv3-radius) !important;
 }
 
+/* Class aliases – alternate names used by some plugin versions */
+
+/* Docker Downloads: .themisdb-docker-downloads-container is the actual plugin class */
+.themisdb-docker-downloads-container,
+.themisdb-docker-wrapper {
+    border-radius: var(--tv3-radius-md);
+    overflow: hidden;
+    border: 1px solid var(--tv3-border);
+}
+
+/* Taxonomy Manager: .themisdb-taxonomy-list is rendered by the widget and shortcode */
+.themisdb-taxonomy-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.themisdb-taxonomy-list li {
+    padding: 0.375rem 0;
+    border-bottom: 1px solid var(--tv3-gray-100);
+}
+.themisdb-taxonomy-list li a {
+    color: var(--tv3-azure);
+    text-decoration: none;
+    font-weight: 500;
+}
+.themisdb-taxonomy-list li a:hover { color: var(--tv3-azure-dark); text-decoration: underline; }
+
+/* Gallery Plugin: .themisdb-gallery-grid / .themisdb-gallery-item */
+.themisdb-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--tv3-space-4);
+}
+.themisdb-gallery-item,
+.themisdb-gallery-grid img {
+    border-radius: var(--tv3-radius-md);
+    overflow: hidden;
+    object-fit: cover;
+    width: 100%;
+}
+
+/* Architecture: .themisdb-diagram-container / .themisdb-diagram-wrapper */
+.themisdb-diagram-container,
+.themisdb-diagram-wrapper {
+    border-radius: var(--tv3-radius-md);
+    overflow: hidden;
+    border: 1px solid var(--tv3-border);
+    background: var(--tv3-bg-subtle);
+}
+
+/* Query Playground: .themisdb-playground-wrapper / .themisdb-query-wrapper */
+.themisdb-playground-wrapper,
+.themisdb-query-wrapper {
+    border-radius: var(--tv3-radius-md);
+    overflow: hidden;
+    border: 1px solid var(--tv3-border);
+}
+
+/* Order/License: .themisdb-order-form / .themisdb-order-flow / .themisdb-license-portal */
+.themisdb-order-form,
+.themisdb-order-flow,
+.themisdb-license-portal {
+    border-radius: var(--tv3-radius-md);
+    border: 1px solid var(--tv3-border);
+    padding: var(--tv3-space-8);
+    background: var(--tv3-bg-subtle);
+}
+.themisdb-order-form input,
+.themisdb-order-form textarea,
+.themisdb-order-form select,
+.themisdb-order-flow input,
+.themisdb-order-flow textarea,
+.themisdb-order-flow select {
+    border-radius: var(--tv3-radius) !important;
+    border: 1px solid var(--tv3-border) !important;
+    font-family: var(--tv3-font-sans) !important;
+}
+.themisdb-order-form input:focus,
+.themisdb-order-form textarea:focus,
+.themisdb-order-flow input:focus,
+.themisdb-order-flow textarea:focus {
+    border-color: var(--tv3-azure) !important;
+    box-shadow: var(--tv3-shadow-focus) !important;
+    outline: none !important;
+}
+
+/* Shared button styles across all plugins */
+.themisdb-btn-primary {
+    background: var(--tv3-azure) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: var(--tv3-radius) !important;
+    font-weight: 600 !important;
+    transition: var(--tv3-transition) !important;
+}
+.themisdb-btn-primary:hover { background: var(--tv3-azure-dark) !important; }
+.themisdb-btn-secondary {
+    background: transparent !important;
+    color: var(--tv3-azure) !important;
+    border: 1.5px solid var(--tv3-azure) !important;
+    border-radius: var(--tv3-radius) !important;
+    font-weight: 600 !important;
+    transition: var(--tv3-transition) !important;
+}
+.themisdb-btn-secondary:hover {
+    background: var(--tv3-azure-pale) !important;
+}
+
 /* Graph Navigation */
 .themisdb-graph-wrapper .graph-node circle { fill: var(--tv3-azure) !important; }
 

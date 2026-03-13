@@ -10,7 +10,7 @@
  */
 ?>
 <!-- wp:cover {"dimRatio":0,"minHeight":660,"minHeightUnit":"px","isDark":true,"className":"tv3-hero","layout":{"type":"constrained","contentSize":"960px"}} -->
-<div class="wp-block-cover tv3-hero is-light" style="min-height:660px">
+<div class="wp-block-cover tv3-hero is-dark" style="min-height:660px">
 	<span aria-hidden="true" class="wp-block-cover__background has-background-dim-0 has-background-dim wp-block-cover__gradient-background has-background-gradient" style="background:linear-gradient(160deg,#001a33 0%,#003366 45%,#00509e 100%)"></span>
 	<div class="wp-block-cover__inner-container tv3-hero-inner">
 		<!-- wp:spacer {"height":"48px"} --><div style="height:48px" aria-hidden="true" class="wp-block-spacer"></div><!-- /wp:spacer -->
