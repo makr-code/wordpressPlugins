@@ -24,8 +24,9 @@
             }
             
             katexRetryCount++;
+            const backoffExponent = Math.min(Math.max(katexRetryCount - 1, 0), KATEX_BACKOFF_EXPONENT_CAP);
             const retryDelay = Math.min(
-                KATEX_RETRY_INITIAL_DELAY * Math.pow(2, Math.min(katexRetryCount, KATEX_BACKOFF_EXPONENT_CAP)),
+                KATEX_RETRY_INITIAL_DELAY * Math.pow(2, backoffExponent),
                 2000
             );
             

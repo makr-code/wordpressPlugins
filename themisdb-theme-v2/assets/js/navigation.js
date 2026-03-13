@@ -18,6 +18,53 @@
 	   ---------------------------------------------------------- */
 	document.addEventListener( 'DOMContentLoaded', function () {
 
+		// Shared helper to copy text with clipboard API and execCommand fallback
+		var copyTextWithFallback = function ( text, onSuccess, onFailure ) {
+			var fallbackCopy = function () {
+				var ta    = document.createElement( 'textarea' );
+				ta.value  = text;
+				ta.style.position = 'absolute';
+				ta.style.left     = '-9999px';
+				document.body.appendChild( ta );
+				ta.select();
+				var ok = false;
+				try {
+					ok = document.execCommand( 'copy' );
+				} catch ( e ) {
+					ok = false;
+				}
+				document.body.removeChild( ta );
+
+				if ( ok ) {
+					if ( typeof onSuccess === 'function' ) {
+						onSuccess();
+					}
+				} else if ( typeof onFailure === 'function' ) {
+					onFailure();
+				} else if ( typeof onSuccess === 'function' ) {
+					// Provide optimistic feedback even if execCommand is unavailable
+					onSuccess();
+				}
+			};
+
+			if ( navigator.clipboard && navigator.clipboard.writeText ) {
+				navigator.clipboard.writeText( text )
+					.then( function () {
+						if ( typeof onSuccess === 'function' ) {
+							onSuccess();
+						}
+					} )
+					.catch( function () {
+						if ( typeof onFailure === 'function' ) {
+							onFailure();
+						}
+						fallbackCopy();
+					} );
+			} else {
+				fallbackCopy();
+			}
+		};
+
 		// WP block navigation has its own toggle; we enhance it
 		var navToggle = document.querySelector( '.wp-block-navigation__responsive-container-open' );
 		var navClose  = document.querySelector( '.wp-block-navigation__responsive-container-close' );
@@ -110,39 +157,7 @@
 						copyBtn.style.color = 'rgba(255,255,255,0.6)';
 					}, 2000 );
 				};
-				var fallbackCopy = function () {
-					var ta = document.createElement( 'textarea' );
-					ta.value = codeEl.textContent;
-					ta.style.position = 'absolute';
-					ta.style.left = '-9999px';
-					document.body.appendChild( ta );
-					ta.select();
-					var removeTa = function () {
-						if ( ta && ta.parentNode ) {
-							ta.parentNode.removeChild( ta );
-						}
-					};
-					try {
-						var ok = document.execCommand( 'copy' );
-						removeTa();
-						if ( ok ) {
-							applySuccessState();
-						} else {
-							applyFailureState();
-						}
-					} catch ( e ) {
-						removeTa();
-						applyFailureState();
-					}
-				};
-
-				if ( navigator.clipboard ) {
-					navigator.clipboard.writeText( codeEl.textContent )
-						.then( applySuccessState )
-						.catch( fallbackCopy );
-				} else {
-					fallbackCopy();
-				}
+				copyTextWithFallback( codeEl.textContent, applySuccessState, applyFailureState );
 			} );
 		} );
 
@@ -183,25 +198,7 @@
 				}, 1500 );
 			};
 
-			var fallbackCopy = function () {
-				var ta    = document.createElement( 'textarea' );
-				ta.value  = text;
-				ta.style.position = 'absolute';
-				ta.style.left     = '-9999px';
-				document.body.appendChild( ta );
-				ta.select();
-				try { document.execCommand( 'copy' ); } catch ( e ) {}
-				document.body.removeChild( ta );
-				showSuccess();
-			};
-
-			if ( navigator.clipboard && navigator.clipboard.writeText ) {
-				navigator.clipboard.writeText( text )
-					.then( showSuccess )
-					.catch( fallbackCopy );
-			} else {
-				fallbackCopy();
-			}
+			copyTextWithFallback( text, showSuccess );
 		};
 
 		document.addEventListener( 'click', handleDataCopyClick );
