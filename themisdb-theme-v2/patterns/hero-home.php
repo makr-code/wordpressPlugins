@@ -9,7 +9,7 @@
  * Description: Full-width dark hero section with headline, subtitle, CTA buttons and Docker command.
  */
 ?>
-<!-- wp:cover {"dimRatio":0,"minHeight":620,"minHeightUnit":"px","isDark":true,"gradient":"themis-hero","className":"themis-hero-section","layout":{"type":"constrained","contentSize":"900px"}} -->
+<!-- wp:cover {"dimRatio":0,"minHeight":620,"minHeightUnit":"px","isDark":true,"customGradient":"linear-gradient(160deg,#1a252f 0%,#2c3e50 50%,#34495e 100%)","className":"themis-hero-section","layout":{"type":"constrained","contentSize":"900px"}} -->
 <div class="wp-block-cover themis-hero-section is-dark" style="min-height:620px">
 	<span aria-hidden="true" class="wp-block-cover__background has-background-dim-0 has-background-dim wp-block-cover__gradient-background has-background-gradient" style="background:linear-gradient(160deg,#1a252f 0%,#2c3e50 50%,#34495e 100%)"></span>
 	<div class="wp-block-cover__inner-container">

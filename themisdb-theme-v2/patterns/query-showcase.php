@@ -22,9 +22,9 @@
 			<!-- /wp:paragraph -->
 			<!-- wp:list {"style":{"typography":{"fontSize":"0.9375rem"},"color":{"text":"rgba(255,255,255,0.8)"},"spacing":{"margin":{"bottom":"var:preset|spacing|8"}}}} -->
 			<ul class="has-text-color wp-block-list" style="font-size:0.9375rem;color:rgba(255,255,255,0.8);margin-bottom:var(--wp--preset--spacing--8)">
-				<li>✓ SQL + JSON + Graph queries</li>
-				<li>✓ Live result set with explain plan</li>
-				<li>✓ Shareable query links</li>
+				<!-- wp:list-item --><li>✓ SQL + JSON + Graph queries</li><!-- /wp:list-item -->
+				<!-- wp:list-item --><li>✓ Live result set with explain plan</li><!-- /wp:list-item -->
+				<!-- wp:list-item --><li>✓ Shareable query links</li><!-- /wp:list-item -->
 			</ul>
 			<!-- /wp:list -->
 			<!-- wp:buttons -->
