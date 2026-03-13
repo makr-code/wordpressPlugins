@@ -8,20 +8,20 @@
  */
 ?>
 <!-- wp:group {"style":{"color":{"background":"#1a252f"},"spacing":{"padding":{"top":"var:preset|spacing|20","bottom":"var:preset|spacing|20"}}},"layout":{"type":"constrained","contentSize":"1100px"}} -->
-<div class="wp-block-group" style="background-color:#1a252f;padding-top:var(--wp--preset--spacing--20);padding-bottom:var(--wp--preset--spacing--20)">
+<div class="has-background wp-block-group" style="background-color:#1a252f;padding-top:var(--wp--preset--spacing--20);padding-bottom:var(--wp--preset--spacing--20)">
 	<!-- wp:columns {"verticalAlignment":"center","style":{"spacing":{"blockGap":{"left":"var:preset|spacing|12"}}}} -->
 	<div class="wp-block-columns are-vertically-aligned-center">
 		<!-- wp:column {"verticalAlignment":"center"} -->
 		<div class="wp-block-column is-vertically-aligned-center">
 			<!-- wp:html --><div style="display:inline-block;background:rgba(52,152,219,0.15);color:#3498db;border-radius:100px;padding:0.2rem 0.75rem;font-size:0.75rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:1rem;">Interactive Playground</div><!-- /wp:html -->
 			<!-- wp:heading {"level":2,"style":{"typography":{"fontSize":"clamp(1.5rem,3vw,2.25rem)","fontWeight":"700","letterSpacing":"-0.02em","lineHeight":"1.25"},"color":{"text":"#ffffff"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
-			<h2 class="wp-block-heading" style="color:#ffffff;font-size:clamp(1.5rem,3vw,2.25rem);font-weight:700;letter-spacing:-0.02em;line-height:1.25;margin-bottom:var(--wp--preset--spacing--4)">Try ThemisDB in your browser</h2>
+			<h2 class="has-text-color wp-block-heading" style="color:#ffffff;font-size:clamp(1.5rem,3vw,2.25rem);font-weight:700;letter-spacing:-0.02em;line-height:1.25;margin-bottom:var(--wp--preset--spacing--4)">Try ThemisDB in your browser</h2>
 			<!-- /wp:heading -->
 			<!-- wp:paragraph {"style":{"typography":{"fontSize":"1rem","lineHeight":"1.65"},"color":{"text":"rgba(255,255,255,0.65)"},"spacing":{"margin":{"bottom":"var:preset|spacing|6"}}}} -->
-			<p style="color:rgba(255,255,255,0.65);font-size:1rem;line-height:1.65;margin-bottom:var(--wp--preset--spacing--6)">Write multi-model queries — relational joins, JSON traversal, vector search — and see results instantly. No installation needed.</p>
+			<p class="has-text-color" style="color:rgba(255,255,255,0.65);font-size:1rem;line-height:1.65;margin-bottom:var(--wp--preset--spacing--6)">Write multi-model queries — relational joins, JSON traversal, vector search — and see results instantly. No installation needed.</p>
 			<!-- /wp:paragraph -->
 			<!-- wp:list {"style":{"typography":{"fontSize":"0.9375rem"},"color":{"text":"rgba(255,255,255,0.8)"},"spacing":{"margin":{"bottom":"var:preset|spacing|8"}}}} -->
-			<ul class="wp-block-list" style="font-size:0.9375rem;color:rgba(255,255,255,0.8);margin-bottom:var(--wp--preset--spacing--8)">
+			<ul class="has-text-color wp-block-list" style="font-size:0.9375rem;color:rgba(255,255,255,0.8);margin-bottom:var(--wp--preset--spacing--8)">
 				<li>✓ SQL + JSON + Graph queries</li>
 				<li>✓ Live result set with explain plan</li>
 				<li>✓ Shareable query links</li>
@@ -30,7 +30,7 @@
 			<!-- wp:buttons -->
 			<div class="wp-block-buttons">
 				<!-- wp:button {"style":{"color":{"background":"#3498db","text":"#ffffff"},"border":{"radius":"8px"},"spacing":{"padding":{"top":"0.75rem","bottom":"0.75rem","left":"1.75rem","right":"1.75rem"}}}} -->
-				<div class="wp-block-button"><a href="/query-playground" class="wp-block-button__link wp-element-button" style="background-color:#3498db;color:#ffffff;border-radius:8px;padding:0.75rem 1.75rem;font-weight:600">Open Query Playground →</a></div>
+				<div class="has-background has-text-color wp-block-button"><a href="/query-playground" class="wp-block-button__link wp-element-button" style="background-color:#3498db;color:#ffffff;border-radius:8px;padding:0.75rem 1.75rem;font-weight:600">Open Query Playground →</a></div>
 				<!-- /wp:button -->
 			</div>
 			<!-- /wp:buttons -->

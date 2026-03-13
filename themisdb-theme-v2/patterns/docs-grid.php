@@ -8,12 +8,12 @@
  */
 ?>
 <!-- wp:group {"style":{"color":{"background":"#ffffff"},"spacing":{"padding":{"top":"var:preset|spacing|20","bottom":"var:preset|spacing|20"}}},"layout":{"type":"constrained","contentSize":"1100px"}} -->
-<div class="wp-block-group" style="background-color:#ffffff;padding-top:var(--wp--preset--spacing--20);padding-bottom:var(--wp--preset--spacing--20)">
+<div class="has-background wp-block-group" style="background-color:#ffffff;padding-top:var(--wp--preset--spacing--20);padding-bottom:var(--wp--preset--spacing--20)">
 	<!-- wp:heading {"level":2,"textAlign":"center","style":{"typography":{"fontSize":"clamp(1.75rem,3vw,2.5rem)","fontWeight":"700","letterSpacing":"-0.02em"},"color":{"text":"#2c3e50"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
-	<h2 class="wp-block-heading has-text-align-center" style="color:#2c3e50;font-size:clamp(1.75rem,3vw,2.5rem);font-weight:700;letter-spacing:-0.02em;margin-bottom:var(--wp--preset--spacing--4)">Explore documentation &amp; resources</h2>
+	<h2 class="has-text-color wp-block-heading has-text-align-center" style="color:#2c3e50;font-size:clamp(1.75rem,3vw,2.5rem);font-weight:700;letter-spacing:-0.02em;margin-bottom:var(--wp--preset--spacing--4)">Explore documentation &amp; resources</h2>
 	<!-- /wp:heading -->
 	<!-- wp:paragraph {"textAlign":"center","style":{"typography":{"fontSize":"1.0625rem"},"color":{"text":"#7f8c8d"},"spacing":{"margin":{"bottom":"var:preset|spacing|12"}}}} -->
-	<p class="has-text-align-center" style="color:#7f8c8d;font-size:1.0625rem;margin-bottom:var(--wp--preset--spacing--12)">Everything you need to get productive with ThemisDB.</p>
+	<p class="has-text-color has-text-align-center" style="color:#7f8c8d;font-size:1.0625rem;margin-bottom:var(--wp--preset--spacing--12)">Everything you need to get productive with ThemisDB.</p>
 	<!-- /wp:paragraph -->
 	<!-- wp:html -->
 	<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;">
