@@ -1,0 +1,434 @@
+<!-- wp:template-part {"slug":"announcement-bar","tagName":"div"} /-->
+<!-- wp:template-part {"slug":"header","tagName":"header","area":"header"} /-->
+
+<!-- ============================================================
+     HERO – Azure/PostgreSQL Inspired Full-Width Dark Section
+     ============================================================ -->
+<!-- wp:cover {"dimRatio":0,"minHeight":660,"minHeightUnit":"px","className":"tv3-hero","isDark":true,"style":{"color":{"duotone":"unset"}},"layout":{"type":"constrained","contentSize":"960px"}} -->
+<div class="wp-block-cover tv3-hero is-light" style="min-height:660px">
+	<span aria-hidden="true" class="wp-block-cover__background has-background-dim-0 has-background-dim wp-block-cover__gradient-background has-background-gradient" style="background:linear-gradient(160deg,#001a33 0%,#003366 45%,#00509e 100%)"></span>
+	<div class="wp-block-cover__inner-container tv3-hero-inner">
+
+		<!-- wp:spacer {"height":"48px"} --><div style="height:48px" aria-hidden="true" class="wp-block-spacer"></div><!-- /wp:spacer -->
+
+		<!-- "New" badge in Azure Cyan -->
+		<!-- wp:html -->
+		<div style="text-align:center;margin-bottom:1.5rem;">
+			<a href="/docs/changelog" class="tv3-hero-badge" style="display:inline-flex;align-items:center;gap:0.5rem;background:rgba(0,120,212,0.2);border:1px solid rgba(80,230,255,0.4);border-radius:9999px;padding:0.3rem 1rem 0.3rem 0.4rem;text-decoration:none;font-size:0.8125rem;color:rgba(255,255,255,0.9);font-weight:500;">
+				<span class="tv3-hero-badge-pill" style="background:#50e6ff;color:#003366;border-radius:9999px;padding:0.15rem 0.65rem;font-size:0.6875rem;font-weight:800;letter-spacing:0.04em;">NEW</span>
+				ThemisDB v3 · Fluent Design + jQuery Animations →
+			</a>
+		</div>
+		<!-- /wp:html -->
+
+		<!-- H1 Headline -->
+		<!-- wp:heading {"level":1,"textAlign":"center","style":{"typography":{"fontSize":"clamp(2.25rem,5.5vw,4rem)","fontWeight":"800","lineHeight":"1.1","letterSpacing":"-0.04em"},"color":{"text":"#ffffff"},"spacing":{"margin":{"bottom":"var:preset|spacing|5"}}}} -->
+		<h1 class="wp-block-heading has-text-align-center" style="color:#ffffff;font-size:clamp(2.25rem,5.5vw,4rem);font-weight:800;line-height:1.1;letter-spacing:-0.04em;margin-bottom:var(--wp--preset--spacing--5)">ThemisDB v3 – The Database<br>Built for the AI Era</h1>
+		<!-- /wp:heading -->
+
+		<!-- Subtitle -->
+		<!-- wp:paragraph {"textAlign":"center","style":{"typography":{"fontSize":"clamp(1rem,2vw,1.3125rem)","lineHeight":"1.65"},"color":{"text":"rgba(255,255,255,0.72)"},"spacing":{"margin":{"bottom":"var:preset|spacing|8"}}}} -->
+		<p class="has-text-align-center" style="color:rgba(255,255,255,0.72);font-size:clamp(1rem,2vw,1.3125rem);line-height:1.65;margin-bottom:var(--wp--preset--spacing--8)">Multi-model storage, native AI/LLM integration, and extreme performance — in one open-source database. Now with Azure Fluent Design, animated dashboards, and enterprise pricing.</p>
+		<!-- /wp:paragraph -->
+
+		<!-- CTA Buttons -->
+		<!-- wp:buttons {"layout":{"type":"flex","justifyContent":"center","flexWrap":"wrap"},"style":{"spacing":{"blockGap":"var:preset|spacing|4","margin":{"bottom":"var:preset|spacing|8"}}}} -->
+		<div class="wp-block-buttons" style="margin-bottom:var(--wp--preset--spacing--8)">
+			<!-- wp:button {"style":{"color":{"background":"#0078d4","text":"#ffffff"},"border":{"radius":"8px"},"spacing":{"padding":{"top":"0.875rem","bottom":"0.875rem","left":"2rem","right":"2rem"}}},"fontSize":"md"} -->
+			<div class="wp-block-button">
+				<a href="/downloads" class="wp-block-button__link wp-element-button has-md-font-size" style="background-color:#0078d4;color:#ffffff;border-radius:8px;padding:0.875rem 2rem;font-weight:700">⬇ Download Free</a>
+			</div>
+			<!-- /wp:button -->
+			<!-- wp:button {"className":"is-style-outline","style":{"color":{"text":"rgba(255,255,255,0.9)"},"border":{"radius":"8px","color":"rgba(255,255,255,0.35)","width":"1.5px"},"spacing":{"padding":{"top":"0.875rem","bottom":"0.875rem","left":"2rem","right":"2rem"}}},"fontSize":"md"} -->
+			<div class="wp-block-button is-style-outline">
+				<a href="/docs/getting-started" class="wp-block-button__link wp-element-button has-md-font-size" style="color:rgba(255,255,255,0.9);border:1.5px solid rgba(255,255,255,0.35);border-radius:8px;padding:0.875rem 2rem">View Documentation →</a>
+			</div>
+			<!-- /wp:button -->
+		</div>
+		<!-- /wp:buttons -->
+
+		<!-- Docker Command Snippet -->
+		<!-- wp:html -->
+		<div class="tv3-hero-code-wrapper" style="text-align:center;max-width:560px;margin:0 auto;">
+			<div class="tv3-hero-code" style="display:inline-flex;align-items:center;gap:0.875rem;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:0.875rem 1.5rem;">
+				<span class="prompt" style="color:#50e6ff;font-weight:700;font-size:0.9rem;font-family:'Cascadia Code','SFMono-Regular',Consolas,monospace">$</span>
+				<code style="font-family:'Cascadia Code','SFMono-Regular',Consolas,monospace;font-size:0.875rem;color:#cdd9e5;letter-spacing:0.01em;">docker pull themisdb/themisdb:v3-latest</code>
+				<button onclick="navigator.clipboard.writeText('docker pull themisdb/themisdb:v3-latest').then(function(){this.textContent='✓';setTimeout(function(){document.querySelectorAll('.tv3-copy-hero')[0].textContent='⎘';},2000)}.bind(this))" class="tv3-copy-hero tv3-code-copy-btn" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.4);font-size:0.9rem;padding:0;line-height:1;transition:color 0.2s;" title="Copy command" aria-label="Copy docker command">⎘</button>
+			</div>
+			<p style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin:0.625rem 0 0">Also available: <a href="/downloads" style="color:rgba(255,255,255,0.55);text-decoration:underline">binary release</a> · <a href="https://github.com/makr-code/wordpressPlugins" style="color:rgba(255,255,255,0.55);text-decoration:underline">source code</a></p>
+		</div>
+		<!-- /wp:html -->
+
+		<!-- wp:spacer {"height":"48px"} --><div style="height:48px" aria-hidden="true" class="wp-block-spacer"></div><!-- /wp:spacer -->
+
+	</div>
+</div>
+<!-- /wp:cover -->
+
+<!-- ============================================================
+     STATS / TRUST BAR – 4 animated counters
+     ============================================================ -->
+<!-- wp:group {"className":"tv3-stats-bar themis-v3-fade-in","style":{"color":{"background":"#ffffff"},"spacing":{"padding":{"top":"0","bottom":"0"}},"border":{"bottom":{"color":"#dde3ec","width":"1px"}}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
+<div class="wp-block-group tv3-stats-bar themis-v3-fade-in" style="background-color:#ffffff;border-bottom:1px solid #dde3ec">
+	<!-- wp:columns {"isStackedOnMobile":false,"style":{"spacing":{"blockGap":{"left":"0"}}}} -->
+	<div class="wp-block-columns">
+		<!-- wp:column {"style":{"border":{"right":{"color":"#dde3ec","width":"1px"}},"spacing":{"padding":{"top":"var:preset|spacing|8","bottom":"var:preset|spacing|8","left":"var:preset|spacing|6","right":"var:preset|spacing|6"}}}} -->
+		<div class="wp-block-column" style="padding:var(--wp--preset--spacing--8) var(--wp--preset--spacing--6);border-right:1px solid #dde3ec">
+			<!-- wp:html --><div style="text-align:center"><div class="themis-v3-counter" data-target="500" data-suffix="K+" style="font-size:2.25rem;font-weight:800;color:#003366;letter-spacing:-0.04em;line-height:1.1">500K+</div><div style="font-size:0.8125rem;color:#6c7f96;margin-top:0.375rem;font-weight:500">Downloads</div></div><!-- /wp:html -->
+		</div><!-- /wp:column -->
+		<!-- wp:column {"style":{"border":{"right":{"color":"#dde3ec","width":"1px"}},"spacing":{"padding":{"top":"var:preset|spacing|8","bottom":"var:preset|spacing|8","left":"var:preset|spacing|6","right":"var:preset|spacing|6"}}}} -->
+		<div class="wp-block-column" style="padding:var(--wp--preset--spacing--8) var(--wp--preset--spacing--6);border-right:1px solid #dde3ec">
+			<!-- wp:html --><div style="text-align:center"><div class="themis-v3-counter" data-target="50" data-suffix="+" style="font-size:2.25rem;font-weight:800;color:#003366;letter-spacing:-0.04em;line-height:1.1">50+</div><div style="font-size:0.8125rem;color:#6c7f96;margin-top:0.375rem;font-weight:500">Integrations</div></div><!-- /wp:html -->
+		</div><!-- /wp:column -->
+		<!-- wp:column {"style":{"border":{"right":{"color":"#dde3ec","width":"1px"}},"spacing":{"padding":{"top":"var:preset|spacing|8","bottom":"var:preset|spacing|8","left":"var:preset|spacing|6","right":"var:preset|spacing|6"}}}} -->
+		<div class="wp-block-column" style="padding:var(--wp--preset--spacing--8) var(--wp--preset--spacing--6);border-right:1px solid #dde3ec">
+			<!-- wp:html --><div style="text-align:center"><div class="themis-v3-counter" data-target="10" data-suffix="×" style="font-size:2.25rem;font-weight:800;color:#003366;letter-spacing:-0.04em;line-height:1.1">10×</div><div style="font-size:0.8125rem;color:#6c7f96;margin-top:0.375rem;font-weight:500">Faster than PostgreSQL</div></div><!-- /wp:html -->
+		</div><!-- /wp:column -->
+		<!-- wp:column {"style":{"spacing":{"padding":{"top":"var:preset|spacing|8","bottom":"var:preset|spacing|8","left":"var:preset|spacing|6","right":"var:preset|spacing|6"}}}} -->
+		<div class="wp-block-column" style="padding:var(--wp--preset--spacing--8) var(--wp--preset--spacing--6)">
+			<!-- wp:html --><div style="text-align:center"><div style="font-size:2.25rem;font-weight:800;color:#003366;letter-spacing:-0.04em;line-height:1.1">MIT</div><div style="font-size:0.8125rem;color:#6c7f96;margin-top:0.375rem;font-weight:500">Open Source License</div></div><!-- /wp:html -->
+		</div><!-- /wp:column -->
+	</div>
+	<!-- /wp:columns -->
+</div>
+<!-- /wp:group -->
+
+<!-- ============================================================
+     PRODUCT CATEGORIES – 6 tiles in 2×3 grid (Azure-style)
+     ============================================================ -->
+<!-- wp:group {"className":"tv3-products-section","style":{"color":{"background":"#ffffff"},"spacing":{"padding":{"top":"var:preset|spacing|20","bottom":"var:preset|spacing|20"}}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
+<div class="wp-block-group tv3-products-section" style="background-color:#ffffff;padding-top:var(--wp--preset--spacing--20);padding-bottom:var(--wp--preset--spacing--20)">
+
+	<!-- wp:html --><div style="text-align:center;margin-bottom:1rem"><span style="display:inline-block;background:#cfe4fc;color:#0078d4;border-radius:9999px;padding:0.25rem 0.875rem;font-size:0.75rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase">Platform</span></div><!-- /wp:html -->
+
+	<!-- wp:heading {"level":2,"textAlign":"center","style":{"typography":{"fontSize":"clamp(1.75rem,3.5vw,2.75rem)","fontWeight":"700","letterSpacing":"-0.03em"},"color":{"text":"#12202f"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
+	<h2 class="wp-block-heading has-text-align-center" style="color:#12202f;font-size:clamp(1.75rem,3.5vw,2.75rem);font-weight:700;letter-spacing:-0.03em;margin-bottom:var(--wp--preset--spacing--4)">Everything you need in one database</h2>
+	<!-- /wp:heading -->
+	<!-- wp:paragraph {"textAlign":"center","style":{"typography":{"fontSize":"1.0625rem","lineHeight":"1.65"},"color":{"text":"#6c7f96"},"spacing":{"margin":{"bottom":"var:preset|spacing|12"}}}} -->
+	<p class="has-text-align-center" style="color:#6c7f96;font-size:1.0625rem;line-height:1.65;margin-bottom:var(--wp--preset--spacing--12)">ThemisDB is designed from the ground up for modern applications that demand speed, flexibility, and intelligence.</p>
+	<!-- /wp:paragraph -->
+
+	<!-- 2×3 Product Card Grid -->
+	<!-- wp:html -->
+	<div class="tv3-product-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;">
+
+		<a href="/features/multi-model" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s ease;background:#fff;position:relative;overflow:hidden;">
+			<div style="width:52px;height:52px;background:linear-gradient(135deg,#0078d4,#005a9e);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🗄️</div>
+			<div>
+				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Multi-Model Storage</div>
+				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Relational, document, graph, time-series — one engine, one query language, zero compromise.</div>
+			</div>
+			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">Learn more →</div>
+		</a>
+
+		<a href="/features/ai-integration" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s ease;background:#fff;position:relative;overflow:hidden;">
+			<div style="width:52px;height:52px;background:linear-gradient(135deg,#003366,#00509e);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🤖</div>
+			<div>
+				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Native AI/LLM Integration</div>
+				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Embed vector search, semantic queries, and LLM pipelines directly in the database layer.</div>
+			</div>
+			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">Learn more →</div>
+		</a>
+
+		<a href="/benchmarks" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s ease;background:#fff;position:relative;overflow:hidden;">
+			<div style="width:52px;height:52px;background:linear-gradient(135deg,#107c10,#55b056);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">⚡</div>
+			<div>
+				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Extreme Performance</div>
+				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Up to 10× faster than PostgreSQL. See independent benchmark results for all workload types.</div>
+			</div>
+			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">View benchmarks →</div>
+		</a>
+
+		<a href="/docker" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s ease;background:#fff;position:relative;overflow:hidden;">
+			<div style="width:52px;height:52px;background:linear-gradient(135deg,#00b7c3,#50e6ff);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🐳</div>
+			<div>
+				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Docker Ready</div>
+				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Official Docker images with one-line setup. Deploy on Kubernetes, Docker Compose, or standalone.</div>
+			</div>
+			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">Docker Hub →</div>
+		</a>
+
+		<a href="/query-playground" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s ease;background:#fff;position:relative;overflow:hidden;">
+			<div style="width:52px;height:52px;background:linear-gradient(135deg,#ffb900,#e66200);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🧪</div>
+			<div>
+				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Interactive Query Playground</div>
+				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Write and execute SQL, JSON, and vector queries in-browser. No installation needed.</div>
+			</div>
+			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">Try it now →</div>
+		</a>
+
+		<a href="/features/analytics" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s ease;background:#fff;position:relative;overflow:hidden;">
+			<div style="width:52px;height:52px;background:linear-gradient(135deg,#d13438,#750b1c);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📊</div>
+			<div>
+				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Built-in Analytics</div>
+				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Real-time metrics, performance dashboards, and query analytics — no external tools needed.</div>
+			</div>
+			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">Learn more →</div>
+		</a>
+
+	</div>
+	<!-- /wp:html -->
+
+</div>
+<!-- /wp:group -->
+
+<!-- ============================================================
+     FEATURE SHOWCASE – Alternating text+image (Azure style)
+     ============================================================ -->
+<!-- wp:group {"className":"tv3-features-section","style":{"color":{"background":"#f5f7fa"},"spacing":{"padding":{"top":"var:preset|spacing|20","bottom":"var:preset|spacing|20"}}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
+<div class="wp-block-group tv3-features-section" style="background-color:#f5f7fa;padding-top:var(--wp--preset--spacing--20);padding-bottom:var(--wp--preset--spacing--20)">
+
+	<!-- wp:heading {"level":2,"textAlign":"center","style":{"typography":{"fontSize":"clamp(1.75rem,3.5vw,2.75rem)","fontWeight":"700","letterSpacing":"-0.03em"},"color":{"text":"#12202f"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
+	<h2 class="wp-block-heading has-text-align-center" style="color:#12202f;font-size:clamp(1.75rem,3.5vw,2.75rem);font-weight:700;letter-spacing:-0.03em;margin-bottom:var(--wp--preset--spacing--4)">Why choose ThemisDB?</h2>
+	<!-- /wp:heading -->
+	<!-- wp:paragraph {"textAlign":"center","style":{"typography":{"fontSize":"1.0625rem"},"color":{"text":"#6c7f96"},"spacing":{"margin":{"bottom":"var:preset|spacing|16"}}}} -->
+	<p class="has-text-align-center" style="color:#6c7f96;font-size:1.0625rem;margin-bottom:var(--wp--preset--spacing--16)">Built for developers who demand more from their database infrastructure.</p>
+	<!-- /wp:paragraph -->
+
+	<!-- Feature 1: Multi-Model (text left, visual right) -->
+	<!-- wp:columns {"verticalAlignment":"center","style":{"spacing":{"blockGap":{"left":"var:preset|spacing|12"},"margin":{"bottom":"var:preset|spacing|16"}}}} -->
+	<div class="wp-block-columns are-vertically-aligned-center" style="margin-bottom:var(--wp--preset--spacing--16)">
+		<!-- wp:column {"verticalAlignment":"center"} -->
+		<div class="wp-block-column is-vertically-aligned-center">
+			<!-- wp:html --><div style="display:inline-block;background:#cfe4fc;color:#0078d4;border-radius:9999px;padding:0.2rem 0.75rem;font-size:0.75rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.875rem;">Multi-Model</div><!-- /wp:html -->
+			<!-- wp:heading {"level":3,"style":{"typography":{"fontSize":"1.875rem","fontWeight":"700","letterSpacing":"-0.02em"},"color":{"text":"#12202f"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
+			<h3 class="wp-block-heading" style="color:#12202f;font-size:1.875rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:var(--wp--preset--spacing--4)">One database.<br>Every data model.</h3>
+			<!-- /wp:heading -->
+			<!-- wp:paragraph {"style":{"typography":{"fontSize":"1rem","lineHeight":"1.7"},"color":{"text":"#6c7f96"}}} -->
+			<p style="color:#6c7f96;font-size:1rem;line-height:1.7;">Stop managing five different databases. ThemisDB natively handles relational tables, JSON documents, graph relationships, and time-series data — with ACID transactions and a single query interface.</p>
+			<!-- /wp:paragraph -->
+			<!-- wp:list {"style":{"typography":{"fontSize":"0.9375rem"},"color":{"text":"#12202f"},"spacing":{"margin":{"top":"var:preset|spacing|4"}}}} -->
+			<ul class="wp-block-list" style="font-size:0.9375rem;color:#12202f;margin-top:var(--wp--preset--spacing--4)">
+				<li>Relational + Document + Graph + Time-series</li>
+				<li>Single SQL-compatible query language</li>
+				<li>Full ACID transactions across all models</li>
+				<li>Schema-on-write or schema-on-read</li>
+			</ul>
+			<!-- /wp:list -->
+		</div>
+		<!-- /wp:column -->
+		<!-- wp:column {"verticalAlignment":"center"} -->
+		<div class="wp-block-column is-vertically-aligned-center">
+			<!-- wp:html -->
+			<div style="background:linear-gradient(135deg,#001a33,#003366);border-radius:16px;padding:2rem;font-family:'Cascadia Code','SFMono-Regular',Consolas,monospace;font-size:0.875rem;color:#cdd9e5;line-height:1.8;">
+				<div style="color:#50e6ff;margin-bottom:0.5rem;font-size:0.75rem;letter-spacing:0.05em;text-transform:uppercase;opacity:0.6">ThemisDB SQL</div>
+				<div><span style="color:#0078d4">SELECT</span> u.name, e.score, g.friends</div>
+				<div><span style="color:#0078d4">FROM</span> users u</div>
+				<div><span style="color:#0078d4">JOIN</span> embeddings e <span style="color:#0078d4">ON</span> e.user_id = u.id</div>
+				<div><span style="color:#0078d4">JOIN</span> social_graph g <span style="color:#0078d4">ON</span> g.node = u.id</div>
+				<div><span style="color:#0078d4">WHERE</span> e.vector <span style="color:#50e6ff">&lt;-&gt;</span> <span style="color:#0078d4">$1</span> &lt; <span style="color:#55b056">0.25</span></div>
+				<div><span style="color:#0078d4">ORDER BY</span> e.score <span style="color:#0078d4">DESC</span> <span style="color:#0078d4">LIMIT</span> <span style="color:#55b056">10</span>;</div>
+			</div>
+			<!-- /wp:html -->
+		</div>
+		<!-- /wp:column -->
+	</div>
+	<!-- /wp:columns -->
+
+	<!-- Feature 2: AI Integration (visual left, text right) -->
+	<!-- wp:columns {"verticalAlignment":"center","style":{"spacing":{"blockGap":{"left":"var:preset|spacing|12"},"margin":{"bottom":"var:preset|spacing|16"}}}} -->
+	<div class="wp-block-columns are-vertically-aligned-center" style="margin-bottom:var(--wp--preset--spacing--16)">
+		<!-- wp:column {"verticalAlignment":"center"} -->
+		<div class="wp-block-column is-vertically-aligned-center">
+			<!-- wp:html -->
+			<div style="background:#ffffff;border:1px solid #dde3ec;border-radius:16px;padding:2rem;box-shadow:0 8px 28px rgba(0,51,102,0.1);">
+				<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid #eef2f7;">
+					<div style="width:40px;height:40px;background:linear-gradient(135deg,#003366,#0078d4);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.25rem;flex-shrink:0;">🤖</div>
+					<div>
+						<div style="font-weight:700;color:#12202f;font-size:0.9375rem">AI Query Pipeline</div>
+						<div style="font-size:0.8125rem;color:#6c7f96">Vector similarity + LLM reasoning</div>
+					</div>
+				</div>
+				<div style="background:#f5f7fa;border-radius:8px;padding:0.875rem;font-family:'Cascadia Code',Consolas,monospace;font-size:0.8125rem;color:#3b4a5e;line-height:1.7;margin-bottom:1rem;">
+					SELECT ask_ai(<br>
+					&nbsp;&nbsp;'Explain query results',<br>
+					&nbsp;&nbsp;results, model := 'gpt-4o'<br>
+					);
+				</div>
+				<div style="display:flex;align-items:center;gap:0.5rem;color:#107c10;font-size:0.8125rem;font-weight:600;">
+					<span>✓</span> 127ms · GPT-4o · 99.2% confidence
+				</div>
+			</div>
+			<!-- /wp:html -->
+		</div>
+		<!-- /wp:column -->
+		<!-- wp:column {"verticalAlignment":"center"} -->
+		<div class="wp-block-column is-vertically-aligned-center">
+			<!-- wp:html --><div style="display:inline-block;background:#cfe4fc;color:#0078d4;border-radius:9999px;padding:0.2rem 0.75rem;font-size:0.75rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.875rem;">AI-Native</div><!-- /wp:html -->
+			<!-- wp:heading {"level":3,"style":{"typography":{"fontSize":"1.875rem","fontWeight":"700","letterSpacing":"-0.02em"},"color":{"text":"#12202f"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
+			<h3 class="wp-block-heading" style="color:#12202f;font-size:1.875rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:var(--wp--preset--spacing--4)">AI/LLM Integration<br>at the database layer</h3>
+			<!-- /wp:heading -->
+			<!-- wp:paragraph {"style":{"typography":{"fontSize":"1rem","lineHeight":"1.7"},"color":{"text":"#6c7f96"}}} -->
+			<p style="color:#6c7f96;font-size:1rem;line-height:1.7;">Don't move data to the model — run the model inside the database. ThemisDB executes vector similarity, semantic search, and LLM inference directly in your SQL queries.</p>
+			<!-- /wp:paragraph -->
+			<!-- wp:list {"style":{"typography":{"fontSize":"0.9375rem"},"color":{"text":"#12202f"},"spacing":{"margin":{"top":"var:preset|spacing|4"}}}} -->
+			<ul class="wp-block-list" style="font-size:0.9375rem;color:#12202f;margin-top:var(--wp--preset--spacing--4)">
+				<li>Native pgvector-compatible embeddings</li>
+				<li>ask_ai() SQL function (GPT-4o, Claude, Llama)</li>
+				<li>Semantic search without external pipelines</li>
+				<li>Streaming results over WebSocket</li>
+			</ul>
+			<!-- /wp:list -->
+		</div>
+		<!-- /wp:column -->
+	</div>
+	<!-- /wp:columns -->
+
+</div>
+<!-- /wp:group -->
+
+<!-- ============================================================
+     QUERY SHOWCASE – Tabbed code demos
+     ============================================================ -->
+<!-- wp:group {"className":"tv3-query-section","style":{"color":{"background":"#ffffff"},"spacing":{"padding":{"top":"var:preset|spacing|20","bottom":"var:preset|spacing|20"}}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
+<div class="wp-block-group tv3-query-section" style="background-color:#ffffff;padding-top:var(--wp--preset--spacing--20);padding-bottom:var(--wp--preset--spacing--20)">
+	<!-- wp:html --><div style="text-align:center;margin-bottom:1rem"><span style="display:inline-block;background:#cfe4fc;color:#0078d4;border-radius:9999px;padding:0.25rem 0.875rem;font-size:0.75rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase">Query Interface</span></div><!-- /wp:html -->
+	<!-- wp:heading {"level":2,"textAlign":"center","style":{"typography":{"fontSize":"clamp(1.75rem,3.5vw,2.75rem)","fontWeight":"700","letterSpacing":"-0.03em"},"color":{"text":"#12202f"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
+	<h2 class="wp-block-heading has-text-align-center" style="color:#12202f;font-size:clamp(1.75rem,3.5vw,2.75rem);font-weight:700;letter-spacing:-0.03em;margin-bottom:var(--wp--preset--spacing--4)">Write once. Query everything.</h2>
+	<!-- /wp:heading -->
+	<!-- wp:paragraph {"textAlign":"center","style":{"typography":{"fontSize":"1.0625rem"},"color":{"text":"#6c7f96"},"spacing":{"margin":{"bottom":"var:preset|spacing|10"}}}} -->
+	<p class="has-text-align-center" style="color:#6c7f96;font-size:1.0625rem;margin-bottom:var(--wp--preset--spacing--10)">Use SQL, JSON, or Python — ThemisDB adapts to your preferred query interface.</p>
+	<!-- /wp:paragraph -->
+	<!-- wp:html -->
+	<div id="tv3-query-tabs" class="themis-v3-tabs" style="border:1px solid #dde3ec;border-radius:12px;overflow:hidden;max-width:860px;margin:0 auto;">
+		<ul style="list-style:none;padding:0;margin:0;display:flex;background:#f5f7fa;border-bottom:1px solid #dde3ec;">
+			<li><a href="#tv3-tab-sql" style="display:block;padding:0.75rem 1.25rem;font-size:0.875rem;font-weight:600;color:#0078d4;text-decoration:none;border-bottom:2px solid #0078d4;">SQL</a></li>
+			<li><a href="#tv3-tab-json" style="display:block;padding:0.75rem 1.25rem;font-size:0.875rem;font-weight:600;color:#6c7f96;text-decoration:none;border-bottom:2px solid transparent;">JSON API</a></li>
+			<li><a href="#tv3-tab-python" style="display:block;padding:0.75rem 1.25rem;font-size:0.875rem;font-weight:600;color:#6c7f96;text-decoration:none;border-bottom:2px solid transparent;">Python SDK</a></li>
+		</ul>
+		<div id="tv3-tab-sql" class="themis-v3-tab-panel" style="padding:1.75rem;background:#0d1821;">
+			<pre style="margin:0;background:transparent;border:none;border-radius:0;padding:0;font-family:'Cascadia Code','SFMono-Regular',Consolas,monospace;font-size:0.9rem;color:#cdd9e5;line-height:1.8;overflow-x:auto;"><code style="background:none;color:inherit;padding:0;border:none;"><span style="color:#6c7f96">-- ThemisDB SQL: Vector + Relational Query</span>
+<span style="color:#0078d4">SELECT</span> p.title, p.author, p.published_at,
+       embedding_distance(p.vector, query.vec) <span style="color:#0078d4">AS</span> score
+<span style="color:#0078d4">FROM</span>   posts p,
+       (
+         <span style="color:#0078d4">SELECT</span> embed(<span style="color:#55b056">'AI database performance'</span>) <span style="color:#0078d4">AS</span> vec
+       ) query
+<span style="color:#0078d4">WHERE</span>  p.published_at &gt; NOW() - <span style="color:#0078d4">INTERVAL</span> <span style="color:#55b056">'30 days'</span>
+<span style="color:#0078d4">ORDER BY</span> score <span style="color:#0078d4">ASC</span>
+<span style="color:#0078d4">LIMIT</span>  <span style="color:#50e6ff">5</span>;</code></pre>
+		</div>
+		<div id="tv3-tab-json" class="themis-v3-tab-panel" style="padding:1.75rem;background:#0d1821;display:none;">
+			<pre style="margin:0;background:transparent;border:none;border-radius:0;padding:0;font-family:'Cascadia Code','SFMono-Regular',Consolas,monospace;font-size:0.9rem;color:#cdd9e5;line-height:1.8;overflow-x:auto;"><code style="background:none;color:inherit;padding:0;border:none;"><span style="color:#0078d4">POST</span> /api/v3/query
+<span style="color:#6c7f96">Content-Type: application/json</span>
+
+{
+  <span style="color:#50e6ff">"collection"</span>: <span style="color:#55b056">"posts"</span>,
+  <span style="color:#50e6ff">"vector_search"</span>: {
+    <span style="color:#50e6ff">"query"</span>: <span style="color:#55b056">"AI database performance"</span>,
+    <span style="color:#50e6ff">"limit"</span>: <span style="color:#50e6ff">5</span>,
+    <span style="color:#50e6ff">"threshold"</span>: <span style="color:#50e6ff">0.8</span>
+  },
+  <span style="color:#50e6ff">"filter"</span>: {
+    <span style="color:#50e6ff">"published_at"</span>: { <span style="color:#50e6ff">"$gte"</span>: <span style="color:#55b056">"2025-01-01"</span> }
+  }
+}</code></pre>
+		</div>
+		<div id="tv3-tab-python" class="themis-v3-tab-panel" style="padding:1.75rem;background:#0d1821;display:none;">
+			<pre style="margin:0;background:transparent;border:none;border-radius:0;padding:0;font-family:'Cascadia Code','SFMono-Regular',Consolas,monospace;font-size:0.9rem;color:#cdd9e5;line-height:1.8;overflow-x:auto;"><code style="background:none;color:inherit;padding:0;border:none;"><span style="color:#0078d4">import</span> themisdb
+
+db = themisdb.<span style="color:#50e6ff">connect</span>(<span style="color:#55b056">"themisdb://localhost:5432/mydb"</span>)
+
+results = db.posts.<span style="color:#50e6ff">vector_search</span>(
+    query=<span style="color:#55b056">"AI database performance"</span>,
+    limit=<span style="color:#50e6ff">5</span>,
+    filter={<span style="color:#55b056">"published_at"</span>: {<span style="color:#55b056">"$gte"</span>: <span style="color:#55b056">"2025-01-01"</span>}}
+)
+
+<span style="color:#0078d4">for</span> post <span style="color:#0078d4">in</span> results:
+    <span style="color:#0078d4">print</span>(f<span style="color:#55b056">"{post.title} — score: {post.score:.3f}"</span>)</code></pre>
+		</div>
+	</div>
+	<!-- /wp:html -->
+</div>
+<!-- /wp:group -->
+
+<!-- ============================================================
+     PRICING / CTA SECTION
+     ============================================================ -->
+<!-- wp:group {"className":"tv3-pricing-section","style":{"color":{"background":"#f5f7fa"},"spacing":{"padding":{"top":"var:preset|spacing|20","bottom":"var:preset|spacing|20"}}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
+<div class="wp-block-group tv3-pricing-section" style="background-color:#f5f7fa;padding-top:var(--wp--preset--spacing--20);padding-bottom:var(--wp--preset--spacing--20)">
+	<!-- wp:html --><div style="text-align:center;margin-bottom:1rem"><span style="display:inline-block;background:#cfe4fc;color:#0078d4;border-radius:9999px;padding:0.25rem 0.875rem;font-size:0.75rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase">Pricing</span></div><!-- /wp:html -->
+	<!-- wp:heading {"level":2,"textAlign":"center","style":{"typography":{"fontSize":"clamp(1.75rem,3.5vw,2.75rem)","fontWeight":"700","letterSpacing":"-0.03em"},"color":{"text":"#12202f"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
+	<h2 class="wp-block-heading has-text-align-center" style="color:#12202f;font-size:clamp(1.75rem,3.5vw,2.75rem);font-weight:700;letter-spacing:-0.03em;margin-bottom:var(--wp--preset--spacing--4)">Start free. Scale with confidence.</h2>
+	<!-- /wp:heading -->
+	<!-- wp:paragraph {"textAlign":"center","style":{"typography":{"fontSize":"1.0625rem"},"color":{"text":"#6c7f96"},"spacing":{"margin":{"bottom":"var:preset|spacing|12"}}}} -->
+	<p class="has-text-align-center" style="color:#6c7f96;font-size:1.0625rem;margin-bottom:var(--wp--preset--spacing--12)">ThemisDB is open-source and free forever. Enterprise support and SLA are available for production deployments.</p>
+	<!-- /wp:paragraph -->
+	<!-- wp:html -->
+	<div class="tv3-pricing-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;max-width:860px;margin:0 auto;">
+		<div class="tv3-pricing-card" style="background:#fff;border:1px solid #dde3ec;border-radius:12px;padding:2.5rem;">
+			<div style="font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#0078d4;margin-bottom:0.75rem">Community</div>
+			<div style="font-size:3rem;font-weight:800;color:#003366;letter-spacing:-0.04em;line-height:1;margin-bottom:0.25rem"><sup style="font-size:1.5rem;vertical-align:top;margin-top:0.5rem">$</sup>0</div>
+			<div style="font-size:0.875rem;color:#6c7f96;margin-bottom:1.5rem;line-height:1.6">Free forever · MIT License<br>Self-hosted, no restrictions</div>
+			<ul style="list-style:none;padding:0;margin:0 0 2rem">
+				<li style="font-size:0.875rem;color:#3b4a5e;padding:0.5rem 0;border-bottom:1px solid #eef2f7;display:flex;align-items:center;gap:0.75rem"><span style="color:#107c10;font-weight:700">✓</span> Full multi-model engine</li>
+				<li style="font-size:0.875rem;color:#3b4a5e;padding:0.5rem 0;border-bottom:1px solid #eef2f7;display:flex;align-items:center;gap:0.75rem"><span style="color:#107c10;font-weight:700">✓</span> Native AI/LLM integration</li>
+				<li style="font-size:0.875rem;color:#3b4a5e;padding:0.5rem 0;border-bottom:1px solid #eef2f7;display:flex;align-items:center;gap:0.75rem"><span style="color:#107c10;font-weight:700">✓</span> Docker + binary releases</li>
+				<li style="font-size:0.875rem;color:#3b4a5e;padding:0.5rem 0;border-bottom:1px solid #eef2f7;display:flex;align-items:center;gap:0.75rem"><span style="color:#107c10;font-weight:700">✓</span> Community support (GitHub)</li>
+				<li style="font-size:0.875rem;color:#6c7f96;padding:0.5rem 0;border-bottom:1px solid #eef2f7;display:flex;align-items:center;gap:0.75rem"><span style="color:#bdc8d8;font-weight:700">–</span> Enterprise SLA</li>
+				<li style="font-size:0.875rem;color:#6c7f96;padding:0.5rem 0;display:flex;align-items:center;gap:0.75rem"><span style="color:#bdc8d8;font-weight:700">–</span> Priority support</li>
+			</ul>
+			<a href="/downloads" style="display:block;text-align:center;background:transparent;color:#0078d4;border:1.5px solid #0078d4;border-radius:8px;padding:0.875rem;font-weight:700;font-size:0.9375rem;text-decoration:none;transition:all 0.2s;">Download Free</a>
+		</div>
+		<div class="tv3-pricing-card featured" style="background:#fff;border:2px solid #0078d4;border-radius:12px;padding:2.5rem;box-shadow:0 4px 20px rgba(0,120,212,0.2);position:relative;">
+			<div style="position:absolute;top:1rem;right:1rem;background:#0078d4;color:#fff;font-size:0.6875rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;padding:0.2rem 0.75rem;border-radius:9999px">Most Popular</div>
+			<div style="font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#0078d4;margin-bottom:0.75rem">Enterprise</div>
+			<div style="font-size:3rem;font-weight:800;color:#003366;letter-spacing:-0.04em;line-height:1;margin-bottom:0.25rem">Custom</div>
+			<div style="font-size:0.875rem;color:#6c7f96;margin-bottom:1.5rem;line-height:1.6">Tailored pricing<br>Annual or monthly billing</div>
+			<ul style="list-style:none;padding:0;margin:0 0 2rem">
+				<li style="font-size:0.875rem;color:#3b4a5e;padding:0.5rem 0;border-bottom:1px solid #eef2f7;display:flex;align-items:center;gap:0.75rem"><span style="color:#107c10;font-weight:700">✓</span> Everything in Community</li>
+				<li style="font-size:0.875rem;color:#3b4a5e;padding:0.5rem 0;border-bottom:1px solid #eef2f7;display:flex;align-items:center;gap:0.75rem"><span style="color:#107c10;font-weight:700">✓</span> 99.99% SLA guarantee</li>
+				<li style="font-size:0.875rem;color:#3b4a5e;padding:0.5rem 0;border-bottom:1px solid #eef2f7;display:flex;align-items:center;gap:0.75rem"><span style="color:#107c10;font-weight:700">✓</span> Priority engineering support</li>
+				<li style="font-size:0.875rem;color:#3b4a5e;padding:0.5rem 0;border-bottom:1px solid #eef2f7;display:flex;align-items:center;gap:0.75rem"><span style="color:#107c10;font-weight:700">✓</span> Custom integrations &amp; SDKs</li>
+				<li style="font-size:0.875rem;color:#3b4a5e;padding:0.5rem 0;border-bottom:1px solid #eef2f7;display:flex;align-items:center;gap:0.75rem"><span style="color:#107c10;font-weight:700">✓</span> Security audit &amp; compliance</li>
+				<li style="font-size:0.875rem;color:#3b4a5e;padding:0.5rem 0;display:flex;align-items:center;gap:0.75rem"><span style="color:#107c10;font-weight:700">✓</span> Dedicated Slack channel</li>
+			</ul>
+			<a href="/contact" style="display:block;text-align:center;background:#0078d4;color:#fff;border:2px solid #0078d4;border-radius:8px;padding:0.875rem;font-weight:700;font-size:0.9375rem;text-decoration:none;transition:all 0.2s;">Contact Sales →</a>
+		</div>
+	</div>
+	<!-- /wp:html -->
+</div>
+<!-- /wp:group -->
+
+<!-- ============================================================
+     TESTIMONIALS – 3 cards
+     ============================================================ -->
+<!-- wp:group {"className":"tv3-testimonials-section","style":{"color":{"background":"#ffffff"},"spacing":{"padding":{"top":"var:preset|spacing|20","bottom":"var:preset|spacing|20"}}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
+<div class="wp-block-group tv3-testimonials-section" style="background-color:#ffffff;padding-top:var(--wp--preset--spacing--20);padding-bottom:var(--wp--preset--spacing--20)">
+	<!-- wp:html --><div style="text-align:center;margin-bottom:1rem"><span style="display:inline-block;background:#cfe4fc;color:#0078d4;border-radius:9999px;padding:0.25rem 0.875rem;font-size:0.75rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase">Testimonials</span></div><!-- /wp:html -->
+	<!-- wp:heading {"level":2,"textAlign":"center","style":{"typography":{"fontSize":"clamp(1.75rem,3.5vw,2.75rem)","fontWeight":"700","letterSpacing":"-0.03em"},"color":{"text":"#12202f"},"spacing":{"margin":{"bottom":"var:preset|spacing|12"}}}} -->
+	<h2 class="wp-block-heading has-text-align-center" style="color:#12202f;font-size:clamp(1.75rem,3.5vw,2.75rem);font-weight:700;letter-spacing:-0.03em;margin-bottom:var(--wp--preset--spacing--12)">Trusted by developers worldwide</h2>
+	<!-- /wp:heading -->
+	<!-- wp:html -->
+	<div class="tv3-testimonial-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;">
+		<div class="tv3-testimonial-card" style="background:#fff;border:1px solid #dde3ec;border-radius:12px;padding:1.75rem;">
+			<p style="font-size:1rem;color:#3b4a5e;line-height:1.7;margin:0 0 1.25rem;font-style:italic;position:relative">"ThemisDB cut our data pipeline complexity by 70%. Running vector search and relational joins in one query is a game-changer for our AI product."</p>
+			<div style="display:flex;align-items:center;gap:0.875rem">
+				<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#0078d4,#005a9e);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.125rem;flex-shrink:0">S</div>
+				<div><div style="font-weight:700;color:#12202f;font-size:0.875rem">Sarah Chen</div><div style="font-size:0.8125rem;color:#6c7f96">Lead Engineer, Fintech Startup</div></div>
+			</div>
+		</div>
+		<div class="tv3-testimonial-card" style="background:#fff;border:1px solid #dde3ec;border-radius:12px;padding:1.75rem;">
+			<p style="font-size:1rem;color:#3b4a5e;line-height:1.7;margin:0 0 1.25rem;font-style:italic;position:relative">"The 10× performance claim is real. We replaced three separate databases with ThemisDB and our query latency dropped from 200ms to 18ms on average."</p>
+			<div style="display:flex;align-items:center;gap:0.875rem">
+				<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#107c10,#55b056);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.125rem;flex-shrink:0">M</div>
+				<div><div style="font-weight:700;color:#12202f;font-size:0.875rem">Marcus Weber</div><div style="font-size:0.8125rem;color:#6c7f96">CTO, SaaS Platform</div></div>
+			</div>
+		</div>
+		<div class="tv3-testimonial-card" style="background:#fff;border:1px solid #dde3ec;border-radius:12px;padding:1.75rem;">
+			<p style="font-size:1rem;color:#3b4a5e;line-height:1.7;margin:0 0 1.25rem;font-style:italic;position:relative">"The Docker setup was genuinely one command. Incredible DX. The ask_ai() SQL function alone saved us two weeks of integration work."</p>
+			<div style="display:flex;align-items:center;gap:0.875rem">
+				<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#003366,#00509e);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.125rem;flex-shrink:0">P</div>
+				<div><div style="font-weight:700;color:#12202f;font-size:0.875rem">Priya Sharma</div><div style="font-size:0.8125rem;color:#6c7f96">Senior Developer, Enterprise Corp</div></div>
+			</div>
+		</div>
+	</div>
+	<!-- /wp:html -->
+</div>
+<!-- /wp:group -->
+
+<!-- Download CTA Banner -->
+<!-- wp:template-part {"slug":"cta-banner","tagName":"section"} /-->
+
+<!-- wp:template-part {"slug":"footer","tagName":"footer","area":"footer"} /-->
