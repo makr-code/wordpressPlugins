@@ -1111,6 +1111,12 @@ tr:hover td { background: var(--tv3-gray-50); }
     align-items: start;
 }
 
+.tv3-docs-sidebar-col {
+    position: sticky;
+    top: 80px;
+    align-self: start;
+}
+
 .tv3-docs-sidebar {
     position: sticky;
     top: 80px;
