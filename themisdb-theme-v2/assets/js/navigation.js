@@ -117,16 +117,21 @@
 					ta.style.left = '-9999px';
 					document.body.appendChild( ta );
 					ta.select();
+					var removeTa = function () {
+						if ( ta && ta.parentNode ) {
+							ta.parentNode.removeChild( ta );
+						}
+					};
 					try {
 						var ok = document.execCommand( 'copy' );
-						document.body.removeChild( ta );
+						removeTa();
 						if ( ok ) {
 							applySuccessState();
 						} else {
 							applyFailureState();
 						}
 					} catch ( e ) {
-						document.body.removeChild( ta );
+						removeTa();
 						applyFailureState();
 					}
 				};

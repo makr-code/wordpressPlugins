@@ -24,7 +24,7 @@
             
             katexRetryCount++;
             const retryDelay = Math.min(
-                KATEX_RETRY_INITIAL_DELAY * Math.pow(2, katexRetryCount - 1),
+                KATEX_RETRY_INITIAL_DELAY * Math.pow(2, Math.min(katexRetryCount, 4)),
                 2000
             );
             
