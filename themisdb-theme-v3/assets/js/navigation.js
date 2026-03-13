@@ -167,17 +167,15 @@
 
 			copyBtn.addEventListener( 'click', function () {
 				var text = codeEl.textContent || '';
-				if ( navigator.clipboard && navigator.clipboard.writeText ) {
-					navigator.clipboard.writeText( text ).then( function () {
-						copyBtn.textContent = '✓ Copied!';
-						copyBtn.style.color = '#50e6ff';
-						setTimeout( function () {
-							copyBtn.textContent = 'Copy';
-							copyBtn.style.color = 'rgba(255,255,255,0.5)';
-						}, 2000 );
-					} );
-				} else {
-					// Fallback
+				var applySuccess = function () {
+					copyBtn.textContent = '✓ Copied!';
+					copyBtn.style.color = '#50e6ff';
+					setTimeout( function () {
+						copyBtn.textContent = 'Copy';
+						copyBtn.style.color = 'rgba(255,255,255,0.5)';
+					}, 2000 );
+				};
+				var fallbackCopy = function () {
 					var ta = document.createElement( 'textarea' );
 					ta.value = text;
 					ta.style.position = 'absolute';
@@ -186,8 +184,14 @@
 					ta.select();
 					try { document.execCommand( 'copy' ); } catch ( e ) {}
 					document.body.removeChild( ta );
-					copyBtn.textContent = '✓ Copied!';
-					setTimeout( function () { copyBtn.textContent = 'Copy'; }, 2000 );
+					applySuccess();
+				};
+				if ( navigator.clipboard && navigator.clipboard.writeText ) {
+					navigator.clipboard.writeText( text )
+						.then( applySuccess )
+						.catch( fallbackCopy );
+				} else {
+					fallbackCopy();
 				}
 			} );
 		} );
@@ -227,7 +231,19 @@
 							btn.style.color = originalColor;
 						}, 2000 );
 					} ).catch( function () {
-						// Clipboard write failed – silently ignore
+						// Fallback for browsers without Clipboard API or permission issues
+						var ta        = document.createElement( 'textarea' );
+						ta.value      = text;
+						ta.style.cssText = 'position:absolute;left:-9999px;top:-9999px;';
+						document.body.appendChild( ta );
+						ta.select();
+						try { document.execCommand( 'copy' ); } catch ( e ) {}
+						document.body.removeChild( ta );
+						btn.textContent = '✓';
+						setTimeout( function () {
+							btn.textContent = originalText;
+							btn.style.color = originalColor;
+						}, 2000 );
 					} );
 				} else {
 					// Fallback for browsers without Clipboard API

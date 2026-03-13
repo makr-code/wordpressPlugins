@@ -44,7 +44,7 @@
 				var closeBtn = document.createElement( 'button' );
 				closeBtn.className        = 'themis-announcement-close';
 				closeBtn.setAttribute( 'aria-label', 'Dismiss announcement' );
-				closeBtn.innerHTML        = '×';
+				closeBtn.textContent      = '×';
 				closeBtn.style.cssText    =
 					'background:none;border:none;color:rgba(255,255,255,0.7);font-size:1.25rem;' +
 					'cursor:pointer;padding:0 0.5rem;line-height:1;position:absolute;right:1rem;top:50%;transform:translateY(-50%);';
@@ -94,15 +94,49 @@
 			pre.appendChild( copyBtn );
 
 			copyBtn.addEventListener( 'click', function () {
+				var applySuccessState = function () {
+					copyBtn.textContent = 'Copied!';
+					copyBtn.style.color = '#27ae60';
+					setTimeout( function () {
+						copyBtn.textContent = 'Copy';
+						copyBtn.style.color = 'rgba(255,255,255,0.6)';
+					}, 2000 );
+				};
+				var applyFailureState = function () {
+					copyBtn.textContent = 'Copy failed';
+					copyBtn.style.color = '#e74c3c';
+					setTimeout( function () {
+						copyBtn.textContent = 'Copy';
+						copyBtn.style.color = 'rgba(255,255,255,0.6)';
+					}, 2000 );
+				};
+				var fallbackCopy = function () {
+					var ta = document.createElement( 'textarea' );
+					ta.value = codeEl.textContent;
+					ta.style.position = 'absolute';
+					ta.style.left = '-9999px';
+					document.body.appendChild( ta );
+					ta.select();
+					try {
+						var ok = document.execCommand( 'copy' );
+						document.body.removeChild( ta );
+						if ( ok ) {
+							applySuccessState();
+						} else {
+							applyFailureState();
+						}
+					} catch ( e ) {
+						document.body.removeChild( ta );
+						applyFailureState();
+					}
+				};
+
 				if ( navigator.clipboard ) {
-					navigator.clipboard.writeText( codeEl.textContent ).then( function () {
-						copyBtn.textContent = 'Copied!';
-						copyBtn.style.color = '#27ae60';
-						setTimeout( function () {
-							copyBtn.textContent = 'Copy';
-							copyBtn.style.color = 'rgba(255,255,255,0.6)';
-						}, 2000 );
-					} );
+					navigator.clipboard.writeText( codeEl.textContent )
+						.then( applySuccessState )
+						.catch( fallbackCopy );
+				} else {
+					fallbackCopy();
 				}
 			} );
 		} );
