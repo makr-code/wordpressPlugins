@@ -147,6 +147,68 @@
 		} );
 
 		/* ----------------------------------------------------------
+		   Data-attribute copy buttons (no inline handlers)
+		   ---------------------------------------------------------- */
+		var dataCopyButtons = document.querySelectorAll( '[data-copy-text], [data-copy-selector]' );
+
+		dataCopyButtons.forEach( function ( btn ) {
+			if ( btn.dataset.copyBound === '1' ) return;
+			btn.dataset.copyBound = '1';
+
+			btn.addEventListener( 'click', function () {
+				var text = '';
+
+				if ( btn.hasAttribute( 'data-copy-text' ) ) {
+					text = btn.getAttribute( 'data-copy-text' ) || '';
+				} else if ( btn.hasAttribute( 'data-copy-selector' ) ) {
+					var selector = btn.getAttribute( 'data-copy-selector' );
+					var target   = selector ? document.querySelector( selector ) : null;
+					if ( target ) {
+						text = target.textContent || '';
+					}
+				}
+
+				if ( ! text ) return;
+
+				var originalText  = btn.textContent;
+				var originalTitle = btn.getAttribute( 'title' );
+
+				var showSuccess = function () {
+					btn.textContent = '✓';
+					if ( originalTitle !== null ) {
+						btn.setAttribute( 'title', 'Copied' );
+					}
+					setTimeout( function () {
+						btn.textContent = originalText;
+						if ( originalTitle !== null ) {
+							btn.setAttribute( 'title', originalTitle );
+						}
+					}, 1500 );
+				};
+
+				var fallbackCopy = function () {
+					var ta    = document.createElement( 'textarea' );
+					ta.value  = text;
+					ta.style.position = 'absolute';
+					ta.style.left     = '-9999px';
+					document.body.appendChild( ta );
+					ta.select();
+					try { document.execCommand( 'copy' ); } catch ( e ) {}
+					document.body.removeChild( ta );
+					showSuccess();
+				};
+
+				if ( navigator.clipboard && navigator.clipboard.writeText ) {
+					navigator.clipboard.writeText( text )
+						.then( showSuccess )
+						.catch( fallbackCopy );
+				} else {
+					fallbackCopy();
+				}
+			} );
+		} );
+
+		/* ----------------------------------------------------------
 		   Active Navigation Link Highlight
 		   ---------------------------------------------------------- */
 		var currentPath = window.location.pathname;
