@@ -9,6 +9,7 @@
     // Retry configuration for loading KaTeX
     const KATEX_MAX_RETRIES = 50;
     const KATEX_RETRY_INITIAL_DELAY = 100;
+    const KATEX_BACKOFF_EXPONENT_CAP = 4;
     let katexRetryCount = 0;
     
     /**
@@ -24,7 +25,7 @@
             
             katexRetryCount++;
             const retryDelay = Math.min(
-                KATEX_RETRY_INITIAL_DELAY * Math.pow(2, Math.min(katexRetryCount, 4)),
+                KATEX_RETRY_INITIAL_DELAY * Math.pow(2, Math.min(katexRetryCount, KATEX_BACKOFF_EXPONENT_CAP)),
                 2000
             );
             
