@@ -9,9 +9,9 @@
  * Description: Full-width dark hero section with headline, subtitle, CTA buttons and Docker command.
  */
 ?>
-<!-- wp:cover {"dimRatio":0,"minHeight":620,"minHeightUnit":"px","isDark":true,"customGradient":"linear-gradient(160deg,#1a252f 0%,#2c3e50 50%,#34495e 100%)","className":"themis-hero-section","layout":{"type":"constrained","contentSize":"900px"}} -->
+<!-- wp:cover {"dimRatio":0,"minHeight":620,"minHeightUnit":"px","isDark":true,"gradient":"themis-hero","className":"themis-hero-section","layout":{"type":"constrained","contentSize":"900px"}} -->
 <div class="wp-block-cover themis-hero-section is-dark" style="min-height:620px">
-	<span aria-hidden="true" class="wp-block-cover__background has-background-dim-0 has-background-dim wp-block-cover__gradient-background has-background-gradient" style="background:linear-gradient(160deg,#1a252f 0%,#2c3e50 50%,#34495e 100%)"></span>
+	<span aria-hidden="true" class="wp-block-cover__background has-background-dim-0 has-background-dim wp-block-cover__gradient-background has-background-gradient has-themis-hero-gradient-background"></span>
 	<div class="wp-block-cover__inner-container">
 		<!-- wp:spacer {"height":"48px"} --><div style="height:48px" aria-hidden="true" class="wp-block-spacer"></div><!-- /wp:spacer -->
 		<!-- wp:heading {"level":1,"textAlign":"center","style":{"typography":{"fontSize":"clamp(2.25rem,5vw,3.75rem)","fontWeight":"800","lineHeight":"1.12","letterSpacing":"-0.04em"},"color":{"text":"#ffffff"}}} -->
@@ -22,8 +22,8 @@
 		<!-- /wp:paragraph -->
 		<!-- wp:buttons {"layout":{"type":"flex","justifyContent":"center","flexWrap":"wrap"},"style":{"spacing":{"blockGap":"var:preset|spacing|4"}}} -->
 		<div class="wp-block-buttons">
-			<!-- wp:button {"style":{"color":{"background":"#3498db","text":"#ffffff"},"border":{"radius":"8px"},"spacing":{"padding":{"top":"0.875rem","bottom":"0.875rem","left":"2rem","right":"2rem"}}},"fontSize":"md"} -->
-			<div class="has-background has-text-color wp-block-button"><a href="/downloads" class="wp-block-button__link wp-element-button has-md-font-size" style="background-color:#3498db;color:#ffffff;border-radius:8px;padding:0.875rem 2rem;font-weight:700">⬇ Download Free</a></div>
+			<!-- wp:button {"style":{"color":{"background":"#3498db","text":"#ffffff"},"border":{"radius":"8px"},"typography":{"fontWeight":"700"},"spacing":{"padding":{"top":"0.875rem","bottom":"0.875rem","left":"2rem","right":"2rem"}}},"fontSize":"md"} -->
+			<div class="wp-block-button"><a href="/downloads" class="has-background has-text-color wp-block-button__link wp-element-button has-md-font-size" style="background-color:#3498db;color:#ffffff;border-radius:8px;padding:0.875rem 2rem;font-weight:700">⬇ Download Free</a></div>
 			<!-- /wp:button -->
 			<!-- wp:button {"className":"is-style-outline","style":{"color":{"text":"rgba(255,255,255,0.9)"},"border":{"radius":"8px","color":"rgba(255,255,255,0.35)","width":"1.5px"},"spacing":{"padding":{"top":"0.875rem","bottom":"0.875rem","left":"2rem","right":"2rem"}}},"fontSize":"md"} -->
 			<div class="has-text-color wp-block-button is-style-outline"><a href="/docs/getting-started" class="wp-block-button__link wp-element-button has-md-font-size" style="color:rgba(255,255,255,0.9);border:1.5px solid rgba(255,255,255,0.35);border-radius:8px;padding:0.875rem 2rem">View Documentation →</a></div>

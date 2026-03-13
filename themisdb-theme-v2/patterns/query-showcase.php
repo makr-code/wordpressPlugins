@@ -29,8 +29,8 @@
 			<!-- /wp:list -->
 			<!-- wp:buttons -->
 			<div class="wp-block-buttons">
-				<!-- wp:button {"style":{"color":{"background":"#3498db","text":"#ffffff"},"border":{"radius":"8px"},"spacing":{"padding":{"top":"0.75rem","bottom":"0.75rem","left":"1.75rem","right":"1.75rem"}}}} -->
-				<div class="has-background has-text-color wp-block-button"><a href="/query-playground" class="wp-block-button__link wp-element-button" style="background-color:#3498db;color:#ffffff;border-radius:8px;padding:0.75rem 1.75rem;font-weight:600">Open Query Playground →</a></div>
+				<!-- wp:button {"style":{"color":{"background":"#3498db","text":"#ffffff"},"border":{"radius":"8px"},"typography":{"fontWeight":"600"},"spacing":{"padding":{"top":"0.75rem","bottom":"0.75rem","left":"1.75rem","right":"1.75rem"}}}} -->
+				<div class="wp-block-button"><a href="/query-playground" class="has-background has-text-color wp-block-button__link wp-element-button" style="background-color:#3498db;color:#ffffff;border-radius:8px;padding:0.75rem 1.75rem;font-weight:600">Open Query Playground →</a></div>
 				<!-- /wp:button -->
 			</div>
 			<!-- /wp:buttons -->

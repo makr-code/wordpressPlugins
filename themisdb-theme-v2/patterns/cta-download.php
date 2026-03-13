@@ -29,8 +29,8 @@
 			<!-- wp:spacer {"height":"12px"} --><div style="height:12px" aria-hidden="true" class="wp-block-spacer"></div><!-- /wp:spacer -->
 			<!-- wp:buttons -->
 			<div class="wp-block-buttons">
-				<!-- wp:button {"style":{"color":{"background":"#0db7ed","text":"#ffffff"},"border":{"radius":"6px"},"spacing":{"padding":{"top":"0.5rem","bottom":"0.5rem","left":"1.25rem","right":"1.25rem"}}},"fontSize":"sm"} -->
-				<div class="has-background has-text-color wp-block-button"><a href="/docker" class="wp-block-button__link wp-element-button has-sm-font-size" style="background-color:#0db7ed;color:#ffffff;border-radius:6px;padding:0.5rem 1.25rem;font-weight:600">All Docker Tags →</a></div>
+				<!-- wp:button {"style":{"color":{"background":"#0db7ed","text":"#ffffff"},"border":{"radius":"6px"},"typography":{"fontWeight":"600"},"spacing":{"padding":{"top":"0.5rem","bottom":"0.5rem","left":"1.25rem","right":"1.25rem"}}},"fontSize":"sm"} -->
+				<div class="wp-block-button"><a href="/docker" class="has-background has-text-color wp-block-button__link wp-element-button has-sm-font-size" style="background-color:#0db7ed;color:#ffffff;border-radius:6px;padding:0.5rem 1.25rem;font-weight:600">All Docker Tags →</a></div>
 				<!-- /wp:button -->
 			</div>
 			<!-- /wp:buttons -->
@@ -47,8 +47,8 @@
 			<!-- wp:spacer {"height":"12px"} --><div style="height:12px" aria-hidden="true" class="wp-block-spacer"></div><!-- /wp:spacer -->
 			<!-- wp:buttons -->
 			<div class="wp-block-buttons">
-				<!-- wp:button {"style":{"color":{"background":"#3498db","text":"#ffffff"},"border":{"radius":"6px"},"spacing":{"padding":{"top":"0.5rem","bottom":"0.5rem","left":"1.25rem","right":"1.25rem"}}},"fontSize":"sm"} -->
-				<div class="has-background has-text-color wp-block-button"><a href="/downloads" class="wp-block-button__link wp-element-button has-sm-font-size" style="background-color:#3498db;color:#ffffff;border-radius:6px;padding:0.5rem 1.25rem;font-weight:600">All Releases →</a></div>
+				<!-- wp:button {"style":{"color":{"background":"#3498db","text":"#ffffff"},"border":{"radius":"6px"},"typography":{"fontWeight":"600"},"spacing":{"padding":{"top":"0.5rem","bottom":"0.5rem","left":"1.25rem","right":"1.25rem"}}},"fontSize":"sm"} -->
+				<div class="wp-block-button"><a href="/downloads" class="has-background has-text-color wp-block-button__link wp-element-button has-sm-font-size" style="background-color:#3498db;color:#ffffff;border-radius:6px;padding:0.5rem 1.25rem;font-weight:600">All Releases →</a></div>
 				<!-- /wp:button -->
 			</div>
 			<!-- /wp:buttons -->
