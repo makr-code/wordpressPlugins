@@ -516,7 +516,6 @@ function themisdb_social_share_buttons() {
             </a>
             <button class="share-button share-copy" 
                     data-url="<?php echo esc_url( get_permalink() ); ?>"
-                    onclick="themisdbCopyUrl(this)"
                     aria-label="<?php esc_attr_e( 'Copy link', 'themisdb' ); ?>">
                 📋 <?php esc_html_e( 'Copy Link', 'themisdb' ); ?>
             </button>

@@ -18,6 +18,50 @@
 	   ---------------------------------------------------------- */
 	document.addEventListener( 'DOMContentLoaded', function () {
 
+		// Shared helper to copy text with clipboard API and execCommand fallback
+		var copyTextWithFallback = function ( text, onSuccess, onFailure ) {
+			var fallbackCopy = function () {
+				var ta    = document.createElement( 'textarea' );
+				ta.value  = text;
+				ta.style.position = 'absolute';
+				ta.style.left     = '-9999px';
+				document.body.appendChild( ta );
+				ta.select();
+				var ok = false;
+				try {
+					ok = document.execCommand( 'copy' );
+				} catch ( e ) {
+					ok = false;
+				}
+				document.body.removeChild( ta );
+
+				if ( ok ) {
+					if ( typeof onSuccess === 'function' ) {
+						onSuccess();
+					}
+				} else if ( typeof onFailure === 'function' ) {
+					onFailure();
+				} else if ( typeof onSuccess === 'function' ) {
+					// Provide optimistic feedback even if execCommand is unavailable
+					onSuccess();
+				}
+			};
+
+			if ( navigator.clipboard && navigator.clipboard.writeText ) {
+				navigator.clipboard.writeText( text )
+					.then( function () {
+						if ( typeof onSuccess === 'function' ) {
+							onSuccess();
+						}
+					} )
+					.catch( function () {
+						fallbackCopy();
+					} );
+			} else {
+				fallbackCopy();
+			}
+		};
+
 		// WP block navigation has its own toggle; we enhance it
 		var navToggle = document.querySelector( '.wp-block-navigation__responsive-container-open' );
 		var navClose  = document.querySelector( '.wp-block-navigation__responsive-container-close' );
@@ -44,7 +88,7 @@
 				var closeBtn = document.createElement( 'button' );
 				closeBtn.className        = 'themis-announcement-close';
 				closeBtn.setAttribute( 'aria-label', 'Dismiss announcement' );
-				closeBtn.innerHTML        = '×';
+				closeBtn.textContent      = '×';
 				closeBtn.style.cssText    =
 					'background:none;border:none;color:rgba(255,255,255,0.7);font-size:1.25rem;' +
 					'cursor:pointer;padding:0 0.5rem;line-height:1;position:absolute;right:1rem;top:50%;transform:translateY(-50%);';
@@ -94,18 +138,67 @@
 			pre.appendChild( copyBtn );
 
 			copyBtn.addEventListener( 'click', function () {
-				if ( navigator.clipboard ) {
-					navigator.clipboard.writeText( codeEl.textContent ).then( function () {
-						copyBtn.textContent = 'Copied!';
-						copyBtn.style.color = '#27ae60';
-						setTimeout( function () {
-							copyBtn.textContent = 'Copy';
-							copyBtn.style.color = 'rgba(255,255,255,0.6)';
-						}, 2000 );
-					} );
-				}
+				var applySuccessState = function () {
+					copyBtn.textContent = 'Copied!';
+					copyBtn.style.color = '#27ae60';
+					setTimeout( function () {
+						copyBtn.textContent = 'Copy';
+						copyBtn.style.color = 'rgba(255,255,255,0.6)';
+					}, 2000 );
+				};
+				var applyFailureState = function () {
+					copyBtn.textContent = 'Copy failed';
+					copyBtn.style.color = '#e74c3c';
+					setTimeout( function () {
+						copyBtn.textContent = 'Copy';
+						copyBtn.style.color = 'rgba(255,255,255,0.6)';
+					}, 2000 );
+				};
+				copyTextWithFallback( codeEl.textContent, applySuccessState, applyFailureState );
 			} );
 		} );
+
+		/* ----------------------------------------------------------
+		   Data-attribute copy buttons (no inline handlers)
+		   ---------------------------------------------------------- */
+		var handleDataCopyClick = function ( event ) {
+			var btn = event.target.closest( '[data-copy-text], [data-copy-selector]' );
+			if ( ! btn ) return;
+
+			var text = '';
+
+			if ( btn.hasAttribute( 'data-copy-text' ) ) {
+				text = btn.getAttribute( 'data-copy-text' ) || '';
+			} else if ( btn.hasAttribute( 'data-copy-selector' ) ) {
+				var selector = btn.getAttribute( 'data-copy-selector' );
+				var target   = selector ? document.querySelector( selector ) : null;
+				if ( target ) {
+					text = target.textContent || '';
+				}
+			}
+
+			if ( ! text ) return;
+
+			var originalText  = btn.textContent;
+			var originalTitle = btn.getAttribute( 'title' );
+
+			var showSuccess = function () {
+				btn.textContent = '✓';
+				if ( originalTitle !== null ) {
+					btn.setAttribute( 'title', 'Copied' );
+				}
+				setTimeout( function () {
+					btn.textContent = originalText;
+					if ( originalTitle !== null ) {
+						btn.setAttribute( 'title', originalTitle );
+					}
+				}, 1500 );
+			};
+
+			copyTextWithFallback( text, showSuccess );
+		};
+
+		document.addEventListener( 'click', handleDataCopyClick );
 
 		/* ----------------------------------------------------------
 		   Active Navigation Link Highlight
