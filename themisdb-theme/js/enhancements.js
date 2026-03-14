@@ -371,6 +371,21 @@
     }
 
     /**
+     * Copy social share link via data attributes (no inline handlers)
+     */
+    function initShareCopyButton() {
+        const copyButtons = document.querySelectorAll('.share-button.share-copy[data-url]');
+        if (copyButtons.length === 0) return;
+
+        copyButtons.forEach((button) => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                themisdbCopyUrl(button);
+            });
+        });
+    }
+
+    /**
      * External links - open in new tab with icon
      */
     function initExternalLinks() {
@@ -405,6 +420,7 @@
             initBackToTop();
             initTooltips();
             initCodeCopy();
+            initShareCopyButton();
             initExternalLinks();
         } catch (error) {
             console.warn('ThemisDB enhancements initialization error:', error);
