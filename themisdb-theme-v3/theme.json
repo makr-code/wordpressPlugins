@@ -5,7 +5,7 @@
         "appearanceTools": true,
         "useRootPaddingAwareAlignments": true,
         "layout": {
-            "contentSize": "800px",
+            "contentSize": "75%",
             "wideSize": "1200px"
         },
         "spacing": {
@@ -17,20 +17,75 @@
                 "unit": "rem"
             },
             "spacingSizes": [
-                { "name": "1 (4px)",   "slug": "1",  "size": "0.25rem" },
-                { "name": "2 (8px)",   "slug": "2",  "size": "0.5rem"  },
-                { "name": "3 (12px)",  "slug": "3",  "size": "0.75rem" },
-                { "name": "4 (16px)",  "slug": "4",  "size": "1rem"    },
-                { "name": "5 (20px)",  "slug": "5",  "size": "1.25rem" },
-                { "name": "6 (24px)",  "slug": "6",  "size": "1.5rem"  },
-                { "name": "8 (32px)",  "slug": "8",  "size": "2rem"    },
-                { "name": "10 (40px)", "slug": "10", "size": "2.5rem"  },
-                { "name": "12 (48px)", "slug": "12", "size": "3rem"    },
-                { "name": "16 (64px)", "slug": "16", "size": "4rem"    },
-                { "name": "20 (80px)", "slug": "20", "size": "5rem"    },
-                { "name": "24 (96px)", "slug": "24", "size": "6rem"    }
+                {
+                    "name": "1 (4px)",
+                    "slug": "1",
+                    "size": "0.25rem"
+                },
+                {
+                    "name": "2 (8px)",
+                    "slug": "2",
+                    "size": "0.5rem"
+                },
+                {
+                    "name": "3 (12px)",
+                    "slug": "3",
+                    "size": "0.75rem"
+                },
+                {
+                    "name": "4 (16px)",
+                    "slug": "4",
+                    "size": "1rem"
+                },
+                {
+                    "name": "5 (20px)",
+                    "slug": "5",
+                    "size": "1.25rem"
+                },
+                {
+                    "name": "6 (24px)",
+                    "slug": "6",
+                    "size": "1.5rem"
+                },
+                {
+                    "name": "8 (32px)",
+                    "slug": "8",
+                    "size": "2rem"
+                },
+                {
+                    "name": "10 (40px)",
+                    "slug": "10",
+                    "size": "2.5rem"
+                },
+                {
+                    "name": "12 (48px)",
+                    "slug": "12",
+                    "size": "3rem"
+                },
+                {
+                    "name": "16 (64px)",
+                    "slug": "16",
+                    "size": "4rem"
+                },
+                {
+                    "name": "20 (80px)",
+                    "slug": "20",
+                    "size": "5rem"
+                },
+                {
+                    "name": "24 (96px)",
+                    "slug": "24",
+                    "size": "6rem"
+                }
             ],
-            "units": ["%", "px", "em", "rem", "vh", "vw"]
+            "units": [
+                "%",
+                "px",
+                "em",
+                "rem",
+                "vh",
+                "vw"
+            ]
         },
         "color": {
             "defaultDuotone": false,
@@ -41,89 +96,109 @@
                 {
                     "name": "TV3 Hero",
                     "slug": "tv3-hero",
-                    "gradient": "linear-gradient(160deg, #001a33 0%, #003366 45%, #00509e 100%)"
+                    "gradient": "linear-gradient(160deg, #0d1f3c 0%, #1a2e52 45%, #2d5496 100%)"
                 },
                 {
                     "name": "TV3 Azure",
                     "slug": "tv3-azure",
-                    "gradient": "linear-gradient(135deg, #0078d4 0%, #005a9e 100%)"
+                    "gradient": "linear-gradient(135deg, #1e6fba 0%, #154f8a 100%)"
                 },
                 {
                     "name": "TV3 Navy",
                     "slug": "tv3-navy",
-                    "gradient": "linear-gradient(135deg, #003366 0%, #001a33 100%)"
+                    "gradient": "linear-gradient(135deg, #1a2e52 0%, #0d1f3c 100%)"
                 },
                 {
                     "name": "TV3 Cyan",
                     "slug": "tv3-cyan",
-                    "gradient": "linear-gradient(135deg, #00b7c3 0%, #50e6ff 100%)"
+                    "gradient": "linear-gradient(135deg, #0d8fa0 0%, #1ab5c8 100%)"
                 },
                 {
                     "name": "TV3 Accent",
                     "slug": "tv3-accent",
-                    "gradient": "linear-gradient(135deg, #0078d4 0%, #50e6ff 100%)"
+                    "gradient": "linear-gradient(135deg, #1e6fba 0%, #1ab5c8 100%)"
+                },
+                {
+                    "name": "TV3 Forest",
+                    "slug": "tv3-forest",
+                    "gradient": "linear-gradient(135deg, #1a6e46 0%, #1a3d2b 100%)"
                 }
             ],
             "palette": [
                 {
                     "name": "TV3 Navy",
                     "slug": "tv3-navy",
-                    "color": "#003366"
+                    "color": "#1a2e52"
                 },
                 {
                     "name": "TV3 Navy Dark",
                     "slug": "tv3-navy-dark",
-                    "color": "#001a33"
+                    "color": "#0d1f3c"
                 },
                 {
                     "name": "TV3 Navy Mid",
                     "slug": "tv3-navy-mid",
-                    "color": "#00509e"
+                    "color": "#2d5496"
                 },
                 {
-                    "name": "TV3 Azure",
-                    "slug": "tv3-azure",
-                    "color": "#0078d4"
-                },
-                {
-                    "name": "TV3 Azure Dark",
-                    "slug": "tv3-azure-dark",
-                    "color": "#005a9e"
-                },
-                {
-                    "name": "TV3 Azure Light",
-                    "slug": "tv3-azure-light",
-                    "color": "#2899f5"
-                },
-                {
-                    "name": "TV3 Azure Pale",
-                    "slug": "tv3-azure-pale",
-                    "color": "#cfe4fc"
-                },
-                {
-                    "name": "TV3 Cyan",
-                    "slug": "tv3-cyan",
-                    "color": "#50e6ff"
-                },
-                {
-                    "name": "TV3 Teal",
-                    "slug": "tv3-teal",
-                    "color": "#008080"
+                    "name": "TV3 Forest Green",
+                    "slug": "tv3-forest",
+                    "color": "#1a3d2b"
                 },
                 {
                     "name": "TV3 Green",
                     "slug": "tv3-green",
-                    "color": "#107c10"
+                    "color": "#1a6e46"
+                },
+                {
+                    "name": "TV3 Green Light",
+                    "slug": "tv3-green-light",
+                    "color": "#27a068"
+                },
+                {
+                    "name": "TV3 Azure",
+                    "slug": "tv3-azure",
+                    "color": "#1e6fba"
+                },
+                {
+                    "name": "TV3 Azure Dark",
+                    "slug": "tv3-azure-dark",
+                    "color": "#154f8a"
+                },
+                {
+                    "name": "TV3 Azure Light",
+                    "slug": "tv3-azure-light",
+                    "color": "#3d8acc"
+                },
+                {
+                    "name": "TV3 Azure Pale",
+                    "slug": "tv3-azure-pale",
+                    "color": "#d6e8f7"
+                },
+                {
+                    "name": "TV3 Cyan",
+                    "slug": "tv3-cyan",
+                    "color": "#1ab5c8"
+                },
+                {
+                    "name": "TV3 Teal",
+                    "slug": "tv3-teal",
+                    "color": "#0a7a8a"
+                },
+                {
+                    "name": "TV3 Green",
+                    "slug": "tv3-green",
+                    "color": "#1a6e46"
                 },
                 {
                     "name": "TV3 Red",
                     "slug": "tv3-red",
-                    "color": "#d13438"
+                    "color": "#c0392b"
                 },
                 {
                     "name": "TV3 Yellow",
                     "slug": "tv3-yellow",
-                    "color": "#ffb900"
+                    "color": "#d68910"
                 },
                 {
                     "name": "White",
@@ -133,42 +208,42 @@
                 {
                     "name": "Gray 50",
                     "slug": "gray-50",
-                    "color": "#f5f7fa"
+                    "color": "#f6f8fa"
                 },
                 {
                     "name": "Gray 100",
                     "slug": "gray-100",
-                    "color": "#eef2f7"
+                    "color": "#eef2f6"
                 },
                 {
                     "name": "Gray 200",
                     "slug": "gray-200",
-                    "color": "#dde3ec"
+                    "color": "#dce4ef"
                 },
                 {
                     "name": "Gray 400",
                     "slug": "gray-400",
-                    "color": "#8fa3bc"
+                    "color": "#8aa0b8"
                 },
                 {
                     "name": "Gray 500",
                     "slug": "gray-500",
-                    "color": "#6c7f96"
+                    "color": "#647e96"
                 },
                 {
                     "name": "Text On Dark",
                     "slug": "text-on-dark",
-                    "color": "#e8eef5"
+                    "color": "#e8f0f8"
                 },
                 {
                     "name": "Dark Background",
                     "slug": "bg-dark",
-                    "color": "#003366"
+                    "color": "#1a2e52"
                 },
                 {
                     "name": "Darker Background",
                     "slug": "bg-darker",
-                    "color": "#001a33"
+                    "color": "#0d1f3c"
                 }
             ]
         },
@@ -177,16 +252,56 @@
             "defaultFontSizes": false,
             "dropCap": false,
             "fontSizes": [
-                { "name": "XS (12px)",  "slug": "xs",   "size": "0.75rem"  },
-                { "name": "SM (14px)",  "slug": "sm",   "size": "0.875rem" },
-                { "name": "Base (16px)","slug": "base", "size": "1rem"     },
-                { "name": "MD (18px)",  "slug": "md",   "size": "1.125rem" },
-                { "name": "LG (20px)",  "slug": "lg",   "size": "1.25rem"  },
-                { "name": "XL (24px)",  "slug": "xl",   "size": "1.5rem"   },
-                { "name": "2XL (30px)", "slug": "2xl",  "size": "1.875rem" },
-                { "name": "3XL (36px)", "slug": "3xl",  "size": "2.25rem"  },
-                { "name": "4XL (48px)", "slug": "4xl",  "size": "3rem"     },
-                { "name": "5XL (60px)", "slug": "5xl",  "size": "3.75rem"  }
+                {
+                    "name": "XS (12px)",
+                    "slug": "xs",
+                    "size": "0.75rem"
+                },
+                {
+                    "name": "SM (14px)",
+                    "slug": "sm",
+                    "size": "0.875rem"
+                },
+                {
+                    "name": "Base (16px)",
+                    "slug": "base",
+                    "size": "1rem"
+                },
+                {
+                    "name": "MD (18px)",
+                    "slug": "md",
+                    "size": "1.125rem"
+                },
+                {
+                    "name": "LG (20px)",
+                    "slug": "lg",
+                    "size": "1.25rem"
+                },
+                {
+                    "name": "XL (24px)",
+                    "slug": "xl",
+                    "size": "1.5rem"
+                },
+                {
+                    "name": "2XL (30px)",
+                    "slug": "2xl",
+                    "size": "1.875rem"
+                },
+                {
+                    "name": "3XL (36px)",
+                    "slug": "3xl",
+                    "size": "2.25rem"
+                },
+                {
+                    "name": "4XL (48px)",
+                    "slug": "4xl",
+                    "size": "3rem"
+                },
+                {
+                    "name": "5XL (60px)",
+                    "slug": "5xl",
+                    "size": "3.75rem"
+                }
             ],
             "fontFamilies": [
                 {
@@ -206,22 +321,41 @@
             "core/button": {
                 "color": {
                     "palette": [
-                        { "name": "TV3 Azure",     "slug": "tv3-azure",      "color": "#0078d4" },
-                        { "name": "TV3 Navy",      "slug": "tv3-navy",       "color": "#003366" },
-                        { "name": "TV3 Cyan",      "slug": "tv3-cyan",       "color": "#50e6ff" },
-                        { "name": "White",         "slug": "white",          "color": "#ffffff" }
+                        {
+                            "name": "TV3 Azure",
+                            "slug": "tv3-azure",
+                            "color": "#1e6fba"
+                        },
+                        {
+                            "name": "TV3 Navy",
+                            "slug": "tv3-navy",
+                            "color": "#1a2e52"
+                        },
+                        {
+                            "name": "TV3 Cyan",
+                            "slug": "tv3-cyan",
+                            "color": "#1ab5c8"
+                        },
+                        {
+                            "name": "White",
+                            "slug": "white",
+                            "color": "#ffffff"
+                        }
                     ]
                 }
             },
             "core/navigation": {
                 "layout": {
-                    "default": { "type": "flex", "orientation": "horizontal" }
+                    "default": {
+                        "type": "flex",
+                        "orientation": "horizontal"
+                    }
                 }
             },
             "core/code": {
                 "color": {
-                    "background": "#0d1821",
-                    "text": "#cdd9e5"
+                    "background": "#0d1e32",
+                    "text": "#c8d8e8"
                 }
             }
         }
@@ -229,7 +363,7 @@
     "styles": {
         "color": {
             "background": "#ffffff",
-            "text": "#12202f"
+            "text": "#111827"
         },
         "typography": {
             "fontFamily": "var:preset|font-family|system-sans",
@@ -242,9 +376,13 @@
         },
         "elements": {
             "link": {
-                "color": { "text": "var:preset|color|tv3-azure" },
+                "color": {
+                    "text": "var:preset|color|tv3-azure"
+                },
                 ":hover": {
-                    "color": { "text": "var:preset|color|tv3-azure-dark" }
+                    "color": {
+                        "text": "var:preset|color|tv3-azure-dark"
+                    }
                 }
             },
             "button": {
@@ -344,8 +482,8 @@
             },
             "core/code": {
                 "color": {
-                    "background": "#0d1821",
-                    "text": "#cdd9e5"
+                    "background": "#0d1e32",
+                    "text": "#c8d8e8"
                 },
                 "typography": {
                     "fontFamily": "var:preset|font-family|mono",
@@ -359,14 +497,18 @@
                         "right": "var:preset|spacing|6"
                     }
                 },
-                "border": { "radius": "12px" }
+                "border": {
+                    "radius": "12px"
+                }
             },
             "core/quote": {
                 "border": {
                     "color": "var:preset|color|tv3-azure",
                     "style": "solid",
                     "width": "0",
-                    "left": { "width": "4px" }
+                    "left": {
+                        "width": "4px"
+                    }
                 },
                 "color": {
                     "background": "var:preset|color|gray-50"
@@ -397,8 +539,12 @@
                 "border": {
                     "color": "var:preset|color|tv3-azure",
                     "style": "solid",
-                    "top": { "width": "3px" },
-                    "bottom": { "width": "3px" }
+                    "top": {
+                        "width": "3px"
+                    },
+                    "bottom": {
+                        "width": "3px"
+                    }
                 },
                 "color": {
                     "text": "var:preset|color|tv3-navy"
@@ -411,49 +557,109 @@
         }
     },
     "templateParts": [
-        { "name": "header",           "title": "Header",              "area": "header" },
-        { "name": "header-docs",      "title": "Header – Docs",       "area": "header" },
-        { "name": "footer",           "title": "Footer",              "area": "footer" },
-        { "name": "announcement-bar", "title": "Announcement Bar",    "area": "uncategorized" },
-        { "name": "page-hero",        "title": "Page Hero",           "area": "uncategorized" },
-        { "name": "breadcrumbs",      "title": "Breadcrumbs",         "area": "uncategorized" },
-        { "name": "post-meta",        "title": "Post Meta",           "area": "uncategorized" },
-        { "name": "post-navigation",  "title": "Post Navigation",     "area": "uncategorized" },
-        { "name": "cta-banner",       "title": "CTA Banner",          "area": "uncategorized" },
-        { "name": "search-bar",       "title": "Search Bar",          "area": "uncategorized" },
-        { "name": "sidebar-docs",     "title": "Sidebar – Docs",      "area": "uncategorized" },
-        { "name": "404-content",      "title": "404 Content",         "area": "uncategorized" }
+        {
+            "name": "header",
+            "title": "Header",
+            "area": "header"
+        },
+        {
+            "name": "header-docs",
+            "title": "Header – Docs",
+            "area": "header"
+        },
+        {
+            "name": "footer",
+            "title": "Footer",
+            "area": "footer"
+        },
+        {
+            "name": "announcement-bar",
+            "title": "Announcement Bar",
+            "area": "uncategorized"
+        },
+        {
+            "name": "page-hero",
+            "title": "Page Hero",
+            "area": "uncategorized"
+        },
+        {
+            "name": "breadcrumbs",
+            "title": "Breadcrumbs",
+            "area": "uncategorized"
+        },
+        {
+            "name": "post-meta",
+            "title": "Post Meta",
+            "area": "uncategorized"
+        },
+        {
+            "name": "post-navigation",
+            "title": "Post Navigation",
+            "area": "uncategorized"
+        },
+        {
+            "name": "cta-banner",
+            "title": "CTA Banner",
+            "area": "uncategorized"
+        },
+        {
+            "name": "search-bar",
+            "title": "Search Bar",
+            "area": "uncategorized"
+        },
+        {
+            "name": "sidebar-docs",
+            "title": "Sidebar – Docs",
+            "area": "uncategorized"
+        },
+        {
+            "name": "404-content",
+            "title": "404 Content",
+            "area": "uncategorized"
+        }
     ],
     "customTemplates": [
         {
             "name": "front-page",
             "title": "Front Page",
-            "postTypes": ["page"]
+            "postTypes": [
+                "page"
+            ]
         },
         {
             "name": "page-docs",
             "title": "Documentation Page",
-            "postTypes": ["page"]
+            "postTypes": [
+                "page"
+            ]
         },
         {
             "name": "page-full-width",
             "title": "Full Width Page",
-            "postTypes": ["page"]
+            "postTypes": [
+                "page"
+            ]
         },
         {
             "name": "single",
             "title": "Single Post",
-            "postTypes": ["post"]
+            "postTypes": [
+                "post"
+            ]
         },
         {
             "name": "index",
             "title": "Blog Index",
-            "postTypes": ["post"]
+            "postTypes": [
+                "post"
+            ]
         },
         {
             "name": "page",
             "title": "Page",
-            "postTypes": ["page"]
+            "postTypes": [
+                "page"
+            ]
         },
         {
             "name": "404",

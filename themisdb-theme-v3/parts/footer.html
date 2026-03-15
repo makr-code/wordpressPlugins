@@ -1,5 +1,5 @@
-<!-- wp:group {"tagName":"footer","className":"site-footer tv3-footer","style":{"color":{"background":"#001a33","text":"#e8eef5"}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
-<footer class="wp-block-group site-footer tv3-footer" style="background-color:#001a33;color:#e8eef5">
+<!-- wp:group {"tagName":"footer","className":"site-footer tv3-footer","style":{"color":{"background":"#1a3d2b","text":"#e8f0f8"}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
+<footer class="wp-block-group site-footer tv3-footer" style="background-color:#1a3d2b;color:#e8f0f8">
 
 	<!-- Footer 4-column grid -->
 	<!-- wp:columns {"className":"tv3-footer-grid","style":{"spacing":{"padding":{"top":"var:preset|spacing|16","bottom":"var:preset|spacing|12"},"blockGap":{"top":"var:preset|spacing|12","left":"var:preset|spacing|8"}}}} -->
@@ -15,13 +15,25 @@
 			<p style="color:rgba(255,255,255,0.5);font-size:0.875rem;margin-top:var(--wp--preset--spacing--3)">High-Performance Multi-Model Database with Native AI/LLM Integration. Built for the AI era.</p>
 			<!-- /wp:paragraph -->
 			<!-- wp:spacer {"height":"20px"} --><div style="height:20px" aria-hidden="true" class="wp-block-spacer"></div><!-- /wp:spacer -->
-			<!-- wp:html -->
-			<div style="display:flex;gap:0.75rem;margin-bottom:1.25rem;">
-				<a href="https://github.com/makr-code/wordpressPlugins" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;background:rgba(255,255,255,0.08);border-radius:8px;color:rgba(255,255,255,0.6);text-decoration:none;font-size:1rem;transition:all 0.2s;" title="GitHub">⭐</a>
-				<a href="/community" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;background:rgba(255,255,255,0.08);border-radius:8px;color:rgba(255,255,255,0.6);text-decoration:none;font-size:1rem;transition:all 0.2s;" title="Community">💬</a>
-				<a href="/docs/changelog" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;background:rgba(255,255,255,0.08);border-radius:8px;color:rgba(255,255,255,0.6);text-decoration:none;font-size:1rem;transition:all 0.2s;" title="Changelog">📋</a>
+			<!-- wp:buttons {"className":"tv3-footer-social","layout":{"type":"flex","flexWrap":"nowrap"},"style":{"spacing":{"blockGap":"var:preset|spacing|3","margin":{"bottom":"1.25rem"}}}} -->
+			<div class="wp-block-buttons tv3-footer-social" style="gap:var(--wp--preset--spacing--3);margin-bottom:1.25rem">
+				<!-- wp:button {"className":"tv3-footer-social-btn","style":{"color":{"background":"rgba(255,255,255,0.08)","text":"rgba(255,255,255,0.6)"},"border":{"radius":"8px"},"spacing":{"padding":{"top":"0.5rem","bottom":"0.5rem","left":"0.625rem","right":"0.625rem"}}}} -->
+				<div class="wp-block-button tv3-footer-social-btn">
+					<a class="wp-block-button__link wp-element-button" href="https://github.com/makr-code/wordpressPlugins" title="GitHub" style="background-color:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);border-radius:8px;padding-top:0.5rem;padding-right:0.625rem;padding-bottom:0.5rem;padding-left:0.625rem">⭐</a>
+				</div>
+				<!-- /wp:button -->
+				<!-- wp:button {"className":"tv3-footer-social-btn","style":{"color":{"background":"rgba(255,255,255,0.08)","text":"rgba(255,255,255,0.6)"},"border":{"radius":"8px"},"spacing":{"padding":{"top":"0.5rem","bottom":"0.5rem","left":"0.625rem","right":"0.625rem"}}}} -->
+				<div class="wp-block-button tv3-footer-social-btn">
+					<a class="wp-block-button__link wp-element-button" href="/community" title="Community" style="background-color:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);border-radius:8px;padding-top:0.5rem;padding-right:0.625rem;padding-bottom:0.5rem;padding-left:0.625rem">💬</a>
+				</div>
+				<!-- /wp:button -->
+				<!-- wp:button {"className":"tv3-footer-social-btn","style":{"color":{"background":"rgba(255,255,255,0.08)","text":"rgba(255,255,255,0.6)"},"border":{"radius":"8px"},"spacing":{"padding":{"top":"0.5rem","bottom":"0.5rem","left":"0.625rem","right":"0.625rem"}}}} -->
+				<div class="wp-block-button tv3-footer-social-btn">
+					<a class="wp-block-button__link wp-element-button" href="/docs/changelog" title="Changelog" style="background-color:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);border-radius:8px;padding-top:0.5rem;padding-right:0.625rem;padding-bottom:0.5rem;padding-left:0.625rem">📋</a>
+				</div>
+				<!-- /wp:button -->
 			</div>
-			<!-- /wp:html -->
+			<!-- /wp:buttons -->
 			<!-- wp:paragraph {"style":{"typography":{"fontSize":"0.8125rem"},"color":{"text":"rgba(255,255,255,0.35)"}}} -->
 			<p style="color:rgba(255,255,255,0.35);font-size:0.8125rem">© 2025 ThemisDB · MIT License</p>
 			<!-- /wp:paragraph -->
@@ -79,10 +91,14 @@
 				<li><a href="/community" style="color:rgba(255,255,255,0.55);text-decoration:none">Community Forum</a></li>
 				<li><a href="/support" style="color:rgba(255,255,255,0.55);text-decoration:none">Support</a></li>
 				<li><a href="/contact" style="color:rgba(255,255,255,0.55);text-decoration:none">Contact</a></li>
-				<!-- wp:spacer {"height":"8px"} --><div style="height:8px" aria-hidden="true" class="wp-block-spacer"></div><!-- /wp:spacer -->
-				<li><a href="/privacy" style="color:rgba(255,255,255,0.35);text-decoration:none;font-size:0.8125rem">Privacy Policy</a></li>
-				<li><a href="/terms" style="color:rgba(255,255,255,0.35);text-decoration:none;font-size:0.8125rem">Terms of Service</a></li>
-				<li><a href="/imprint" style="color:rgba(255,255,255,0.35);text-decoration:none;font-size:0.8125rem">Imprint</a></li>
+			</ul>
+			<!-- /wp:list -->
+			<!-- wp:spacer {"height":"8px"} --><div style="height:8px" aria-hidden="true" class="wp-block-spacer"></div><!-- /wp:spacer -->
+			<!-- wp:list {"className":"tv3-footer-list tv3-footer-list-legal","style":{"spacing":{"padding":{"left":"0"}}}} -->
+			<ul class="wp-block-list tv3-footer-list tv3-footer-list-legal" style="padding-left:0">
+				<li><a href="/privacy">Privacy Policy</a></li>
+				<li><a href="/terms">Terms of Service</a></li>
+				<li><a href="/imprint">Imprint</a></li>
 			</ul>
 			<!-- /wp:list -->
 		</div>
@@ -103,7 +119,7 @@
 		<p style="color:rgba(255,255,255,0.35);font-size:0.8125rem">ThemisDB v3.0 · Powered by <a href="https://wordpress.org" style="color:rgba(255,255,255,0.35);text-decoration:none">WordPress</a> · Block Theme (FSE)</p>
 		<!-- /wp:paragraph -->
 		<!-- wp:paragraph {"style":{"typography":{"fontSize":"0.8125rem"},"color":{"text":"rgba(255,255,255,0.35)"}}} -->
-		<p style="color:rgba(255,255,255,0.35);font-size:0.8125rem"><a href="https://github.com/makr-code/wordpressPlugins" style="color:rgba(255,255,255,0.5);text-decoration:none">⭐ Star on GitHub</a> &nbsp;·&nbsp; <a href="/sitemap.xml" style="color:rgba(255,255,255,0.35);text-decoration:none">Sitemap</a> &nbsp;·&nbsp; <a href="/downloads" style="color:#50e6ff;text-decoration:none;font-weight:600">Download v3 →</a></p>
+		<p style="color:rgba(255,255,255,0.35);font-size:0.8125rem"><a href="https://github.com/makr-code/wordpressPlugins" style="color:rgba(255,255,255,0.5);text-decoration:none">⭐ Star on GitHub</a> &nbsp;·&nbsp; <a href="/sitemap.xml" style="color:rgba(255,255,255,0.35);text-decoration:none">Sitemap</a> &nbsp;·&nbsp; <a href="/downloads" style="color:#1ab5c8;text-decoration:none;font-weight:600">Download v3 →</a></p>
 		<!-- /wp:paragraph -->
 	</div>
 	<!-- /wp:group -->

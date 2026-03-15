@@ -19,65 +19,69 @@ Tags: full-site-editing, block-theme, custom-colors, custom-logo, custom-menu, e
    Inspired by postgresql.org × Azure Fluent Design
    ============================================================ */
 :root {
-    /* ── v3 Brand Palette ── */
-    --tv3-navy:          #003366;   /* PostgreSQL navy – header bg */
-    --tv3-navy-dark:     #001a33;   /* Darker navy – footer bg */
-    --tv3-navy-mid:      #00509e;   /* Mid navy */
-    --tv3-azure:         #0078d4;   /* Azure blue – primary interactive */
-    --tv3-azure-dark:    #005a9e;   /* Azure dark – hover state */
-    --tv3-azure-light:   #2899f5;   /* Azure light – active/selected */
-    --tv3-azure-pale:    #cfe4fc;   /* Azure pale – tinted backgrounds */
-    --tv3-cyan:          #50e6ff;   /* Azure cyan accent */
-    --tv3-cyan-dark:     #00b7c3;   /* Cyan dark */
-    --tv3-teal:          #008080;   /* Teal complement */
-    --tv3-teal-light:    #00b294;   /* Teal light */
+    /* ── v3 Brand Palette – Harmonious Blue-Green ── */
+    --tv3-navy:          #1a2e52;   /* Deep navy blue – header bg */
+    --tv3-navy-dark:     #0d1f3c;   /* Very dark navy – deep dark sections */
+    --tv3-navy-mid:      #2d5496;   /* Mid navy – gradient stop */
+    --tv3-forest:        #1a3d2b;   /* Dark forest green – footer bg */
+    --tv3-forest-mid:    #245c3f;   /* Forest mid green – gradient stop */
+    --tv3-azure:         #1e6fba;   /* Primary blue – buttons, links */
+    --tv3-azure-dark:    #154f8a;   /* Primary blue dark – hover state */
+    --tv3-azure-light:   #3d8acc;   /* Primary blue light – active/selected */
+    --tv3-azure-pale:    #d6e8f7;   /* Primary blue pale – tinted backgrounds */
+    --tv3-cyan:          #1ab5c8;   /* Teal-cyan accent */
+    --tv3-cyan-dark:     #0d8fa0;   /* Teal-cyan dark */
+    --tv3-teal:          #0a7a8a;   /* Deep teal – blue/green bridge */
+    --tv3-teal-light:    #15a89e;   /* Teal light */
 
-    /* ── Semantic Colors (Microsoft palette) ── */
-    --tv3-green:         #107c10;   /* MS green – success */
-    --tv3-green-light:   #55b056;
-    --tv3-red:           #d13438;   /* MS red – error/danger */
-    --tv3-red-light:     #f1707b;
-    --tv3-yellow:        #ffb900;   /* MS yellow – warning */
-    --tv3-yellow-light:  #fce100;
-    --tv3-orange:        #e66200;   /* Vivid orange */
+    /* ── Semantic Colors ── */
+    --tv3-green:         #1a6e46;   /* Forest green – success / secondary */
+    --tv3-green-light:   #27a068;   /* Green light */
+    --tv3-green-pale:    #d0ede0;   /* Green pale – tinted bg */
+    --tv3-red:           #c0392b;   /* Red – error/danger */
+    --tv3-red-light:     #e57a73;
+    --tv3-yellow:        #d68910;   /* Amber – warning */
+    --tv3-yellow-light:  #f0c040;
+    --tv3-orange:        #ca6110;   /* Orange */
 
-    /* ── Neutral Palette ── */
+    /* ── Neutral Palette – Blue-Grey ── */
     --tv3-white:         #ffffff;
-    --tv3-gray-50:       #f5f7fa;
-    --tv3-gray-100:      #eef2f7;
-    --tv3-gray-200:      #dde3ec;
-    --tv3-gray-300:      #bdc8d8;
-    --tv3-gray-400:      #8fa3bc;
-    --tv3-gray-500:      #6c7f96;
-    --tv3-gray-600:      #516078;
-    --tv3-gray-700:      #3b4a5e;
-    --tv3-gray-800:      #243144;
-    --tv3-gray-900:      #12202f;
+    --tv3-gray-50:       #f6f8fa;
+    --tv3-gray-100:      #eef2f6;
+    --tv3-gray-200:      #dce4ef;
+    --tv3-gray-300:      #b8c8d9;
+    --tv3-gray-400:      #8aa0b8;
+    --tv3-gray-500:      #647e96;
+    --tv3-gray-600:      #4b6075;
+    --tv3-gray-700:      #334155;
+    --tv3-gray-800:      #1f2d3d;
+    --tv3-gray-900:      #111827;
     --tv3-black:         #050e18;
 
-    /* ── Text ── */
-    --tv3-text-primary:   #12202f;
-    --tv3-text-secondary: #3b4a5e;
-    --tv3-text-muted:     #6c7f96;
+    /* ── Text – Black on White ── */
+    --tv3-text-primary:   #111827;
+    --tv3-text-secondary: #334155;
+    --tv3-text-muted:     #647e96;
     --tv3-text-inverse:   #ffffff;
-    --tv3-text-on-dark:   #e8eef5;
-    --tv3-text-link:      #0078d4;
-    --tv3-text-link-hover:#005a9e;
+    --tv3-text-on-dark:   #e8f0f8;
+    --tv3-text-link:      #1e6fba;
+    --tv3-text-link-hover:#154f8a;
 
     /* ── Backgrounds ── */
     --tv3-bg-default:    #ffffff;
-    --tv3-bg-subtle:     #f5f7fa;
-    --tv3-bg-muted:      #eef2f7;
-    --tv3-bg-dark:       #003366;
-    --tv3-bg-darker:     #001a33;
-    --tv3-bg-code:       #0d1821;
-    --tv3-bg-azure:      #0078d4;
+    --tv3-bg-subtle:     #f6f8fa;
+    --tv3-bg-muted:      #eef2f6;
+    --tv3-bg-dark:       #1a2e52;
+    --tv3-bg-darker:     #0d1f3c;
+    --tv3-bg-forest:     #1a3d2b;
+    --tv3-bg-code:       #0d1e32;
+    --tv3-bg-azure:      #1e6fba;
 
     /* ── Borders ── */
-    --tv3-border:        #dde3ec;
-    --tv3-border-light:  #eef2f7;
-    --tv3-border-dark:   #bdc8d8;
-    --tv3-border-azure:  rgba(0, 120, 212, 0.3);
+    --tv3-border:        #dce4ef;
+    --tv3-border-light:  #eef2f6;
+    --tv3-border-dark:   #b8c8d9;
+    --tv3-border-azure:  rgba(30, 111, 186, 0.3);
 
     /* ── Border Radius ── */
     --tv3-radius-sm:     4px;
@@ -87,22 +91,23 @@ Tags: full-site-editing, block-theme, custom-colors, custom-logo, custom-menu, e
     --tv3-radius-xl:     24px;
     --tv3-radius-full:   9999px;
 
-    /* ── Shadows (smoother, Fluent-style) ── */
-    --tv3-shadow-xs:     0 1px 3px rgba(0, 51, 102, 0.06);
-    --tv3-shadow-sm:     0 2px 6px rgba(0, 51, 102, 0.08);
-    --tv3-shadow-md:     0 4px 16px rgba(0, 51, 102, 0.10);
-    --tv3-shadow-lg:     0 8px 28px rgba(0, 51, 102, 0.13);
-    --tv3-shadow-xl:     0 16px 48px rgba(0, 51, 102, 0.16);
-    --tv3-shadow-azure:  0 4px 20px rgba(0, 120, 212, 0.25);
-    --tv3-shadow-focus:  0 0 0 3px rgba(0, 120, 212, 0.35);
+    /* ── Shadows – Deep Navy Base ── */
+    --tv3-shadow-xs:     0 1px 3px rgba(13, 31, 60, 0.06);
+    --tv3-shadow-sm:     0 2px 6px rgba(13, 31, 60, 0.08);
+    --tv3-shadow-md:     0 4px 16px rgba(13, 31, 60, 0.10);
+    --tv3-shadow-lg:     0 8px 28px rgba(13, 31, 60, 0.13);
+    --tv3-shadow-xl:     0 16px 48px rgba(13, 31, 60, 0.16);
+    --tv3-shadow-azure:  0 4px 20px rgba(30, 111, 186, 0.25);
+    --tv3-shadow-focus:  0 0 0 3px rgba(30, 111, 186, 0.35);
 
     /* ── Gradients ── */
-    --tv3-gradient-hero:     linear-gradient(160deg, #001a33 0%, #003366 45%, #00509e 100%);
-    --tv3-gradient-azure:    linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
-    --tv3-gradient-navy:     linear-gradient(135deg, #003366 0%, #001a33 100%);
-    --tv3-gradient-cyan:     linear-gradient(135deg, #00b7c3 0%, #50e6ff 100%);
-    --tv3-gradient-accent:   linear-gradient(135deg, #0078d4 0%, #50e6ff 100%);
-    --tv3-gradient-success:  linear-gradient(135deg, #107c10 0%, #55b056 100%);
+    --tv3-gradient-hero:     linear-gradient(160deg, #0d1f3c 0%, #1a2e52 45%, #2d5496 100%);
+    --tv3-gradient-azure:    linear-gradient(135deg, #1e6fba 0%, #154f8a 100%);
+    --tv3-gradient-navy:     linear-gradient(135deg, #1a2e52 0%, #0d1f3c 100%);
+    --tv3-gradient-forest:   linear-gradient(135deg, #1a6e46 0%, #1a3d2b 100%);
+    --tv3-gradient-cyan:     linear-gradient(135deg, #0d8fa0 0%, #1ab5c8 100%);
+    --tv3-gradient-accent:   linear-gradient(135deg, #1e6fba 0%, #0a7a8a 100%);
+    --tv3-gradient-success:  linear-gradient(135deg, #1a6e46 0%, #27a068 100%);
 
     /* ── Typography ── */
     --tv3-font-sans:    "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -394,7 +399,7 @@ tr:hover td { background: var(--tv3-gray-50); }
 /* ============================================================
    Layout Containers
    ============================================================ */
-.wp-site-blocks { min-height: 100vh; display: flex; flex-direction: column; }
+.wp-site-blocks { min-height: 100vh; min-width: 75%; display: flex; flex-direction: column; }
 
 .site-main { flex: 1; }
 
@@ -499,12 +504,26 @@ tr:hover td { background: var(--tv3-gray-50); }
 
 .tv3-announcement-close:hover { color: #ffffff; }
 
+/* Docs Header Badge */
+.tv3-docs-badge {
+    display: inline-block;
+    background: rgba(26, 181, 200, 0.2);
+    color: var(--tv3-cyan);
+    border-radius: 4px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin-left: 0.375rem;
+    vertical-align: middle;
+}
+
 /* ============================================================
    Footer
    ============================================================ */
 .site-footer,
 .tv3-footer {
-    background: var(--tv3-navy-dark);
+    background: var(--tv3-bg-forest);
     color: var(--tv3-text-on-dark);
 }
 
@@ -542,6 +561,22 @@ tr:hover td { background: var(--tv3-gray-50); }
 .tv3-footer-list a:hover {
     color: var(--tv3-cyan);
     text-decoration: none;
+}
+
+.tv3-footer-list-legal a {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 0.8125rem;
+}
+
+.tv3-footer-social { flex-wrap: nowrap; }
+
+.tv3-footer-social-btn .wp-block-button__link {
+    line-height: 1;
+    transition: opacity var(--tv3-transition-fast);
+}
+
+.tv3-footer-social-btn .wp-block-button__link:hover {
+    opacity: 0.85;
 }
 
 .tv3-footer-bottom {
@@ -659,8 +694,8 @@ tr:hover td { background: var(--tv3-gray-50); }
     position: absolute;
     inset: 0;
     background:
-        radial-gradient(ellipse 60% 50% at 50% 100%, rgba(0, 120, 212, 0.2) 0%, transparent 60%),
-        radial-gradient(ellipse 40% 40% at 80% 20%, rgba(80, 230, 255, 0.1) 0%, transparent 50%);
+        radial-gradient(ellipse 60% 50% at 50% 100%, rgba(30, 111, 186, 0.2) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 40% at 80% 20%, rgba(26, 181, 200, 0.1) 0%, transparent 50%);
     pointer-events: none;
 }
 
@@ -670,8 +705,8 @@ tr:hover td { background: var(--tv3-gray-50); }
     display: inline-flex;
     align-items: center;
     gap: var(--tv3-space-2);
-    background: rgba(0, 120, 212, 0.2);
-    border: 1px solid rgba(80, 230, 255, 0.4);
+    background: rgba(30, 111, 186, 0.2);
+    border: 1px solid rgba(26, 181, 200, 0.4);
     border-radius: var(--tv3-radius-full);
     padding: 0.3rem 1rem 0.3rem 0.4rem;
     font-size: 0.8125rem;
@@ -1192,6 +1227,11 @@ tr:hover td { background: var(--tv3-gray-50); }
 
 .tv3-post-meta-sep { color: var(--tv3-gray-300); }
 
+.tv3-read-time {
+    font-size: var(--tv3-font-size-xs);
+    color: var(--tv3-text-muted);
+}
+
 .tv3-post-tag {
     display: inline-block;
     background: var(--tv3-azure-pale);
@@ -1256,7 +1296,7 @@ tr:hover td { background: var(--tv3-gray-50); }
    CTA Banner
    ============================================================ */
 .tv3-cta-banner {
-    background: var(--tv3-gradient-azure);
+    background: var(--tv3-gradient-forest);
     color: #ffffff;
     padding: var(--tv3-space-16) 0;
     text-align: center;
@@ -1268,7 +1308,7 @@ tr:hover td { background: var(--tv3-gray-50); }
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse 60% 80% at 50% 50%, rgba(80, 230, 255, 0.15) 0%, transparent 70%);
+    background: radial-gradient(ellipse 60% 80% at 50% 50%, rgba(39, 160, 104, 0.2) 0%, transparent 70%);
     pointer-events: none;
 }
 
@@ -1456,8 +1496,8 @@ tr:hover td { background: var(--tv3-gray-50); }
 }
 
 @keyframes tv3-pulse-glow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 120, 212, 0.4); }
-    50%       { box-shadow: 0 0 0 8px rgba(0, 120, 212, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(30, 111, 186, 0.4); }
+    50%       { box-shadow: 0 0 0 8px rgba(30, 111, 186, 0); }
 }
 
 .themis-v3-fade-in {
