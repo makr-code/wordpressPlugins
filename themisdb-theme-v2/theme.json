@@ -17,20 +17,75 @@
                 "unit": "rem"
             },
             "spacingSizes": [
-                { "name": "1 (4px)",   "slug": "1",  "size": "0.25rem" },
-                { "name": "2 (8px)",   "slug": "2",  "size": "0.5rem"  },
-                { "name": "3 (12px)",  "slug": "3",  "size": "0.75rem" },
-                { "name": "4 (16px)",  "slug": "4",  "size": "1rem"    },
-                { "name": "5 (20px)",  "slug": "5",  "size": "1.25rem" },
-                { "name": "6 (24px)",  "slug": "6",  "size": "1.5rem"  },
-                { "name": "8 (32px)",  "slug": "8",  "size": "2rem"    },
-                { "name": "10 (40px)", "slug": "10", "size": "2.5rem"  },
-                { "name": "12 (48px)", "slug": "12", "size": "3rem"    },
-                { "name": "16 (64px)", "slug": "16", "size": "4rem"    },
-                { "name": "20 (80px)", "slug": "20", "size": "5rem"    },
-                { "name": "24 (96px)", "slug": "24", "size": "6rem"    }
+                {
+                    "name": "1 (4px)",
+                    "slug": "1",
+                    "size": "0.25rem"
+                },
+                {
+                    "name": "2 (8px)",
+                    "slug": "2",
+                    "size": "0.5rem"
+                },
+                {
+                    "name": "3 (12px)",
+                    "slug": "3",
+                    "size": "0.75rem"
+                },
+                {
+                    "name": "4 (16px)",
+                    "slug": "4",
+                    "size": "1rem"
+                },
+                {
+                    "name": "5 (20px)",
+                    "slug": "5",
+                    "size": "1.25rem"
+                },
+                {
+                    "name": "6 (24px)",
+                    "slug": "6",
+                    "size": "1.5rem"
+                },
+                {
+                    "name": "8 (32px)",
+                    "slug": "8",
+                    "size": "2rem"
+                },
+                {
+                    "name": "10 (40px)",
+                    "slug": "10",
+                    "size": "2.5rem"
+                },
+                {
+                    "name": "12 (48px)",
+                    "slug": "12",
+                    "size": "3rem"
+                },
+                {
+                    "name": "16 (64px)",
+                    "slug": "16",
+                    "size": "4rem"
+                },
+                {
+                    "name": "20 (80px)",
+                    "slug": "20",
+                    "size": "5rem"
+                },
+                {
+                    "name": "24 (96px)",
+                    "slug": "24",
+                    "size": "6rem"
+                }
             ],
-            "units": ["%", "px", "em", "rem", "vh", "vw"]
+            "units": [
+                "%",
+                "px",
+                "em",
+                "rem",
+                "vh",
+                "vw"
+            ]
         },
         "color": {
             "defaultDuotone": false,
@@ -162,16 +217,56 @@
             "defaultFontSizes": false,
             "dropCap": false,
             "fontSizes": [
-                { "name": "XS (12px)",  "slug": "xs",   "size": "0.75rem"  },
-                { "name": "SM (14px)",  "slug": "sm",   "size": "0.875rem" },
-                { "name": "Base (16px)","slug": "base", "size": "1rem"     },
-                { "name": "MD (18px)",  "slug": "md",   "size": "1.125rem" },
-                { "name": "LG (20px)",  "slug": "lg",   "size": "1.25rem"  },
-                { "name": "XL (24px)",  "slug": "xl",   "size": "1.5rem"   },
-                { "name": "2XL (30px)", "slug": "2xl",  "size": "1.875rem" },
-                { "name": "3XL (36px)", "slug": "3xl",  "size": "2.25rem"  },
-                { "name": "4XL (48px)", "slug": "4xl",  "size": "3rem"     },
-                { "name": "5XL (60px)", "slug": "5xl",  "size": "3.75rem"  }
+                {
+                    "name": "XS (12px)",
+                    "slug": "xs",
+                    "size": "0.75rem"
+                },
+                {
+                    "name": "SM (14px)",
+                    "slug": "sm",
+                    "size": "0.875rem"
+                },
+                {
+                    "name": "Base (16px)",
+                    "slug": "base",
+                    "size": "1rem"
+                },
+                {
+                    "name": "MD (18px)",
+                    "slug": "md",
+                    "size": "1.125rem"
+                },
+                {
+                    "name": "LG (20px)",
+                    "slug": "lg",
+                    "size": "1.25rem"
+                },
+                {
+                    "name": "XL (24px)",
+                    "slug": "xl",
+                    "size": "1.5rem"
+                },
+                {
+                    "name": "2XL (30px)",
+                    "slug": "2xl",
+                    "size": "1.875rem"
+                },
+                {
+                    "name": "3XL (36px)",
+                    "slug": "3xl",
+                    "size": "2.25rem"
+                },
+                {
+                    "name": "4XL (48px)",
+                    "slug": "4xl",
+                    "size": "3rem"
+                },
+                {
+                    "name": "5XL (60px)",
+                    "slug": "5xl",
+                    "size": "3.75rem"
+                }
             ],
             "fontFamilies": [
                 {
@@ -191,18 +286,49 @@
             "core/button": {
                 "color": {
                     "palette": [
-                        { "name": "Themis Secondary", "slug": "themis-secondary", "color": "#3498db" },
-                        { "name": "Themis Accent",    "slug": "themis-accent",    "color": "#7c4dff" },
-                        { "name": "Themis Primary",   "slug": "themis-primary",   "color": "#2c3e50" },
-                        { "name": "White",            "slug": "white",            "color": "#ffffff" }
+                        {
+                            "name": "Themis Secondary",
+                            "slug": "themis-secondary",
+                            "color": "#3498db"
+                        },
+                        {
+                            "name": "Themis Accent",
+                            "slug": "themis-accent",
+                            "color": "#7c4dff"
+                        },
+                        {
+                            "name": "Themis Primary",
+                            "slug": "themis-primary",
+                            "color": "#2c3e50"
+                        },
+                        {
+                            "name": "White",
+                            "slug": "white",
+                            "color": "#ffffff"
+                        }
                     ]
                 }
             },
             "core/navigation": {
                 "layout": {
-                    "default": { "type": "flex", "orientation": "horizontal" }
+                    "default": {
+                        "type": "flex",
+                        "orientation": "horizontal"
+                    }
                 }
             }
+        },
+        "position": {
+            "sticky": true
+        },
+        "dimensions": {
+            "minHeight": true
+        },
+        "border": {
+            "color": true,
+            "radius": true,
+            "style": true,
+            "width": true
         }
     },
     "styles": {
@@ -221,9 +347,13 @@
         },
         "elements": {
             "link": {
-                "color": { "text": "var:preset|color|themis-secondary" },
+                "color": {
+                    "text": "var:preset|color|themis-secondary"
+                },
                 ":hover": {
-                    "color": { "text": "var:preset|color|themis-secondary-dark" }
+                    "color": {
+                        "text": "var:preset|color|themis-secondary-dark"
+                    }
                 }
             },
             "button": {
@@ -337,14 +467,18 @@
                         "right": "var:preset|spacing|6"
                     }
                 },
-                "border": { "radius": "10px" }
+                "border": {
+                    "radius": "10px"
+                }
             },
             "core/quote": {
                 "border": {
                     "color": "var:preset|color|themis-secondary",
                     "style": "solid",
                     "width": "0",
-                    "left": { "width": "4px" }
+                    "left": {
+                        "width": "4px"
+                    }
                 },
                 "color": {
                     "background": "var:preset|color|gray-50"
@@ -375,8 +509,12 @@
                 "border": {
                     "color": "var:preset|color|themis-accent",
                     "style": "solid",
-                    "top": { "width": "3px" },
-                    "bottom": { "width": "3px" }
+                    "top": {
+                        "width": "3px"
+                    },
+                    "bottom": {
+                        "width": "3px"
+                    }
                 },
                 "color": {
                     "text": "var:preset|color|themis-primary"
@@ -398,28 +536,129 @@
             "name": "footer",
             "title": "Footer",
             "area": "footer"
+        },
+        {
+            "name": "announcement-bar",
+            "title": "Announcement Bar",
+            "area": "uncategorized"
+        },
+        {
+            "name": "page-hero",
+            "title": "Page Hero",
+            "area": "uncategorized"
+        },
+        {
+            "name": "breadcrumbs",
+            "title": "Breadcrumbs",
+            "area": "uncategorized"
+        },
+        {
+            "name": "post-meta",
+            "title": "Post Meta",
+            "area": "uncategorized"
+        },
+        {
+            "name": "post-navigation",
+            "title": "Post Navigation",
+            "area": "uncategorized"
+        },
+        {
+            "name": "cta-banner",
+            "title": "CTA Banner",
+            "area": "uncategorized"
+        },
+        {
+            "name": "search-bar",
+            "title": "Search Bar",
+            "area": "uncategorized"
+        },
+        {
+            "name": "sidebar-docs",
+            "title": "Docs Sidebar",
+            "area": "uncategorized"
+        },
+        {
+            "name": "404-content",
+            "title": "404 Content",
+            "area": "uncategorized"
+        },
+        {
+            "name": "header-docs",
+            "title": "Docs Header",
+            "area": "uncategorized"
         }
     ],
     "customTemplates": [
         {
             "name": "front-page",
             "title": "Front Page",
-            "postTypes": ["page"]
+            "postTypes": [
+                "page"
+            ]
         },
         {
             "name": "page-docs",
             "title": "Documentation Page",
-            "postTypes": ["page"]
+            "postTypes": [
+                "page"
+            ]
         },
         {
             "name": "page-full-width",
             "title": "Full Width Page",
-            "postTypes": ["page"]
+            "postTypes": [
+                "page"
+            ]
         },
         {
             "name": "single-no-sidebar",
             "title": "Single Post (No Sidebar)",
-            "postTypes": ["post"]
+            "postTypes": [
+                "post"
+            ]
+        },
+        {
+            "name": "archive",
+            "title": "Archive",
+            "postTypes": [
+                "post"
+            ]
+        },
+        {
+            "name": "search",
+            "title": "Search Results",
+            "postTypes": [
+                "post",
+                "page"
+            ]
+        },
+        {
+            "name": "author",
+            "title": "Author Archive",
+            "postTypes": [
+                "post"
+            ]
+        },
+        {
+            "name": "category",
+            "title": "Category Archive",
+            "postTypes": [
+                "post"
+            ]
+        },
+        {
+            "name": "tag",
+            "title": "Tag Archive",
+            "postTypes": [
+                "post"
+            ]
+        },
+        {
+            "name": "attachment",
+            "title": "Attachment",
+            "postTypes": [
+                "attachment"
+            ]
         }
     ],
     "patterns": [
