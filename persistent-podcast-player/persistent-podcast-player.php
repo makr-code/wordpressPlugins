@@ -98,6 +98,11 @@ class Persistent_Podcast_Player {
         add_action('rest_api_init', array($this, 'register_rest_routes'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
         add_action('wp_body_open', array($this, 'render_player'));
+        
+        // Admin: media library integration
+        add_action('add_meta_boxes', array($this, 'add_audio_meta_box'));
+        add_action('save_post_pod_episode', array($this, 'save_audio_meta'), 10, 2);
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
     }
     
     /**
@@ -151,6 +156,12 @@ class Persistent_Podcast_Player {
             'show_in_rest' => true,
         ));
         
+        register_post_meta('pod_episode', 'audio_attachment_id', array(
+            'type' => 'integer',
+            'single' => true,
+            'show_in_rest' => true,
+        ));
+        
         register_post_meta('pod_episode', 'related_post_id', array(
             'type' => 'integer',
             'single' => true,
@@ -191,7 +202,16 @@ class Persistent_Podcast_Player {
                 
                 // Get custom fields
                 $audio_url = get_post_meta($post_id, 'audio_url', true);
+                $audio_attachment_id = (int) get_post_meta($post_id, 'audio_attachment_id', true);
                 $related_post_id = get_post_meta($post_id, 'related_post_id', true);
+                
+                // Prefer attachment from media library; fall back to manual URL
+                if ($audio_attachment_id) {
+                    $resolved_audio_url = wp_get_attachment_url($audio_attachment_id);
+                    if ($resolved_audio_url) {
+                        $audio_url = $resolved_audio_url;
+                    }
+                }
                 
                 // Get excerpt and permalink from related post
                 $excerpt = '';
@@ -235,6 +255,185 @@ class Persistent_Podcast_Player {
         }
         
         return rest_ensure_response($episodes);
+    }
+    
+    /**
+     * Add meta box for audio file selection
+     */
+    public function add_audio_meta_box() {
+        add_meta_box(
+            'ppp-audio-meta-box',
+            __('Audio File', 'persistent-podcast-player'),
+            array($this, 'render_audio_meta_box'),
+            'pod_episode',
+            'normal',
+            'high'
+        );
+    }
+    
+    /**
+     * Render audio meta box
+     */
+    public function render_audio_meta_box($post) {
+        wp_nonce_field('ppp_audio_meta_box', 'ppp_audio_meta_box_nonce');
+        
+        $attachment_id = (int) get_post_meta($post->ID, 'audio_attachment_id', true);
+        $audio_url     = get_post_meta($post->ID, 'audio_url', true);
+        
+        $attachment_url = '';
+        if ($attachment_id) {
+            $resolved = wp_get_attachment_url($attachment_id);
+            $attachment_url = $resolved ? $resolved : '';
+        }
+        ?>
+        <p>
+            <strong><?php esc_html_e('Select audio from Media Library (recommended):', 'persistent-podcast-player'); ?></strong>
+        </p>
+        <div class="ppp-media-selector">
+            <input type="hidden"
+                   id="ppp_audio_attachment_id"
+                   name="ppp_audio_attachment_id"
+                   value="<?php echo esc_attr($attachment_id ?: ''); ?>">
+            <input type="text"
+                   id="ppp_audio_attachment_url_display"
+                   class="large-text"
+                   readonly
+                   value="<?php echo esc_attr($attachment_url); ?>"
+                   placeholder="<?php esc_attr_e('No file selected', 'persistent-podcast-player'); ?>">
+            <button type="button" id="ppp_select_audio_btn" class="button button-secondary">
+                <?php esc_html_e('Select Audio File', 'persistent-podcast-player'); ?>
+            </button>
+            <button type="button" id="ppp_remove_audio_btn" class="button button-link-delete" style="<?php echo $attachment_url ? '' : 'display:none;'; ?>">
+                <?php esc_html_e('Remove', 'persistent-podcast-player'); ?>
+            </button>
+        </div>
+        <p class="description">
+            <?php esc_html_e('Choose an audio file from the WordPress Media Library. This takes priority over the manual URL below.', 'persistent-podcast-player'); ?>
+        </p>
+        
+        <p>
+            <strong><?php esc_html_e('Or enter audio URL manually (legacy):', 'persistent-podcast-player'); ?></strong>
+        </p>
+        <input type="url"
+               id="ppp_audio_url"
+               name="ppp_audio_url"
+               class="large-text"
+               value="<?php echo esc_attr($audio_url); ?>"
+               placeholder="https://example.com/audio.mp3">
+        <p class="description">
+            <?php esc_html_e('Direct URL to the audio file. Ignored when a Media Library file is selected above.', 'persistent-podcast-player'); ?>
+        </p>
+        <?php
+    }
+    
+    /**
+     * Save audio meta fields
+     */
+    public function save_audio_meta($post_id, $post) {
+        // Verify nonce
+        if (!isset($_POST['ppp_audio_meta_box_nonce']) ||
+            !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['ppp_audio_meta_box_nonce'])), 'ppp_audio_meta_box')) {
+            return;
+        }
+        
+        // Check permissions
+        if (!current_user_can('edit_post', $post_id)) {
+            return;
+        }
+        
+        // Save attachment ID
+        if (isset($_POST['ppp_audio_attachment_id'])) {
+            $attachment_id = absint($_POST['ppp_audio_attachment_id']);
+            if ($attachment_id > 0) {
+                update_post_meta($post_id, 'audio_attachment_id', $attachment_id);
+            } else {
+                delete_post_meta($post_id, 'audio_attachment_id');
+            }
+        }
+        
+        // Save manual URL (legacy)
+        if (isset($_POST['ppp_audio_url'])) {
+            $audio_url = esc_url_raw(wp_unslash($_POST['ppp_audio_url']));
+            if ($audio_url) {
+                update_post_meta($post_id, 'audio_url', $audio_url);
+            } else {
+                delete_post_meta($post_id, 'audio_url');
+            }
+        }
+    }
+    
+    /**
+     * Enqueue admin assets for media library integration
+     */
+    public function enqueue_admin_assets($hook) {
+        global $post;
+        
+        // Only on the pod_episode edit screen
+        if (!in_array($hook, array('post.php', 'post-new.php'), true)) {
+            return;
+        }
+        
+        if (!$post || $post->post_type !== 'pod_episode') {
+            return;
+        }
+        
+        // Enqueue WordPress media scripts
+        wp_enqueue_media();
+        
+        // Register a thin handle that depends on jquery and media-editor,
+        // then attach the inline script to it so wp.media is guaranteed available.
+        wp_register_script(
+            'ppp-admin-media',
+            false,
+            array('jquery', 'media-editor'),
+            PPP_VERSION,
+            true
+        );
+        wp_enqueue_script('ppp-admin-media');
+        wp_add_inline_script('ppp-admin-media', $this->get_admin_media_js());
+    }
+    
+    /**
+     * Return inline JS for media picker (avoids a separate file)
+     */
+    private function get_admin_media_js() {
+        return <<<'JS'
+jQuery(document).ready(function($) {
+    var mediaUploader;
+
+    $('#ppp_select_audio_btn').on('click', function(e) {
+        e.preventDefault();
+
+        if (mediaUploader) {
+            mediaUploader.open();
+            return;
+        }
+
+        mediaUploader = wp.media({
+            title: 'Select Audio File',
+            button: { text: 'Use this file' },
+            library: { type: 'audio' },
+            multiple: false
+        });
+
+        mediaUploader.on('select', function() {
+            var attachment = mediaUploader.state().get('selection').first().toJSON();
+            $('#ppp_audio_attachment_id').val(attachment.id);
+            $('#ppp_audio_attachment_url_display').val(attachment.url);
+            $('#ppp_remove_audio_btn').show();
+        });
+
+        mediaUploader.open();
+    });
+
+    $('#ppp_remove_audio_btn').on('click', function(e) {
+        e.preventDefault();
+        $('#ppp_audio_attachment_id').val('');
+        $('#ppp_audio_attachment_url_display').val('');
+        $(this).hide();
+    });
+});
+JS;
     }
     
     /**
