@@ -621,6 +621,7 @@
         // Use the PHP-escaped home URL from the body data attribute.
         // This value is written with WordPress's esc_url() in header.php and is
         // therefore safe to use as a form action via setAttribute().
+        // The '/' fallback is a safe default if the attribute is absent.
         var homeUrl = document.body.dataset.homeUrl || '/';
 
         // Build overlay DOM safely via DOM API (avoid innerHTML for the action URL)
@@ -760,3 +761,52 @@ function showCopySuccess(button) {
         button.classList.remove('copied');
     }, 2000);
 }
+
+/* ===== Tabbed Posts Widget tabs ===== */
+(function () {
+    function initTabbedPostsWidgets() {
+        document.querySelectorAll('.themisdb-tabbed-posts').forEach(function (widget) {
+            var tabs   = widget.querySelectorAll('.tpw-tab');
+            var panels = widget.querySelectorAll('.tpw-panel');
+
+            function activate(index) {
+                tabs.forEach(function (t, i) {
+                    var active = (i === index);
+                    t.classList.toggle('is-active', active);
+                    t.setAttribute('aria-selected', active ? 'true' : 'false');
+                    t.setAttribute('tabindex',       active ? '0'    : '-1');
+                });
+                panels.forEach(function (p, i) {
+                    p.classList.toggle('is-active', i === index);
+                });
+            }
+
+            tabs.forEach(function (tab, i) {
+                tab.setAttribute('tabindex', i === 0 ? '0' : '-1');
+
+                tab.addEventListener('click', function () {
+                    activate(i);
+                });
+
+                // Arrow key navigation per WAI-ARIA tablist pattern
+                tab.addEventListener('keydown', function (e) {
+                    var idx = i;
+                    if (e.key === 'ArrowRight') { idx = (i + 1) % tabs.length; }
+                    else if (e.key === 'ArrowLeft')  { idx = (i - 1 + tabs.length) % tabs.length; }
+                    else if (e.key === 'Home')        { idx = 0; }
+                    else if (e.key === 'End')         { idx = tabs.length - 1; }
+                    else { return; }
+                    e.preventDefault();
+                    activate(idx);
+                    tabs[idx].focus();
+                });
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTabbedPostsWidgets);
+    } else {
+        initTabbedPostsWidgets();
+    }
+})();
