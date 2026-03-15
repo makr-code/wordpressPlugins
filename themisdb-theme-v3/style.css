@@ -499,6 +499,20 @@ tr:hover td { background: var(--tv3-gray-50); }
 
 .tv3-announcement-close:hover { color: #ffffff; }
 
+/* Docs Header Badge */
+.tv3-docs-badge {
+    display: inline-block;
+    background: rgba(80, 230, 255, 0.2);
+    color: var(--tv3-cyan);
+    border-radius: 4px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin-left: 0.375rem;
+    vertical-align: middle;
+}
+
 /* ============================================================
    Footer
    ============================================================ */
@@ -542,6 +556,22 @@ tr:hover td { background: var(--tv3-gray-50); }
 .tv3-footer-list a:hover {
     color: var(--tv3-cyan);
     text-decoration: none;
+}
+
+.tv3-footer-list-legal a {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 0.8125rem;
+}
+
+.tv3-footer-social { flex-wrap: nowrap; }
+
+.tv3-footer-social-btn .wp-block-button__link {
+    line-height: 1;
+    transition: opacity var(--tv3-transition-fast);
+}
+
+.tv3-footer-social-btn .wp-block-button__link:hover {
+    opacity: 0.85;
 }
 
 .tv3-footer-bottom {
@@ -1191,6 +1221,11 @@ tr:hover td { background: var(--tv3-gray-50); }
 .tv3-post-meta-author { font-weight: 600; color: var(--tv3-text-secondary); }
 
 .tv3-post-meta-sep { color: var(--tv3-gray-300); }
+
+.tv3-read-time {
+    font-size: var(--tv3-font-size-xs);
+    color: var(--tv3-text-muted);
+}
 
 .tv3-post-tag {
     display: inline-block;
