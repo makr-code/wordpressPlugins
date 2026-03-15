@@ -407,6 +407,56 @@
     }
 
     /**
+     * Featured Image Contrast Detection
+     * Analyses the brightness of the featured image and adds a CSS class
+     * to the article element so that CSS can apply appropriate text contrast.
+     */
+    function initFeaturedImageContrast() {
+        var thumbnail = document.querySelector( '.entry-thumbnail img' );
+        if ( ! thumbnail ) {
+            return;
+        }
+        var article = thumbnail.closest( 'article' );
+        if ( ! article ) {
+            return;
+        }
+
+        function applyContrastClass( img ) {
+            try {
+                var sampleSize = 50;
+                var canvas     = document.createElement( 'canvas' );
+                canvas.width   = sampleSize;
+                canvas.height  = sampleSize;
+                var ctx = canvas.getContext( '2d' );
+                ctx.drawImage( img, 0, 0, sampleSize, sampleSize );
+                var data       = ctx.getImageData( 0, 0, sampleSize, sampleSize ).data;
+                var brightness = 0;
+                var pixels     = sampleSize * sampleSize;
+                for ( var i = 0; i < data.length; i += 4 ) {
+                    // Perceived brightness (WCAG luminance formula)
+                    brightness += data[ i ] * 0.299 + data[ i + 1 ] * 0.587 + data[ i + 2 ] * 0.114;
+                }
+                brightness = brightness / pixels;
+                if ( brightness < 128 ) {
+                    article.classList.add( 'has-dark-featured-image' );
+                } else {
+                    article.classList.add( 'has-light-featured-image' );
+                }
+            } catch ( e ) {
+                // Canvas read blocked by CORS – fall back to CSS-only treatment
+            }
+        }
+
+        if ( thumbnail.complete && thumbnail.naturalWidth > 0 ) {
+            applyContrastClass( thumbnail );
+        } else {
+            thumbnail.addEventListener( 'load', function () {
+                applyContrastClass( thumbnail );
+            } );
+        }
+    }
+
+    /**
      * Initialize all enhancements
      */
     function init() {
@@ -422,6 +472,7 @@
             initCodeCopy();
             initShareCopyButton();
             initExternalLinks();
+            initFeaturedImageContrast();
         } catch (error) {
             console.warn('ThemisDB enhancements initialization error:', error);
             // Continue execution even if some features fail

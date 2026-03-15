@@ -581,12 +581,31 @@ article:hover {
     width: 100%;
     height: auto;
     display: block;
+    margin-top: 1.5rem;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 .entry-thumbnail img {
     width: 100%;
     height: auto;
     display: block;
+}
+
+/* Dynamic contrast: light-toned image → subtle shadow frame for separation */
+.has-light-featured-image .entry-thumbnail {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10);
+}
+
+/* Dynamic contrast: dark-toned image → stronger shadow to distinguish from page background */
+.has-dark-featured-image .entry-thumbnail {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+    .entry-thumbnail {
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+    }
 }
 
 .entry-content {

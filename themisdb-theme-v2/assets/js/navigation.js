@@ -242,6 +242,50 @@
 			} );
 		} );
 
+		/* ----------------------------------------------------------
+		   Featured Image Contrast Detection
+		   Analyses the featured image brightness and applies a CSS class
+		   so that the CSS gradient overlay (readable colour) activates
+		   only when the image is dark-toned.
+		   ---------------------------------------------------------- */
+		( function initFeaturedImageContrast() {
+			var img = document.querySelector(
+				'.themis-single-header .wp-block-post-featured-image img'
+			);
+			if ( ! img ) return;
+
+		var article = document.querySelector( 'main article, main .wp-block-post, .site-main' ) ||
+				document.querySelector( 'main' );
+			if ( ! article ) return;
+
+			function applyContrastClass( image ) {
+				try {
+					var sampleSize = 50;
+					var canvas     = document.createElement( 'canvas' );
+					canvas.width   = sampleSize;
+					canvas.height  = sampleSize;
+					var ctx = canvas.getContext( '2d' );
+					ctx.drawImage( image, 0, 0, sampleSize, sampleSize );
+					var data       = ctx.getImageData( 0, 0, sampleSize, sampleSize ).data;
+					var brightness = 0;
+					var pixels     = sampleSize * sampleSize;
+					for ( var i = 0; i < data.length; i += 4 ) {
+						brightness += data[ i ] * 0.299 + data[ i + 1 ] * 0.587 + data[ i + 2 ] * 0.114;
+					}
+					brightness = brightness / pixels;
+					article.classList.add( brightness < 128 ? 'has-dark-featured-image' : 'has-light-featured-image' );
+				} catch ( e ) {
+					// Canvas read blocked by CORS – CSS-only fallback applies
+				}
+			}
+
+			if ( img.complete && img.naturalWidth > 0 ) {
+				applyContrastClass( img );
+			} else {
+				img.addEventListener( 'load', function () { applyContrastClass( img ); } );
+			}
+		} )();
+
 	} );
 
 } )();
