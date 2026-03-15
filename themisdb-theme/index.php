@@ -83,7 +83,7 @@ get_header();
         endif;
         ?>
 
-        <div class="posts-container">
+        <div class="posts-container posts-grid">
             <?php
             while ( have_posts() ) :
                 the_post();

@@ -473,6 +473,10 @@
             initShareCopyButton();
             initExternalLinks();
             initFeaturedImageContrast();
+            initStickyHeader();
+            initDarkMode();
+            initTableOfContents();
+            initSearchOverlay();
         } catch (error) {
             console.warn('ThemisDB enhancements initialization error:', error);
             // Continue execution even if some features fail
@@ -484,6 +488,211 @@
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Sticky Header – shrink on scroll                                     */
+    /* ------------------------------------------------------------------ */
+    function initStickyHeader() {
+        var header = document.querySelector('.site-header');
+        if (!header) return;
+
+        function update() {
+            header.classList.toggle('is-scrolled', window.scrollY > 80);
+        }
+
+        window.addEventListener('scroll', update, { passive: true });
+        update(); // apply correct state on first render
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Dark Mode – toggle + localStorage                                    */
+    /* ------------------------------------------------------------------ */
+    function initDarkMode() {
+        var toggle = document.querySelector('.dark-mode-toggle');
+        if (!toggle) return;
+
+        var html  = document.documentElement;
+        var KEY   = 'themisdb-color-scheme';
+        var stored = localStorage.getItem(KEY);
+
+        // Apply stored preference (system preference already handled by CSS media query;
+        // the class is needed for the manual override only).
+        if (stored === 'dark') {
+            html.classList.add('dark-mode');
+        } else if (stored === 'light') {
+            html.classList.remove('dark-mode');
+        }
+        // If nothing stored we leave it to prefers-color-scheme via CSS
+
+        function syncToggle() {
+            var isDark = html.classList.contains('dark-mode') ||
+                         (!html.classList.contains('dark-mode') &&
+                          !localStorage.getItem(KEY) &&
+                          window.matchMedia('(prefers-color-scheme: dark)').matches);
+            toggle.textContent = isDark ? '☀️' : '🌙';
+            toggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+        }
+
+        syncToggle();
+
+        toggle.addEventListener('click', function () {
+            html.classList.toggle('dark-mode');
+            var nowDark = html.classList.contains('dark-mode');
+
+            // If user explicitly chose dark and system is also dark, store 'dark';
+            // if user removes dark mode while system is dark, store 'light' to override.
+            localStorage.setItem(KEY, nowDark ? 'dark' : 'light');
+            syncToggle();
+        });
+
+        // Keep button in sync when system preference changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncToggle);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Table of Contents – auto-generated from h2/h3 in .entry-content     */
+    /* ------------------------------------------------------------------ */
+    function initTableOfContents() {
+        var content = document.querySelector('.entry-content');
+        if (!content) return;
+
+        var headings = content.querySelectorAll('h2, h3');
+        if (headings.length < 3) return;
+
+        var tocList = document.createElement('ol');
+        tocList.className = 'toc-list';
+
+        var counter = 0;
+        headings.forEach(function (h) {
+            if (!h.id) {
+                counter++;
+                h.id = 'toc-' + counter;
+            }
+            var li  = document.createElement('li');
+            var tag = h.tagName.toLowerCase();
+            if (tag === 'h3') li.className = 'toc-h3';
+
+            var a     = document.createElement('a');
+            a.href    = '#' + h.id;
+            a.textContent = h.textContent.replace(/^[§▸]\s*/, ''); // strip leading markers
+            li.appendChild(a);
+            tocList.appendChild(li);
+        });
+
+        var tocTitle = document.createElement('div');
+        tocTitle.className = 'toc-title';
+        tocTitle.setAttribute('role', 'button');
+        tocTitle.setAttribute('tabindex', '0');
+        tocTitle.setAttribute('aria-expanded', 'true');
+        tocTitle.innerHTML = '📋 Contents';
+
+        var toc = document.createElement('nav');
+        toc.className = 'toc-container';
+        toc.setAttribute('aria-label', 'Table of contents');
+        toc.appendChild(tocTitle);
+        toc.appendChild(tocList);
+
+        function toggleToc() {
+            var collapsed = tocTitle.classList.toggle('collapsed');
+            tocList.style.display = collapsed ? 'none' : '';
+            tocTitle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        }
+
+        tocTitle.addEventListener('click', toggleToc);
+        tocTitle.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleToc();
+            }
+        });
+
+        // Insert the TOC right before the entry-content div
+        content.parentNode.insertBefore(toc, content);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Search Overlay – full-screen keyboard-accessible search              */
+    /* ------------------------------------------------------------------ */
+    function initSearchOverlay() {
+        var toggleBtn = document.querySelector('.search-toggle');
+        if (!toggleBtn) return;
+
+        // Use the PHP-escaped home URL from the body data attribute
+        var homeUrl = document.body.dataset.homeUrl || '/';
+
+        // Build overlay DOM safely via DOM API (avoid innerHTML for the action URL)
+        var overlay = document.createElement('div');
+        overlay.className = 'search-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', 'Site search');
+
+        var closeBtn = document.createElement('button');
+        closeBtn.className = 'search-overlay-close';
+        closeBtn.setAttribute('aria-label', 'Close search');
+        closeBtn.textContent = '\u00d7'; // ×
+
+        var inner = document.createElement('div');
+        inner.className = 'search-overlay-inner';
+
+        var form = document.createElement('form');
+        form.className = 'search-overlay-form';
+        form.setAttribute('role', 'search');
+        form.setAttribute('method', 'get');
+        form.setAttribute('action', homeUrl); // safe: set via setAttribute, value from esc_url()
+
+        var field = document.createElement('input');
+        field.type = 'search';
+        field.name = 's';
+        field.className = 'search-overlay-field';
+        field.placeholder = 'Search\u2026';
+        field.setAttribute('autocomplete', 'off');
+        field.setAttribute('aria-label', 'Search the site');
+
+        var submitBtn = document.createElement('button');
+        submitBtn.type = 'submit';
+        submitBtn.className = 'search-overlay-submit';
+        submitBtn.setAttribute('aria-label', 'Submit search');
+        submitBtn.textContent = '\uD83D\uDD0D'; // 🔍
+
+        form.appendChild(field);
+        form.appendChild(submitBtn);
+
+        var hint = document.createElement('p');
+        hint.className = 'search-overlay-hint';
+        hint.innerHTML = 'Press <kbd>Esc</kbd> to close &nbsp;&middot;&nbsp; <kbd>Enter</kbd> to search';
+
+        inner.appendChild(form);
+        inner.appendChild(hint);
+        overlay.appendChild(closeBtn);
+        overlay.appendChild(inner);
+        document.body.appendChild(overlay);
+
+        function open() {
+            overlay.classList.add('is-open');
+            document.body.style.overflow = 'hidden';
+            toggleBtn.setAttribute('aria-expanded', 'true');
+            setTimeout(function () { field.focus(); }, 80);
+        }
+
+        function close() {
+            overlay.classList.remove('is-open');
+            document.body.style.overflow = '';
+            toggleBtn.setAttribute('aria-expanded', 'false');
+            toggleBtn.focus();
+        }
+
+        toggleBtn.addEventListener('click', open);
+        closeBtn.addEventListener('click', close);
+
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) close();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && overlay.classList.contains('is-open')) close();
+        });
     }
 
 })();
