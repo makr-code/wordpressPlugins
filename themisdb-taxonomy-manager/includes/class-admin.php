@@ -47,6 +47,12 @@ class ThemisDB_Taxonomy_Admin {
         add_action('wp_ajax_themisdb_get_recommendations', array($this, 'ajax_recommendations'));
         add_action('wp_ajax_themisdb_cleanup_unused', array($this, 'ajax_cleanup_unused'));
         add_action('wp_ajax_themisdb_merge_terms', array($this, 'ajax_merge_terms'));
+        
+        // Cleanup Tool AJAX handlers
+        add_action('wp_ajax_themisdb_get_cleanup_preview', array($this, 'ajax_get_cleanup_preview'));
+        add_action('wp_ajax_themisdb_delete_terms_batch', array($this, 'ajax_delete_terms_batch'));
+        add_action('wp_ajax_themisdb_merge_terms_taxonomy', array($this, 'ajax_merge_terms_taxonomy'));
+        add_action('wp_ajax_themisdb_consolidate_taxonomy', array($this, 'ajax_consolidate_taxonomy'));
     }
     
     /**
@@ -70,6 +76,17 @@ class ThemisDB_Taxonomy_Admin {
             array($this, 'analytics_page'),
             'dashicons-chart-bar',
             31
+        );
+        
+        // Add Cleanup Tool submenu
+        add_menu_page(
+            __('Taxonomy Cleanup Tool', 'themisdb-taxonomy-manager'),
+            __('Taxonomy Cleanup', 'themisdb-taxonomy-manager'),
+            'manage_categories',
+            'themisdb-taxonomy-cleanup',
+            array($this, 'cleanup_page'),
+            'dashicons-trash',
+            32
         );
     }
     
@@ -152,6 +169,57 @@ class ThemisDB_Taxonomy_Admin {
                     'cleanup' => __('Cleanup', 'themisdb-taxonomy-manager'),
                     'autoMerge' => __('Auto Merge', 'themisdb-taxonomy-manager'),
                     'merge' => __('Merge', 'themisdb-taxonomy-manager')
+                )
+            ));
+        }
+        
+        // Enqueue for cleanup tool page
+        if ($hook === 'toplevel_page_themisdb-taxonomy-cleanup') {
+            wp_enqueue_style(
+                'themisdb-term-cleaner',
+                THEMISDB_TAXONOMY_PLUGIN_URL . 'assets/css/admin.css',
+                array(),
+                THEMISDB_TAXONOMY_VERSION
+            );
+            
+            wp_enqueue_script(
+                'themisdb-term-cleaner',
+                THEMISDB_TAXONOMY_PLUGIN_URL . 'assets/js/term-cleaner.js',
+                array('jquery'),
+                THEMISDB_TAXONOMY_VERSION,
+                true
+            );
+            
+            wp_localize_script('themisdb-term-cleaner', 'themisdbCleaner', array(
+                'ajaxurl' => admin_url('admin-ajax.php'),
+                'nonce'   => wp_create_nonce('themisdb_taxonomy_admin'),
+                'i18n'    => array(
+                    'loading'             => __('Loading…', 'themisdb-taxonomy-manager'),
+                    'processing'          => __('Processing…', 'themisdb-taxonomy-manager'),
+                    'errorAjax'           => __('AJAX request failed. Please try again.', 'themisdb-taxonomy-manager'),
+                    'errorGeneric'        => __('An unexpected error occurred.', 'themisdb-taxonomy-manager'),
+                    'allClean'            => __('Everything looks clean! No nonsensical or duplicate terms found.', 'themisdb-taxonomy-manager'),
+                    'nonsensicalCategories' => __('Nonsensical Categories', 'themisdb-taxonomy-manager'),
+                    'nonsensicalTags'     => __('Nonsensical Tags', 'themisdb-taxonomy-manager'),
+                    'similarCategories'   => __('Similar Categories (merge candidates)', 'themisdb-taxonomy-manager'),
+                    'similarTags'         => __('Similar Tags (merge candidates)', 'themisdb-taxonomy-manager'),
+                    'termName'            => __('Term Name', 'themisdb-taxonomy-manager'),
+                    'reason'              => __('Reason', 'themisdb-taxonomy-manager'),
+                    'postsCount'          => __('Posts', 'themisdb-taxonomy-manager'),
+                    'action'              => __('Action', 'themisdb-taxonomy-manager'),
+                    'term1'               => __('Term 1', 'themisdb-taxonomy-manager'),
+                    'term2'               => __('Term 2', 'themisdb-taxonomy-manager'),
+                    'similarity'          => __('Similarity', 'themisdb-taxonomy-manager'),
+                    'delete'              => __('Delete', 'themisdb-taxonomy-manager'),
+                    'deleteSelected'      => __('Delete Selected', 'themisdb-taxonomy-manager'),
+                    'merge'               => __('Merge', 'themisdb-taxonomy-manager'),
+                    'autoConsolidate'     => __('Auto-Consolidate All', 'themisdb-taxonomy-manager'),
+                    'noneSelected'        => __('Please select at least one term.', 'themisdb-taxonomy-manager'),
+                    'confirmDelete'       => __('Delete this term? This cannot be undone.', 'themisdb-taxonomy-manager'),
+                    'confirmDeleteBulk'   => __('Delete {n} selected terms? This cannot be undone.', 'themisdb-taxonomy-manager'),
+                    'confirmMerge'        => __('Merge these terms? The second term will be deleted. This cannot be undone.', 'themisdb-taxonomy-manager'),
+                    'confirmConsolidate'  => __('Auto-consolidate all similar terms in this taxonomy? This cannot be undone.', 'themisdb-taxonomy-manager'),
+                    'consolidatedCount'   => __('Consolidated {n} term pairs.', 'themisdb-taxonomy-manager'),
                 )
             ));
         }
@@ -719,6 +787,147 @@ class ThemisDB_Taxonomy_Admin {
             'posts_moved' => count($posts),
             'message' => sprintf('Merged successfully. %d posts moved.', count($posts))
         ));
+    }
+    
+    // =========================================================================
+    // Cleanup Tool page + AJAX handlers
+    // =========================================================================
+    
+    /**
+     * Render the Cleanup Tool admin page.
+     */
+    public function cleanup_page() {
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Taxonomy Cleanup Tool', 'themisdb-taxonomy-manager'); ?></h1>
+            <p class="description">
+                <?php _e('Systematically detect and remove nonsensical categories and tags (dates, numbers, generic words) and consolidate near-duplicate terms.', 'themisdb-taxonomy-manager'); ?>
+            </p>
+            
+            <div id="cleaner-notice" class="notice"></div>
+            
+            <p>
+                <button type="button" id="btn-preview" class="button button-primary">
+                    <?php _e('Refresh Preview', 'themisdb-taxonomy-manager'); ?>
+                </button>
+            </p>
+            
+            <div id="preview-area">
+                <p><?php _e('Loading…', 'themisdb-taxonomy-manager'); ?></p>
+            </div>
+        </div>
+        <?php
+    }
+    
+    /**
+     * AJAX: Return a full cleanup preview (nonsensical + similar terms).
+     */
+    public function ajax_get_cleanup_preview() {
+        check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+        
+        if (!current_user_can('manage_categories')) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'themisdb-taxonomy-manager')));
+        }
+        
+        if (!class_exists('ThemisDB_Term_Cleaner')) {
+            wp_send_json_error(array('message' => __('Term Cleaner class not available.', 'themisdb-taxonomy-manager')));
+        }
+        
+        $cleaner = new ThemisDB_Term_Cleaner();
+        wp_send_json_success($cleaner->get_cleanup_preview());
+    }
+    
+    /**
+     * AJAX: Bulk-delete a list of terms.
+     */
+    public function ajax_delete_terms_batch() {
+        check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+        
+        if (!current_user_can('manage_categories')) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'themisdb-taxonomy-manager')));
+        }
+        
+        if (!class_exists('ThemisDB_Term_Cleaner')) {
+            wp_send_json_error(array('message' => __('Term Cleaner class not available.', 'themisdb-taxonomy-manager')));
+        }
+        
+        $taxonomy = isset($_POST['taxonomy']) ? sanitize_key($_POST['taxonomy']) : 'category';
+        $raw_ids  = isset($_POST['term_ids']) ? (array) $_POST['term_ids'] : array();
+        $term_ids = array_map('intval', $raw_ids);
+        $term_ids = array_filter($term_ids);
+        
+        if (empty($term_ids)) {
+            wp_send_json_error(array('message' => __('No term IDs provided.', 'themisdb-taxonomy-manager')));
+        }
+        
+        $cleaner = new ThemisDB_Term_Cleaner();
+        $result  = $cleaner->delete_terms($term_ids, $taxonomy);
+        
+        wp_send_json_success(array(
+            'deleted' => $result['deleted'],
+            'skipped' => $result['skipped'],
+            'message' => sprintf(
+                /* translators: 1: deleted count, 2: skipped count */
+                __('Deleted %1$d term(s). Skipped: %2$d.', 'themisdb-taxonomy-manager'),
+                $result['deleted'],
+                $result['skipped']
+            ),
+        ));
+    }
+    
+    /**
+     * AJAX: Merge two terms within any taxonomy.
+     */
+    public function ajax_merge_terms_taxonomy() {
+        check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+        
+        if (!current_user_can('manage_categories')) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'themisdb-taxonomy-manager')));
+        }
+        
+        if (!class_exists('ThemisDB_Term_Cleaner')) {
+            wp_send_json_error(array('message' => __('Term Cleaner class not available.', 'themisdb-taxonomy-manager')));
+        }
+        
+        $keep_id   = isset($_POST['keep_id'])   ? intval($_POST['keep_id'])   : 0;
+        $remove_id = isset($_POST['remove_id']) ? intval($_POST['remove_id']) : 0;
+        $taxonomy  = isset($_POST['taxonomy'])  ? sanitize_key($_POST['taxonomy']) : 'category';
+        
+        if (!$keep_id || !$remove_id) {
+            wp_send_json_error(array('message' => __('Invalid term IDs.', 'themisdb-taxonomy-manager')));
+        }
+        
+        $cleaner = new ThemisDB_Term_Cleaner();
+        $result  = $cleaner->merge_terms($keep_id, $remove_id, $taxonomy);
+        
+        if ($result['success']) {
+            wp_send_json_success(array('message' => $result['message'], 'posts_moved' => $result['posts_moved']));
+        } else {
+            wp_send_json_error(array('message' => $result['message']));
+        }
+    }
+    
+    /**
+     * AJAX: Auto-consolidate all similar terms in a taxonomy.
+     */
+    public function ajax_consolidate_taxonomy() {
+        check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+        
+        if (!current_user_can('manage_categories')) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'themisdb-taxonomy-manager')));
+        }
+        
+        if (!class_exists('ThemisDB_Term_Cleaner')) {
+            wp_send_json_error(array('message' => __('Term Cleaner class not available.', 'themisdb-taxonomy-manager')));
+        }
+        
+        $taxonomy  = isset($_POST['taxonomy']) ? sanitize_key($_POST['taxonomy']) : 'category';
+        $threshold = (float) get_option('themisdb_taxonomy_similarity_threshold', 0.8);
+        
+        $cleaner = new ThemisDB_Term_Cleaner();
+        $result  = $cleaner->consolidate_taxonomy($taxonomy, $threshold);
+        
+        wp_send_json_success($result);
     }
     
     /**
