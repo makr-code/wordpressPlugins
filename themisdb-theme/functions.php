@@ -163,6 +163,25 @@ add_action( 'widgets_init', 'themisdb_widgets_init' );
 require get_template_directory() . '/inc/widgets.php';
 
 /**
+ * Primary navigation fallback.
+ *
+ * Renders a list of top-level pages when no menu is assigned to the
+ * 'primary' location, so the header always contains navigation.
+ *
+ * @since 1.0.0
+ * @return void
+ */
+function themisdb_nav_fallback() {
+    echo '<ul id="' . esc_attr( 'primary-menu' ) . '" class="' . esc_attr( 'menu' ) . '">';
+    wp_list_pages( array(
+        'title_li'    => '',
+        'depth'       => 1,
+        'sort_column' => 'menu_order, post_title',
+    ) );
+    echo '</ul>';
+}
+
+/**
  * Enqueue scripts and styles
  */
 function themisdb_scripts() {
