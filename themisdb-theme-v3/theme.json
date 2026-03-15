@@ -5,7 +5,7 @@
         "appearanceTools": true,
         "useRootPaddingAwareAlignments": true,
         "layout": {
-            "contentSize": "75%",
+            "contentSize": "800px",
             "wideSize": "1200px"
         },
         "spacing": {
@@ -358,6 +358,18 @@
                     "text": "#c8d8e8"
                 }
             }
+        },
+        "position": {
+            "sticky": true
+        },
+        "dimensions": {
+            "minHeight": true
+        },
+        "border": {
+            "color": true,
+            "radius": true,
+            "style": true,
+            "width": true
         }
     },
     "styles": {
@@ -665,6 +677,49 @@
             "name": "404",
             "title": "404 Not Found",
             "postTypes": []
+        },
+        {
+            "name": "archive",
+            "title": "Archive",
+            "postTypes": [
+                "post"
+            ]
+        },
+        {
+            "name": "search",
+            "title": "Search Results",
+            "postTypes": [
+                "post",
+                "page"
+            ]
+        },
+        {
+            "name": "author",
+            "title": "Author Archive",
+            "postTypes": [
+                "post"
+            ]
+        },
+        {
+            "name": "category",
+            "title": "Category Archive",
+            "postTypes": [
+                "post"
+            ]
+        },
+        {
+            "name": "tag",
+            "title": "Tag Archive",
+            "postTypes": [
+                "post"
+            ]
+        },
+        {
+            "name": "attachment",
+            "title": "Attachment",
+            "postTypes": [
+                "attachment"
+            ]
         }
     ],
     "patterns": [
