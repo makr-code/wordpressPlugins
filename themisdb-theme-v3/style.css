@@ -394,7 +394,7 @@ tr:hover td { background: var(--tv3-gray-50); }
 /* ============================================================
    Layout Containers
    ============================================================ */
-.wp-site-blocks { min-height: 100vh; display: flex; flex-direction: column; }
+.wp-site-blocks { min-height: 100vh; min-width: 75%; display: flex; flex-direction: column; }
 
 .site-main { flex: 1; }
 
