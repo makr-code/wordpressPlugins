@@ -28,6 +28,7 @@
 		initActiveNavLinks();
 		initCardHoverEffects();
 		initFeaturedImageContrast();
+		initReadingTime();
 
 	} );
 
@@ -363,6 +364,28 @@
 		} else {
 			img.addEventListener( 'load', function () { applyContrastClass( img ); } );
 		}
+	}
+
+	/* ----------------------------------------------------------
+	   Reading Time Estimation
+	   Updates .tv3-read-time elements based on the post body
+	   word count (200 wpm average reading speed).
+	   ---------------------------------------------------------- */
+	function initReadingTime() {
+		var targets = document.querySelectorAll( '.tv3-read-time, .themis-read-time' );
+		if ( ! targets.length ) return;
+
+		var content = document.querySelector( '.wp-block-post-content, .entry-content, .site-main' );
+		if ( ! content ) return;
+
+		var text      = content.innerText || content.textContent || '';
+		var wordCount = text.trim().split( /\s+/ ).filter( Boolean ).length;
+		var minutes   = Math.max( 1, Math.ceil( wordCount / 200 ) );
+		var label     = minutes + ' min read';
+
+		targets.forEach( function ( el ) {
+			el.textContent = label;
+		} );
 	}
 
 } )();
