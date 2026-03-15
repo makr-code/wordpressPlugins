@@ -295,6 +295,9 @@ class ThemisDB_Order_Database {
             license_file_path varchar(255) DEFAULT NULL,
             license_file_data longtext DEFAULT NULL,
             epserver_subscription_id varchar(100) DEFAULT NULL,
+            cancellation_date datetime DEFAULT NULL,
+            cancellation_reason text DEFAULT NULL,
+            cancelled_by bigint(20) DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
@@ -303,6 +306,7 @@ class ThemisDB_Order_Database {
             KEY customer_id (customer_id),
             KEY license_status (license_status),
             KEY expiry_date (expiry_date),
+            KEY cancellation_date (cancellation_date),
             KEY created_at (created_at)
         ) $charset_collate;";
         

@@ -830,6 +830,20 @@ class ThemisDB_Order_Admin {
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
         $license_id = isset($_GET['license_id']) ? intval($_GET['license_id']) : 0;
         
+        // Handle cancellation action
+        if ($action === 'cancel' && $license_id && check_admin_referer('cancel_license_' . $license_id)) {
+            $reason = isset($_POST['cancel_reason']) ? sanitize_textarea_field($_POST['cancel_reason']) : '';
+            $result = ThemisDB_License_Manager::cancel_license($license_id, $reason, get_current_user_id());
+            if ($result) {
+                // Send cancellation email
+                ThemisDB_Email_Handler::send_cancellation_email($license_id);
+                wp_redirect(admin_url('admin.php?page=themisdb-licenses&action=view&license_id=' . $license_id . '&cancelled=1'));
+            } else {
+                wp_redirect(admin_url('admin.php?page=themisdb-licenses&action=view&license_id=' . $license_id . '&cancel_error=1'));
+            }
+            exit;
+        }
+        
         if ($action === 'view' && $license_id) {
             $this->view_license($license_id);
         } else {
@@ -870,7 +884,13 @@ class ThemisDB_Order_Admin {
                         <th><?php _e('Ausstehend', 'themisdb-order-request'); ?>:</th>
                         <td><span style="color: orange;"><strong><?php echo $stats['pending_licenses']; ?></strong></span></td>
                         <th><?php _e('Suspendiert', 'themisdb-order-request'); ?>:</th>
-                        <td><span style="color: red;"><strong><?php echo $stats['suspended_licenses']; ?></strong></span></td>
+                        <td><span style="color: #856404;"><strong><?php echo $stats['suspended_licenses']; ?></strong></span></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Abgelaufen', 'themisdb-order-request'); ?>:</th>
+                        <td><span style="color: #3c434a;"><strong><?php echo $stats['expired_licenses']; ?></strong></span></td>
+                        <th><?php _e('Gekündigt', 'themisdb-order-request'); ?>:</th>
+                        <td><span style="color: #721c24;"><strong><?php echo $stats['cancelled_licenses']; ?></strong></span></td>
                     </tr>
                 </table>
             </div>
@@ -939,10 +959,19 @@ class ThemisDB_Order_Admin {
         
         $order = ThemisDB_Order_Manager::get_order($license['order_id']);
         $contract = ThemisDB_Contract_Manager::get_contract($license['contract_id']);
+        $is_cancelled = ($license['license_status'] === 'cancelled');
         
         ?>
         <div class="wrap">
             <h1><?php _e('Lizenz', 'themisdb-order-request'); ?>: <?php echo esc_html($license['product_edition']); ?></h1>
+            
+            <?php if (isset($_GET['cancelled'])): ?>
+            <div class="notice notice-success"><p><?php _e('Die Lizenz wurde erfolgreich gekündigt. Der Kunde wurde per E-Mail informiert.', 'themisdb-order-request'); ?></p></div>
+            <?php endif; ?>
+            
+            <?php if (isset($_GET['cancel_error'])): ?>
+            <div class="notice notice-error"><p><?php _e('Fehler beim Kündigen der Lizenz. Bitte versuchen Sie es erneut.', 'themisdb-order-request'); ?></p></div>
+            <?php endif; ?>
             
             <div class="card">
                 <h2><?php _e('Lizenzdetails', 'themisdb-order-request'); ?></h2>
@@ -1008,6 +1037,35 @@ class ThemisDB_Order_Admin {
                 </table>
             </div>
             
+            <?php if ($is_cancelled): ?>
+            <div class="card" style="border-left: 4px solid #721c24;">
+                <h2 style="color:#721c24;"><?php _e('Kündigungsdetails', 'themisdb-order-request'); ?></h2>
+                <table class="form-table">
+                    <tr>
+                        <th><?php _e('Gekündigt am', 'themisdb-order-request'); ?>:</th>
+                        <td><strong><?php echo $license['cancellation_date'] ? esc_html(date('d.m.Y H:i', strtotime($license['cancellation_date']))) : '—'; ?></strong></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Kündigungsgrund', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo esc_html($license['cancellation_reason'] ?: '—'); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Gekündigt von', 'themisdb-order-request'); ?>:</th>
+                        <td>
+                            <?php
+                            if ($license['cancelled_by']) {
+                                $user = get_user_by('id', $license['cancelled_by']);
+                                echo $user ? esc_html($user->display_name) : esc_html('User #' . $license['cancelled_by']);
+                            } else {
+                                echo '—';
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <?php endif; ?>
+            
             <?php if ($order): ?>
             <div class="card">
                 <h2><?php _e('Zugehörige Bestellung', 'themisdb-order-request'); ?></h2>
@@ -1045,7 +1103,61 @@ class ThemisDB_Order_Admin {
             
             <p>
                 <a href="?page=themisdb-licenses" class="button"><?php _e('Zurück zur Übersicht', 'themisdb-order-request'); ?></a>
+                
+                <?php if (!$is_cancelled): ?>
+                <button type="button" id="btn-cancel-license" class="button button-cancel-license" style="margin-left:8px;">
+                    <?php _e('Lizenz kündigen', 'themisdb-order-request'); ?>
+                </button>
+                <?php endif; ?>
             </p>
+            
+            <?php if (!$is_cancelled): ?>
+            <!-- Cancellation confirmation modal -->
+            <div id="cancel-license-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">
+                <div style="background:white; padding:30px; border-radius:4px; max-width:500px; width:90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <h2 style="color:#721c24; margin-top:0;"><?php _e('Lizenz wirklich kündigen?', 'themisdb-order-request'); ?></h2>
+                    <p style="color:#721c24; font-weight:bold;"><?php _e('⚠️ Diese Aktion ist unwiderruflich! Die Lizenz kann danach nicht mehr aktiviert werden.', 'themisdb-order-request'); ?></p>
+                    <p><?php echo esc_html(sprintf(
+                        __('Lizenzschlüssel: %s', 'themisdb-order-request'),
+                        $license['license_key']
+                    )); ?></p>
+                    <form method="post" action="<?php echo esc_url(wp_nonce_url(
+                        admin_url('admin.php?page=themisdb-licenses&action=cancel&license_id=' . absint($license_id)),
+                        'cancel_license_' . $license_id
+                    )); ?>">
+                        <p>
+                            <label for="cancel_reason"><strong><?php _e('Kündigungsgrund (optional):', 'themisdb-order-request'); ?></strong></label><br>
+                            <textarea id="cancel_reason" name="cancel_reason" rows="3" style="width:100%; margin-top:5px;"
+                                      placeholder="<?php esc_attr_e('z.B. Vertrag beendet, Zahlungsausfall, Kundenanfrage...', 'themisdb-order-request'); ?>"></textarea>
+                        </p>
+                        <p style="margin-bottom:0;">
+                            <input type="submit" class="button button-cancel-license"
+                                   value="<?php esc_attr_e('Ja, Lizenz endgültig kündigen', 'themisdb-order-request'); ?>" />
+                            <button type="button" id="btn-cancel-modal" class="button" style="margin-left:8px;">
+                                <?php _e('Abbrechen', 'themisdb-order-request'); ?>
+                            </button>
+                        </p>
+                    </form>
+                </div>
+            </div>
+            <script>
+            (function($) {
+                $('#btn-cancel-license').on('click', function() {
+                    var $modal = $('#cancel-license-modal');
+                    $modal.css('display', 'flex');
+                });
+                $('#btn-cancel-modal').on('click', function() {
+                    $('#cancel-license-modal').hide();
+                });
+                // Close on backdrop click
+                $('#cancel-license-modal').on('click', function(e) {
+                    if ($(e.target).is('#cancel-license-modal')) {
+                        $(this).hide();
+                    }
+                });
+            })(jQuery);
+            </script>
+            <?php endif; ?>
         </div>
         <?php
     }

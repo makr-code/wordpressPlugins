@@ -34,6 +34,41 @@ if (!defined('ABSPATH')) {
 class ThemisDB_Email_Handler {
     
     /**
+     * Send license cancellation email to the customer
+     *
+     * @param  int   $license_id  License row primary key.
+     * @return bool  True if email was sent, false on failure.
+     */
+    public static function send_cancellation_email($license_id) {
+        $license = ThemisDB_License_Manager::get_license($license_id);
+        if (!$license) {
+            return false;
+        }
+        
+        $order = ThemisDB_Order_Manager::get_order($license['order_id']);
+        if (!$order) {
+            return false;
+        }
+        
+        $to      = $order['customer_email'];
+        $subject = sprintf(
+            __('Ihre ThemisDB Lizenz %s wurde gekündigt', 'themisdb-order-request'),
+            $license['license_key']
+        );
+        
+        $message = self::get_cancellation_template($license, $order);
+        
+        return self::send_email(
+            $to,
+            $subject,
+            $message,
+            array(),   // no attachments
+            $order['id'],
+            null       // no contract_id applicable for cancellation emails
+        );
+    }
+    
+    /**
      * Send order confirmation email
      */
     public static function send_order_confirmation($order_id) {
@@ -417,6 +452,97 @@ class ThemisDB_Email_Handler {
                     
                     <p>Mit freundlichen Grüßen<br>
                     Ihr ThemisDB Team</p>
+                </div>
+                
+                <div class="footer">
+                    <p><?php echo esc_html(get_option('blogname')); ?><br>
+                    <?php echo esc_html(get_option('admin_email')); ?></p>
+                </div>
+            </div>
+        </body>
+        </html>
+        <?php
+        return ob_get_clean();
+    }
+    
+    /**
+     * Get cancellation email HTML template
+     *
+     * @param  array  $license  License row.
+     * @param  array  $order    Associated order row.
+     * @return string HTML body.
+     */
+    private static function get_cancellation_template($license, $order) {
+        $cancellation_date = !empty($license['cancellation_date'])
+            ? date('d.m.Y H:i', strtotime($license['cancellation_date'])) . ' Uhr'
+            : date('d.m.Y H:i') . ' Uhr';
+        $reason = !empty($license['cancellation_reason']) ? $license['cancellation_reason'] : '—';
+        
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background-color: #721c24; color: white; padding: 20px; text-align: center; }
+                .content { padding: 20px; background-color: #f9f9f9; }
+                .license-details { background-color: white; padding: 15px; margin: 20px 0; border: 1px solid #ddd; }
+                .warning { background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; margin: 20px 0; border-radius: 4px; color: #721c24; }
+                .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+                th { background-color: #f5f5f5; width: 40%; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1><?php _e('Lizenzkündigung', 'themisdb-order-request'); ?></h1>
+                </div>
+                
+                <div class="content">
+                    <p><?php echo esc_html(sprintf(__('Sehr geehrte(r) %s,', 'themisdb-order-request'), $order['customer_name'])); ?></p>
+                    
+                    <p><?php _e('wir bestätigen hiermit die Kündigung Ihrer ThemisDB Lizenz. Bitte beachten Sie, dass die Lizenz ab sofort nicht mehr genutzt werden kann.', 'themisdb-order-request'); ?></p>
+                    
+                    <div class="warning">
+                        <strong><?php _e('Wichtiger Hinweis:', 'themisdb-order-request'); ?></strong>
+                        <?php _e('Diese Kündigung ist unwiderruflich. Die Lizenz wurde dauerhaft deaktiviert und kann nicht wiederhergestellt werden. Bitte sichern Sie Ihre Daten rechtzeitig.', 'themisdb-order-request'); ?>
+                    </div>
+                    
+                    <div class="license-details">
+                        <h2><?php _e('Lizenzdetails', 'themisdb-order-request'); ?></h2>
+                        <table>
+                            <tr>
+                                <th><?php _e('Lizenzschlüssel:', 'themisdb-order-request'); ?></th>
+                                <td><code><?php echo esc_html($license['license_key']); ?></code></td>
+                            </tr>
+                            <tr>
+                                <th><?php _e('Edition:', 'themisdb-order-request'); ?></th>
+                                <td>ThemisDB <?php echo esc_html(ucfirst($license['product_edition'])); ?> Edition</td>
+                            </tr>
+                            <tr>
+                                <th><?php _e('Bestellnummer:', 'themisdb-order-request'); ?></th>
+                                <td><?php echo esc_html($order['order_number']); ?></td>
+                            </tr>
+                            <tr>
+                                <th><?php _e('Kündigungsdatum:', 'themisdb-order-request'); ?></th>
+                                <td><?php echo esc_html($cancellation_date); ?></td>
+                            </tr>
+                            <tr>
+                                <th><?php _e('Kündigungsgrund:', 'themisdb-order-request'); ?></th>
+                                <td><?php echo esc_html($reason); ?></td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <p><?php _e('Falls Sie der Meinung sind, dass diese Kündigung irrtümlich erfolgt ist, kontaktieren Sie uns bitte umgehend.', 'themisdb-order-request'); ?></p>
+                    
+                    <p><?php _e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br>
+                    <?php _e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
                 </div>
                 
                 <div class="footer">
