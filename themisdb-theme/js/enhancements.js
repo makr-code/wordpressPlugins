@@ -618,7 +618,9 @@
         var toggleBtn = document.querySelector('.search-toggle');
         if (!toggleBtn) return;
 
-        // Use the PHP-escaped home URL from the body data attribute
+        // Use the PHP-escaped home URL from the body data attribute.
+        // This value is written with WordPress's esc_url() in header.php and is
+        // therefore safe to use as a form action via setAttribute().
         var homeUrl = document.body.dataset.homeUrl || '/';
 
         // Build overlay DOM safely via DOM API (avoid innerHTML for the action URL)
@@ -661,7 +663,19 @@
 
         var hint = document.createElement('p');
         hint.className = 'search-overlay-hint';
-        hint.innerHTML = 'Press <kbd>Esc</kbd> to close &nbsp;&middot;&nbsp; <kbd>Enter</kbd> to search';
+
+        var kbdEsc   = document.createElement('kbd');
+        kbdEsc.textContent = 'Esc';
+        var kbdEnter = document.createElement('kbd');
+        kbdEnter.textContent = 'Enter';
+        var mid      = document.createTextNode('\u00a0\u00b7\u00a0 '); // · 
+
+        hint.appendChild(document.createTextNode('Press '));
+        hint.appendChild(kbdEsc);
+        hint.appendChild(document.createTextNode(' to close \u00a0'));
+        hint.appendChild(mid);
+        hint.appendChild(kbdEnter);
+        hint.appendChild(document.createTextNode(' to search'));
 
         inner.appendChild(form);
         inner.appendChild(hint);
