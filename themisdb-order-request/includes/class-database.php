@@ -215,6 +215,7 @@ class ThemisDB_Order_Database {
             verified_by bigint(20) DEFAULT NULL,
             notes text DEFAULT NULL,
             epserver_payment_id varchar(100) DEFAULT NULL,
+            bank_reference varchar(500) DEFAULT NULL,
             metadata longtext DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -223,6 +224,53 @@ class ThemisDB_Order_Database {
             KEY contract_id (contract_id),
             KEY payment_status (payment_status),
             KEY payment_date (payment_date),
+            KEY created_at (created_at)
+        ) $charset_collate;";
+        
+        // Bank import sessions table
+        $table_bank_imports = $wpdb->prefix . 'themisdb_bank_imports';
+        $sql_bank_imports = "CREATE TABLE IF NOT EXISTS $table_bank_imports (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            import_uuid varchar(36) NOT NULL UNIQUE,
+            filename varchar(255) NOT NULL,
+            bank_format varchar(50) NOT NULL DEFAULT 'auto',
+            rows_total int(11) NOT NULL DEFAULT 0,
+            rows_matched int(11) NOT NULL DEFAULT 0,
+            rows_unmatched int(11) NOT NULL DEFAULT 0,
+            rows_duplicate int(11) NOT NULL DEFAULT 0,
+            rows_skipped int(11) NOT NULL DEFAULT 0,
+            imported_by bigint(20) DEFAULT NULL,
+            notes text DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY bank_format (bank_format),
+            KEY imported_by (imported_by),
+            KEY created_at (created_at)
+        ) $charset_collate;";
+        
+        // Bank transactions table (individual CSV rows)
+        $table_bank_transactions = $wpdb->prefix . 'themisdb_bank_transactions';
+        $sql_bank_transactions = "CREATE TABLE IF NOT EXISTS $table_bank_transactions (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            import_id bigint(20) NOT NULL,
+            booking_date date DEFAULT NULL,
+            value_date date DEFAULT NULL,
+            payer_name varchar(255) DEFAULT NULL,
+            payer_iban varchar(50) DEFAULT NULL,
+            payer_bic varchar(20) DEFAULT NULL,
+            amount decimal(10,2) NOT NULL DEFAULT 0.00,
+            currency varchar(10) NOT NULL DEFAULT 'EUR',
+            purpose text DEFAULT NULL,
+            matched_payment_id bigint(20) DEFAULT NULL,
+            match_status varchar(20) NOT NULL DEFAULT 'unmatched',
+            match_confidence varchar(20) DEFAULT NULL,
+            raw_data longtext DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY import_id (import_id),
+            KEY matched_payment_id (matched_payment_id),
+            KEY match_status (match_status),
+            KEY booking_date (booking_date),
             KEY created_at (created_at)
         ) $charset_collate;";
         
@@ -247,6 +295,9 @@ class ThemisDB_Order_Database {
             license_file_path varchar(255) DEFAULT NULL,
             license_file_data longtext DEFAULT NULL,
             epserver_subscription_id varchar(100) DEFAULT NULL,
+            cancellation_date datetime DEFAULT NULL,
+            cancellation_reason text DEFAULT NULL,
+            cancelled_by bigint(20) DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
@@ -255,6 +306,7 @@ class ThemisDB_Order_Database {
             KEY customer_id (customer_id),
             KEY license_status (license_status),
             KEY expiry_date (expiry_date),
+            KEY cancellation_date (cancellation_date),
             KEY created_at (created_at)
         ) $charset_collate;";
         
@@ -287,6 +339,8 @@ class ThemisDB_Order_Database {
         dbDelta($sql_payments);
         dbDelta($sql_licenses);
         dbDelta($sql_license_auth);
+        dbDelta($sql_bank_imports);
+        dbDelta($sql_bank_transactions);
         
         // Insert default product data
         self::insert_default_data();

@@ -126,6 +126,49 @@ class ThemisDB_License_Manager {
     }
     
     /**
+     * Cancel license (permanent, irreversible)
+     *
+     * Sets license_status to 'cancelled' and records who cancelled it, when, and why.
+     * A cancelled license can never be reactivated – use suspend_license() for
+     * temporary holds that may be lifted.
+     *
+     * @param  int     $license_id  Primary key of the license row.
+     * @param  string  $reason      Human-readable cancellation reason.
+     * @param  int     $cancelled_by  WordPress user ID of the admin initiating the action (0 = system).
+     * @return bool    True on success, false on failure or if already cancelled.
+     */
+    public static function cancel_license($license_id, $reason = '', $cancelled_by = 0) {
+        global $wpdb;
+        
+        $table_licenses = $wpdb->prefix . 'themisdb_licenses';
+        
+        $license = self::get_license($license_id);
+        if (!$license) {
+            return false;
+        }
+        
+        // Prevent double-cancellation
+        if ($license['license_status'] === 'cancelled') {
+            return false;
+        }
+        
+        $result = $wpdb->update(
+            $table_licenses,
+            array(
+                'license_status'      => 'cancelled',
+                'cancellation_date'   => current_time('mysql'),
+                'cancellation_reason' => sanitize_textarea_field($reason),
+                'cancelled_by'        => $cancelled_by !== 0 ? intval($cancelled_by) : 0,
+            ),
+            array('id' => $license_id),
+            array('%s', '%s', '%s', '%d'),
+            array('%d')
+        );
+        
+        return $result !== false;
+    }
+    
+    /**
      * Suspend license
      */
     public static function suspend_license($license_id, $reason = '') {
@@ -740,7 +783,8 @@ class ThemisDB_License_Manager {
             'active_licenses' => 0,
             'pending_licenses' => 0,
             'suspended_licenses' => 0,
-            'expired_licenses' => 0
+            'expired_licenses' => 0,
+            'cancelled_licenses' => 0
         );
         
         $results = $wpdb->get_results(
@@ -767,6 +811,9 @@ class ThemisDB_License_Manager {
                     break;
                 case 'expired':
                     $stats['expired_licenses'] = $row['count'];
+                    break;
+                case 'cancelled':
+                    $stats['cancelled_licenses'] = $row['count'];
                     break;
             }
         }

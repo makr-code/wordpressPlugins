@@ -44,6 +44,10 @@
  *        Body: { "license_key": "...", "reason": "..." }
  *        Revokes (suspends) a license (admin only).
  *
+ *   POST /wp-json/themisdb/v1/license/cancel
+ *        Body: { "license_key": "...", "reason": "..." }
+ *        Permanently cancels a license (admin only, irreversible).
+ *
  * All responses include an HMAC-SHA256 signature so the ThemisDB C++ server
  * can verify the response has not been tampered with in transit.
  *
@@ -107,6 +111,17 @@ class ThemisDB_License_API {
             'args'                => array(
                 'license_key' => array( 'required' => true,  'sanitize_callback' => 'sanitize_text_field' ),
                 'reason'      => array( 'required' => false, 'sanitize_callback' => 'sanitize_text_field' ),
+            ),
+        ) );
+
+        // Cancel license permanently (admin only)
+        register_rest_route( self::NAMESPACE, '/license/cancel', array(
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => array( $this, 'cancel_license' ),
+            'permission_callback' => array( $this, 'check_admin_api_key' ),
+            'args'                => array(
+                'license_key' => array( 'required' => true,  'sanitize_callback' => 'sanitize_text_field' ),
+                'reason'      => array( 'required' => false, 'sanitize_callback' => 'sanitize_textarea_field' ),
             ),
         ) );
     }
@@ -299,6 +314,48 @@ class ThemisDB_License_API {
             'status'      => 'suspended',
             'reason'      => $reason,
             'timestamp'   => gmdate( 'c' ),
+        ), 200 );
+    }
+
+    /**
+     * POST /wp-json/themisdb/v1/license/cancel
+     *
+     * Permanently cancels a license. This is irreversible. A cancelled license
+     * can never be reactivated and will always be rejected by validate_license().
+     */
+    public function cancel_license( WP_REST_Request $request ) {
+        $license_key = $request->get_param( 'license_key' );
+        $reason      = $request->get_param( 'reason' ) ?? 'Cancelled via API';
+
+        $license = ThemisDB_License_Manager::get_license_by_key( $license_key );
+        if ( ! $license ) {
+            $this->audit_log( $license_key, 'cancel', 'not_found', $request );
+            return new WP_Error( 'not_found', 'License not found.', array( 'status' => 404 ) );
+        }
+
+        if ( $license['license_status'] === 'cancelled' ) {
+            $this->audit_log( $license_key, 'cancel', 'already_cancelled', $request );
+            return new WP_Error( 'conflict', 'License is already cancelled.', array( 'status' => 409 ) );
+        }
+
+        $cancelled = ThemisDB_License_Manager::cancel_license( $license['id'], $reason, 0 );
+        if ( ! $cancelled ) {
+            $this->audit_log( $license_key, 'cancel', 'db_error', $request );
+            return new WP_Error( 'server_error', 'Failed to cancel license.', array( 'status' => 500 ) );
+        }
+
+        // Send cancellation notification email
+        ThemisDB_Email_Handler::send_cancellation_email( $license['id'] );
+
+        $this->audit_log( $license_key, 'cancel', 'success', $request );
+
+        return new WP_REST_Response( array(
+            'success'            => true,
+            'license_key'        => $license_key,
+            'status'             => 'cancelled',
+            'reason'             => $reason,
+            'cancellation_date'  => gmdate( 'c' ),
+            'timestamp'          => gmdate( 'c' ),
         ), 200 );
     }
 

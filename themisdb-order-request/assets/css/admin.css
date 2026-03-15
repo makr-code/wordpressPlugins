@@ -119,6 +119,17 @@
     color: #3c434a;
 }
 
+.license-status.status-cancelled {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Cancel button for license detail page */
+.button-cancel-license {
+    color: #721c24 !important;
+    border-color: #721c24 !important;
+}
+
 /* Admin Table Enhancements */
 .wp-list-table.themisdb-table th {
     font-weight: 600;

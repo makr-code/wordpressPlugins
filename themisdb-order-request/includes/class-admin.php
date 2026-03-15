@@ -115,6 +115,15 @@ class ThemisDB_Order_Admin {
             'themisdb-license-audit',
             array($this, 'license_audit_page')
         );
+
+        add_submenu_page(
+            'themisdb-orders',
+            __('Bankimport', 'themisdb-order-request'),
+            __('Bankimport', 'themisdb-order-request'),
+            'manage_options',
+            'themisdb-bank-import',
+            array($this, 'bank_import_page')
+        );
         
         add_submenu_page(
             'themisdb-orders',
@@ -821,6 +830,20 @@ class ThemisDB_Order_Admin {
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
         $license_id = isset($_GET['license_id']) ? intval($_GET['license_id']) : 0;
         
+        // Handle cancellation action
+        if ($action === 'cancel' && $license_id && check_admin_referer('cancel_license_' . $license_id)) {
+            $reason = isset($_POST['cancel_reason']) ? sanitize_textarea_field($_POST['cancel_reason']) : '';
+            $result = ThemisDB_License_Manager::cancel_license($license_id, $reason, get_current_user_id());
+            if ($result) {
+                // Send cancellation email
+                ThemisDB_Email_Handler::send_cancellation_email($license_id);
+                wp_redirect(admin_url('admin.php?page=themisdb-licenses&action=view&license_id=' . $license_id . '&cancelled=1'));
+            } else {
+                wp_redirect(admin_url('admin.php?page=themisdb-licenses&action=view&license_id=' . $license_id . '&cancel_error=1'));
+            }
+            exit;
+        }
+        
         if ($action === 'view' && $license_id) {
             $this->view_license($license_id);
         } else {
@@ -861,7 +884,13 @@ class ThemisDB_Order_Admin {
                         <th><?php _e('Ausstehend', 'themisdb-order-request'); ?>:</th>
                         <td><span style="color: orange;"><strong><?php echo $stats['pending_licenses']; ?></strong></span></td>
                         <th><?php _e('Suspendiert', 'themisdb-order-request'); ?>:</th>
-                        <td><span style="color: red;"><strong><?php echo $stats['suspended_licenses']; ?></strong></span></td>
+                        <td><span style="color: #856404;"><strong><?php echo $stats['suspended_licenses']; ?></strong></span></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Abgelaufen', 'themisdb-order-request'); ?>:</th>
+                        <td><span style="color: #3c434a;"><strong><?php echo $stats['expired_licenses']; ?></strong></span></td>
+                        <th><?php _e('Gekündigt', 'themisdb-order-request'); ?>:</th>
+                        <td><span style="color: #721c24;"><strong><?php echo $stats['cancelled_licenses']; ?></strong></span></td>
                     </tr>
                 </table>
             </div>
@@ -930,10 +959,19 @@ class ThemisDB_Order_Admin {
         
         $order = ThemisDB_Order_Manager::get_order($license['order_id']);
         $contract = ThemisDB_Contract_Manager::get_contract($license['contract_id']);
+        $is_cancelled = ($license['license_status'] === 'cancelled');
         
         ?>
         <div class="wrap">
             <h1><?php _e('Lizenz', 'themisdb-order-request'); ?>: <?php echo esc_html($license['product_edition']); ?></h1>
+            
+            <?php if (isset($_GET['cancelled'])): ?>
+            <div class="notice notice-success"><p><?php _e('Die Lizenz wurde erfolgreich gekündigt. Der Kunde wurde per E-Mail informiert.', 'themisdb-order-request'); ?></p></div>
+            <?php endif; ?>
+            
+            <?php if (isset($_GET['cancel_error'])): ?>
+            <div class="notice notice-error"><p><?php _e('Fehler beim Kündigen der Lizenz. Bitte versuchen Sie es erneut.', 'themisdb-order-request'); ?></p></div>
+            <?php endif; ?>
             
             <div class="card">
                 <h2><?php _e('Lizenzdetails', 'themisdb-order-request'); ?></h2>
@@ -999,6 +1037,35 @@ class ThemisDB_Order_Admin {
                 </table>
             </div>
             
+            <?php if ($is_cancelled): ?>
+            <div class="card" style="border-left: 4px solid #721c24;">
+                <h2 style="color:#721c24;"><?php _e('Kündigungsdetails', 'themisdb-order-request'); ?></h2>
+                <table class="form-table">
+                    <tr>
+                        <th><?php _e('Gekündigt am', 'themisdb-order-request'); ?>:</th>
+                        <td><strong><?php echo $license['cancellation_date'] ? esc_html(date('d.m.Y H:i', strtotime($license['cancellation_date']))) : '—'; ?></strong></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Kündigungsgrund', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo esc_html($license['cancellation_reason'] ?: '—'); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Gekündigt von', 'themisdb-order-request'); ?>:</th>
+                        <td>
+                            <?php
+                            if ($license['cancelled_by']) {
+                                $user = get_user_by('id', $license['cancelled_by']);
+                                echo $user ? esc_html($user->display_name) : esc_html('User #' . $license['cancelled_by']);
+                            } else {
+                                echo '—';
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <?php endif; ?>
+            
             <?php if ($order): ?>
             <div class="card">
                 <h2><?php _e('Zugehörige Bestellung', 'themisdb-order-request'); ?></h2>
@@ -1036,7 +1103,61 @@ class ThemisDB_Order_Admin {
             
             <p>
                 <a href="?page=themisdb-licenses" class="button"><?php _e('Zurück zur Übersicht', 'themisdb-order-request'); ?></a>
+                
+                <?php if (!$is_cancelled): ?>
+                <button type="button" id="btn-cancel-license" class="button button-cancel-license" style="margin-left:8px;">
+                    <?php _e('Lizenz kündigen', 'themisdb-order-request'); ?>
+                </button>
+                <?php endif; ?>
             </p>
+            
+            <?php if (!$is_cancelled): ?>
+            <!-- Cancellation confirmation modal -->
+            <div id="cancel-license-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">
+                <div style="background:white; padding:30px; border-radius:4px; max-width:500px; width:90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <h2 style="color:#721c24; margin-top:0;"><?php _e('Lizenz wirklich kündigen?', 'themisdb-order-request'); ?></h2>
+                    <p style="color:#721c24; font-weight:bold;"><?php _e('⚠️ Diese Aktion ist unwiderruflich! Die Lizenz kann danach nicht mehr aktiviert werden.', 'themisdb-order-request'); ?></p>
+                    <p><?php echo esc_html(sprintf(
+                        __('Lizenzschlüssel: %s', 'themisdb-order-request'),
+                        $license['license_key']
+                    )); ?></p>
+                    <form method="post" action="<?php echo esc_url(wp_nonce_url(
+                        admin_url('admin.php?page=themisdb-licenses&action=cancel&license_id=' . absint($license_id)),
+                        'cancel_license_' . $license_id
+                    )); ?>">
+                        <p>
+                            <label for="cancel_reason"><strong><?php _e('Kündigungsgrund (optional):', 'themisdb-order-request'); ?></strong></label><br>
+                            <textarea id="cancel_reason" name="cancel_reason" rows="3" style="width:100%; margin-top:5px;"
+                                      placeholder="<?php esc_attr_e('z.B. Vertrag beendet, Zahlungsausfall, Kundenanfrage...', 'themisdb-order-request'); ?>"></textarea>
+                        </p>
+                        <p style="margin-bottom:0;">
+                            <input type="submit" class="button button-cancel-license"
+                                   value="<?php esc_attr_e('Ja, Lizenz endgültig kündigen', 'themisdb-order-request'); ?>" />
+                            <button type="button" id="btn-cancel-modal" class="button" style="margin-left:8px;">
+                                <?php _e('Abbrechen', 'themisdb-order-request'); ?>
+                            </button>
+                        </p>
+                    </form>
+                </div>
+            </div>
+            <script>
+            (function($) {
+                $('#btn-cancel-license').on('click', function() {
+                    var $modal = $('#cancel-license-modal');
+                    $modal.css('display', 'flex');
+                });
+                $('#btn-cancel-modal').on('click', function() {
+                    $('#cancel-license-modal').hide();
+                });
+                // Close on backdrop click
+                $('#cancel-license-modal').on('click', function(e) {
+                    if ($(e.target).is('#cancel-license-modal')) {
+                        $(this).hide();
+                    }
+                });
+            })(jQuery);
+            </script>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -1348,5 +1469,684 @@ class ThemisDB_Order_Admin {
             wp_redirect(admin_url('admin.php?page=themisdb-order-settings&sync=error'));
         }
         exit;
+    }
+
+    // =========================================================================
+    // Bank Import Page
+    // =========================================================================
+
+    /**
+     * Route the bank import page based on action parameter.
+     */
+    public function bank_import_page() {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Keine Berechtigung', 'themisdb-order-request'));
+        }
+
+        $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
+
+        // --- Handle POST: parse CSV and store preview in transient ---
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'preview') {
+            check_admin_referer('themisdb_bank_upload');
+            $this->bank_import_handle_upload();
+            return;
+        }
+
+        // --- Handle POST: confirm and execute the import ---
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'import') {
+            check_admin_referer('themisdb_bank_import_confirm');
+            $this->bank_import_handle_confirm();
+            return;
+        }
+
+        // --- Handle POST: manual assignment of unmatched transaction ---
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'assign') {
+            check_admin_referer('themisdb_bank_assign');
+            $this->bank_import_handle_assign();
+            return;
+        }
+
+        // --- GET: view details of a completed import session ---
+        if ($action === 'view' && !empty($_GET['import_id'])) {
+            $this->bank_import_view_session(intval($_GET['import_id']));
+            return;
+        }
+
+        // --- GET: show assignment form for an unmatched transaction ---
+        if ($action === 'assign' && !empty($_GET['transaction_id'])) {
+            $this->bank_import_assign_form(intval($_GET['transaction_id']));
+            return;
+        }
+
+        // --- GET: show preview after CSV upload (from transient) ---
+        if ($action === 'preview' && !empty($_GET['token'])) {
+            $this->bank_import_show_preview(sanitize_text_field($_GET['token']));
+            return;
+        }
+
+        // --- Default: upload form + history ---
+        $this->bank_import_list();
+    }
+
+    /**
+     * Step 1 landing page: reference guide + CSV upload form + import history.
+     */
+    private function bank_import_list() {
+        $imports = ThemisDB_Bank_Import::get_imports(array('limit' => 20));
+        $formats = ThemisDB_Bank_Import::get_supported_formats();
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Bankimport – Zahlungsabgleich', 'themisdb-order-request'); ?></h1>
+
+            <!-- Reference guide box -->
+            <div class="notice notice-info" style="padding:12px 16px;">
+                <h3 style="margin-top:0;">
+                    <?php _e('📋 Welche Referenz gehört auf den Überweisungsträger?', 'themisdb-order-request'); ?>
+                </h3>
+                <p><?php _e('Damit Banküberweisungen automatisch einer Lizenz/Bestellung zugeordnet werden können, <strong>muss der Kunde im Feld „Verwendungszweck" exakt eine der folgenden Referenzen angeben:</strong>', 'themisdb-order-request'); ?></p>
+                <table class="widefat" style="max-width:700px;">
+                    <thead>
+                        <tr>
+                            <th><?php _e('Priorität', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Feld auf dem Überweisungsträger', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Format / Beispiel', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Wo finden?', 'themisdb-order-request'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="background:#d4edda;">
+                            <td><strong><?php _e('1 (bevorzugt)', 'themisdb-order-request'); ?></strong></td>
+                            <td><?php _e('Verwendungszweck', 'themisdb-order-request'); ?></td>
+                            <td><code>PAY-20261201-A3B2C1</code></td>
+                            <td><?php _e('Zahlungsnummer in der Auftragsbestätigungs-E-Mail oder im Kunden-Portal', 'themisdb-order-request'); ?></td>
+                        </tr>
+                        <tr>
+                            <td><?php _e('2 (Fallback)', 'themisdb-order-request'); ?></td>
+                            <td><?php _e('Verwendungszweck', 'themisdb-order-request'); ?></td>
+                            <td><code>ORD-20261130-F9E8D7</code></td>
+                            <td><?php _e('Bestellnummer in der Auftragsbestätigungs-E-Mail', 'themisdb-order-request'); ?></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="margin-bottom:0;">
+                    <strong><?php _e('Empfehlung:', 'themisdb-order-request'); ?></strong>
+                    <?php _e('Tragen Sie <em>beide</em> Referenzen in den Verwendungszweck ein, z.&nbsp;B.:', 'themisdb-order-request'); ?>
+                    <code>PAY-20261201-A3B2C1 ORD-20261130-F9E8D7</code>
+                </p>
+            </div>
+
+            <!-- Upload form -->
+            <div class="card" style="max-width:none; margin:20px 0;">
+                <h2><?php _e('CSV-Datei hochladen', 'themisdb-order-request'); ?></h2>
+                <form method="post"
+                      action="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import&action=preview')); ?>"
+                      enctype="multipart/form-data">
+                    <?php wp_nonce_field('themisdb_bank_upload'); ?>
+                    <table class="form-table">
+                        <tr>
+                            <th><label for="bank_csv_file"><?php _e('CSV-Datei (Kontoauszug)', 'themisdb-order-request'); ?></label></th>
+                            <td>
+                                <input type="file" id="bank_csv_file" name="bank_csv_file" accept=".csv,.txt" required />
+                                <p class="description">
+                                    <?php _e('Exportieren Sie den Kontoauszug als CSV-Datei aus Ihrem Online-Banking. Unterstützte Banken: Sparkasse, DKB, Deutsche Bank, Commerzbank, ING und generische CSV-Formate.', 'themisdb-order-request'); ?>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label for="bank_format"><?php _e('Bankformat', 'themisdb-order-request'); ?></label></th>
+                            <td>
+                                <select id="bank_format" name="bank_format">
+                                    <?php foreach ($formats as $key => $label): ?>
+                                        <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description"><?php _e('„Automatisch erkennen" funktioniert für die meisten deutschen Banken.', 'themisdb-order-request'); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label for="bank_import_notes"><?php _e('Notizen (optional)', 'themisdb-order-request'); ?></label></th>
+                            <td>
+                                <textarea id="bank_import_notes" name="bank_import_notes" rows="2" class="large-text"></textarea>
+                            </td>
+                        </tr>
+                    </table>
+                    <?php submit_button(__('CSV hochladen &amp; Vorschau anzeigen', 'themisdb-order-request')); ?>
+                </form>
+            </div>
+
+            <!-- Import history -->
+            <?php if (!empty($imports)): ?>
+            <div class="card" style="max-width:none; margin:20px 0;">
+                <h2><?php _e('Import-Verlauf', 'themisdb-order-request'); ?></h2>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th><?php _e('Datum', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Dateiname', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Format', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Gesamt', 'themisdb-order-request'); ?></th>
+                            <th style="color:green;"><?php _e('Gematcht', 'themisdb-order-request'); ?></th>
+                            <th style="color:orange;"><?php _e('Offen', 'themisdb-order-request'); ?></th>
+                            <th style="color:#666;"><?php _e('Duplikat', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Importiert von', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Aktionen', 'themisdb-order-request'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($imports as $imp): ?>
+                        <tr>
+                            <td><?php echo esc_html(date('d.m.Y H:i', strtotime($imp['created_at']))); ?></td>
+                            <td><?php echo esc_html($imp['filename']); ?></td>
+                            <td><?php echo esc_html(strtoupper($imp['bank_format'])); ?></td>
+                            <td><?php echo (int) $imp['rows_total']; ?></td>
+                            <td style="color:green;font-weight:bold;"><?php echo (int) $imp['rows_matched']; ?></td>
+                            <td style="color:orange;font-weight:bold;"><?php echo (int) $imp['rows_unmatched']; ?></td>
+                            <td style="color:#666;"><?php echo (int) $imp['rows_duplicate']; ?></td>
+                            <td><?php echo esc_html($imp['imported_by_name'] ?: '—'); ?></td>
+                            <td>
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import&action=view&import_id=' . intval($imp['id']))); ?>"
+                                   class="button button-small">
+                                    <?php _e('Details', 'themisdb-order-request'); ?>
+                                </a>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Handle CSV upload: parse, match, store preview in transient, redirect.
+     */
+    private function bank_import_handle_upload() {
+        if (empty($_FILES['bank_csv_file']['tmp_name'])) {
+            wp_redirect(admin_url('admin.php?page=themisdb-bank-import&upload_error=no_file'));
+            exit;
+        }
+
+        $file      = $_FILES['bank_csv_file'];
+        $format    = isset($_POST['bank_format']) ? sanitize_text_field($_POST['bank_format']) : 'auto';
+        $notes     = isset($_POST['bank_import_notes']) ? sanitize_textarea_field($_POST['bank_import_notes']) : '';
+        $filename  = sanitize_file_name($file['name']);
+
+        // Parse CSV
+        $transactions = ThemisDB_Bank_Import::parse_csv_file($file['tmp_name'], $format);
+
+        if (is_wp_error($transactions)) {
+            wp_redirect(admin_url('admin.php?page=themisdb-bank-import&upload_error=' . urlencode($transactions->get_error_message())));
+            exit;
+        }
+
+        // Match against existing payments
+        $transactions = ThemisDB_Bank_Import::match_transactions($transactions);
+
+        // Store preview data in a short-lived transient
+        $token = wp_generate_uuid4();
+        set_transient('themisdb_bank_preview_' . $token, array(
+            'filename'     => $filename,
+            'bank_format'  => $format,
+            'notes'        => $notes,
+            'transactions' => $transactions,
+        ), 30 * MINUTE_IN_SECONDS);
+
+        wp_redirect(admin_url('admin.php?page=themisdb-bank-import&action=preview&token=' . urlencode($token)));
+        exit;
+    }
+
+    /**
+     * Show the parsed CSV preview for admin review before saving.
+     *
+     * @param string $token  Transient key suffix.
+     */
+    private function bank_import_show_preview($token) {
+        $data = get_transient('themisdb_bank_preview_' . $token);
+
+        if (!$data) {
+            echo '<div class="notice notice-error"><p>' .
+                 esc_html__('Vorschau abgelaufen oder ungültig. Bitte die CSV-Datei erneut hochladen.', 'themisdb-order-request') .
+                 '</p></div>';
+            $this->bank_import_list();
+            return;
+        }
+
+        $transactions = $data['transactions'];
+        $counts = $this->bank_import_count_statuses($transactions);
+        $formats = ThemisDB_Bank_Import::get_supported_formats();
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Bankimport – Vorschau', 'themisdb-order-request'); ?></h1>
+
+            <div class="card" style="max-width:none; margin-bottom:20px;">
+                <h2><?php _e('Import-Zusammenfassung', 'themisdb-order-request'); ?></h2>
+                <table class="form-table">
+                    <tr>
+                        <th><?php _e('Datei', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo esc_html($data['filename']); ?></td>
+                        <th><?php _e('Format', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo esc_html($formats[$data['bank_format']] ?? $data['bank_format']); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Gesamt Zeilen', 'themisdb-order-request'); ?>:</th>
+                        <td><strong><?php echo (int) $counts['total']; ?></strong></td>
+                        <th style="color:green;"><?php _e('Automatisch gematcht', 'themisdb-order-request'); ?>:</th>
+                        <td style="color:green;"><strong><?php echo (int) $counts['matched']; ?></strong></td>
+                    </tr>
+                    <tr>
+                        <th style="color:orange;"><?php _e('Nicht zugeordnet', 'themisdb-order-request'); ?>:</th>
+                        <td style="color:orange;"><strong><?php echo (int) $counts['unmatched']; ?></strong></td>
+                        <th style="color:#666;"><?php _e('Bereits importiert (Duplikat)', 'themisdb-order-request'); ?>:</th>
+                        <td style="color:#666;"><strong><?php echo (int) $counts['duplicate']; ?></strong></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Übersprungen (ausgehend)', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo (int) $counts['skipped']; ?></td>
+                        <th></th><td></td>
+                    </tr>
+                </table>
+            </div>
+
+            <?php if ($counts['matched'] === 0 && $counts['unmatched'] === 0): ?>
+            <div class="notice notice-warning">
+                <p><?php _e('Es wurden keine importierbaren Transaktionen gefunden. Prüfen Sie das Dateiformat und den Inhalt.', 'themisdb-order-request'); ?></p>
+            </div>
+            <?php endif; ?>
+
+            <!-- Transaction preview table -->
+            <div class="card" style="max-width:none; margin-bottom:20px;">
+                <h2><?php _e('Transaktionen', 'themisdb-order-request'); ?></h2>
+                <table class="wp-list-table widefat fixed striped" style="table-layout:auto;">
+                    <thead>
+                        <tr>
+                            <th><?php _e('Buchungsdatum', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Auftraggeber', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('IBAN', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Betrag', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Verwendungszweck', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Status', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Zahlungsnummer', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Hinweis', 'themisdb-order-request'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($transactions as $tx): ?>
+                        <?php
+                            $payment = null;
+                            if (!empty($tx['matched_payment_id'])) {
+                                $payment = ThemisDB_Payment_Manager::get_payment($tx['matched_payment_id']);
+                            }
+                            $status_label = $this->bank_import_status_badge($tx['match_status']);
+                        ?>
+                        <tr>
+                            <td><?php echo esc_html($tx['booking_date'] ? date('d.m.Y', strtotime($tx['booking_date'])) : '—'); ?></td>
+                            <td><?php echo esc_html($tx['payer_name'] ?: '—'); ?></td>
+                            <td><code style="font-size:10px;"><?php echo esc_html($tx['payer_iban'] ?: '—'); ?></code></td>
+                            <td style="white-space:nowrap;">
+                                <strong><?php echo number_format(floatval($tx['amount']), 2, ',', '.'); ?> <?php echo esc_html($tx['currency']); ?></strong>
+                            </td>
+                            <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                                title="<?php echo esc_attr($tx['purpose']); ?>">
+                                <?php echo esc_html(mb_strimwidth($tx['purpose'] ?? '', 0, 60, '…')); ?>
+                            </td>
+                            <td><?php echo $status_label; ?></td>
+                            <td>
+                                <?php if ($payment): ?>
+                                    <code><?php echo esc_html($payment['payment_number']); ?></code>
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
+                            <td style="font-size:11px;color:#666;"><?php echo esc_html($tx['match_note'] ?? ''); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Confirm / cancel -->
+            <?php if ($counts['matched'] > 0 || $counts['unmatched'] > 0): ?>
+            <form method="post"
+                  action="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import&action=import')); ?>">
+                <?php wp_nonce_field('themisdb_bank_import_confirm'); ?>
+                <input type="hidden" name="preview_token" value="<?php echo esc_attr($token); ?>" />
+                <p>
+                    <input type="submit"
+                           class="button button-primary button-large"
+                           value="<?php esc_attr_e('Import bestätigen &amp; Zahlungen verarbeiten', 'themisdb-order-request'); ?>" />
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import')); ?>"
+                       class="button button-large" style="margin-left:8px;">
+                        <?php _e('Abbrechen', 'themisdb-order-request'); ?>
+                    </a>
+                </p>
+            </form>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Handle confirmed import: persist to DB, redirect to result.
+     */
+    private function bank_import_handle_confirm() {
+        $token = isset($_POST['preview_token']) ? sanitize_text_field($_POST['preview_token']) : '';
+        $data  = get_transient('themisdb_bank_preview_' . $token);
+
+        if (!$data) {
+            wp_redirect(admin_url('admin.php?page=themisdb-bank-import&import_error=expired'));
+            exit;
+        }
+
+        $import_id = ThemisDB_Bank_Import::save_import(
+            array(
+                'filename'    => $data['filename'],
+                'bank_format' => $data['bank_format'],
+                'notes'       => $data['notes'],
+            ),
+            $data['transactions']
+        );
+
+        delete_transient('themisdb_bank_preview_' . $token);
+
+        if ($import_id) {
+            wp_redirect(admin_url('admin.php?page=themisdb-bank-import&action=view&import_id=' . $import_id . '&imported=1'));
+        } else {
+            wp_redirect(admin_url('admin.php?page=themisdb-bank-import&import_error=db'));
+        }
+        exit;
+    }
+
+    /**
+     * View a completed import session (with all its transactions).
+     *
+     * @param int $import_id
+     */
+    private function bank_import_view_session($import_id) {
+        global $wpdb;
+        $table_imports = $wpdb->prefix . 'themisdb_bank_imports';
+        $import = $wpdb->get_row($wpdb->prepare(
+            "SELECT i.*, u.display_name AS imported_by_name
+               FROM $table_imports i
+          LEFT JOIN {$wpdb->users} u ON u.ID = i.imported_by
+              WHERE i.id = %d",
+            $import_id
+        ), ARRAY_A);
+
+        if (!$import) {
+            echo '<div class="notice notice-error"><p>' .
+                 esc_html__('Import nicht gefunden.', 'themisdb-order-request') .
+                 '</p></div>';
+            $this->bank_import_list();
+            return;
+        }
+
+        $transactions = ThemisDB_Bank_Import::get_transactions($import_id);
+        $formats      = ThemisDB_Bank_Import::get_supported_formats();
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Bankimport – Detailansicht', 'themisdb-order-request'); ?></h1>
+
+            <?php if (isset($_GET['imported'])): ?>
+            <div class="notice notice-success">
+                <p><?php _e('Import erfolgreich abgeschlossen. Gematchte Zahlungen wurden automatisch verifiziert.', 'themisdb-order-request'); ?></p>
+            </div>
+            <?php endif; ?>
+
+            <div class="card" style="max-width:none; margin-bottom:20px;">
+                <h2><?php _e('Import-Details', 'themisdb-order-request'); ?></h2>
+                <table class="form-table">
+                    <tr>
+                        <th><?php _e('Datei', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo esc_html($import['filename']); ?></td>
+                        <th><?php _e('Bankformat', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo esc_html($formats[$import['bank_format']] ?? $import['bank_format']); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Importiert am', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo esc_html(date('d.m.Y H:i', strtotime($import['created_at']))); ?></td>
+                        <th><?php _e('Importiert von', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo esc_html($import['imported_by_name'] ?: '—'); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Gesamt', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo (int) $import['rows_total']; ?></td>
+                        <th style="color:green;"><?php _e('Gematcht', 'themisdb-order-request'); ?>:</th>
+                        <td style="color:green;font-weight:bold;"><?php echo (int) $import['rows_matched']; ?></td>
+                    </tr>
+                    <tr>
+                        <th style="color:orange;"><?php _e('Nicht zugeordnet', 'themisdb-order-request'); ?>:</th>
+                        <td style="color:orange;font-weight:bold;"><?php echo (int) $import['rows_unmatched']; ?></td>
+                        <th style="color:#666;"><?php _e('Duplikate', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo (int) $import['rows_duplicate']; ?></td>
+                    </tr>
+                    <?php if ($import['notes']): ?>
+                    <tr>
+                        <th><?php _e('Notizen', 'themisdb-order-request'); ?>:</th>
+                        <td colspan="3"><?php echo esc_html($import['notes']); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                </table>
+            </div>
+
+            <div class="card" style="max-width:none;">
+                <h2><?php _e('Transaktionen', 'themisdb-order-request'); ?></h2>
+                <table class="wp-list-table widefat fixed striped" style="table-layout:auto;">
+                    <thead>
+                        <tr>
+                            <th><?php _e('Buchungsdatum', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Auftraggeber', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('IBAN', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Betrag', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Verwendungszweck', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Status', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Zahlung', 'themisdb-order-request'); ?></th>
+                            <th><?php _e('Aktionen', 'themisdb-order-request'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($transactions as $tx): ?>
+                        <tr>
+                            <td><?php echo esc_html($tx['booking_date'] ? date('d.m.Y', strtotime($tx['booking_date'])) : '—'); ?></td>
+                            <td><?php echo esc_html($tx['payer_name'] ?: '—'); ?></td>
+                            <td><code style="font-size:10px;"><?php echo esc_html($tx['payer_iban'] ?: '—'); ?></code></td>
+                            <td style="white-space:nowrap;">
+                                <strong><?php echo number_format(floatval($tx['amount']), 2, ',', '.'); ?> <?php echo esc_html($tx['currency']); ?></strong>
+                            </td>
+                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                                title="<?php echo esc_attr($tx['purpose']); ?>">
+                                <?php echo esc_html(mb_strimwidth($tx['purpose'] ?? '', 0, 55, '…')); ?>
+                            </td>
+                            <td><?php echo $this->bank_import_status_badge($tx['match_status']); ?></td>
+                            <td>
+                                <?php if ($tx['payment_number']): ?>
+                                    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments&action=view&payment_id=' . intval($tx['matched_payment_id']))); ?>">
+                                        <code><?php echo esc_html($tx['payment_number']); ?></code>
+                                    </a>
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if ($tx['match_status'] === 'unmatched'): ?>
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import&action=assign&transaction_id=' . intval($tx['id']))); ?>"
+                                   class="button button-small">
+                                    <?php _e('Manuell zuordnen', 'themisdb-order-request'); ?>
+                                </a>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <p style="margin-top:16px;">
+                <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import')); ?>" class="button">
+                    <?php _e('Zurück zur Übersicht', 'themisdb-order-request'); ?>
+                </a>
+            </p>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the manual assignment form for an unmatched transaction.
+     *
+     * @param int $transaction_id
+     */
+    private function bank_import_assign_form($transaction_id) {
+        global $wpdb;
+        $table_tx = $wpdb->prefix . 'themisdb_bank_transactions';
+        $tx = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_tx WHERE id = %d",
+            $transaction_id
+        ), ARRAY_A);
+
+        if (!$tx) {
+            echo '<div class="notice notice-error"><p>' .
+                 esc_html__('Transaktion nicht gefunden.', 'themisdb-order-request') .
+                 '</p></div>';
+            $this->bank_import_list();
+            return;
+        }
+
+        // Load pending payments for selection
+        $pending_payments = ThemisDB_Payment_Manager::get_all_payments(array('status' => 'pending', 'limit' => 200));
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Transaktion manuell zuordnen', 'themisdb-order-request'); ?></h1>
+
+            <div class="card" style="max-width:700px; margin-bottom:20px;">
+                <h2><?php _e('Bankbuchung', 'themisdb-order-request'); ?></h2>
+                <table class="form-table">
+                    <tr>
+                        <th><?php _e('Buchungsdatum', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo esc_html($tx['booking_date'] ? date('d.m.Y', strtotime($tx['booking_date'])) : '—'); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Auftraggeber', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo esc_html($tx['payer_name'] ?: '—'); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('IBAN', 'themisdb-order-request'); ?>:</th>
+                        <td><code><?php echo esc_html($tx['payer_iban'] ?: '—'); ?></code></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Betrag', 'themisdb-order-request'); ?>:</th>
+                        <td><strong><?php echo number_format(floatval($tx['amount']), 2, ',', '.'); ?> <?php echo esc_html($tx['currency']); ?></strong></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Verwendungszweck', 'themisdb-order-request'); ?>:</th>
+                        <td><?php echo esc_html($tx['purpose'] ?: '—'); ?></td>
+                    </tr>
+                </table>
+            </div>
+
+            <form method="post"
+                  action="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import&action=assign')); ?>">
+                <?php wp_nonce_field('themisdb_bank_assign'); ?>
+                <input type="hidden" name="transaction_id" value="<?php echo absint($transaction_id); ?>" />
+                <input type="hidden" name="import_id" value="<?php echo absint($tx['import_id']); ?>" />
+
+                <div class="card" style="max-width:700px;">
+                    <h2><?php _e('Zahlung auswählen', 'themisdb-order-request'); ?></h2>
+                    <table class="form-table">
+                        <tr>
+                            <th><label for="assign_payment_id"><?php _e('Ausstehende Zahlung', 'themisdb-order-request'); ?></label></th>
+                            <td>
+                                <select id="assign_payment_id" name="assign_payment_id" required style="min-width:350px;">
+                                    <option value=""><?php _e('— Zahlung auswählen —', 'themisdb-order-request'); ?></option>
+                                    <?php foreach ($pending_payments as $p): ?>
+                                        <?php $order = ThemisDB_Order_Manager::get_order($p['order_id']); ?>
+                                        <option value="<?php echo absint($p['id']); ?>">
+                                            <?php echo esc_html($p['payment_number']); ?> —
+                                            <?php echo esc_html(number_format($p['amount'], 2, ',', '.')); ?> <?php echo esc_html($p['currency']); ?>
+                                            <?php if ($order): ?>
+                                                (<?php echo esc_html($order['customer_name']); ?>)
+                                            <?php endif; ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description"><?php _e('Nur ausstehende (pending) Zahlungen werden aufgelistet.', 'themisdb-order-request'); ?></p>
+                            </td>
+                        </tr>
+                    </table>
+                    <?php submit_button(__('Zahlung zuordnen &amp; verifizieren', 'themisdb-order-request')); ?>
+                </div>
+            </form>
+
+            <p>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import&action=view&import_id=' . absint($tx['import_id']))); ?>"
+                   class="button">
+                    <?php _e('Zurück zum Import', 'themisdb-order-request'); ?>
+                </a>
+            </p>
+        </div>
+        <?php
+    }
+
+    /**
+     * Handle manual transaction assignment form POST.
+     */
+    private function bank_import_handle_assign() {
+        $transaction_id = isset($_POST['transaction_id']) ? intval($_POST['transaction_id']) : 0;
+        $payment_id     = isset($_POST['assign_payment_id']) ? intval($_POST['assign_payment_id']) : 0;
+        $import_id      = isset($_POST['import_id']) ? intval($_POST['import_id']) : 0;
+
+        if (!$transaction_id || !$payment_id) {
+            wp_redirect(admin_url('admin.php?page=themisdb-bank-import&assign_error=missing'));
+            exit;
+        }
+
+        $success = ThemisDB_Bank_Import::assign_transaction($transaction_id, $payment_id);
+
+        if ($success) {
+            wp_redirect(admin_url('admin.php?page=themisdb-bank-import&action=view&import_id=' . $import_id . '&assigned=1'));
+        } else {
+            wp_redirect(admin_url('admin.php?page=themisdb-bank-import&action=view&import_id=' . $import_id . '&assign_error=db'));
+        }
+        exit;
+    }
+
+    /**
+     * Count transactions by match status.
+     *
+     * @param  array  $transactions
+     * @return array  Keys: total, matched, unmatched, duplicate, skipped.
+     */
+    private function bank_import_count_statuses(array $transactions) {
+        $counts = array('total' => count($transactions), 'matched' => 0, 'unmatched' => 0, 'duplicate' => 0, 'skipped' => 0);
+        foreach ($transactions as $tx) {
+            $s = $tx['match_status'];
+            if (isset($counts[$s])) {
+                $counts[$s]++;
+            }
+        }
+        return $counts;
+    }
+
+    /**
+     * Return a coloured status badge span for a match status.
+     *
+     * @param  string  $status
+     * @return string  HTML span (pre-escaped).
+     */
+    private function bank_import_status_badge($status) {
+        $map = array(
+            'matched'   => array('color' => '#155724', 'bg' => '#d4edda', 'label' => __('Gematcht', 'themisdb-order-request')),
+            'unmatched' => array('color' => '#856404', 'bg' => '#fff3cd', 'label' => __('Offen', 'themisdb-order-request')),
+            'duplicate' => array('color' => '#3c434a', 'bg' => '#f0f0f1', 'label' => __('Duplikat', 'themisdb-order-request')),
+            'skipped'   => array('color' => '#6c757d', 'bg' => '#e2e3e5', 'label' => __('Übersprungen', 'themisdb-order-request')),
+            'manual'    => array('color' => '#004085', 'bg' => '#cce5ff', 'label' => __('Manuell', 'themisdb-order-request')),
+        );
+        $s = isset($map[$status]) ? $map[$status] : array('color' => '#000', 'bg' => '#eee', 'label' => esc_html($status));
+        return sprintf(
+            '<span style="display:inline-block;padding:3px 10px;border-radius:3px;font-size:11px;font-weight:bold;background:%s;color:%s;">%s</span>',
+            esc_attr($s['bg']),
+            esc_attr($s['color']),
+            esc_html($s['label'])
+        );
     }
 }

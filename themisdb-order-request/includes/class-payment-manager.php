@@ -260,6 +260,46 @@ class ThemisDB_Payment_Manager {
     }
     
     /**
+     * Get payment by bank reference (Verwendungszweck)
+     */
+    public static function get_payment_by_reference($bank_reference) {
+        global $wpdb;
+        
+        $table_payments = $wpdb->prefix . 'themisdb_payments';
+        
+        $payment = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_payments WHERE bank_reference = %s LIMIT 1",
+            $bank_reference
+        ), ARRAY_A);
+        
+        if ($payment && $payment['metadata']) {
+            $payment['metadata'] = json_decode($payment['metadata'], true);
+        }
+        
+        return $payment;
+    }
+    
+    /**
+     * Get payment by payment number
+     */
+    public static function get_payment_by_number($payment_number) {
+        global $wpdb;
+        
+        $table_payments = $wpdb->prefix . 'themisdb_payments';
+        
+        $payment = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_payments WHERE payment_number = %s LIMIT 1",
+            $payment_number
+        ), ARRAY_A);
+        
+        if ($payment && $payment['metadata']) {
+            $payment['metadata'] = json_decode($payment['metadata'], true);
+        }
+        
+        return $payment;
+    }
+    
+    /**
      * Generate payment number
      */
     private static function generate_payment_number() {
