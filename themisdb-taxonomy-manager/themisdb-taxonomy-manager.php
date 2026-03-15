@@ -124,6 +124,7 @@ $themisdb_taxonomy_files_loaded &= themisdb_taxonomy_safe_require(THEMISDB_TAXON
 $themisdb_taxonomy_files_loaded &= themisdb_taxonomy_safe_require(THEMISDB_TAXONOMY_PLUGIN_DIR . 'includes/class-category-hierarchy.php');
 $themisdb_taxonomy_files_loaded &= themisdb_taxonomy_safe_require(THEMISDB_TAXONOMY_PLUGIN_DIR . 'includes/class-taxonomy-extractor.php');
 $themisdb_taxonomy_files_loaded &= themisdb_taxonomy_safe_require(THEMISDB_TAXONOMY_PLUGIN_DIR . 'includes/class-taxonomy-manager.php');
+$themisdb_taxonomy_files_loaded &= themisdb_taxonomy_safe_require(THEMISDB_TAXONOMY_PLUGIN_DIR . 'includes/class-term-cleaner.php');
 $themisdb_taxonomy_files_loaded &= themisdb_taxonomy_safe_require(THEMISDB_TAXONOMY_PLUGIN_DIR . 'includes/class-admin.php');
 $themisdb_taxonomy_files_loaded &= themisdb_taxonomy_safe_require(THEMISDB_TAXONOMY_PLUGIN_DIR . 'includes/class-custom-taxonomies.php');
 $themisdb_taxonomy_files_loaded &= themisdb_taxonomy_safe_require(THEMISDB_TAXONOMY_PLUGIN_DIR . 'includes/class-tree-view.php');
