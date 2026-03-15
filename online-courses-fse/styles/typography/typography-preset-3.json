@@ -1,0 +1,174 @@
+{
+	"version": 3,
+	"$schema": "https://schemas.wp.org/wp/6.8/theme.json",
+	"title": "Work Sans & Inter",
+	"slug": "typography-preset-3",
+	"settings": {
+		"typography": {
+			"fontFamilies": [
+				{
+					"name": "Work Sans",
+					"slug": "work-sans",
+					"fontFamily": "Work Sans, sans-serif",
+					"fontFace": [
+						{
+							"fontFamily": "Work Sans",
+							"fontStyle": "normal",
+							"fontWeight": "400",
+							"src": [
+								"file:./assets/fonts/Work_Sans/WorkSans-Regular.ttf"
+							]
+						},
+						{
+							"fontFamily": "Work Sans",
+							"fontStyle": "normal",
+							"fontWeight": "600",
+							"src": [
+								"file:./assets/fonts/Work_Sans/WorkSans-SemiBold.ttf"
+							]
+						},
+						{
+							"fontFamily": "Work Sans",
+							"fontStyle": "normal",
+							"fontWeight": "700",
+							"src": [
+								"file:./assets/fonts/Work_Sans/WorkSans-Bold.ttf"
+							]
+						}
+					]
+				},
+				{
+					"name": "Inter",
+					"slug": "inter",
+					"fontFamily": "Inter, sans-serif",
+					"fontFace": [
+						{
+							"src": [
+								"file:./assets/fonts/Inter/Inter_28pt-Regular.ttf"
+							],
+							"fontWeight": "400",
+							"fontStyle": "normal",
+							"fontFamily": "Inter"
+						},
+						{
+							"src": [
+								"file:./assets/fonts/Inter/Inter_28pt-SemiBold.ttf"
+							],
+							"fontWeight": "600",
+							"fontStyle": "normal",
+							"fontFamily": "Inter"
+						},
+						{
+							"src": [
+								"file:./assets/fonts/Inter/Inter_28pt-Bold.ttf"
+							],
+							"fontWeight": "700",
+							"fontStyle": "normal",
+							"fontFamily": "Inter"
+						}
+					]
+				}
+			]
+		}
+	},
+	"styles": {
+		"typography": {
+			"fontFamily": "var:preset|font-family|inter",
+			"fontSize": "var:preset|font-size|medium",
+			"letterSpacing": "-0.18px",
+			"lineHeight": "1.5"
+		},
+		"blocks": {
+			"core/post-author-name": {
+				"typography": {
+					"fontWeight": "400"
+				}
+			},
+			"core/post-terms": {
+				"typography": {
+					"fontWeight": "400"
+				}
+			},
+			"core/post-title": {
+				"typography": {
+					"fontWeight": "400",
+					"letterSpacing": "-0.96px"
+				}
+			},
+			"core/pullquote": {
+				"typography": {
+					"fontFamily": "var:preset|font-family|work-sans",
+					"fontSize": "var:preset|font-size|x-large",
+					"fontWeight": "400"
+				},
+				"elements": {
+					"cite": {
+						"typography": {
+							"fontFamily": "var:preset|font-family|inter",
+							"fontWeight": "400",
+							"letterSpacing": "-0.14px"
+						}
+					}
+				}
+			},
+			"core/quote": {
+				"typography": {
+					"fontFamily": "var:preset|font-family|inter",
+					"fontWeight": "600",
+					"letterSpacing": "-0.18px"
+				}
+			},
+			"core/site-title": {
+				"typography": {
+					"fontFamily": "var:preset|font-family|work-sans",
+					"fontSize": "var:preset|font-size|x-large"
+				}
+			}
+		},
+		"elements": {
+			"button": {
+				"typography": {
+					"fontFamily": "var:preset|font-family|inter",
+					"fontSize": "var:preset|font-size|medium",
+					"fontWeight": "400",
+					"letterSpacing": "-0.36px"
+				}
+			},
+			"heading": {
+				"typography": {
+					"fontFamily": "var:preset|font-family|work-sans"
+				}
+			},
+			"h1": {
+				"typography": {
+					"fontSize": "48px",
+					"letterSpacing": "-0.96px;"
+				}
+			},
+			"h2": {
+				"typography": {
+					"fontSize": "38px",
+					"letterSpacing": "-0.96px"
+				}
+			},
+			"h3": {
+				"typography": {
+					"fontSize": "32px",
+					"letterSpacing": "-0.64px"
+				}
+			},
+			"h4": {
+				"typography": {
+					"fontSize": "28px",
+					"letterSpacing": "-0.56px"
+				}
+			},
+			"h5": {
+				"typography": {
+					"fontSize": "24px",
+					"letterSpacing": "-0.48px"
+				}
+			}
+		}
+	}
+}
