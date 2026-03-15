@@ -18,7 +18,7 @@ get_header();
             ?>
         </header>
 
-        <div class="posts-container">
+        <div class="posts-container posts-grid">
             <?php
             while ( have_posts() ) :
                 the_post();

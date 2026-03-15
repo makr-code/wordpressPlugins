@@ -7,7 +7,7 @@
     <?php wp_head(); ?>
 </head>
 
-<body <?php body_class(); ?>>
+<body <?php body_class(); ?> data-home-url="<?php echo esc_url( home_url( '/' ) ); ?>">
 <?php wp_body_open(); ?>
 
 <a class="skip-link screen-reader-text" href="#primary"><?php esc_html_e( 'Skip to content', 'themisdb' ); ?></a>
@@ -49,6 +49,18 @@
                 ) );
                 ?>
             </nav>
+
+            <div class="header-actions">
+                <button class="header-icon-btn search-toggle"
+                        aria-label="<?php esc_attr_e( 'Open search', 'themisdb' ); ?>"
+                        aria-expanded="false">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </button>
+                <button class="header-icon-btn dark-mode-toggle"
+                        aria-label="<?php esc_attr_e( 'Toggle dark mode', 'themisdb' ); ?>">
+                    🌙
+                </button>
+            </div>
         </div>
     </header>
 

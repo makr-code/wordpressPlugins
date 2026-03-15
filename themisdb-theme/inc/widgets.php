@@ -1301,6 +1301,1555 @@ class ThemisDB_Timeline_Carousel_Widget extends WP_Widget {
 }
 
 /**
+ * Posts Grid Widget
+ * Displays posts in a 2-column responsive card grid.
+ */
+class ThemisDB_Posts_Grid_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_posts_grid',
+            esc_html__( 'ThemisDB: Posts Grid', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'Display posts in a 2-column card grid with optional category/tag filter', 'themisdb' ),
+                'classname'   => 'themisdb-posts-grid-widget',
+            )
+        );
+    }
+
+    public function widget( $args, $instance ) {
+        echo $args['before_widget'];
+
+        $title        = ! empty( $instance['title'] )        ? $instance['title']            : '';
+        $title        = apply_filters( 'widget_title', $title, $instance, $this->id_base );
+        $count        = ! empty( $instance['count'] )        ? absint( $instance['count'] )  : 4;
+        $category     = ! empty( $instance['category'] )     ? absint( $instance['category'] ) : 0;
+        $show_thumb   = ! empty( $instance['show_thumb'] );
+        $show_excerpt = ! empty( $instance['show_excerpt'] );
+        $show_meta    = ! empty( $instance['show_meta'] );
+        $columns      = ! empty( $instance['columns'] )      ? absint( $instance['columns'] ) : 2;
+
+        if ( $title ) {
+            echo $args['before_title'] . esc_html( $title ) . $args['after_title'];
+        }
+
+        $query_args = array(
+            'posts_per_page' => $count,
+            'post_status'    => 'publish',
+            'ignore_sticky_posts' => 1,
+        );
+        if ( $category ) {
+            $query_args['cat'] = $category;
+        }
+
+        $q = new WP_Query( $query_args );
+
+        if ( $q->have_posts() ) :
+            $col_class = $columns === 3 ? 'themisdb-grid-3col' : 'themisdb-grid-2col';
+            ?>
+            <div class="themisdb-posts-grid <?php echo esc_attr( $col_class ); ?>">
+                <?php while ( $q->have_posts() ) : $q->the_post(); ?>
+                    <article class="tpg-card">
+                        <?php if ( $show_thumb && has_post_thumbnail() ) : ?>
+                            <a class="tpg-thumb" href="<?php the_permalink(); ?>">
+                                <?php the_post_thumbnail( 'themisdb-thumbnail' ); ?>
+                            </a>
+                        <?php endif; ?>
+                        <div class="tpg-body">
+                            <h4 class="tpg-title">
+                                <a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+                            </h4>
+                            <?php if ( $show_meta ) : ?>
+                                <div class="tpg-meta">
+                                    <span class="tpg-date">📅 <?php echo esc_html( get_the_date() ); ?></span>
+                                    <?php $cats = get_the_category(); if ( $cats ) : ?>
+                                        <span class="tpg-cat">📁 <?php echo esc_html( $cats[0]->name ); ?></span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                            <?php if ( $show_excerpt ) : ?>
+                                <p class="tpg-excerpt"><?php echo wp_trim_words( get_the_excerpt(), 15 ); ?></p>
+                            <?php endif; ?>
+                            <a class="tpg-readmore" href="<?php the_permalink(); ?>">
+                                <?php esc_html_e( 'Read more', 'themisdb' ); ?> →
+                            </a>
+                        </div>
+                    </article>
+                <?php endwhile; ?>
+            </div>
+            <?php
+            wp_reset_postdata();
+        else :
+            echo '<p>' . esc_html__( 'No posts found.', 'themisdb' ) . '</p>';
+        endif;
+
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $title        = ! empty( $instance['title'] )        ? $instance['title']              : '';
+        $count        = ! empty( $instance['count'] )        ? absint( $instance['count'] )    : 4;
+        $category     = ! empty( $instance['category'] )     ? absint( $instance['category'] ) : 0;
+        $columns      = ! empty( $instance['columns'] )      ? absint( $instance['columns'] )  : 2;
+        $show_thumb   = isset( $instance['show_thumb'] )     ? (bool) $instance['show_thumb']   : true;
+        $show_excerpt = isset( $instance['show_excerpt'] )   ? (bool) $instance['show_excerpt'] : true;
+        $show_meta    = isset( $instance['show_meta'] )      ? (bool) $instance['show_meta']    : true;
+        $categories   = get_categories( array( 'hide_empty' => false ) );
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Title:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $title ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"><?php esc_html_e( 'Number of posts:', 'themisdb' ); ?></label>
+            <input class="tiny-text" id="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'count' ) ); ?>" type="number"
+                   step="1" min="1" value="<?php echo esc_attr( $count ); ?>" size="3">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'columns' ) ); ?>"><?php esc_html_e( 'Columns:', 'themisdb' ); ?></label>
+            <select class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'columns' ) ); ?>"
+                    name="<?php echo esc_attr( $this->get_field_name( 'columns' ) ); ?>">
+                <option value="2" <?php selected( $columns, 2 ); ?>><?php esc_html_e( '2 Columns', 'themisdb' ); ?></option>
+                <option value="3" <?php selected( $columns, 3 ); ?>><?php esc_html_e( '3 Columns', 'themisdb' ); ?></option>
+            </select>
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'category' ) ); ?>"><?php esc_html_e( 'Category:', 'themisdb' ); ?></label>
+            <select class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'category' ) ); ?>"
+                    name="<?php echo esc_attr( $this->get_field_name( 'category' ) ); ?>">
+                <option value="0"><?php esc_html_e( 'All categories', 'themisdb' ); ?></option>
+                <?php foreach ( $categories as $cat ) : ?>
+                    <option value="<?php echo esc_attr( $cat->term_id ); ?>" <?php selected( $category, $cat->term_id ); ?>>
+                        <?php echo esc_html( $cat->name ); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'show_thumb' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'show_thumb' ) ); ?>" value="1"
+                   <?php checked( $show_thumb ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'show_thumb' ) ); ?>"><?php esc_html_e( 'Show thumbnail', 'themisdb' ); ?></label>
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'show_excerpt' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'show_excerpt' ) ); ?>" value="1"
+                   <?php checked( $show_excerpt ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'show_excerpt' ) ); ?>"><?php esc_html_e( 'Show excerpt', 'themisdb' ); ?></label>
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'show_meta' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'show_meta' ) ); ?>" value="1"
+                   <?php checked( $show_meta ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'show_meta' ) ); ?>"><?php esc_html_e( 'Show date & category', 'themisdb' ); ?></label>
+        </p>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance                 = array();
+        $instance['title']        = ( ! empty( $new_instance['title'] ) )        ? sanitize_text_field( $new_instance['title'] )    : '';
+        $instance['count']        = ( ! empty( $new_instance['count'] ) )        ? absint( $new_instance['count'] )                  : 4;
+        $instance['category']     = ( ! empty( $new_instance['category'] ) )     ? absint( $new_instance['category'] )               : 0;
+        $instance['columns']      = ( ! empty( $new_instance['columns'] ) )      ? absint( $new_instance['columns'] )                : 2;
+        $instance['show_thumb']   = ! empty( $new_instance['show_thumb'] )   ? 1 : 0;
+        $instance['show_excerpt'] = ! empty( $new_instance['show_excerpt'] ) ? 1 : 0;
+        $instance['show_meta']    = ! empty( $new_instance['show_meta'] )    ? 1 : 0;
+        return $instance;
+    }
+}
+
+/**
+ * Author Card Widget
+ * Displays author avatar, bio, post count and social links.
+ */
+class ThemisDB_Author_Card_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_author_card',
+            esc_html__( 'ThemisDB: Author Card', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'Show an author\'s avatar, bio, post count and social links', 'themisdb' ),
+                'classname'   => 'themisdb-author-card-widget',
+            )
+        );
+    }
+
+    public function widget( $args, $instance ) {
+        echo $args['before_widget'];
+
+        $title          = ! empty( $instance['title'] )       ? $instance['title']              : '';
+        $title          = apply_filters( 'widget_title', $title, $instance, $this->id_base );
+        $user_id        = ! empty( $instance['user_id'] )     ? absint( $instance['user_id'] )  : 0;
+        $twitter_url    = ! empty( $instance['twitter_url'] ) ? $instance['twitter_url']        : '';
+        $github_url     = ! empty( $instance['github_url'] )  ? $instance['github_url']         : '';
+        $website_url    = ! empty( $instance['website_url'] ) ? $instance['website_url']        : '';
+
+        // Fall back to first administrator if no user selected
+        if ( ! $user_id ) {
+            $admins  = get_users( array( 'role' => 'administrator', 'number' => 1 ) );
+            $user_id = ! empty( $admins ) ? $admins[0]->ID : 0;
+        }
+
+        if ( ! $user_id ) {
+            echo $args['after_widget'];
+            return;
+        }
+
+        $user       = get_userdata( $user_id );
+        $post_count = count_user_posts( $user_id, 'post' );
+        $bio        = get_user_meta( $user_id, 'description', true );
+
+        if ( $title ) {
+            echo $args['before_title'] . esc_html( $title ) . $args['after_title'];
+        }
+        ?>
+        <div class="themisdb-author-card">
+            <div class="author-card-avatar">
+                <?php echo get_avatar( $user_id, 80, '', esc_attr( $user->display_name ), array( 'class' => 'author-avatar-img' ) ); ?>
+            </div>
+            <div class="author-card-info">
+                <h4 class="author-card-name"><?php echo esc_html( $user->display_name ); ?></h4>
+                <?php if ( $bio ) : ?>
+                    <p class="author-card-bio"><?php echo esc_html( wp_trim_words( $bio, 20 ) ); ?></p>
+                <?php endif; ?>
+                <div class="author-card-meta">
+                    <span class="author-post-count"><span aria-hidden="true">✍️</span> <?php echo sprintf( _n( '%s post', '%s posts', $post_count, 'themisdb' ), number_format_i18n( $post_count ) ); ?></span>
+                </div>
+                <?php if ( $twitter_url || $github_url || $website_url ) : ?>
+                    <div class="author-card-links">
+                        <?php if ( $twitter_url ) : ?>
+                            <a href="<?php echo esc_url( $twitter_url ); ?>" class="author-link author-link-twitter" target="_blank" rel="noopener noreferrer" aria-label="<?php esc_attr_e( 'Twitter / X', 'themisdb' ); ?>">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.745l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            </a>
+                        <?php endif; ?>
+                        <?php if ( $github_url ) : ?>
+                            <a href="<?php echo esc_url( $github_url ); ?>" class="author-link author-link-github" target="_blank" rel="noopener noreferrer" aria-label="<?php esc_attr_e( 'GitHub', 'themisdb' ); ?>">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 0 0 7.86 10.92c.57.1.78-.25.78-.55v-1.93c-3.19.69-3.86-1.54-3.86-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.68 1.24 3.33.95.1-.74.4-1.24.72-1.53-2.55-.29-5.23-1.27-5.23-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.45.11-3.02 0 0 .96-.31 3.15 1.18A10.97 10.97 0 0 1 12 6.84c.97.004 1.95.13 2.86.38 2.18-1.49 3.14-1.18 3.14-1.18.62 1.57.23 2.73.11 3.02.74.8 1.18 1.82 1.18 3.07 0 4.4-2.68 5.37-5.24 5.65.41.36.78 1.06.78 2.13v3.16c0 .31.2.67.79.55A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+                            </a>
+                        <?php endif; ?>
+                        <?php if ( $website_url ) : ?>
+                            <a href="<?php echo esc_url( $website_url ); ?>" class="author-link author-link-website" target="_blank" rel="noopener noreferrer" aria-label="<?php esc_attr_e( 'Website', 'themisdb' ); ?>">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+                <a href="<?php echo esc_url( get_author_posts_url( $user_id ) ); ?>" class="author-card-all-posts">
+                    <?php esc_html_e( 'All posts', 'themisdb' ); ?> →
+                </a>
+            </div>
+        </div>
+        <?php
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $title       = ! empty( $instance['title'] )       ? $instance['title']              : esc_html__( 'About the Author', 'themisdb' );
+        $user_id     = ! empty( $instance['user_id'] )     ? absint( $instance['user_id'] )  : 0;
+        $twitter_url = ! empty( $instance['twitter_url'] ) ? $instance['twitter_url']        : '';
+        $github_url  = ! empty( $instance['github_url'] )  ? $instance['github_url']         : '';
+        $website_url = ! empty( $instance['website_url'] ) ? $instance['website_url']        : '';
+        $users       = get_users( array( 'who' => 'authors' ) );
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Title:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $title ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'user_id' ) ); ?>"><?php esc_html_e( 'Author:', 'themisdb' ); ?></label>
+            <select class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'user_id' ) ); ?>"
+                    name="<?php echo esc_attr( $this->get_field_name( 'user_id' ) ); ?>">
+                <option value="0"><?php esc_html_e( 'Auto (first admin)', 'themisdb' ); ?></option>
+                <?php foreach ( $users as $u ) : ?>
+                    <option value="<?php echo esc_attr( $u->ID ); ?>" <?php selected( $user_id, $u->ID ); ?>>
+                        <?php echo esc_html( $u->display_name ); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'twitter_url' ) ); ?>"><?php esc_html_e( 'Twitter/X URL:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'twitter_url' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'twitter_url' ) ); ?>" type="url"
+                   value="<?php echo esc_attr( $twitter_url ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'github_url' ) ); ?>"><?php esc_html_e( 'GitHub URL:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'github_url' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'github_url' ) ); ?>" type="url"
+                   value="<?php echo esc_attr( $github_url ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'website_url' ) ); ?>"><?php esc_html_e( 'Website URL:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'website_url' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'website_url' ) ); ?>" type="url"
+                   value="<?php echo esc_attr( $website_url ); ?>">
+        </p>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance                = array();
+        $instance['title']       = ( ! empty( $new_instance['title'] ) )       ? sanitize_text_field( $new_instance['title'] )    : '';
+        $instance['user_id']     = ( ! empty( $new_instance['user_id'] ) )     ? absint( $new_instance['user_id'] )               : 0;
+        $instance['twitter_url'] = ( ! empty( $new_instance['twitter_url'] ) ) ? esc_url_raw( $new_instance['twitter_url'] )      : '';
+        $instance['github_url']  = ( ! empty( $new_instance['github_url'] ) )  ? esc_url_raw( $new_instance['github_url'] )       : '';
+        $instance['website_url'] = ( ! empty( $new_instance['website_url'] ) ) ? esc_url_raw( $new_instance['website_url'] )      : '';
+        return $instance;
+    }
+}
+
+/**
+ * Animated Stats Counter Widget
+ * Three configurable stat counters with icon, number and label.
+ */
+class ThemisDB_Stats_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_stats',
+            esc_html__( 'ThemisDB: Stats Counter', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'Display up to 3 animated stat counters with icon, number and label', 'themisdb' ),
+                'classname'   => 'themisdb-stats-widget',
+            )
+        );
+    }
+
+    public function widget( $args, $instance ) {
+        echo $args['before_widget'];
+
+        $title = ! empty( $instance['title'] ) ? $instance['title'] : '';
+        $title = apply_filters( 'widget_title', $title, $instance, $this->id_base );
+
+        if ( $title ) {
+            echo $args['before_title'] . esc_html( $title ) . $args['after_title'];
+        }
+
+        $stats = array();
+        for ( $i = 1; $i <= 3; $i++ ) {
+            $icon   = ! empty( $instance['icon_' . $i] )   ? $instance['icon_' . $i]   : '';
+            $number = ! empty( $instance['number_' . $i] ) ? $instance['number_' . $i] : '';
+            $suffix = ! empty( $instance['suffix_' . $i] ) ? $instance['suffix_' . $i] : '';
+            $label  = ! empty( $instance['label_' . $i] )  ? $instance['label_' . $i]  : '';
+            if ( $number !== '' && $label ) {
+                $stats[] = compact( 'icon', 'number', 'suffix', 'label' );
+            }
+        }
+
+        if ( $stats ) :
+            ?>
+            <div class="themisdb-stats-grid">
+                <?php foreach ( $stats as $stat ) : ?>
+                    <div class="themisdb-stat-item">
+                        <?php if ( $stat['icon'] ) : ?>
+                            <span class="stat-icon" aria-hidden="true"><?php echo esc_html( $stat['icon'] ); ?></span>
+                        <?php endif; ?>
+                        <span class="stat-number" data-target="<?php echo esc_attr( $stat['number'] ); ?>">
+                            <?php echo esc_html( $stat['number'] ); ?>
+                        </span><?php echo esc_html( $stat['suffix'] ); ?>
+                        <span class="stat-label"><?php echo esc_html( $stat['label'] ); ?></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <?php
+        else :
+            echo '<p>' . esc_html__( 'Please add at least one stat in widget settings.', 'themisdb' ) . '</p>';
+        endif;
+
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $title = ! empty( $instance['title'] ) ? $instance['title'] : esc_html__( 'Our Numbers', 'themisdb' );
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Title:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $title ); ?>">
+        </p>
+        <?php for ( $i = 1; $i <= 3; $i++ ) :
+            $icon   = ! empty( $instance['icon_' . $i] )   ? $instance['icon_' . $i]   : '';
+            $number = ! empty( $instance['number_' . $i] ) ? $instance['number_' . $i] : '';
+            $suffix = ! empty( $instance['suffix_' . $i] ) ? $instance['suffix_' . $i] : '';
+            $label  = ! empty( $instance['label_' . $i] )  ? $instance['label_' . $i]  : '';
+            ?>
+            <p><strong><?php echo sprintf( esc_html__( 'Stat %d', 'themisdb' ), $i ); ?></strong></p>
+            <p>
+                <label for="<?php echo esc_attr( $this->get_field_id( 'icon_' . $i ) ); ?>"><?php esc_html_e( 'Icon (emoji):', 'themisdb' ); ?></label>
+                <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'icon_' . $i ) ); ?>"
+                       name="<?php echo esc_attr( $this->get_field_name( 'icon_' . $i ) ); ?>" type="text"
+                       value="<?php echo esc_attr( $icon ); ?>" placeholder="📝">
+            </p>
+            <p>
+                <label for="<?php echo esc_attr( $this->get_field_id( 'number_' . $i ) ); ?>"><?php esc_html_e( 'Number:', 'themisdb' ); ?></label>
+                <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'number_' . $i ) ); ?>"
+                       name="<?php echo esc_attr( $this->get_field_name( 'number_' . $i ) ); ?>" type="text"
+                       value="<?php echo esc_attr( $number ); ?>" placeholder="500">
+            </p>
+            <p>
+                <label for="<?php echo esc_attr( $this->get_field_id( 'suffix_' . $i ) ); ?>"><?php esc_html_e( 'Suffix (e.g. +, k):', 'themisdb' ); ?></label>
+                <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'suffix_' . $i ) ); ?>"
+                       name="<?php echo esc_attr( $this->get_field_name( 'suffix_' . $i ) ); ?>" type="text"
+                       value="<?php echo esc_attr( $suffix ); ?>" placeholder="+">
+            </p>
+            <p>
+                <label for="<?php echo esc_attr( $this->get_field_id( 'label_' . $i ) ); ?>"><?php esc_html_e( 'Label:', 'themisdb' ); ?></label>
+                <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'label_' . $i ) ); ?>"
+                       name="<?php echo esc_attr( $this->get_field_name( 'label_' . $i ) ); ?>" type="text"
+                       value="<?php echo esc_attr( $label ); ?>" placeholder="<?php esc_attr_e( 'Published Posts', 'themisdb' ); ?>">
+            </p>
+        <?php endfor; ?>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance          = array();
+        $instance['title'] = ( ! empty( $new_instance['title'] ) ) ? sanitize_text_field( $new_instance['title'] ) : '';
+        for ( $i = 1; $i <= 3; $i++ ) {
+            $instance['icon_' . $i]   = ( ! empty( $new_instance['icon_' . $i] ) )   ? sanitize_text_field( $new_instance['icon_' . $i] )   : '';
+            $instance['number_' . $i] = ( ! empty( $new_instance['number_' . $i] ) ) ? sanitize_text_field( $new_instance['number_' . $i] ) : '';
+            $instance['suffix_' . $i] = ( ! empty( $new_instance['suffix_' . $i] ) ) ? sanitize_text_field( $new_instance['suffix_' . $i] ) : '';
+            $instance['label_' . $i]  = ( ! empty( $new_instance['label_' . $i] ) )  ? sanitize_text_field( $new_instance['label_' . $i] )  : '';
+        }
+        return $instance;
+    }
+}
+
+/**
+ * Popular Posts Widget
+ * Shows most-commented posts ranked by comment count.
+ */
+class ThemisDB_Popular_Posts_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_popular_posts',
+            esc_html__( 'ThemisDB: Popular Posts', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'List the most popular (most-commented) posts with optional thumbnail and rank badge', 'themisdb' ),
+                'classname'   => 'themisdb-popular-posts-widget',
+            )
+        );
+    }
+
+    public function widget( $args, $instance ) {
+        echo $args['before_widget'];
+
+        $title       = ! empty( $instance['title'] )       ? $instance['title']            : '';
+        $title       = apply_filters( 'widget_title', $title, $instance, $this->id_base );
+        $count       = ! empty( $instance['count'] )       ? absint( $instance['count'] )  : 5;
+        $show_thumb  = ! empty( $instance['show_thumb'] );
+        $show_count  = ! empty( $instance['show_count'] );
+
+        if ( $title ) {
+            echo $args['before_title'] . esc_html( $title ) . $args['after_title'];
+        }
+
+        $popular = new WP_Query( array(
+            'posts_per_page' => $count,
+            'orderby'        => 'comment_count',
+            'order'          => 'DESC',
+            'post_status'    => 'publish',
+            'ignore_sticky_posts' => 1,
+        ) );
+
+        if ( $popular->have_posts() ) :
+            $rank = 1;
+            ?>
+            <ol class="themisdb-popular-posts">
+                <?php while ( $popular->have_posts() ) : $popular->the_post(); ?>
+                    <li class="popular-post-item">
+                        <span class="popular-rank"><?php echo esc_html( $rank ); ?></span>
+                        <?php if ( $show_thumb && has_post_thumbnail() ) : ?>
+                            <a class="popular-thumb" href="<?php the_permalink(); ?>">
+                                <?php the_post_thumbnail( array( 60, 60 ) ); ?>
+                            </a>
+                        <?php endif; ?>
+                        <div class="popular-post-info">
+                            <a class="popular-post-title" href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+                            <div class="popular-post-meta">
+                                <span class="popular-date">📅 <?php echo esc_html( get_the_date() ); ?></span>
+                                <?php if ( $show_count ) : ?>
+                                    <span class="popular-comments">💬 <?php echo get_comments_number(); ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </li>
+                    <?php $rank++; ?>
+                <?php endwhile; ?>
+            </ol>
+            <?php
+            wp_reset_postdata();
+        else :
+            echo '<p>' . esc_html__( 'No posts found.', 'themisdb' ) . '</p>';
+        endif;
+
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $title      = ! empty( $instance['title'] )      ? $instance['title']            : esc_html__( 'Popular Posts', 'themisdb' );
+        $count      = ! empty( $instance['count'] )      ? absint( $instance['count'] )  : 5;
+        $show_thumb = isset( $instance['show_thumb'] )   ? (bool) $instance['show_thumb'] : true;
+        $show_count = isset( $instance['show_count'] )   ? (bool) $instance['show_count'] : true;
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Title:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $title ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"><?php esc_html_e( 'Number of posts:', 'themisdb' ); ?></label>
+            <input class="tiny-text" id="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'count' ) ); ?>" type="number"
+                   step="1" min="1" value="<?php echo esc_attr( $count ); ?>" size="3">
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'show_thumb' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'show_thumb' ) ); ?>" value="1"
+                   <?php checked( $show_thumb ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'show_thumb' ) ); ?>"><?php esc_html_e( 'Show thumbnail', 'themisdb' ); ?></label>
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'show_count' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'show_count' ) ); ?>" value="1"
+                   <?php checked( $show_count ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'show_count' ) ); ?>"><?php esc_html_e( 'Show comment count', 'themisdb' ); ?></label>
+        </p>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance               = array();
+        $instance['title']      = ( ! empty( $new_instance['title'] ) )      ? sanitize_text_field( $new_instance['title'] ) : '';
+        $instance['count']      = ( ! empty( $new_instance['count'] ) )      ? absint( $new_instance['count'] )              : 5;
+        $instance['show_thumb'] = ! empty( $new_instance['show_thumb'] ) ? 1 : 0;
+        $instance['show_count'] = ! empty( $new_instance['show_count'] ) ? 1 : 0;
+        return $instance;
+    }
+}
+
+/**
+ * Newsletter Sign-up Widget
+ * Simple email opt-in form. Hooks into themisdb_newsletter_submit action.
+ */
+class ThemisDB_Newsletter_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_newsletter',
+            esc_html__( 'ThemisDB: Newsletter Sign-up', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'Display an email newsletter sign-up form', 'themisdb' ),
+                'classname'   => 'themisdb-newsletter-widget',
+            )
+        );
+    }
+
+    public function widget( $args, $instance ) {
+        echo $args['before_widget'];
+
+        $title        = ! empty( $instance['title'] )        ? $instance['title']        : '';
+        $title        = apply_filters( 'widget_title', $title, $instance, $this->id_base );
+        $description  = ! empty( $instance['description'] )  ? $instance['description']  : '';
+        $button_label = ! empty( $instance['button_label'] ) ? $instance['button_label'] : esc_html__( 'Subscribe', 'themisdb' );
+        $placeholder  = ! empty( $instance['placeholder'] )  ? $instance['placeholder']  : esc_html__( 'Your email address', 'themisdb' );
+        $action_url   = ! empty( $instance['action_url'] )   ? $instance['action_url']   : '';
+
+        if ( $title ) {
+            echo $args['before_title'] . esc_html( $title ) . $args['after_title'];
+        }
+
+        $form_action = $action_url ? esc_url( $action_url ) : esc_url( admin_url( 'admin-post.php' ) );
+        ?>
+        <div class="themisdb-newsletter">
+            <?php if ( $description ) : ?>
+                <p class="newsletter-description"><?php echo esc_html( $description ); ?></p>
+            <?php endif; ?>
+            <form class="newsletter-form" method="post" action="<?php echo $form_action; ?>">
+                <?php if ( ! $action_url ) : ?>
+                    <input type="hidden" name="action" value="themisdb_newsletter_subscribe">
+                    <?php wp_nonce_field( 'themisdb_newsletter', 'themisdb_newsletter_nonce' ); ?>
+                <?php endif; ?>
+                <div class="newsletter-input-row">
+                    <label for="newsletter-email-<?php echo esc_attr( $this->id ); ?>" class="screen-reader-text">
+                        <?php esc_html_e( 'Email address', 'themisdb' ); ?>
+                    </label>
+                    <input type="email" id="newsletter-email-<?php echo esc_attr( $this->id ); ?>"
+                           name="newsletter_email" class="newsletter-email"
+                           placeholder="<?php echo esc_attr( $placeholder ); ?>"
+                           required aria-required="true">
+                    <button type="submit" class="newsletter-submit">
+                        <?php echo esc_html( $button_label ); ?>
+                    </button>
+                </div>
+                <p class="newsletter-privacy">
+                    <span aria-hidden="true">🔒</span> <?php esc_html_e( 'No spam. Unsubscribe any time.', 'themisdb' ); ?>
+                </p>
+            </form>
+        </div>
+        <?php
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $title        = ! empty( $instance['title'] )        ? $instance['title']        : esc_html__( 'Stay Updated', 'themisdb' );
+        $description  = ! empty( $instance['description'] )  ? $instance['description']  : '';
+        $button_label = ! empty( $instance['button_label'] ) ? $instance['button_label'] : esc_html__( 'Subscribe', 'themisdb' );
+        $placeholder  = ! empty( $instance['placeholder'] )  ? $instance['placeholder']  : esc_html__( 'Your email address', 'themisdb' );
+        $action_url   = ! empty( $instance['action_url'] )   ? $instance['action_url']   : '';
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Title:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $title ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'description' ) ); ?>"><?php esc_html_e( 'Description:', 'themisdb' ); ?></label>
+            <textarea class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'description' ) ); ?>"
+                      name="<?php echo esc_attr( $this->get_field_name( 'description' ) ); ?>" rows="3"><?php echo esc_textarea( $description ); ?></textarea>
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'placeholder' ) ); ?>"><?php esc_html_e( 'Input placeholder:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'placeholder' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'placeholder' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $placeholder ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'button_label' ) ); ?>"><?php esc_html_e( 'Button label:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'button_label' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'button_label' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $button_label ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'action_url' ) ); ?>"><?php esc_html_e( 'Custom form action URL (optional):', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'action_url' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'action_url' ) ); ?>" type="url"
+                   value="<?php echo esc_attr( $action_url ); ?>" placeholder="https://...">
+        </p>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance                 = array();
+        $instance['title']        = ( ! empty( $new_instance['title'] ) )        ? sanitize_text_field( $new_instance['title'] )      : '';
+        $instance['description']  = ( ! empty( $new_instance['description'] ) )  ? sanitize_textarea_field( $new_instance['description'] ) : '';
+        $instance['button_label'] = ( ! empty( $new_instance['button_label'] ) ) ? sanitize_text_field( $new_instance['button_label'] ) : '';
+        $instance['placeholder']  = ( ! empty( $new_instance['placeholder'] ) )  ? sanitize_text_field( $new_instance['placeholder'] )  : '';
+        $instance['action_url']   = ( ! empty( $new_instance['action_url'] ) )   ? esc_url_raw( $new_instance['action_url'] )           : '';
+        return $instance;
+    }
+}
+
+/**
+ * Video Embed Widget
+ * Embeds a YouTube or Vimeo video with optional title and description.
+ */
+class ThemisDB_Video_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_video',
+            esc_html__( 'ThemisDB: Video Embed', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'Embed a YouTube or Vimeo video with optional title and description', 'themisdb' ),
+                'classname'   => 'themisdb-video-widget',
+            )
+        );
+    }
+
+    /** Extract a normalised embed URL from a YouTube or Vimeo URL. */
+    private function get_embed_url( $raw_url ) {
+        $url = trim( $raw_url );
+
+        // YouTube: youtu.be/<id> or ?v=<id> or /embed/<id>
+        if ( preg_match( '#(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|v/|shorts/))([a-zA-Z0-9_\-]{11})#', $url, $m ) ) {
+            return 'https://www.youtube-nocookie.com/embed/' . $m[1] . '?rel=0';
+        }
+
+        // Vimeo: vimeo.com/<id> or player.vimeo.com/video/<id>
+        if ( preg_match( '#(?:vimeo\.com/(?:video/)?|player\.vimeo\.com/video/)(\d+)#', $url, $m ) ) {
+            return 'https://player.vimeo.com/video/' . $m[1];
+        }
+
+        return '';
+    }
+
+    public function widget( $args, $instance ) {
+        echo $args['before_widget'];
+
+        $title       = ! empty( $instance['title'] )       ? $instance['title']       : '';
+        $title       = apply_filters( 'widget_title', $title, $instance, $this->id_base );
+        $video_url   = ! empty( $instance['video_url'] )   ? $instance['video_url']   : '';
+        $description = ! empty( $instance['description'] ) ? $instance['description'] : '';
+        $aspect      = ! empty( $instance['aspect'] )      ? $instance['aspect']      : '16x9';
+
+        if ( $title ) {
+            echo $args['before_title'] . esc_html( $title ) . $args['after_title'];
+        }
+
+        $embed_url = $this->get_embed_url( $video_url );
+
+        if ( $embed_url ) :
+            $ratio_class = ( $aspect === '4x3' ) ? 'video-ratio-4x3' : 'video-ratio-16x9';
+            ?>
+            <div class="themisdb-video-embed">
+                <div class="video-wrapper <?php echo esc_attr( $ratio_class ); ?>">
+                    <iframe src="<?php echo esc_url( $embed_url ); ?>"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen
+                            loading="lazy"
+                            title="<?php echo $title ? esc_attr( $title ) : esc_attr__( 'Embedded video', 'themisdb' ); ?>"></iframe>
+                </div>
+                <?php if ( $description ) : ?>
+                    <p class="video-description"><?php echo esc_html( $description ); ?></p>
+                <?php endif; ?>
+            </div>
+            <?php
+        elseif ( $video_url ) :
+            echo '<p>' . esc_html__( 'Invalid or unsupported video URL. Please use a YouTube or Vimeo URL.', 'themisdb' ) . '</p>';
+        else :
+            echo '<p>' . esc_html__( 'Please enter a video URL in widget settings.', 'themisdb' ) . '</p>';
+        endif;
+
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $title       = ! empty( $instance['title'] )       ? $instance['title']       : '';
+        $video_url   = ! empty( $instance['video_url'] )   ? $instance['video_url']   : '';
+        $description = ! empty( $instance['description'] ) ? $instance['description'] : '';
+        $aspect      = ! empty( $instance['aspect'] )      ? $instance['aspect']      : '16x9';
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Title:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $title ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'video_url' ) ); ?>"><?php esc_html_e( 'YouTube or Vimeo URL:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'video_url' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'video_url' ) ); ?>" type="url"
+                   value="<?php echo esc_attr( $video_url ); ?>" placeholder="https://www.youtube.com/watch?v=...">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'aspect' ) ); ?>"><?php esc_html_e( 'Aspect ratio:', 'themisdb' ); ?></label>
+            <select class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'aspect' ) ); ?>"
+                    name="<?php echo esc_attr( $this->get_field_name( 'aspect' ) ); ?>">
+                <option value="16x9" <?php selected( $aspect, '16x9' ); ?>><?php esc_html_e( '16:9 (widescreen)', 'themisdb' ); ?></option>
+                <option value="4x3"  <?php selected( $aspect, '4x3' ); ?>><?php esc_html_e( '4:3 (classic)', 'themisdb' ); ?></option>
+            </select>
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'description' ) ); ?>"><?php esc_html_e( 'Description (optional):', 'themisdb' ); ?></label>
+            <textarea class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'description' ) ); ?>"
+                      name="<?php echo esc_attr( $this->get_field_name( 'description' ) ); ?>" rows="3"><?php echo esc_textarea( $description ); ?></textarea>
+        </p>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance                = array();
+        $instance['title']       = ( ! empty( $new_instance['title'] ) )       ? sanitize_text_field( $new_instance['title'] )         : '';
+        $instance['video_url']   = ( ! empty( $new_instance['video_url'] ) )   ? esc_url_raw( $new_instance['video_url'] )             : '';
+        $instance['description'] = ( ! empty( $new_instance['description'] ) ) ? sanitize_textarea_field( $new_instance['description'] ) : '';
+        $instance['aspect']      = ( ! empty( $new_instance['aspect'] ) && in_array( $new_instance['aspect'], array( '16x9', '4x3' ), true ) )
+                                   ? $new_instance['aspect'] : '16x9';
+        return $instance;
+    }
+}
+
+/**
+ * Tabbed Posts Widget
+ * Shows Latest / Popular / Commented tabs in a single widget. Tabs are driven
+ * by pure CSS :target fallback plus progressive JS enhancement (no jQuery needed).
+ */
+class ThemisDB_Tabbed_Posts_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_tabbed_posts',
+            esc_html__( 'ThemisDB: Tabbed Posts', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'Show Latest, Popular and Most-Commented posts in one tabbed widget', 'themisdb' ),
+                'classname'   => 'themisdb-tabbed-posts-widget',
+            )
+        );
+    }
+
+    /** Run a simple posts query and return WP_Query. */
+    private function run_query( $count, $orderby, $meta_key = '' ) {
+        $args = array(
+            'posts_per_page'      => $count,
+            'post_status'         => 'publish',
+            'ignore_sticky_posts' => 1,
+            'orderby'             => $orderby,
+            'order'               => 'DESC',
+            'no_found_rows'       => true,
+        );
+        if ( $meta_key ) {
+            $args['meta_key'] = $meta_key;
+        }
+        return new WP_Query( $args );
+    }
+
+    /** Render a single list of posts. */
+    private function render_list( $query, $show_thumb, $show_date ) {
+        if ( ! $query->have_posts() ) {
+            echo '<li class="tpw-empty">' . esc_html__( 'No posts found.', 'themisdb' ) . '</li>';
+            return;
+        }
+        while ( $query->have_posts() ) {
+            $query->the_post();
+            ?>
+            <li class="tpw-item">
+                <?php if ( $show_thumb && has_post_thumbnail() ) : ?>
+                    <a class="tpw-thumb" href="<?php the_permalink(); ?>" tabindex="-1" aria-hidden="true">
+                        <?php the_post_thumbnail( array( 52, 52 ) ); ?>
+                    </a>
+                <?php endif; ?>
+                <div class="tpw-info">
+                    <a class="tpw-title" href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+                    <?php if ( $show_date ) : ?>
+                        <span class="tpw-date"><?php echo esc_html( get_the_date() ); ?></span>
+                    <?php endif; ?>
+                </div>
+            </li>
+            <?php
+        }
+        wp_reset_postdata();
+    }
+
+    public function widget( $args, $instance ) {
+        echo $args['before_widget'];
+
+        $title      = ! empty( $instance['title'] )      ? apply_filters( 'widget_title', $instance['title'], $instance, $this->id_base ) : '';
+        $count      = ! empty( $instance['count'] )      ? absint( $instance['count'] )   : 5;
+        $show_thumb = ! empty( $instance['show_thumb'] );
+        $show_date  = ! empty( $instance['show_date'] );
+        $uid        = 'tpw-' . esc_attr( $this->id );
+
+        if ( $title ) {
+            echo $args['before_title'] . esc_html( $title ) . $args['after_title'];
+        }
+
+        $q_latest    = $this->run_query( $count, 'date' );
+        $q_popular   = $this->run_query( $count, 'comment_count' );
+        $q_commented = $this->run_query( $count, 'comment_count' );
+        ?>
+        <div class="themisdb-tabbed-posts" id="<?php echo esc_attr( $uid ); ?>">
+            <div class="tpw-tabs" role="tablist">
+                <button class="tpw-tab is-active" role="tab"
+                        aria-selected="true"  aria-controls="<?php echo esc_attr( $uid ); ?>-latest"
+                        id="<?php echo esc_attr( $uid ); ?>-tab-latest">
+                    <?php esc_html_e( 'Latest', 'themisdb' ); ?>
+                </button>
+                <button class="tpw-tab" role="tab"
+                        aria-selected="false" aria-controls="<?php echo esc_attr( $uid ); ?>-popular"
+                        id="<?php echo esc_attr( $uid ); ?>-tab-popular">
+                    <?php esc_html_e( 'Popular', 'themisdb' ); ?>
+                </button>
+                <button class="tpw-tab" role="tab"
+                        aria-selected="false" aria-controls="<?php echo esc_attr( $uid ); ?>-commented"
+                        id="<?php echo esc_attr( $uid ); ?>-tab-commented">
+                    <?php esc_html_e( 'Commented', 'themisdb' ); ?>
+                </button>
+            </div>
+            <div class="tpw-panels">
+                <div class="tpw-panel is-active" id="<?php echo esc_attr( $uid ); ?>-latest"
+                     role="tabpanel" aria-labelledby="<?php echo esc_attr( $uid ); ?>-tab-latest">
+                    <ul class="tpw-list">
+                        <?php $this->render_list( $q_latest,    $show_thumb, $show_date ); ?>
+                    </ul>
+                </div>
+                <div class="tpw-panel" id="<?php echo esc_attr( $uid ); ?>-popular"
+                     role="tabpanel" aria-labelledby="<?php echo esc_attr( $uid ); ?>-tab-popular">
+                    <ul class="tpw-list">
+                        <?php $this->render_list( $q_popular,   $show_thumb, $show_date ); ?>
+                    </ul>
+                </div>
+                <div class="tpw-panel" id="<?php echo esc_attr( $uid ); ?>-commented"
+                     role="tabpanel" aria-labelledby="<?php echo esc_attr( $uid ); ?>-tab-commented">
+                    <ul class="tpw-list">
+                        <?php $this->render_list( $q_commented, $show_thumb, $show_date ); ?>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <?php
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $title      = ! empty( $instance['title'] )      ? $instance['title']            : esc_html__( 'Posts', 'themisdb' );
+        $count      = ! empty( $instance['count'] )      ? absint( $instance['count'] )  : 5;
+        $show_thumb = isset( $instance['show_thumb'] )   ? (bool) $instance['show_thumb'] : true;
+        $show_date  = isset( $instance['show_date'] )    ? (bool) $instance['show_date']  : true;
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Title:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $title ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"><?php esc_html_e( 'Posts per tab:', 'themisdb' ); ?></label>
+            <input class="tiny-text" id="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'count' ) ); ?>" type="number"
+                   step="1" min="1" value="<?php echo esc_attr( $count ); ?>" size="3">
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'show_thumb' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'show_thumb' ) ); ?>" value="1"
+                   <?php checked( $show_thumb ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'show_thumb' ) ); ?>"><?php esc_html_e( 'Show thumbnail', 'themisdb' ); ?></label>
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'show_date' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'show_date' ) ); ?>" value="1"
+                   <?php checked( $show_date ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'show_date' ) ); ?>"><?php esc_html_e( 'Show date', 'themisdb' ); ?></label>
+        </p>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance               = array();
+        $instance['title']      = ( ! empty( $new_instance['title'] ) )      ? sanitize_text_field( $new_instance['title'] ) : '';
+        $instance['count']      = ( ! empty( $new_instance['count'] ) )      ? absint( $new_instance['count'] )              : 5;
+        $instance['show_thumb'] = ! empty( $new_instance['show_thumb'] ) ? 1 : 0;
+        $instance['show_date']  = ! empty( $new_instance['show_date'] )  ? 1 : 0;
+        return $instance;
+    }
+}
+
+/**
+ * Recent Comments Widget (styled)
+ * Displays recent comments with Gravatar, truncated excerpt and post link.
+ */
+class ThemisDB_Recent_Comments_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_recent_comments',
+            esc_html__( 'ThemisDB: Recent Comments', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'Show recent comments with Gravatar, excerpt and post link', 'themisdb' ),
+                'classname'   => 'themisdb-recent-comments-widget',
+            )
+        );
+    }
+
+    public function widget( $args, $instance ) {
+        echo $args['before_widget'];
+
+        $title      = ! empty( $instance['title'] )      ? apply_filters( 'widget_title', $instance['title'], $instance, $this->id_base ) : '';
+        $count      = ! empty( $instance['count'] )      ? absint( $instance['count'] )  : 5;
+        $show_avatar = ! empty( $instance['show_avatar'] );
+        $excerpt_len = ! empty( $instance['excerpt_len'] ) ? absint( $instance['excerpt_len'] ) : 12;
+
+        if ( $title ) {
+            echo $args['before_title'] . esc_html( $title ) . $args['after_title'];
+        }
+
+        $comments = get_comments( array(
+            'number'  => $count,
+            'status'  => 'approve',
+            'type'    => 'comment',
+            'orderby' => 'comment_date_gmt',
+            'order'   => 'DESC',
+        ) );
+
+        if ( $comments ) :
+            ?>
+            <ul class="themisdb-recent-comments">
+                <?php foreach ( $comments as $comment ) :
+                    $post  = get_post( $comment->comment_post_ID );
+                    $clink = esc_url( get_comment_link( $comment ) );
+                    $plink = esc_url( get_permalink( $comment->comment_post_ID ) );
+                    ?>
+                    <li class="trc-item">
+                        <?php if ( $show_avatar ) : ?>
+                            <div class="trc-avatar">
+                                <?php echo get_avatar( $comment, 40, '', esc_attr( $comment->comment_author ), array( 'class' => 'trc-gravatar' ) ); ?>
+                            </div>
+                        <?php endif; ?>
+                        <div class="trc-body">
+                            <div class="trc-meta">
+                                <strong class="trc-author"><?php echo esc_html( $comment->comment_author ); ?></strong>
+                                <?php esc_html_e( 'on', 'themisdb' ); ?>
+                                <a class="trc-post-link" href="<?php echo $plink; ?>"><?php echo esc_html( get_the_title( $post ) ); ?></a>
+                            </div>
+                            <a class="trc-excerpt" href="<?php echo $clink; ?>">
+                                <?php echo esc_html( wp_trim_words( $comment->comment_content, $excerpt_len ) ); ?>
+                            </a>
+                            <time class="trc-date" datetime="<?php echo esc_attr( get_comment_date( 'c', $comment ) ); ?>">
+                                <?php echo esc_html( get_comment_date( get_option( 'date_format' ), $comment ) ); ?>
+                            </time>
+                        </div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <?php
+        else :
+            echo '<p>' . esc_html__( 'No comments yet.', 'themisdb' ) . '</p>';
+        endif;
+
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $title       = ! empty( $instance['title'] )       ? $instance['title']             : esc_html__( 'Recent Comments', 'themisdb' );
+        $count       = ! empty( $instance['count'] )       ? absint( $instance['count'] )   : 5;
+        $show_avatar = isset( $instance['show_avatar'] )   ? (bool) $instance['show_avatar'] : true;
+        $excerpt_len = ! empty( $instance['excerpt_len'] ) ? absint( $instance['excerpt_len'] ) : 12;
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Title:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $title ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"><?php esc_html_e( 'Number of comments:', 'themisdb' ); ?></label>
+            <input class="tiny-text" id="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'count' ) ); ?>" type="number"
+                   step="1" min="1" value="<?php echo esc_attr( $count ); ?>" size="3">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'excerpt_len' ) ); ?>"><?php esc_html_e( 'Excerpt length (words):', 'themisdb' ); ?></label>
+            <input class="tiny-text" id="<?php echo esc_attr( $this->get_field_id( 'excerpt_len' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'excerpt_len' ) ); ?>" type="number"
+                   step="1" min="1" value="<?php echo esc_attr( $excerpt_len ); ?>" size="3">
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'show_avatar' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'show_avatar' ) ); ?>" value="1"
+                   <?php checked( $show_avatar ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'show_avatar' ) ); ?>"><?php esc_html_e( 'Show Gravatar', 'themisdb' ); ?></label>
+        </p>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance                = array();
+        $instance['title']       = ( ! empty( $new_instance['title'] ) )       ? sanitize_text_field( $new_instance['title'] )    : '';
+        $instance['count']       = ( ! empty( $new_instance['count'] ) )       ? absint( $new_instance['count'] )                  : 5;
+        $instance['excerpt_len'] = ( ! empty( $new_instance['excerpt_len'] ) ) ? absint( $new_instance['excerpt_len'] )            : 12;
+        $instance['show_avatar'] = ! empty( $new_instance['show_avatar'] ) ? 1 : 0;
+        return $instance;
+    }
+}
+
+/**
+ * Category Grid Widget
+ * Visual tile grid of categories with post-count badge.
+ */
+class ThemisDB_Category_Grid_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_category_grid',
+            esc_html__( 'ThemisDB: Category Grid', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'Display categories as a visual tile grid with post-count badge', 'themisdb' ),
+                'classname'   => 'themisdb-category-grid-widget',
+            )
+        );
+    }
+
+    public function widget( $args, $instance ) {
+        echo $args['before_widget'];
+
+        $title        = ! empty( $instance['title'] )        ? apply_filters( 'widget_title', $instance['title'], $instance, $this->id_base ) : '';
+        $limit        = ! empty( $instance['limit'] )        ? absint( $instance['limit'] )        : 8;
+        $show_count   = ! empty( $instance['show_count'] );
+        $hide_empty   = ! isset( $instance['hide_empty'] )   || ! empty( $instance['hide_empty'] );
+        $columns      = ! empty( $instance['columns'] )      ? absint( $instance['columns'] )      : 3;
+
+        if ( $title ) {
+            echo $args['before_title'] . esc_html( $title ) . $args['after_title'];
+        }
+
+        $categories = get_categories( array(
+            'number'     => $limit,
+            'hide_empty' => $hide_empty,
+            'orderby'    => 'count',
+            'order'      => 'DESC',
+        ) );
+
+        if ( $categories ) :
+            $col_class = 'tcg-grid-' . $columns . 'col';
+            ?>
+            <div class="themisdb-category-grid <?php echo esc_attr( $col_class ); ?>">
+                <?php foreach ( $categories as $cat ) :
+                    $color_index = ( $cat->term_id % 6 ) + 1;
+                    ?>
+                    <a class="tcg-tile tcg-color-<?php echo esc_attr( $color_index ); ?>"
+                       href="<?php echo esc_url( get_category_link( $cat->term_id ) ); ?>">
+                        <span class="tcg-name"><?php echo esc_html( $cat->name ); ?></span>
+                        <?php if ( $show_count ) : ?>
+                            <span class="tcg-count"><?php echo absint( $cat->count ); ?></span>
+                        <?php endif; ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+            <?php
+        else :
+            echo '<p>' . esc_html__( 'No categories found.', 'themisdb' ) . '</p>';
+        endif;
+
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $title      = ! empty( $instance['title'] )      ? $instance['title']            : esc_html__( 'Categories', 'themisdb' );
+        $limit      = ! empty( $instance['limit'] )      ? absint( $instance['limit'] )  : 8;
+        $columns    = ! empty( $instance['columns'] )    ? absint( $instance['columns'] ) : 3;
+        $show_count = isset( $instance['show_count'] )   ? (bool) $instance['show_count'] : true;
+        $hide_empty = ! isset( $instance['hide_empty'] ) || ! empty( $instance['hide_empty'] );
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Title:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $title ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'limit' ) ); ?>"><?php esc_html_e( 'Max categories:', 'themisdb' ); ?></label>
+            <input class="tiny-text" id="<?php echo esc_attr( $this->get_field_id( 'limit' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'limit' ) ); ?>" type="number"
+                   step="1" min="1" value="<?php echo esc_attr( $limit ); ?>" size="3">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'columns' ) ); ?>"><?php esc_html_e( 'Columns:', 'themisdb' ); ?></label>
+            <select class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'columns' ) ); ?>"
+                    name="<?php echo esc_attr( $this->get_field_name( 'columns' ) ); ?>">
+                <option value="2" <?php selected( $columns, 2 ); ?>><?php esc_html_e( '2', 'themisdb' ); ?></option>
+                <option value="3" <?php selected( $columns, 3 ); ?>><?php esc_html_e( '3', 'themisdb' ); ?></option>
+                <option value="4" <?php selected( $columns, 4 ); ?>><?php esc_html_e( '4', 'themisdb' ); ?></option>
+            </select>
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'show_count' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'show_count' ) ); ?>" value="1"
+                   <?php checked( $show_count ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'show_count' ) ); ?>"><?php esc_html_e( 'Show post count badge', 'themisdb' ); ?></label>
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'hide_empty' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'hide_empty' ) ); ?>" value="1"
+                   <?php checked( $hide_empty ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'hide_empty' ) ); ?>"><?php esc_html_e( 'Hide empty categories', 'themisdb' ); ?></label>
+        </p>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance               = array();
+        $instance['title']      = ( ! empty( $new_instance['title'] ) )   ? sanitize_text_field( $new_instance['title'] ) : '';
+        $instance['limit']      = ( ! empty( $new_instance['limit'] ) )   ? absint( $new_instance['limit'] )              : 8;
+        $instance['columns']    = ( ! empty( $new_instance['columns'] ) ) ? absint( $new_instance['columns'] )            : 3;
+        $instance['show_count'] = ! empty( $new_instance['show_count'] ) ? 1 : 0;
+        $instance['hide_empty'] = ! empty( $new_instance['hide_empty'] ) ? 1 : 0;
+        return $instance;
+    }
+}
+
+/**
+ * Post Ticker Widget
+ * A horizontal scrolling news-ticker strip of post titles.
+ * Animation is pure CSS; respects prefers-reduced-motion by pausing the
+ * marquee and showing the list statically instead.
+ */
+class ThemisDB_Post_Ticker_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_post_ticker',
+            esc_html__( 'ThemisDB: Post Ticker', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'Horizontal scrolling news-ticker strip of post titles (CSS animation, no JS)', 'themisdb' ),
+                'classname'   => 'themisdb-post-ticker-widget',
+            )
+        );
+    }
+
+    public function widget( $args, $instance ) {
+        echo $args['before_widget'];
+
+        $title    = ! empty( $instance['title'] )    ? apply_filters( 'widget_title', $instance['title'], $instance, $this->id_base ) : '';
+        $label    = ! empty( $instance['label'] )    ? $instance['label']            : esc_html__( 'News', 'themisdb' );
+        $count    = ! empty( $instance['count'] )    ? absint( $instance['count'] )  : 8;
+        $category = ! empty( $instance['category'] ) ? absint( $instance['category'] ) : 0;
+        $speed    = ! empty( $instance['speed'] )    ? absint( $instance['speed'] )  : 30;
+
+        if ( $title ) {
+            echo $args['before_title'] . esc_html( $title ) . $args['after_title'];
+        }
+
+        $query_args = array(
+            'posts_per_page'      => $count,
+            'post_status'         => 'publish',
+            'ignore_sticky_posts' => 1,
+            'no_found_rows'       => true,
+        );
+        if ( $category ) {
+            $query_args['cat'] = $category;
+        }
+
+        $q = new WP_Query( $query_args );
+
+        if ( ! $q->have_posts() ) {
+            echo $args['after_widget'];
+            return;
+        }
+
+        $items = array();
+        while ( $q->have_posts() ) {
+            $q->the_post();
+            $items[] = '<a class="ticker-link" href="' . esc_url( get_permalink() ) . '">' . esc_html( get_the_title() ) . '</a>';
+        }
+        wp_reset_postdata();
+
+        // Duplicate items so the CSS infinite-scroll feels seamless
+        $strip_html = implode( '<span class="ticker-sep" aria-hidden="true"> ◆ </span>', array_merge( $items, $items ) );
+        $duration   = count( $items ) * $speed / 10;
+        ?>
+        <div class="themisdb-post-ticker" style="--ticker-duration:<?php echo esc_attr( $duration ); ?>s">
+            <?php if ( $label ) : ?>
+                <span class="ticker-label"><?php echo esc_html( $label ); ?></span>
+            <?php endif; ?>
+            <div class="ticker-track-wrapper" aria-live="off">
+                <div class="ticker-track">
+                    <?php echo $strip_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- title/permalink escaped per-item; separator HTML is static and safe by design ?>
+                </div>
+            </div>
+        </div>
+        <?php
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $title    = ! empty( $instance['title'] )    ? $instance['title']            : '';
+        $label    = ! empty( $instance['label'] )    ? $instance['label']            : esc_html__( 'News', 'themisdb' );
+        $count    = ! empty( $instance['count'] )    ? absint( $instance['count'] )  : 8;
+        $category = ! empty( $instance['category'] ) ? absint( $instance['category'] ) : 0;
+        $speed    = ! empty( $instance['speed'] )    ? absint( $instance['speed'] )  : 30;
+        $cats     = get_categories( array( 'hide_empty' => true ) );
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Widget title (optional):', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $title ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'label' ) ); ?>"><?php esc_html_e( 'Ticker label:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'label' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'label' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $label ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"><?php esc_html_e( 'Number of posts:', 'themisdb' ); ?></label>
+            <input class="tiny-text" id="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'count' ) ); ?>" type="number"
+                   step="1" min="1" value="<?php echo esc_attr( $count ); ?>" size="3">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'category' ) ); ?>"><?php esc_html_e( 'Category (optional):', 'themisdb' ); ?></label>
+            <select class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'category' ) ); ?>"
+                    name="<?php echo esc_attr( $this->get_field_name( 'category' ) ); ?>">
+                <option value="0"><?php esc_html_e( 'All categories', 'themisdb' ); ?></option>
+                <?php foreach ( $cats as $cat ) : ?>
+                    <option value="<?php echo esc_attr( $cat->term_id ); ?>" <?php selected( $category, $cat->term_id ); ?>>
+                        <?php echo esc_html( $cat->name ); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'speed' ) ); ?>"><?php esc_html_e( 'Speed (higher = slower, 10–60):', 'themisdb' ); ?></label>
+            <input class="tiny-text" id="<?php echo esc_attr( $this->get_field_id( 'speed' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'speed' ) ); ?>" type="number"
+                   step="5" min="10" max="60" value="<?php echo esc_attr( $speed ); ?>" size="3">
+        </p>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance              = array();
+        $instance['title']     = ( ! empty( $new_instance['title'] ) )    ? sanitize_text_field( $new_instance['title'] )    : '';
+        $instance['label']     = ( ! empty( $new_instance['label'] ) )    ? sanitize_text_field( $new_instance['label'] )    : '';
+        $instance['count']     = ( ! empty( $new_instance['count'] ) )    ? absint( $new_instance['count'] )                  : 8;
+        $instance['category']  = ( ! empty( $new_instance['category'] ) ) ? absint( $new_instance['category'] )               : 0;
+        $raw_speed             = isset( $new_instance['speed'] )          ? absint( $new_instance['speed'] )                  : 30;
+        $instance['speed']     = max( 10, min( 60, $raw_speed ) );
+        return $instance;
+    }
+}
+
+/**
+ * Related Posts Widget
+ * On single post pages shows posts sharing tags/categories.
+ * On archive/front pages falls back to a configurable "latest posts" preview.
+ */
+class ThemisDB_Related_Posts_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_related_posts',
+            esc_html__( 'ThemisDB: Related Posts', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'Show posts related to the current single post (by tag or category); falls back to latest posts elsewhere', 'themisdb' ),
+                'classname'   => 'themisdb-related-posts-widget',
+            )
+        );
+    }
+
+    public function widget( $args, $instance ) {
+        echo $args['before_widget'];
+
+        $title       = ! empty( $instance['title'] )       ? apply_filters( 'widget_title', $instance['title'], $instance, $this->id_base ) : '';
+        $count       = ! empty( $instance['count'] )       ? absint( $instance['count'] )   : 4;
+        $match_by    = ! empty( $instance['match_by'] )    ? $instance['match_by']           : 'tag';
+        $show_thumb  = ! empty( $instance['show_thumb'] );
+
+        if ( $title ) {
+            echo $args['before_title'] . esc_html( $title ) . $args['after_title'];
+        }
+
+        $query_args = array(
+            'posts_per_page'      => $count,
+            'post_status'         => 'publish',
+            'ignore_sticky_posts' => 1,
+            'no_found_rows'       => true,
+        );
+
+        if ( is_singular( 'post' ) ) {
+            global $post;
+            $query_args['post__not_in'] = array( $post->ID );
+
+            if ( $match_by === 'tag' ) {
+                $tags = wp_get_post_tags( $post->ID, array( 'fields' => 'ids' ) );
+                if ( $tags ) {
+                    $query_args['tag__in'] = $tags;
+                } else {
+                    // fall back to category if no tags
+                    $cats = wp_get_post_categories( $post->ID );
+                    if ( $cats ) {
+                        $query_args['category__in'] = $cats;
+                    }
+                }
+            } else {
+                $cats = wp_get_post_categories( $post->ID );
+                if ( $cats ) {
+                    $query_args['category__in'] = $cats;
+                }
+            }
+        }
+        // If not on a single post the query_args already pull latest posts
+
+        $q = new WP_Query( $query_args );
+
+        if ( $q->have_posts() ) :
+            ?>
+            <ul class="themisdb-related-posts">
+                <?php while ( $q->have_posts() ) : $q->the_post(); ?>
+                    <li class="trp-item">
+                        <?php if ( $show_thumb && has_post_thumbnail() ) : ?>
+                            <a class="trp-thumb" href="<?php the_permalink(); ?>" tabindex="-1" aria-hidden="true">
+                                <?php the_post_thumbnail( array( 56, 56 ) ); ?>
+                            </a>
+                        <?php endif; ?>
+                        <div class="trp-info">
+                            <a class="trp-title" href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+                            <span class="trp-date"><?php echo esc_html( get_the_date() ); ?></span>
+                        </div>
+                    </li>
+                <?php endwhile; ?>
+            </ul>
+            <?php
+            wp_reset_postdata();
+        else :
+            echo '<p>' . esc_html__( 'No related posts found.', 'themisdb' ) . '</p>';
+        endif;
+
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $title      = ! empty( $instance['title'] )      ? $instance['title']            : esc_html__( 'Related Posts', 'themisdb' );
+        $count      = ! empty( $instance['count'] )      ? absint( $instance['count'] )  : 4;
+        $match_by   = ! empty( $instance['match_by'] )   ? $instance['match_by']          : 'tag';
+        $show_thumb = isset( $instance['show_thumb'] )   ? (bool) $instance['show_thumb'] : true;
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Title:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text"
+                   value="<?php echo esc_attr( $title ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"><?php esc_html_e( 'Number of posts:', 'themisdb' ); ?></label>
+            <input class="tiny-text" id="<?php echo esc_attr( $this->get_field_id( 'count' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'count' ) ); ?>" type="number"
+                   step="1" min="1" value="<?php echo esc_attr( $count ); ?>" size="3">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'match_by' ) ); ?>"><?php esc_html_e( 'Match by:', 'themisdb' ); ?></label>
+            <select class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'match_by' ) ); ?>"
+                    name="<?php echo esc_attr( $this->get_field_name( 'match_by' ) ); ?>">
+                <option value="tag"      <?php selected( $match_by, 'tag' ); ?>><?php esc_html_e( 'Tags (falls back to category)', 'themisdb' ); ?></option>
+                <option value="category" <?php selected( $match_by, 'category' ); ?>><?php esc_html_e( 'Category', 'themisdb' ); ?></option>
+            </select>
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'show_thumb' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'show_thumb' ) ); ?>" value="1"
+                   <?php checked( $show_thumb ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'show_thumb' ) ); ?>"><?php esc_html_e( 'Show thumbnail', 'themisdb' ); ?></label>
+        </p>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance               = array();
+        $instance['title']      = ( ! empty( $new_instance['title'] ) )    ? sanitize_text_field( $new_instance['title'] )       : '';
+        $instance['count']      = ( ! empty( $new_instance['count'] ) )    ? absint( $new_instance['count'] )                     : 4;
+        $instance['match_by']   = ( ! empty( $new_instance['match_by'] ) && in_array( $new_instance['match_by'], array( 'tag', 'category' ), true ) )
+                                  ? $new_instance['match_by'] : 'tag';
+        $instance['show_thumb'] = ! empty( $new_instance['show_thumb'] ) ? 1 : 0;
+        return $instance;
+    }
+}
+
+/**
+ * Reading Progress Bar Widget
+ * Renders a thin fixed bar at the top of the viewport that fills as the user
+ * scrolls through a single post. On other page types the bar is hidden.
+ * Uses minimal inline JS (no external file needed) and CSS custom properties.
+ * Only one instance needs to be active; multiple instances are harmless.
+ */
+class ThemisDB_Reading_Progress_Widget extends WP_Widget {
+
+    public function __construct() {
+        parent::__construct(
+            'themisdb_reading_progress',
+            esc_html__( 'ThemisDB: Reading Progress Bar', 'themisdb' ),
+            array(
+                'description' => esc_html__( 'Thin fixed progress bar at the top of the page that fills as you scroll through a post', 'themisdb' ),
+                'classname'   => 'themisdb-reading-progress-widget',
+            )
+        );
+    }
+
+    public function widget( $args, $instance ) {
+        // The actual bar lives outside the sidebar (fixed positioning) so we
+        // output the bar element into <body> via wp_footer, and the widget
+        // area just emits nothing visible (height: 0).
+        $color     = ! empty( $instance['color'] )     ? $instance['color']     : '#1e6fba';
+        $height    = ! empty( $instance['height'] )    ? absint( $instance['height'] ) : 3;
+        $only_single = ! isset( $instance['only_single'] ) || ! empty( $instance['only_single'] );
+
+        // Validate colour is a hex value
+        if ( ! preg_match( '/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/', $color ) ) {
+            $color = '#1e6fba';
+        }
+        $height = max( 2, min( 8, $height ) );
+
+        // (No element ID needed; bar is identified by its unique class)
+        $color_safe   = esc_attr( $color );
+        $height_safe  = absint( $height );
+        $only_s_int   = $only_single ? 1 : 0;
+
+        // Enqueue once – use a flag stored in a static variable
+        static $progress_enqueued = false;
+        if ( ! $progress_enqueued ) {
+            $progress_enqueued = true;
+            add_action( 'wp_footer', static function() use ( $color_safe, $height_safe, $only_s_int ) {
+                ?>
+                <div id="themisdb-reading-progress" class="themisdb-reading-progress-bar"
+                     style="--rpb-color:<?php echo $color_safe; ?>;--rpb-height:<?php echo $height_safe; ?>px"
+                     aria-hidden="true" role="presentation"></div>
+                <script>
+                (function(){
+                    var bar = document.getElementById('themisdb-reading-progress');
+                    if(!bar) return;
+                    var onlySingle = <?php echo $only_s_int; ?>;
+                    var isSingle = document.body.classList.contains('single-post') ||
+                                   document.body.classList.contains('single');
+                    if(onlySingle && !isSingle){ bar.style.display='none'; return; }
+                    function update(){
+                        var el = document.documentElement;
+                        var scrolled = el.scrollTop || document.body.scrollTop;
+                        var total    = el.scrollHeight - el.clientHeight;
+                        var pct      = total > 0 ? Math.min(100, (scrolled / total) * 100) : 0;
+                        bar.style.setProperty('--rpb-progress', pct + '%');
+                    }
+                    window.addEventListener('scroll', update, {passive:true});
+                    update();
+                })();
+                </script>
+                <?php
+            }, 20 );
+        }
+
+        // Widget area output is intentionally empty – the bar is fixed-position
+        echo $args['before_widget'];
+        echo $args['after_widget'];
+    }
+
+    public function form( $instance ) {
+        $color       = ! empty( $instance['color'] )       ? $instance['color']            : '#1e6fba';
+        $height      = ! empty( $instance['height'] )      ? absint( $instance['height'] ) : 3;
+        $only_single = ! isset( $instance['only_single'] ) || ! empty( $instance['only_single'] );
+        ?>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'color' ) ); ?>"><?php esc_html_e( 'Bar colour:', 'themisdb' ); ?></label>
+            <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'color' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'color' ) ); ?>" type="color"
+                   value="<?php echo esc_attr( $color ); ?>">
+        </p>
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'height' ) ); ?>"><?php esc_html_e( 'Bar height (px, 2–8):', 'themisdb' ); ?></label>
+            <input class="tiny-text" id="<?php echo esc_attr( $this->get_field_id( 'height' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'height' ) ); ?>" type="number"
+                   step="1" min="2" max="8" value="<?php echo esc_attr( $height ); ?>" size="3">
+        </p>
+        <p>
+            <input type="checkbox" id="<?php echo esc_attr( $this->get_field_id( 'only_single' ) ); ?>"
+                   name="<?php echo esc_attr( $this->get_field_name( 'only_single' ) ); ?>" value="1"
+                   <?php checked( $only_single ); ?>>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'only_single' ) ); ?>"><?php esc_html_e( 'Show only on single posts', 'themisdb' ); ?></label>
+        </p>
+        <?php
+    }
+
+    public function update( $new_instance, $old_instance ) {
+        $instance                = array();
+        $raw_color               = isset( $new_instance['color'] ) ? trim( $new_instance['color'] ) : '#1e6fba';
+        $instance['color']       = preg_match( '/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/', $raw_color ) ? $raw_color : '#1e6fba';
+        $raw_height              = isset( $new_instance['height'] ) ? absint( $new_instance['height'] ) : 3;
+        $instance['height']      = max( 2, min( 8, $raw_height ) );
+        $instance['only_single'] = ! empty( $new_instance['only_single'] ) ? 1 : 0;
+        return $instance;
+    }
+}
+
+/**
  * Register all custom widgets
  */
 function themisdb_register_widgets() {
@@ -1315,5 +2864,17 @@ function themisdb_register_widgets() {
     register_widget( 'ThemisDB_Testimonials_Carousel_Widget' );
     register_widget( 'ThemisDB_Image_Carousel_Widget' );
     register_widget( 'ThemisDB_Timeline_Carousel_Widget' );
+    register_widget( 'ThemisDB_Posts_Grid_Widget' );
+    register_widget( 'ThemisDB_Author_Card_Widget' );
+    register_widget( 'ThemisDB_Stats_Widget' );
+    register_widget( 'ThemisDB_Popular_Posts_Widget' );
+    register_widget( 'ThemisDB_Newsletter_Widget' );
+    register_widget( 'ThemisDB_Video_Widget' );
+    register_widget( 'ThemisDB_Tabbed_Posts_Widget' );
+    register_widget( 'ThemisDB_Recent_Comments_Widget' );
+    register_widget( 'ThemisDB_Category_Grid_Widget' );
+    register_widget( 'ThemisDB_Post_Ticker_Widget' );
+    register_widget( 'ThemisDB_Related_Posts_Widget' );
+    register_widget( 'ThemisDB_Reading_Progress_Widget' );
 }
 add_action( 'widgets_init', 'themisdb_register_widgets' );

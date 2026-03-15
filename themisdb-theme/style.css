@@ -17,31 +17,59 @@ ThemisDB WordPress Theme, Copyright 2024 ThemisDB Team
 ThemisDB is distributed under the terms of the MIT License
 */
 
-/* ===== CSS Variables (Themis Colors) ===== */
+/* ===== CSS Variables (v3 Color Scheme: Navy · Forest · Azure · Teal) ===== */
 :root {
-    --primary-color: #2c3e50;
-    --primary-dark: #1a252f;
-    --secondary-color: #3498db;
-    --secondary-dark: #2980b9;
-    --accent-purple: #7c4dff;
-    --accent-purple-dark: #651fff;
-    --success-color: #27ae60;
-    --warning-color: #f39c12;
-    --danger-color: #e74c3c;
-    --light-bg: #ecf0f1;
-    --lighter-bg: #f8f9fa;
-    --white: #ffffff;
-    --text-primary: #2c3e50;
-    --text-secondary: #7f8c8d;
-    --text-muted: #95a5a6;
-    --border-color: #bdc3c7;
-    --border-light: #dee2e6;
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.12);
-    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
+    /* ── Primary: Deep Navy Blue ── */
+    --primary-color: #1a2e52;          /* Deep navy – header bg */
+    --primary-dark:  #0d1f3c;          /* Very dark navy */
+    --primary-mid:   #2d5496;          /* Mid navy – gradient stop */
+
+    /* ── Secondary: Azure Blue ── */
+    --secondary-color: #1e6fba;        /* Azure – buttons, links */
+    --secondary-dark:  #154f8a;        /* Azure dark – hover */
+
+    /* ── Accent: Teal-Cyan (replaces purple) ── */
+    --accent-purple:      #1ab5c8;     /* Teal-cyan accent */
+    --accent-purple-dark: #0d8fa0;     /* Teal-cyan dark */
+
+    /* ── Forest Green ── */
+    --forest-color: #1a3d2b;           /* Dark forest green – footer bg */
+    --forest-mid:   #245c3f;           /* Forest mid – gradient stop */
+    --green-light:  #27a068;           /* Light green */
+
+    /* ── Semantic Colors ── */
+    --success-color: #1a6e46;          /* Forest green – success */
+    --warning-color: #d68910;          /* Amber – warning */
+    --danger-color:  #c0392b;          /* Red – error */
+
+    /* ── Neutral Backgrounds ── */
+    --light-bg:   #eef2f6;
+    --lighter-bg: #f6f8fa;
+    --white:      #ffffff;
+
+    /* ── Text ── */
+    --text-primary:   #111827;
+    --text-secondary: #334155;
+    --text-muted:     #647e96;
+
+    /* ── Borders ── */
+    --border-color: #b8c8d9;
+    --border-light: #dce4ef;
+
+    /* ── Shadows (navy base) ── */
+    --shadow-sm: 0 2px 6px rgba(13, 31, 60, 0.08);
+    --shadow-md: 0 4px 16px rgba(13, 31, 60, 0.10);
+    --shadow-lg: 0 8px 28px rgba(13, 31, 60, 0.13);
+
+    /* ── Transitions ── */
     --transition: all 0.3s ease;
-    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --gradient-secondary: linear-gradient(135deg, var(--primary-color) 0%, #34495e 100%);
+
+    /* ── Gradients ── */
+    --gradient-primary:  linear-gradient(135deg, #1a2e52 0%, #2d5496 100%);
+    --gradient-secondary: linear-gradient(135deg, #1e6fba 0%, #154f8a 100%);
+    --gradient-hero:     linear-gradient(160deg, #0d1f3c 0%, #1a2e52 45%, #2d5496 100%);
+    --gradient-forest:   linear-gradient(135deg, #1a6e46 0%, #1a3d2b 100%);
+    --gradient-cyan:     linear-gradient(135deg, #0d8fa0 0%, #1ab5c8 100%);
 }
 
 /* ===== Reset and Base Styles ===== */
@@ -180,7 +208,7 @@ a:focus {
 
 /* ===== Header ===== */
 .site-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #34495e 100%);
+    background: var(--gradient-hero);
     color: var(--white);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     position: sticky;
@@ -315,17 +343,23 @@ a:focus {
     left: 0;
     background: var(--white);
     min-width: 220px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 10px 30px rgba(13, 31, 60, 0.15);
     border-radius: 12px;
     padding: 0.75rem;
-    display: none;
+    display: flex;          /* Always flex – visibility controls show/hide */
     flex-direction: column;
     gap: 0.25rem;
     margin-top: 0;
     border: 1px solid var(--border-light);
-    /* Extra padding for visual spacing (invisible bridge created by ::before) */
+    /* Extra top padding creates invisible hover bridge together with ::before */
     padding-top: 1rem;
     z-index: 1000;
+    /* Hidden state */
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px);
+    transition: opacity 0.25s ease, visibility 0.25s ease, transform 0.25s ease;
 }
 
 /* Hide parent menu item underline when dropdown is visible */
@@ -333,21 +367,24 @@ a:focus {
     display: none;
 }
 
-/* Create invisible bridge between parent and dropdown */
+/* Create invisible hover bridge between parent link and dropdown (0.75rem = 12px gap) */
 .main-navigation ul ul::before {
     content: '';
     position: absolute;
-    top: -0.5rem;
+    top: -0.75rem;
     left: 0;
     right: 0;
-    height: 0.5rem;
+    height: 0.75rem;
     background: transparent;
 }
 
+/* Show dropdown on hover */
 .main-navigation li:hover > ul,
 .main-navigation ul ul:hover {
-    display: flex;
-    animation: fadeInScale 0.3s ease;
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
 }
 
 .main-navigation ul ul a {
@@ -579,16 +616,47 @@ article:hover {
 
 .entry-thumbnail {
     width: 100%;
-    height: auto;
-    display: block;
+    /* Strip appearance: 300 px tall, clips the rest */
+    max-height: 300px;
+    overflow: hidden;
     margin-top: 1.5rem;
     border-radius: 8px;
-    overflow: hidden;
+    /* Smooth expand on hover */
+    transition: max-height 0.65s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow  0.3s ease;
+    cursor: pointer;
+    position: relative;
+}
+
+/* Gradient hint that more image is below */
+.entry-thumbnail::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(to bottom, transparent, rgba(13, 31, 60, 0.25));
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+}
+
+.entry-thumbnail:hover::after {
+    opacity: 0;
+}
+
+/* Expand to show full image on hover */
+.entry-thumbnail:hover {
+    max-height: 1200px;
+    box-shadow: var(--shadow-lg);
 }
 
 .entry-thumbnail img {
     width: 100%;
     height: auto;
+    min-height: 300px;      /* Ensure strip is always filled */
+    object-fit: cover;
+    object-position: center top;
     display: block;
 }
 
@@ -874,7 +942,7 @@ article:hover {
 
 /* ===== Footer ===== */
 .site-footer {
-    background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(180deg, var(--forest-color) 0%, var(--primary-dark) 100%);
     color: var(--white);
     padding: 3rem 2rem 1.5rem;
     margin-top: 4rem;
@@ -1244,7 +1312,7 @@ article:hover {
         align-items: center;
     }
     
-    /* Dropdown menus on mobile */
+    /* Dropdown menus on mobile – reset to JS-toggled display:none */
     .main-navigation ul ul {
         position: static;
         box-shadow: none;
@@ -1254,6 +1322,12 @@ article:hover {
         border-radius: 4px;
         display: none;
         flex-direction: column;
+        /* Reset desktop visibility/opacity overrides */
+        visibility: visible;
+        opacity: 1;
+        pointer-events: auto;
+        transform: none;
+        transition: none;
     }
     
     .main-navigation li.toggled > ul {
@@ -1535,14 +1609,14 @@ article:hover {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(124, 77, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(26, 181, 200, 0.4);
     transition: var(--transition);
 }
 
 .nav-graph-toggle:hover {
     background: linear-gradient(135deg, var(--accent-purple-dark) 0%, var(--accent-purple) 100%);
     transform: scale(1.1) rotate(5deg);
-    box-shadow: 0 6px 16px rgba(124, 77, 255, 0.6);
+    box-shadow: 0 6px 16px rgba(26, 181, 200, 0.6);
 }
 
 .nav-graph-toggle:focus {
@@ -1598,7 +1672,7 @@ article:hover {
 .loading-spinner {
     width: 60px;
     height: 60px;
-    border: 4px solid rgba(124, 77, 255, 0.2);
+    border: 4px solid rgba(26, 181, 200, 0.2);
     border-top-color: var(--accent-purple);
     border-radius: 50%;
     animation: spin 1s linear infinite;
@@ -1643,7 +1717,7 @@ article:hover {
 }
 
 .bloom-graph .node:hover circle {
-    filter: drop-shadow(0 4px 12px rgba(124, 77, 255, 0.6)) url(#glow);
+    filter: drop-shadow(0 4px 12px rgba(26, 181, 200, 0.6)) url(#glow);
 }
 
 .bloom-graph .node-icon {
@@ -1709,7 +1783,7 @@ article:hover {
     box-shadow: 0 8px 24px rgba(0,0,0,0.4);
     pointer-events: none;
     z-index: 10000;
-    border: 2px solid rgba(124, 77, 255, 0.5);
+    border: 2px solid rgba(26, 181, 200, 0.5);
     line-height: 1.6;
 }
 
@@ -1754,7 +1828,7 @@ article:hover {
 }
 
 .graph-tooltip-button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1e6fba 0%, #0a7a8a 100%);
     padding: 6px 12px;
     border-radius: 6px;
     font-size: 12px;
@@ -1828,13 +1902,13 @@ article:hover {
     border-width: 3px;
     font-size: 1.2rem;
     font-weight: 700;
-    box-shadow: 0 4px 12px rgba(124, 77, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(26, 181, 200, 0.4);
 }
 
 /* Thematic node colors (Neo4j Bloom inspired) */
 .nav-node.docNode {
     background: #5DADE2;
-    border-color: #3498db;
+    border-color: #1e6fba;
 }
 
 .nav-node.featureNode {
@@ -1863,13 +1937,13 @@ article:hover {
 }
 
 .nav-node.primaryNode {
-    background: #9B7EDE;
-    border-color: #7c4dff;
+    background: #3d8acc;
+    border-color: #1e6fba;
 }
 
 .nav-node.secondaryNode {
     background: #5DADE2;
-    border-color: #3498db;
+    border-color: #1e6fba;
 }
 
 .nav-node.successNode {
@@ -2203,7 +2277,7 @@ article:nth-child(5) { animation-delay: 0.5s; }
 
 /* Featured content box */
 .featured-box {
-    background: linear-gradient(135deg, rgba(124, 77, 255, 0.05) 0%, rgba(52, 152, 219, 0.05) 100%);
+    background: linear-gradient(135deg, rgba(26, 181, 200, 0.05) 0%, rgba(52, 152, 219, 0.05) 100%);
     border-left: 4px solid var(--accent-purple);
     padding: 1.5rem;
     margin: 2rem 0;
@@ -2374,7 +2448,7 @@ article:nth-child(5) { animation-delay: 0.5s; }
 
 .card-header {
     padding: 1.5rem;
-    background: linear-gradient(135deg, rgba(124, 77, 255, 0.05) 0%, rgba(52, 152, 219, 0.05) 100%);
+    background: linear-gradient(135deg, rgba(26, 181, 200, 0.05) 0%, rgba(52, 152, 219, 0.05) 100%);
     border-bottom: 1px solid var(--border-light);
 }
 
@@ -2598,7 +2672,7 @@ article:nth-child(5) { animation-delay: 0.5s; }
 
 /* Hero section */
 .hero {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #34495e 100%);
+    background: var(--gradient-hero);
     color: var(--white);
     padding: 4rem 2rem;
     text-align: center;
@@ -2757,7 +2831,7 @@ article:nth-child(5) { animation-delay: 0.5s; }
 /* Back to top button */
 .back-to-top:hover {
     transform: translateY(-3px) scale(1.1);
-    box-shadow: 0 6px 16px rgba(124, 77, 255, 0.6) !important;
+    box-shadow: 0 6px 16px rgba(26, 181, 200, 0.6) !important;
 }
 
 /* Copy code button */
@@ -3261,7 +3335,7 @@ article:hover {
     left: 0;
     right: 0;
     bottom: 0;
-    background: radial-gradient(circle, rgba(124, 77, 255, 0.3) 0%, rgba(52, 152, 219, 0.5) 100%);
+    background: radial-gradient(circle, rgba(26, 181, 200, 0.3) 0%, rgba(52, 152, 219, 0.5) 100%);
     transform: scale(0);
     transition: transform 0.3s ease;
     pointer-events: none;
@@ -4006,8 +4080,8 @@ select,
 textarea,
 .button,
 .wp-block-button__link {
-    -webkit-tap-highlight-color: rgba(124, 77, 255, 0.3);
-    tap-highlight-color: rgba(124, 77, 255, 0.3);
+    -webkit-tap-highlight-color: rgba(26, 181, 200, 0.3);
+    tap-highlight-color: rgba(26, 181, 200, 0.3);
 }
 
 /* Improve touch scrolling performance */
@@ -4036,7 +4110,7 @@ pre,
     .widget a,
     .footer-widget a,
     .entry-meta a {
-        -webkit-tap-highlight-color: rgba(124, 77, 255, 0.2);
+        -webkit-tap-highlight-color: rgba(26, 181, 200, 0.2);
     }
     
     /* Improve mobile menu visibility */
@@ -4172,5 +4246,392 @@ pre,
     
     article {
         page-break-inside: avoid;
+    }
+}
+
+
+/* ============================================================
+   NEW FEATURES – Dark Mode · Sticky Header · TOC · Grid · Search
+   ============================================================ */
+
+/* ===== Dark Mode – CSS Variable Overrides ===== */
+
+/* 1. System preference */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary-color:  #2d5496;
+        --primary-dark:   #1a2e52;
+        --secondary-color:#3d8acc;
+        --secondary-dark: #1e6fba;
+        --accent-purple:  #1ab5c8;
+        --forest-color:   #245c3f;
+        --success-color:  #27a068;
+        --warning-color:  #e8a020;
+        --danger-color:   #e05a4e;
+        --light-bg:       #1f2d3d;
+        --lighter-bg:     #162130;
+        --white:          #1e2a38;
+        --text-primary:   #e8f0f8;
+        --text-secondary: #a0b8cc;
+        --text-muted:     #6a8699;
+        --border-color:   #2d4560;
+        --border-light:   #243850;
+        --shadow-sm: 0 2px 6px rgba(0, 0, 10, 0.25);
+        --shadow-md: 0 4px 16px rgba(0, 0, 10, 0.35);
+        --shadow-lg: 0 8px 28px rgba(0, 0, 10, 0.45);
+        --gradient-primary:   linear-gradient(135deg, #2d5496 0%, #3d6cbf 100%);
+        --gradient-secondary: linear-gradient(135deg, #3d8acc 0%, #1e6fba 100%);
+        --gradient-hero:      linear-gradient(160deg, #080e18 0%, #0d1f3c 45%, #1a2e52 100%);
+        --gradient-forest:    linear-gradient(135deg, #27a068 0%, #245c3f 100%);
+        --gradient-cyan:      linear-gradient(135deg, #0d8fa0 0%, #1ab5c8 100%);
+    }
+}
+
+/* 2. Manual toggle class (also applies when user clicks button)
+   NOTE: intentional duplication of the @media block – CSS custom properties
+   cannot be aliased at rule level in CSS2/3; nesting requires modern browsers.
+   Both blocks must be kept in sync. */
+html.dark-mode {
+    --primary-color:  #2d5496;
+    --primary-dark:   #1a2e52;
+    --secondary-color:#3d8acc;
+    --secondary-dark: #1e6fba;
+    --accent-purple:  #1ab5c8;
+    --forest-color:   #245c3f;
+    --success-color:  #27a068;
+    --warning-color:  #e8a020;
+    --danger-color:   #e05a4e;
+    --light-bg:       #1f2d3d;
+    --lighter-bg:     #162130;
+    --white:          #1e2a38;
+    --text-primary:   #e8f0f8;
+    --text-secondary: #a0b8cc;
+    --text-muted:     #6a8699;
+    --border-color:   #2d4560;
+    --border-light:   #243850;
+    --shadow-sm: 0 2px 6px rgba(0, 0, 10, 0.25);
+    --shadow-md: 0 4px 16px rgba(0, 0, 10, 0.35);
+    --shadow-lg: 0 8px 28px rgba(0, 0, 10, 0.45);
+    --gradient-primary:   linear-gradient(135deg, #2d5496 0%, #3d6cbf 100%);
+    --gradient-secondary: linear-gradient(135deg, #3d8acc 0%, #1e6fba 100%);
+    --gradient-hero:      linear-gradient(160deg, #080e18 0%, #0d1f3c 45%, #1a2e52 100%);
+    --gradient-forest:    linear-gradient(135deg, #27a068 0%, #245c3f 100%);
+    --gradient-cyan:      linear-gradient(135deg, #0d8fa0 0%, #1ab5c8 100%);
+}
+
+/* Dark mode body background (outside of white cards) */
+@media (prefers-color-scheme: dark) {
+    body { background-color: #0d1520; color: var(--text-primary); }
+}
+html.dark-mode body { background-color: #0d1520; color: var(--text-primary); }
+
+/* Ensure images don't blind in dark mode */
+@media (prefers-color-scheme: dark) {
+    img { opacity: 0.92; }
+    img:hover { opacity: 1; }
+}
+html.dark-mode img { opacity: 0.92; }
+html.dark-mode img:hover { opacity: 1; }
+
+/* ===== Header Action Buttons (Search & Dark Mode Toggle) ===== */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    margin-left: 0.75rem;
+}
+
+.header-icon-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    font-size: 1rem;
+    flex-shrink: 0;
+    line-height: 1;
+    padding: 0;
+}
+
+.header-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.08);
+}
+
+.header-icon-btn:focus-visible {
+    outline: 2px solid var(--accent-purple);
+    outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+    .header-icon-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 0.9rem;
+    }
+}
+
+/* ===== Sticky Header Shrink ===== */
+.site-header {
+    transition: box-shadow 0.3s ease;
+}
+
+.site-header.is-scrolled {
+    box-shadow: 0 4px 20px rgba(13, 31, 60, 0.4);
+}
+
+.site-header.is-scrolled .header-inner {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    transition: padding 0.3s ease;
+}
+
+.site-header.is-scrolled .site-logo {
+    max-height: 36px;
+    transition: max-height 0.3s ease;
+}
+
+.site-header.is-scrolled .site-title {
+    font-size: 1.4rem;
+    transition: font-size 0.3s ease;
+}
+
+/* ===== Table of Contents ===== */
+.toc-container {
+    background: var(--lighter-bg);
+    border: 1px solid var(--border-light);
+    border-left: 4px solid var(--secondary-color);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 0 0 2rem 0;
+    max-width: 520px;
+}
+
+.toc-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    margin: 0 0 0.75rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toc-title::after {
+    content: '▾';
+    margin-left: auto;
+    transition: transform 0.2s ease;
+    font-size: 1.1em;
+}
+
+.toc-title.collapsed::after {
+    transform: rotate(-90deg);
+}
+
+.toc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.toc-list li {
+    padding: 0.2rem 0;
+    border: none;
+}
+
+.toc-list a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.92rem;
+    transition: var(--transition);
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    line-height: 1.5;
+}
+
+.toc-list a::before {
+    content: '§';
+    color: var(--accent-purple);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+    margin-top: 0.15em;
+}
+
+.toc-list a:hover {
+    color: var(--secondary-color);
+    transform: translateX(4px);
+    text-decoration: none;
+}
+
+.toc-list .toc-h3 {
+    padding-left: 1.25rem;
+}
+
+.toc-list .toc-h3 a::before {
+    content: '▸';
+}
+
+/* ===== Post Archive Grid ===== */
+@media (min-width: 769px) {
+    .posts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+        --grid-thumb-height: 240px;   /* single source of truth for thumbnail height */
+    }
+
+    .posts-grid article {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 0;       /* grid gap replaces margin */
+    }
+
+    .posts-grid .entry-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Push "Read More" to bottom of card */
+    .posts-grid .entry-content .button {
+        margin-top: auto;
+        align-self: flex-start;
+    }
+
+    /* Keep thumbnail strip aspect consistent across grid cards */
+    .posts-grid .entry-thumbnail {
+        height: var(--grid-thumb-height);
+        max-height: var(--grid-thumb-height);
+    }
+
+    .posts-grid .entry-thumbnail img {
+        height: var(--grid-thumb-height);
+        width: 100%;
+        object-fit: cover;
+    }
+}
+
+/* ===== Search Overlay ===== */
+.search-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 14, 24, 0.97);
+    backdrop-filter: blur(8px);
+    z-index: 20000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 15vh;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.search-overlay.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.search-overlay-inner {
+    width: 100%;
+    max-width: 700px;
+    padding: 0 2rem;
+    position: relative;
+}
+
+.search-overlay-form {
+    display: flex;
+    align-items: center;
+    border-bottom: 2px solid var(--secondary-color);
+    padding-bottom: 0.75rem;
+    gap: 0.5rem;
+}
+
+.search-overlay-field {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #e8f0f8;
+    font-size: clamp(1.4rem, 4vw, 2.2rem);
+    padding: 0.25rem 0;
+    outline: none;
+    font-family: inherit;
+}
+
+.search-overlay-field::placeholder {
+    color: rgba(232, 240, 248, 0.3);
+}
+
+.search-overlay-submit {
+    background: none;
+    border: none;
+    color: var(--secondary-color);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    transition: color 0.2s ease, transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.search-overlay-submit:hover {
+    color: var(--accent-purple);
+    transform: scale(1.15);
+}
+
+.search-overlay-close {
+    position: absolute;
+    top: -3.5rem;
+    right: 2rem;
+    background: none;
+    border: none;
+    color: rgba(232, 240, 248, 0.5);
+    font-size: 2.5rem;
+    cursor: pointer;
+    transition: color 0.2s ease, transform 0.15s ease;
+    line-height: 1;
+    padding: 0;
+}
+
+.search-overlay-close:hover {
+    color: #e8f0f8;
+    transform: rotate(90deg);
+}
+
+.search-overlay-hint {
+    margin-top: 1.25rem;
+    color: rgba(232, 240, 248, 0.35);
+    font-size: 0.85rem;
+}
+
+.search-overlay-hint kbd {
+    display: inline-block;
+    padding: 0.1em 0.4em;
+    border: 1px solid rgba(232, 240, 248, 0.25);
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-family: inherit;
+}
+
+/* ===== Responsive: Stack grid on mobile ===== */
+@media (max-width: 768px) {
+    .header-actions {
+        margin-left: 0.5rem;
+    }
+    .search-overlay-close {
+        top: -3rem;
+        right: 1.5rem;
     }
 }
