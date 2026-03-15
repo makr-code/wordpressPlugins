@@ -1,0 +1,339 @@
+/**
+ * ThemisDB Front Slider – Styles
+ * Uses TV3 design-token CSS custom properties where available,
+ * with fallbacks for standalone use without the v3 theme.
+ */
+
+/* =========================================================
+   Custom Properties (fallbacks for non-TV3 themes)
+   ========================================================= */
+:root {
+    --tfs-navy:       var(--tv3-navy,      #1a2e52);
+    --tfs-navy-dark:  var(--tv3-navy-dark, #0d1f3c);
+    --tfs-azure:      var(--tv3-azure,     #1e6fba);
+    --tfs-azure-dark: var(--tv3-azure-dark,#154f8a);
+    --tfs-cyan:       var(--tv3-cyan,      #1ab5c8);
+    --tfs-white:      var(--tv3-white,     #ffffff);
+    --tfs-gray-50:    var(--tv3-gray-50,   #f6f8fa);
+    --tfs-gray-200:   var(--tv3-gray-200,  #dce4ef);
+    --tfs-gray-400:   var(--tv3-gray-400,  #8aa0b8);
+    --tfs-gray-600:   var(--tv3-gray-600,  #4a5f7a);
+
+    --tfs-radius:     10px;
+    --tfs-transition: 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+    --tfs-dot-size:   10px;
+    --tfs-btn-size:   44px;
+}
+
+/* =========================================================
+   Wrapper
+   ========================================================= */
+.themisdb-fs-wrapper {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-radius: var(--tfs-radius);
+    box-shadow: 0 6px 32px rgba(13, 31, 60, 0.22);
+    background: var(--tfs-navy-dark);
+    /* prevent text selection while dragging */
+    user-select: none;
+}
+
+/* =========================================================
+   Track + Slides
+   ========================================================= */
+.themisdb-fs-track-outer {
+    overflow: hidden;
+    width: 100%;
+}
+
+.themisdb-fs-track {
+    display: flex;
+    transition: transform var(--tfs-transition);
+    will-change: transform;
+}
+
+.themisdb-fs-slide {
+    flex: 0 0 100%;
+    min-width: 0;
+    position: relative;
+    min-height: 320px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: var(--tfs-navy-dark);
+    /* JS sets height via --tfs-slide-height injected on .wrapper */
+    height: var(--tfs-slide-height, 420px);
+}
+
+/* Overlay for text legibility */
+.themisdb-fs-slide-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        160deg,
+        rgba(13, 31, 60, 0.75) 0%,
+        rgba(26, 46, 82, 0.60) 50%,
+        rgba(13, 31, 60, 0.30) 100%
+    );
+}
+
+/* Slide content */
+.themisdb-fs-slide-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 100%;
+    padding: 2.25rem 2.5rem 3.25rem;
+    max-width: 760px;
+}
+
+/* =========================================================
+   Category label
+   ========================================================= */
+.themisdb-fs-category {
+    display: inline-block;
+    background: var(--tfs-azure);
+    color: var(--tfs-white);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.2em 0.7em;
+    border-radius: 4px;
+    text-decoration: none;
+    margin-bottom: 0.75rem;
+    width: max-content;
+    transition: background-color 0.2s;
+}
+.themisdb-fs-category:hover,
+.themisdb-fs-category:focus {
+    background: var(--tfs-azure-dark);
+    text-decoration: none;
+    outline: 2px solid var(--tfs-cyan);
+    outline-offset: 2px;
+}
+
+/* =========================================================
+   Title
+   ========================================================= */
+.themisdb-fs-title {
+    margin: 0 0 0.6rem;
+    font-size: clamp(1.25rem, 2.8vw, 2rem);
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--tfs-white);
+}
+.themisdb-fs-title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.themisdb-fs-title a:hover,
+.themisdb-fs-title a:focus {
+    color: var(--tfs-cyan);
+    outline: none;
+    text-decoration: underline;
+}
+
+/* =========================================================
+   Excerpt
+   ========================================================= */
+.themisdb-fs-excerpt {
+    margin: 0 0 0.9rem;
+    font-size: clamp(0.875rem, 1.6vw, 1.05rem);
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.82);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* =========================================================
+   Meta row (date + read-more)
+   ========================================================= */
+.themisdb-fs-meta {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+.themisdb-fs-date {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+.themisdb-fs-readmore {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--tfs-cyan);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.themisdb-fs-readmore:hover,
+.themisdb-fs-readmore:focus {
+    color: var(--tfs-white);
+    text-decoration: underline;
+    outline: 2px solid var(--tfs-cyan);
+    outline-offset: 2px;
+}
+
+/* =========================================================
+   Prev / Next buttons
+   ========================================================= */
+.themisdb-fs-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--tfs-btn-size);
+    height: var(--tfs-btn-size);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 50%;
+    background: rgba(13, 31, 60, 0.55);
+    color: var(--tfs-white);
+    cursor: pointer;
+    padding: 0;
+    transition:
+        background-color 0.2s,
+        border-color 0.2s,
+        transform 0.2s;
+    backdrop-filter: blur(4px);
+}
+.themisdb-fs-btn:hover,
+.themisdb-fs-btn:focus-visible {
+    background: var(--tfs-azure);
+    border-color: var(--tfs-azure);
+    transform: translateY(-50%) scale(1.1);
+    outline: none;
+}
+.themisdb-fs-prev { left: 1rem; }
+.themisdb-fs-next { right: 1rem; }
+
+.themisdb-fs-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+/* =========================================================
+   Dot indicators
+   ========================================================= */
+.themisdb-fs-dots {
+    position: absolute;
+    bottom: 3.25rem; /* sits above the timer bar */
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    z-index: 10;
+}
+
+.themisdb-fs-dot {
+    width: var(--tfs-dot-size);
+    height: var(--tfs-dot-size);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: background-color 0.25s, transform 0.25s;
+}
+.themisdb-fs-dot:hover,
+.themisdb-fs-dot:focus-visible {
+    background: var(--tfs-white);
+    transform: scale(1.3);
+    outline: 2px solid var(--tfs-cyan);
+    outline-offset: 2px;
+}
+.themisdb-fs-dot.is-active {
+    background: var(--tfs-cyan);
+    transform: scale(1.3);
+}
+
+/* =========================================================
+   Timer bar
+   ========================================================= */
+.themisdb-fs-timer-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    z-index: 10;
+    overflow: hidden;
+}
+.themisdb-fs-timer-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--tfs-azure) 0%, var(--tfs-cyan) 100%);
+    /* JS drives the width via inline style + CSS transition reset trick */
+}
+
+/* =========================================================
+   Fallback: no featured image
+   ========================================================= */
+.themisdb-fs-slide:not([style*="background-image"]) {
+    background: linear-gradient(160deg, var(--tfs-navy-dark) 0%, var(--tfs-navy) 100%);
+}
+
+/* =========================================================
+   "No posts" message
+   ========================================================= */
+.themisdb-fs-no-posts {
+    color: var(--tfs-gray-600);
+    font-style: italic;
+    padding: 1rem 0;
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+@media (max-width: 768px) {
+    .themisdb-fs-slide-content {
+        padding: 1.5rem 1.25rem 2.75rem;
+    }
+    .themisdb-fs-btn {
+        width: 38px;
+        height: 38px;
+    }
+    .themisdb-fs-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+    .themisdb-fs-excerpt {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .themisdb-fs-prev { left: 0.5rem; }
+    .themisdb-fs-next { right: 0.5rem; }
+}
+
+/* =========================================================
+   Reduced-motion: disable autoplay animation, keep
+   manual transitions as instant snap
+   ========================================================= */
+@media (prefers-reduced-motion: reduce) {
+    .themisdb-fs-track,
+    .themisdb-fs-btn,
+    .themisdb-fs-dot {
+        transition: none;
+    }
+    .themisdb-fs-timer-bar {
+        display: none;
+    }
+}
