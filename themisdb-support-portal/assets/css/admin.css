@@ -1,0 +1,271 @@
+/* ==========================================================================
+   ThemisDB Support Portal – Admin Styles
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   General layout
+   -------------------------------------------------------------------------- */
+.themisdb-support-admin-wrap {
+    max-width: 1300px;
+}
+
+.themisdb-support-admin-wrap h1 .dashicons {
+    vertical-align: middle;
+    margin-right: 6px;
+    color: #0073aa;
+}
+
+/* --------------------------------------------------------------------------
+   Filter bar
+   -------------------------------------------------------------------------- */
+.themisdb-support-admin-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+}
+
+.themisdb-support-filter-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.themisdb-support-ticket-count-total {
+    margin-left: auto;
+    font-size: 13px;
+    color: #666;
+}
+
+/* --------------------------------------------------------------------------
+   Tickets table
+   -------------------------------------------------------------------------- */
+.themisdb-support-tickets-table .column-ticket-number { width: 130px; }
+.themisdb-support-tickets-table .column-status  { width: 120px; }
+.themisdb-support-tickets-table .column-priority { width: 110px; }
+.themisdb-support-tickets-table .column-date    { width: 160px; }
+.themisdb-support-tickets-table .column-customer { width: 200px; }
+
+/* Row colouring */
+.themisdb-support-row-status-open        { border-left: 3px solid #0073aa; }
+.themisdb-support-row-status-in_progress { border-left: 3px solid #f0ad4e; }
+.themisdb-support-row-status-resolved    { border-left: 3px solid #46b450; }
+.themisdb-support-row-status-closed      { border-left: 3px solid #ccc; }
+
+.themisdb-support-admin-status,
+.themisdb-support-admin-priority {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+}
+
+/* Status colours */
+.themisdb-support-status-open        { background: #0073aa; }
+.themisdb-support-status-in_progress { background: #f0ad4e; color: #333; }
+.themisdb-support-status-resolved    { background: #46b450; }
+.themisdb-support-status-closed      { background: #999; }
+
+/* Priority colours */
+.themisdb-support-priority-low    { background: #a0d468; color: #333; }
+.themisdb-support-priority-normal { background: #0073aa; }
+.themisdb-support-priority-high   { background: #f0ad4e; color: #333; }
+.themisdb-support-priority-urgent { background: #dc3232; }
+
+/* Empty state */
+.themisdb-support-admin-empty {
+    text-align: center;
+    padding: 48px;
+    color: #888;
+}
+
+.themisdb-support-admin-empty .dashicons {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 12px;
+    color: #ccc;
+}
+
+/* --------------------------------------------------------------------------
+   Single ticket layout
+   -------------------------------------------------------------------------- */
+.themisdb-support-admin-ticket-layout {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 960px) {
+    .themisdb-support-admin-ticket-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Admin Cards
+   -------------------------------------------------------------------------- */
+.themisdb-support-admin-card {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+}
+
+.themisdb-support-admin-card-title {
+    margin: 0 0 16px;
+    font-size: 16px;
+    color: #1d2327;
+    border-bottom: 1px solid #dcdcde;
+    padding-bottom: 12px;
+}
+
+.themisdb-support-admin-info-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.themisdb-support-admin-info-table th,
+.themisdb-support-admin-info-table td {
+    padding: 7px 4px;
+    font-size: 13px;
+    vertical-align: top;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.themisdb-support-admin-info-table th {
+    width: 110px;
+    font-weight: 600;
+    color: #555;
+    padding-right: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   Message thread
+   -------------------------------------------------------------------------- */
+.themisdb-support-admin-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.themisdb-support-admin-message {
+    padding: 16px;
+    border-radius: 4px;
+    border: 1px solid #dcdcde;
+}
+
+.themisdb-support-admin-message-customer {
+    background: #f9f9f9;
+}
+
+.themisdb-support-admin-message-admin {
+    background: #f0f7fc;
+    border-color: #b8daff;
+}
+
+.themisdb-support-admin-message-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.themisdb-support-admin-badge {
+    font-size: 11px;
+    background: #0073aa;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.themisdb-support-admin-message-date {
+    font-size: 12px;
+    color: #888;
+    margin-left: auto;
+}
+
+.themisdb-support-admin-message-body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #1d2327;
+}
+
+/* --------------------------------------------------------------------------
+   Reply form
+   -------------------------------------------------------------------------- */
+.themisdb-support-admin-reply-form {
+    border-top: 2px solid #dcdcde;
+    padding-top: 20px;
+    margin-top: 8px;
+}
+
+.themisdb-support-admin-reply-form h3 {
+    margin: 0 0 16px;
+    font-size: 15px;
+}
+
+.themisdb-support-form-group {
+    margin-bottom: 14px;
+}
+
+.themisdb-support-form-group label {
+    display: block;
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+
+.themisdb-support-form-group textarea,
+.themisdb-support-form-group select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.themisdb-support-admin-notice {
+    background: #f0f0f0;
+    border-radius: 4px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #666;
+    margin-top: 16px;
+}
+
+.themisdb-support-admin-current-priority {
+    font-size: 13px;
+    margin-top: 12px;
+}
+
+.themisdb-support-admin-reply-messages {
+    margin-top: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   Notice (inline message)
+   -------------------------------------------------------------------------- */
+.themisdb-support-admin-msg-success {
+    color: #276f2e;
+    background: #ecf9ed;
+    border: 1px solid #c3e6cb;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.themisdb-support-admin-msg-error {
+    color: #721c24;
+    background: #fdf2f2;
+    border: 1px solid #f5c6cb;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+}
