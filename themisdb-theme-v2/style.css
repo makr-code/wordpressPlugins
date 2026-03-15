@@ -1219,3 +1219,51 @@ blockquote cite {
     h1, h2, h3, h4, h5, h6 { color: #000; page-break-after: avoid; }
     pre, code { background: #f0f0f0; }
 }
+
+/* ============================================================
+   Single Post – Featured Image below title
+   ============================================================ */
+
+/* Ensure the featured image is shown below the title with proper spacing */
+.themis-single-header .wp-block-post-featured-image {
+    margin-top: var(--themis-space-6, 1.5rem);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.themis-single-header .wp-block-post-featured-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Readable gradient overlay at the bottom of the featured image (dark images) */
+.themis-single-header .wp-block-post-featured-image::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.45) 0%, transparent 100%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Dynamic contrast: dark-toned image → show gradient for readability */
+.has-dark-featured-image .themis-single-header .wp-block-post-featured-image::after {
+    opacity: 1;
+}
+
+/* Dynamic contrast: light-toned image → subtle shadow frame */
+.has-light-featured-image .themis-single-header .wp-block-post-featured-image {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10);
+}
+
+@media (prefers-color-scheme: dark) {
+    .themis-single-header .wp-block-post-featured-image {
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+    }
+}

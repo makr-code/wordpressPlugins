@@ -2027,3 +2027,51 @@ tr:hover td { background: var(--tv3-gray-50); }
     body { font-size: 12pt; color: #000; }
     a::after { content: ' (' attr(href) ')'; font-size: 0.8em; color: #666; }
 }
+
+/* ============================================================
+   Single Post – Featured Image below title
+   ============================================================ */
+
+/* Ensure the featured image is shown below the title with proper spacing */
+.tv3-single-header .wp-block-post-featured-image {
+    margin-top: var(--tv3-space-6, 1.5rem);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.tv3-single-header .wp-block-post-featured-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Readable gradient overlay at the bottom of the featured image (dark images) */
+.tv3-single-header .wp-block-post-featured-image::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.45) 0%, transparent 100%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Dynamic contrast: dark-toned image → show gradient for readability */
+.has-dark-featured-image .tv3-single-header .wp-block-post-featured-image::after {
+    opacity: 1;
+}
+
+/* Dynamic contrast: light-toned image → subtle shadow frame */
+.has-light-featured-image .tv3-single-header .wp-block-post-featured-image {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10);
+}
+
+@media (prefers-color-scheme: dark) {
+    .tv3-single-header .wp-block-post-featured-image {
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+    }
+}
