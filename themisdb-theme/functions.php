@@ -84,37 +84,37 @@ function themisdb_setup() {
     // Add support for wide alignment
     add_theme_support( 'align-wide' );
 
-    // Add support for editor color palette
+    // Add support for editor color palette (v3 color scheme)
     add_theme_support( 'editor-color-palette', array(
         array(
-            'name'  => esc_html__( 'Primary', 'themisdb' ),
+            'name'  => esc_html__( 'Navy (Primary)', 'themisdb' ),
             'slug'  => 'primary',
-            'color' => '#2c3e50',
+            'color' => '#1a2e52',
         ),
         array(
-            'name'  => esc_html__( 'Secondary', 'themisdb' ),
+            'name'  => esc_html__( 'Azure Blue', 'themisdb' ),
             'slug'  => 'secondary',
-            'color' => '#3498db',
+            'color' => '#1e6fba',
         ),
         array(
-            'name'  => esc_html__( 'Accent Purple', 'themisdb' ),
+            'name'  => esc_html__( 'Teal-Cyan', 'themisdb' ),
             'slug'  => 'accent-purple',
-            'color' => '#7c4dff',
+            'color' => '#1ab5c8',
         ),
         array(
-            'name'  => esc_html__( 'Success', 'themisdb' ),
+            'name'  => esc_html__( 'Forest Green', 'themisdb' ),
             'slug'  => 'success',
-            'color' => '#27ae60',
+            'color' => '#1a6e46',
         ),
         array(
-            'name'  => esc_html__( 'Warning', 'themisdb' ),
+            'name'  => esc_html__( 'Amber', 'themisdb' ),
             'slug'  => 'warning',
-            'color' => '#f39c12',
+            'color' => '#d68910',
         ),
         array(
             'name'  => esc_html__( 'Danger', 'themisdb' ),
             'slug'  => 'danger',
-            'color' => '#e74c3c',
+            'color' => '#c0392b',
         ),
     ) );
 }
@@ -354,36 +354,36 @@ function themisdb_customize_register( $wp_customize ) {
 
     // Primary Color
     $wp_customize->add_setting( 'themisdb_primary_color', array(
-        'default'           => '#2c3e50',
+        'default'           => '#1a2e52',
         'sanitize_callback' => 'sanitize_hex_color',
     ) );
 
     $wp_customize->add_control( new WP_Customize_Color_Control( $wp_customize, 'themisdb_primary_color', array(
-        'label'    => esc_html__( 'Primary Color', 'themisdb' ),
+        'label'    => esc_html__( 'Primary Color (Navy)', 'themisdb' ),
         'section'  => 'themisdb_colors',
         'settings' => 'themisdb_primary_color',
     ) ) );
 
     // Secondary Color
     $wp_customize->add_setting( 'themisdb_secondary_color', array(
-        'default'           => '#3498db',
+        'default'           => '#1e6fba',
         'sanitize_callback' => 'sanitize_hex_color',
     ) );
 
     $wp_customize->add_control( new WP_Customize_Color_Control( $wp_customize, 'themisdb_secondary_color', array(
-        'label'    => esc_html__( 'Secondary Color', 'themisdb' ),
+        'label'    => esc_html__( 'Secondary Color (Azure)', 'themisdb' ),
         'section'  => 'themisdb_colors',
         'settings' => 'themisdb_secondary_color',
     ) ) );
 
     // Accent Color
     $wp_customize->add_setting( 'themisdb_accent_color', array(
-        'default'           => '#7c4dff',
+        'default'           => '#1ab5c8',
         'sanitize_callback' => 'sanitize_hex_color',
     ) );
 
     $wp_customize->add_control( new WP_Customize_Color_Control( $wp_customize, 'themisdb_accent_color', array(
-        'label'    => esc_html__( 'Accent Color', 'themisdb' ),
+        'label'    => esc_html__( 'Accent Color (Teal-Cyan)', 'themisdb' ),
         'section'  => 'themisdb_colors',
         'settings' => 'themisdb_accent_color',
     ) ) );
@@ -394,9 +394,9 @@ add_action( 'customize_register', 'themisdb_customize_register' );
  * Output custom colors CSS
  */
 function themisdb_custom_colors_css() {
-    $primary_color   = get_theme_mod( 'themisdb_primary_color', '#2c3e50' );
-    $secondary_color = get_theme_mod( 'themisdb_secondary_color', '#3498db' );
-    $accent_color    = get_theme_mod( 'themisdb_accent_color', '#7c4dff' );
+    $primary_color   = get_theme_mod( 'themisdb_primary_color', '#1a2e52' );
+    $secondary_color = get_theme_mod( 'themisdb_secondary_color', '#1e6fba' );
+    $accent_color    = get_theme_mod( 'themisdb_accent_color', '#1ab5c8' );
 
     $css = "
         :root {
