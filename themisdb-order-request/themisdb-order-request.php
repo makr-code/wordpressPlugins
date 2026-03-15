@@ -87,6 +87,7 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-renewal.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-pdf-generator.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-email-handler.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-epserver-api.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-bank-import.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-auth-system.php';
@@ -97,6 +98,13 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-auth-system.php';
 function themisdb_order_request_init() {
     // Initialize database
     ThemisDB_Order_Database::init();
+
+    // Run DB schema upgrade for existing installations when plugin version changes
+    $installed_ver = get_option('themisdb_order_db_version', '0');
+    if (version_compare($installed_ver, THEMISDB_ORDER_VERSION, '<')) {
+        ThemisDB_Order_Database::create_tables();
+        update_option('themisdb_order_db_version', THEMISDB_ORDER_VERSION);
+    }
     
     // Initialize admin panel
     if (is_admin()) {
@@ -210,7 +218,9 @@ add_action('wp_enqueue_scripts', 'themisdb_order_request_enqueue_scripts');
  */
 function themisdb_order_request_admin_enqueue_scripts($hook) {
     // Only load on our plugin pages
-    if (strpos($hook, 'themisdb-order') === false) {
+    if (strpos($hook, 'themisdb-order') === false && strpos($hook, 'themisdb-bank') === false
+        && strpos($hook, 'themisdb-license') === false && strpos($hook, 'themisdb-payments') === false
+        && strpos($hook, 'themisdb-contracts') === false && strpos($hook, 'themisdb-email') === false) {
         return;
     }
     
