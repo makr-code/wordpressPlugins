@@ -814,6 +814,18 @@ blockquote cite {
     padding: 0 var(--themis-space-6);
 }
 
+.themis-product-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--themis-space-6);
+}
+
+.themis-docs-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--themis-space-5);
+}
+
 /* ============================================================
    Badges / Tags
    ============================================================ */
@@ -1175,6 +1187,42 @@ blockquote cite {
    Responsive
    ============================================================ */
 @media (max-width: 900px) {
+    .themis-header-inner,
+    .site-header-inner {
+        height: auto;
+        min-height: 56px;
+        align-items: center;
+    }
+
+    .themis-header .wp-block-navigation,
+    .themis-header--docs .wp-block-navigation {
+        width: 100%;
+        order: 3;
+    }
+
+    .themis-header .wp-block-search,
+    .themis-header--docs .wp-block-search {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .themis-header .wp-block-group,
+    .themis-header--docs .wp-block-group {
+        min-width: 0;
+    }
+
+    .themis-product-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .themis-docs-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .themis-breadcrumbs {
+        flex-wrap: wrap;
+    }
+
     .themis-docs-layout {
         grid-template-columns: 1fr;
     }
@@ -1197,6 +1245,11 @@ blockquote cite {
     .themis-section { padding: var(--themis-space-12) 0; }
     .themis-hero-cta { flex-direction: column; align-items: center; }
     h1 { font-size: var(--themis-font-size-2xl); }
+
+    .themis-product-grid,
+    .themis-docs-grid {
+        grid-template-columns: 1fr !important;
+    }
 }
 
 /* ============================================================

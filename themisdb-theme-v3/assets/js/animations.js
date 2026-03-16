@@ -254,8 +254,8 @@
 				duration: 600,
 				easing:   'swing',
 				complete: function () {
-					// Set focus for accessibility
-					if ( ! target.is( ':focusable' ) ) {
+					// Set focus for accessibility without relying on jQuery UI pseudos.
+					if ( ! target.is( 'a, button, input, select, textarea, summary, [tabindex]' ) ) {
 						target.attr( 'tabindex', '-1' );
 					}
 					target.focus();

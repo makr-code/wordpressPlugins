@@ -16,7 +16,7 @@
 	<p class="has-text-color has-text-align-center" style="color:#7f8c8d;font-size:1.0625rem;margin-bottom:var(--wp--preset--spacing--12)">Designed from the ground up for modern applications that need speed, flexibility, and intelligence.</p>
 	<!-- /wp:paragraph -->
 	<!-- wp:html -->
-	<div class="themis-product-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;">
+	<div class="themis-product-grid" style="display:grid;gap:1.5rem;">
 		<a href="/features/multi-model" class="themis-product-card" style="display:flex;flex-direction:column;gap:0.75rem;padding:1.5rem;border:1px solid #dee2e6;border-radius:10px;text-decoration:none;background:#fff;">
 			<div style="width:48px;height:48px;background:linear-gradient(135deg,#3498db,#2980b9);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;">🗄️</div>
 			<div style="font-size:1.0625rem;font-weight:700;color:#2c3e50;">Multi-Model Storage</div>
