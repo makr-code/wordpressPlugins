@@ -142,6 +142,26 @@ function themisdb_widgets_init() {
         'after_title'   => '</h2>',
     ) );
 
+    register_sidebar( array(
+        'name'          => esc_html__( 'Front Page Hero Widgets', 'themisdb' ),
+        'id'            => 'frontpage-hero',
+        'description'   => esc_html__( 'Widgets below the hero section on the static front page.', 'themisdb' ),
+        'before_widget' => '<section id="%1$s" class="widget %2$s">',
+        'after_widget'  => '</section>',
+        'before_title'  => '<h2 class="widget-title">',
+        'after_title'   => '</h2>',
+    ) );
+
+    register_sidebar( array(
+        'name'          => esc_html__( 'Front Page Content Widgets', 'themisdb' ),
+        'id'            => 'frontpage-content',
+        'description'   => esc_html__( 'Widgets between intro content and latest posts on the static front page.', 'themisdb' ),
+        'before_widget' => '<section id="%1$s" class="widget %2$s">',
+        'after_widget'  => '</section>',
+        'before_title'  => '<h2 class="widget-title">',
+        'after_title'   => '</h2>',
+    ) );
+
     // Footer widgets
     for ( $i = 1; $i <= 3; $i++ ) {
         register_sidebar( array(
@@ -214,8 +234,8 @@ add_action( 'wp_enqueue_scripts', 'themisdb_scripts' );
  * Add body classes
  */
 function themisdb_body_classes( $classes ) {
-    // Add class if sidebar is active
-    if ( is_active_sidebar( 'sidebar-1' ) && ! is_page_template( 'template-full-width.php' ) ) {
+    // Add class if sidebar is active (not on front page – it uses full-width layout)
+    if ( is_active_sidebar( 'sidebar-1' ) && ! is_page_template( 'template-full-width.php' ) && ! is_front_page() ) {
         $classes[] = 'has-sidebar';
     }
 
@@ -227,6 +247,54 @@ function themisdb_body_classes( $classes ) {
     return $classes;
 }
 add_filter( 'body_class', 'themisdb_body_classes' );
+
+/**
+ * Remove search widgets from primary sidebar globally.
+ *
+ * The header already has a search control, so search widgets are removed
+ * from `sidebar-1` before rendering.
+ *
+ * @param array<string,array<int,string>> $sidebars_widgets Sidebar-to-widget map.
+ * @return array<string,array<int,string>>
+ */
+function themisdb_remove_search_widgets_from_primary_sidebar( $sidebars_widgets ) {
+    if ( is_admin() && ! wp_doing_ajax() ) {
+        return $sidebars_widgets;
+    }
+
+    if ( empty( $sidebars_widgets['sidebar-1'] ) || ! is_array( $sidebars_widgets['sidebar-1'] ) ) {
+        return $sidebars_widgets;
+    }
+
+    $filtered_widgets = array();
+    $block_instances  = get_option( 'widget_block', array() );
+
+    foreach ( $sidebars_widgets['sidebar-1'] as $widget_id ) {
+        $is_search_widget = false;
+
+        if ( 0 === strpos( $widget_id, 'search-' ) || 'search' === $widget_id ) {
+            $is_search_widget = true;
+        }
+
+        if ( ! $is_search_widget && 0 === strpos( $widget_id, 'block-' ) ) {
+            $widget_number = (int) str_replace( 'block-', '', $widget_id );
+            if ( isset( $block_instances[ $widget_number ]['content'] ) ) {
+                $block_content = (string) $block_instances[ $widget_number ]['content'];
+                if ( false !== strpos( $block_content, 'wp:search' ) ) {
+                    $is_search_widget = true;
+                }
+            }
+        }
+
+        if ( ! $is_search_widget ) {
+            $filtered_widgets[] = $widget_id;
+        }
+    }
+
+    $sidebars_widgets['sidebar-1'] = $filtered_widgets;
+    return $sidebars_widgets;
+}
+add_filter( 'sidebars_widgets', 'themisdb_remove_search_widgets_from_primary_sidebar', 20 );
 
 /**
  * Custom excerpt length
@@ -343,6 +411,97 @@ function themisdb_read_more_link() {
 add_filter( 'the_content_more_link', 'themisdb_read_more_link' );
 
 /**
+ * Sanitize checkbox values from the Customizer.
+ *
+ * @param mixed $value Raw checkbox value.
+ * @return bool
+ */
+function themisdb_sanitize_checkbox( $value ) {
+    return (bool) $value;
+}
+
+/**
+ * Sanitize front page latest articles count.
+ *
+ * @param mixed $value Raw Customizer value.
+ * @return int
+ */
+function themisdb_sanitize_latest_articles_count( $value ) {
+    $value = absint( $value );
+
+    if ( $value < 3 ) {
+        return 3;
+    }
+
+    if ( $value > 8 ) {
+        return 8;
+    }
+
+    return $value;
+}
+
+/**
+ * Sanitize lead excerpt word count.
+ *
+ * @param mixed $value Raw Customizer value.
+ * @return int
+ */
+function themisdb_sanitize_lead_excerpt_words( $value ) {
+    $value = absint( $value );
+
+    if ( $value < 20 ) {
+        return 20;
+    }
+
+    if ( $value > 60 ) {
+        return 60;
+    }
+
+    return $value;
+}
+
+/**
+ * Sanitize compact excerpt word count.
+ *
+ * @param mixed $value Raw Customizer value.
+ * @return int
+ */
+function themisdb_sanitize_compact_excerpt_words( $value ) {
+    $value = absint( $value );
+
+    if ( $value < 8 ) {
+        return 8;
+    }
+
+    if ( $value > 30 ) {
+        return 30;
+    }
+
+    return $value;
+}
+
+/**
+ * Customizer control for resetting front page options.
+ */
+if ( class_exists( 'WP_Customize_Control' ) && ! class_exists( 'ThemisDB_Reset_Customize_Control' ) ) {
+    class ThemisDB_Reset_Customize_Control extends WP_Customize_Control {
+        public $type = 'themisdb_reset_control';
+
+        public function render_content() {
+            ?>
+            <div class="themisdb-reset-control-wrap">
+                <span class="customize-control-title"><?php esc_html_e( 'Reset Front Page Options', 'themisdb' ); ?></span>
+                <p><?php esc_html_e( 'Set all Front Page customization fields in this section back to their default values.', 'themisdb' ); ?></p>
+                <button type="button" class="button button-secondary themisdb-reset-homepage-settings">
+                    <?php esc_html_e( 'Reset To Defaults', 'themisdb' ); ?>
+                </button>
+            </div>
+            <?php
+        }
+    }
+}
+
+/**
  * Customizer additions
  */
 function themisdb_customize_register( $wp_customize ) {
@@ -387,8 +546,352 @@ function themisdb_customize_register( $wp_customize ) {
         'section'  => 'themisdb_colors',
         'settings' => 'themisdb_accent_color',
     ) ) );
+
+    // Front page section options
+    $wp_customize->add_section( 'themisdb_front_page', array(
+        'title'       => esc_html__( 'Front Page', 'themisdb' ),
+        'priority'    => 31,
+        'description' => esc_html__( 'Control the homepage latest articles block.', 'themisdb' ),
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_show_latest_articles', array(
+        'default'           => true,
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'themisdb_sanitize_checkbox',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_show_latest_articles', array(
+        'label'   => esc_html__( 'Show latest articles section', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'checkbox',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_latest_articles_count', array(
+        'default'           => 4,
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'themisdb_sanitize_latest_articles_count',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_latest_articles_count', array(
+        'label'       => esc_html__( 'Latest articles count', 'themisdb' ),
+        'section'     => 'themisdb_front_page',
+        'type'        => 'number',
+        'input_attrs' => array(
+            'min'  => 3,
+            'max'  => 8,
+            'step' => 1,
+        ),
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_hero_kicker', array(
+        'default'           => esc_html__( 'ThemisDB Startseite', 'themisdb' ),
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'sanitize_text_field',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_hero_kicker', array(
+        'label'   => esc_html__( 'Hero kicker text', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'text',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_hero_subtitle', array(
+        'default'           => '',
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'sanitize_text_field',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_hero_subtitle', array(
+        'label'       => esc_html__( 'Hero subtitle override', 'themisdb' ),
+        'description' => esc_html__( 'If empty, the page excerpt/content intro is used.', 'themisdb' ),
+        'section'     => 'themisdb_front_page',
+        'type'        => 'text',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_latest_cta_label', array(
+        'default'           => esc_html__( 'Neueste Artikel', 'themisdb' ),
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'sanitize_text_field',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_latest_cta_label', array(
+        'label'   => esc_html__( 'Latest articles CTA label', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'text',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_blog_cta_label', array(
+        'default'           => esc_html__( 'Zum Blog', 'themisdb' ),
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'sanitize_text_field',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_blog_cta_label', array(
+        'label'   => esc_html__( 'Blog CTA label', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'text',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_blog_cta_url', array(
+        'default'           => '',
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'esc_url_raw',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_blog_cta_url', array(
+        'label'       => esc_html__( 'Blog CTA URL override', 'themisdb' ),
+        'description' => esc_html__( 'If empty, the configured Posts page URL is used.', 'themisdb' ),
+        'section'     => 'themisdb_front_page',
+        'type'        => 'url',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_show_stats', array(
+        'default'           => true,
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'themisdb_sanitize_checkbox',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_show_stats', array(
+        'label'   => esc_html__( 'Show stats section', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'checkbox',
+    ) );
+
+    $stats_controls = array(
+        'posts'      => array( 'icon' => '📝', 'label' => esc_html__( 'Artikel', 'themisdb' ) ),
+        'pages'      => array( 'icon' => '📄', 'label' => esc_html__( 'Seiten', 'themisdb' ) ),
+        'categories' => array( 'icon' => '🗂️', 'label' => esc_html__( 'Kategorien', 'themisdb' ) ),
+        'tags'       => array( 'icon' => '🏷️', 'label' => esc_html__( 'Tags', 'themisdb' ) ),
+    );
+
+    foreach ( $stats_controls as $key => $defaults ) {
+        $icon_setting = 'themisdb_home_stat_' . $key . '_icon';
+        $label_setting = 'themisdb_home_stat_' . $key . '_label';
+
+        $wp_customize->add_setting( $icon_setting, array(
+            'default'           => $defaults['icon'],
+            'transport'         => 'postMessage',
+            'sanitize_callback' => 'sanitize_text_field',
+        ) );
+
+        $wp_customize->add_control( $icon_setting, array(
+            'label'   => sprintf( esc_html__( 'Stat icon: %s', 'themisdb' ), ucfirst( $key ) ),
+            'section' => 'themisdb_front_page',
+            'type'    => 'text',
+        ) );
+
+        $wp_customize->add_setting( $label_setting, array(
+            'default'           => $defaults['label'],
+            'transport'         => 'postMessage',
+            'sanitize_callback' => 'sanitize_text_field',
+        ) );
+
+        $wp_customize->add_control( $label_setting, array(
+            'label'   => sprintf( esc_html__( 'Stat label: %s', 'themisdb' ), ucfirst( $key ) ),
+            'section' => 'themisdb_front_page',
+            'type'    => 'text',
+        ) );
+    }
+
+    $wp_customize->add_setting( 'themisdb_home_show_intro_section', array(
+        'default'           => true,
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'themisdb_sanitize_checkbox',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_show_intro_section', array(
+        'label'   => esc_html__( 'Show intro section', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'checkbox',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_intro_eyebrow', array(
+        'default'           => esc_html__( 'Einleitung', 'themisdb' ),
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'sanitize_text_field',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_intro_eyebrow', array(
+        'label'   => esc_html__( 'Intro section badge', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'text',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_intro_title', array(
+        'default'           => esc_html__( 'Was diese Seite bietet', 'themisdb' ),
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'sanitize_text_field',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_intro_title', array(
+        'label'   => esc_html__( 'Intro section title', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'text',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_latest_eyebrow', array(
+        'default'           => esc_html__( 'Aktuell', 'themisdb' ),
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'sanitize_text_field',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_latest_eyebrow', array(
+        'label'   => esc_html__( 'Latest section badge', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'text',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_latest_title', array(
+        'default'           => esc_html__( 'Neueste Artikel', 'themisdb' ),
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'sanitize_text_field',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_latest_title', array(
+        'label'   => esc_html__( 'Latest section title', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'text',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_latest_link_label', array(
+        'default'           => esc_html__( 'Alle Artikel ansehen', 'themisdb' ),
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'sanitize_text_field',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_latest_link_label', array(
+        'label'   => esc_html__( 'Latest section link label', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'text',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_latest_lead_cta_label', array(
+        'default'           => esc_html__( 'Artikel lesen', 'themisdb' ),
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'sanitize_text_field',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_latest_lead_cta_label', array(
+        'label'   => esc_html__( 'Lead article CTA label', 'themisdb' ),
+        'section' => 'themisdb_front_page',
+        'type'    => 'text',
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_latest_lead_excerpt_words', array(
+        'default'           => 34,
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'themisdb_sanitize_lead_excerpt_words',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_latest_lead_excerpt_words', array(
+        'label'       => esc_html__( 'Lead article excerpt words', 'themisdb' ),
+        'description' => esc_html__( 'Range: 20-60', 'themisdb' ),
+        'section'     => 'themisdb_front_page',
+        'type'        => 'number',
+        'input_attrs' => array(
+            'min'  => 20,
+            'max'  => 60,
+            'step' => 1,
+        ),
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_latest_compact_excerpt_words', array(
+        'default'           => 14,
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'themisdb_sanitize_compact_excerpt_words',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_latest_compact_excerpt_words', array(
+        'label'       => esc_html__( 'Compact article excerpt words', 'themisdb' ),
+        'description' => esc_html__( 'Range: 8-30', 'themisdb' ),
+        'section'     => 'themisdb_front_page',
+        'type'        => 'number',
+        'input_attrs' => array(
+            'min'  => 8,
+            'max'  => 30,
+            'step' => 1,
+        ),
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_home_reset_defaults', array(
+        'default'           => '',
+        'sanitize_callback' => 'sanitize_text_field',
+    ) );
+
+    $wp_customize->add_control( new ThemisDB_Reset_Customize_Control( $wp_customize, 'themisdb_home_reset_defaults', array(
+        'section'  => 'themisdb_front_page',
+        'settings' => 'themisdb_home_reset_defaults',
+        'priority' => 999,
+    ) ) );
 }
 add_action( 'customize_register', 'themisdb_customize_register' );
+
+/**
+ * Enqueue Customizer preview logic for front-page blocks.
+ *
+ * @return void
+ */
+function themisdb_customize_preview_js() {
+    wp_enqueue_script(
+        'themisdb-customizer-preview',
+        get_template_directory_uri() . '/js/customizer-preview.js',
+        array( 'customize-preview' ),
+        '1.0.0',
+        true
+    );
+}
+add_action( 'customize_preview_init', 'themisdb_customize_preview_js' );
+
+/**
+ * Enqueue Customizer controls script for reset button behavior.
+ *
+ * @return void
+ */
+function themisdb_customize_controls_js() {
+    wp_enqueue_script(
+        'themisdb-customizer-controls',
+        get_template_directory_uri() . '/js/customizer-controls.js',
+        array( 'customize-controls' ),
+        '1.0.0',
+        true
+    );
+
+    wp_localize_script(
+        'themisdb-customizer-controls',
+        'themisdbCustomizerDefaults',
+        array(
+            'confirmMessage' => esc_html__( 'Alle Front-Page-Einstellungen auf Standardwerte zuruecksetzen?', 'themisdb' ),
+            'settings'       => array(
+                'themisdb_home_show_latest_articles'         => true,
+                'themisdb_home_latest_articles_count'        => 4,
+                'themisdb_home_hero_kicker'                  => esc_html__( 'ThemisDB Startseite', 'themisdb' ),
+                'themisdb_home_hero_subtitle'                => '',
+                'themisdb_home_latest_cta_label'             => esc_html__( 'Neueste Artikel', 'themisdb' ),
+                'themisdb_home_blog_cta_label'               => esc_html__( 'Zum Blog', 'themisdb' ),
+                'themisdb_home_blog_cta_url'                 => '',
+                'themisdb_home_show_stats'                   => true,
+                'themisdb_home_stat_posts_icon'              => '📝',
+                'themisdb_home_stat_posts_label'             => esc_html__( 'Artikel', 'themisdb' ),
+                'themisdb_home_stat_pages_icon'              => '📄',
+                'themisdb_home_stat_pages_label'             => esc_html__( 'Seiten', 'themisdb' ),
+                'themisdb_home_stat_categories_icon'         => '🗂️',
+                'themisdb_home_stat_categories_label'        => esc_html__( 'Kategorien', 'themisdb' ),
+                'themisdb_home_stat_tags_icon'               => '🏷️',
+                'themisdb_home_stat_tags_label'              => esc_html__( 'Tags', 'themisdb' ),
+                'themisdb_home_show_intro_section'           => true,
+                'themisdb_home_intro_eyebrow'                => esc_html__( 'Einleitung', 'themisdb' ),
+                'themisdb_home_intro_title'                  => esc_html__( 'Was diese Seite bietet', 'themisdb' ),
+                'themisdb_home_latest_eyebrow'               => esc_html__( 'Aktuell', 'themisdb' ),
+                'themisdb_home_latest_title'                 => esc_html__( 'Neueste Artikel', 'themisdb' ),
+                'themisdb_home_latest_link_label'            => esc_html__( 'Alle Artikel ansehen', 'themisdb' ),
+                'themisdb_home_latest_lead_cta_label'        => esc_html__( 'Artikel lesen', 'themisdb' ),
+                'themisdb_home_latest_lead_excerpt_words'    => 34,
+                'themisdb_home_latest_compact_excerpt_words' => 14,
+            ),
+        )
+    );
+}
+add_action( 'customize_controls_enqueue_scripts', 'themisdb_customize_controls_js' );
 
 /**
  * Output custom colors CSS

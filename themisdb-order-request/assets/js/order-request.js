@@ -105,6 +105,25 @@ jQuery(document).ready(function($) {
                 data.customer_name = $('#customer_name').val();
                 data.customer_email = $('#customer_email').val();
                 data.customer_company = $('#customer_company').val();
+                data.customer_type = $('input[name="customer_type"]:checked').val() || 'consumer';
+                data.vat_id = $('#vat_id').val();
+                data.billing_name = $('#billing_name').val();
+                data.billing_address_line1 = $('#billing_address_line1').val();
+                data.billing_address_line2 = $('#billing_address_line2').val();
+                data.billing_postal_code = $('#billing_postal_code').val();
+                data.billing_city = $('#billing_city').val();
+                data.billing_country = ($('#billing_country').val() || '').toUpperCase();
+                data.shipping_name = $('#shipping_name').val();
+                data.shipping_address_line1 = $('#shipping_address_line1').val();
+                data.shipping_address_line2 = $('#shipping_address_line2').val();
+                data.shipping_postal_code = $('#shipping_postal_code').val();
+                data.shipping_city = $('#shipping_city').val();
+                data.shipping_country = ($('#shipping_country').val() || '').toUpperCase();
+                data.shipping_method = $('#shipping_method').val();
+                data.legal_terms_accepted = $('input[name="legal_terms_accepted"]').is(':checked') ? '1' : '';
+                data.legal_privacy_accepted = $('input[name="legal_privacy_accepted"]').is(':checked') ? '1' : '';
+                data.legal_withdrawal_acknowledged = $('input[name="legal_withdrawal_acknowledged"]').is(':checked') ? '1' : '';
+                data.legal_withdrawal_waiver = $('input[name="legal_withdrawal_waiver"]').is(':checked') ? '1' : '';
                 break;
         }
         
@@ -124,7 +143,7 @@ jQuery(document).ready(function($) {
                 break;
                 
             case 4:
-                if (!data.customer_name || !data.customer_email) {
+                if (!data.customer_name || !data.customer_email || !data.billing_name || !data.billing_address_line1 || !data.billing_postal_code || !data.billing_city || !data.billing_country) {
                     showErrorMessage('Bitte füllen Sie alle Pflichtfelder aus.');
                     return false;
                 }
@@ -134,8 +153,18 @@ jQuery(document).ready(function($) {
                     return false;
                 }
                 
-                if (!$('input[name="accept_terms"]').is(':checked')) {
+                if (!$('input[name="legal_terms_accepted"]').is(':checked')) {
                     showErrorMessage('Bitte akzeptieren Sie die AGB.');
+                    return false;
+                }
+
+                if (!$('input[name="legal_privacy_accepted"]').is(':checked')) {
+                    showErrorMessage('Bitte akzeptieren Sie die Datenschutzerklärung.');
+                    return false;
+                }
+
+                if ((data.customer_type || 'consumer') === 'consumer' && !$('input[name="legal_withdrawal_acknowledged"]').is(':checked')) {
+                    showErrorMessage('Bitte bestätigen Sie die Widerrufsbelehrung.');
                     return false;
                 }
                 break;

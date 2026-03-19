@@ -1,0 +1,167 @@
+<!-- ================================================
+   SEITE: Dokumentation (Landing-Page)
+   URL:   /dokumentation
+   Einfügen als: "Custom HTML"-Block in WordPress
+   ================================================ -->
+
+<!-- Hero mit Suche -->
+<div style="background:linear-gradient(160deg,#0b1e3d 0%,#1e6fba 60%,#1ab5c8 100%);padding:4rem 2rem;text-align:center;border-radius:18px;margin-bottom:3rem;color:#fff;">
+  <p class="section-eyebrow" style="color:#1ab5c8;">Dokumentation</p>
+  <h1 style="color:#fff;font-size:2.6rem;margin:.5rem 0 1rem;">Was möchten Sie wissen?</h1>
+  <p style="color:rgba(255,255,255,.85);font-size:1.1rem;max-width:560px;margin:0 auto 2rem;">
+    Vollständiges Handbuch, API-Referenz, Tutorials und Beispiele — alles an einem Ort.
+  </p>
+  <!-- Suchfeld (WordPress Search-Widget oder Plugin verwenden) -->
+  <form role="search" method="get" action="/suche" style="max-width:540px;margin:0 auto;display:flex;gap:.5rem;">
+    <input type="search" name="s" placeholder="z. B. „Vektor-Index erstellen" …" value=""
+      style="flex:1;padding:1rem 1.25rem;border-radius:999px;border:none;font-size:1rem;outline:none;">
+    <button type="submit" style="padding:1rem 1.6rem;background:var(--secondary-color,#1e6fba);color:#fff;border:none;border-radius:999px;font-size:1rem;font-weight:700;cursor:pointer;">Suchen</button>
+  </form>
+</div>
+
+<!-- Schnellzugriff-Karten -->
+<div class="section-header">
+  <p class="section-eyebrow">Einstieg</p>
+  <h2 class="section-title">Schnellzugriff</h2>
+</div>
+
+<div class="features-grid" style="margin-bottom:4rem;">
+  <a href="/dokumentation/installation" class="feature-card" style="text-decoration:none;display:flex;flex-direction:column;">
+    <div class="feature-icon">🚀</div>
+    <h3>Installation</h3>
+    <p>ThemisDB unter Linux, Windows, macOS und Docker in wenigen Minuten zum Laufen bringen.</p>
+    <span style="color:var(--secondary-color);font-weight:700;margin-top:auto;padding-top:1rem;">Starten →</span>
+  </a>
+  <a href="/dokumentation/quick-start" class="feature-card" style="text-decoration:none;display:flex;flex-direction:column;">
+    <div class="feature-icon">⚡</div>
+    <h3>Quick-Start-Guide</h3>
+    <p>In 5 Minuten zur ersten Datenbank, ersten Tabelle und ersten Abfrage mit ThemisDB.</p>
+    <span style="color:var(--secondary-color);font-weight:700;margin-top:auto;padding-top:1rem;">Guide lesen →</span>
+  </a>
+  <a href="/dokumentation/api-referenz" class="feature-card" style="text-decoration:none;display:flex;flex-direction:column;">
+    <div class="feature-icon">📋</div>
+    <h3>API-Referenz</h3>
+    <p>Vollständige Referenz aller SQL-Erweiterungen, REST-Endpunkte und SDK-Methoden.</p>
+    <span style="color:var(--secondary-color);font-weight:700;margin-top:auto;padding-top:1rem;">Referenz →</span>
+  </a>
+  <a href="/dokumentation/tutorials" class="feature-card" style="text-decoration:none;display:flex;flex-direction:column;">
+    <div class="feature-icon">🎓</div>
+    <h3>Tutorials</h3>
+    <p>Schritt-für-Schritt-Anleitungen für häufige Aufgaben, Integrationen und Best Practices.</p>
+    <span style="color:var(--secondary-color);font-weight:700;margin-top:auto;padding-top:1rem;">Tutorials →</span>
+  </a>
+  <a href="/dokumentation/konfiguration" class="feature-card" style="text-decoration:none;display:flex;flex-direction:column;">
+    <div class="feature-icon">⚙️</div>
+    <h3>Konfiguration</h3>
+    <p>Alle Konfigurationsparameter, Umgebungsvariablen und themisdb.conf-Optionen erklärt.</p>
+    <span style="color:var(--secondary-color);font-weight:700;margin-top:auto;padding-top:1rem;">Konfiguration →</span>
+  </a>
+  <a href="/dokumentation/migration" class="feature-card" style="text-decoration:none;display:flex;flex-direction:column;">
+    <div class="feature-icon">🔄</div>
+    <h3>Migration</h3>
+    <p>Von PostgreSQL, MySQL oder anderen Systemen zu ThemisDB migrieren — mit Tooling-Support.</p>
+    <span style="color:var(--secondary-color);font-weight:700;margin-top:auto;padding-top:1rem;">Migration →</span>
+  </a>
+</div>
+
+<!-- Themenübersicht mit Links -->
+<div class="section-header">
+  <p class="section-eyebrow">Dokumentation nach Thema</p>
+  <h2 class="section-title">Alle Bereiche</h2>
+</div>
+
+<div class="community-grid" style="margin-bottom:4rem;">
+
+  <div class="community-card" style="text-align:left;">
+    <h3>🗄️ Datenbankgrundlagen</h3>
+    <ul style="color:var(--text-secondary);list-style:none;padding:0;margin:0 0 1rem;line-height:2;">
+      <li><a href="/dokumentation/tabellen" style="color:var(--secondary-color);">Tabellen & Schemas</a></li>
+      <li><a href="/dokumentation/indizes" style="color:var(--secondary-color);">Indizes & Performance</a></li>
+      <li><a href="/dokumentation/transaktionen" style="color:var(--secondary-color);">Transaktionen & MVCC</a></li>
+      <li><a href="/dokumentation/backup" style="color:var(--secondary-color);">Backup & Recovery</a></li>
+    </ul>
+  </div>
+
+  <div class="community-card" style="text-align:left;">
+    <h3>🤖 KI & Vektoren</h3>
+    <ul style="color:var(--text-secondary);list-style:none;padding:0;margin:0 0 1rem;line-height:2;">
+      <li><a href="/dokumentation/vektor-suche" style="color:var(--secondary-color);">Vektor-Suche (ANN)</a></li>
+      <li><a href="/dokumentation/embeddings" style="color:var(--secondary-color);">Embeddings erzeugen</a></li>
+      <li><a href="/dokumentation/llm-integration" style="color:var(--secondary-color);">LLM-Integration</a></li>
+      <li><a href="/dokumentation/ai-funktionen" style="color:var(--secondary-color);">Eingebaute AI-Funktionen</a></li>
+    </ul>
+  </div>
+
+  <div class="community-card" style="text-align:left;">
+    <h3>🔒 Sicherheit & Zugriff</h3>
+    <ul style="color:var(--text-secondary);list-style:none;padding:0;margin:0 0 1rem;line-height:2;">
+      <li><a href="/dokumentation/benutzer-rollen" style="color:var(--secondary-color);">Benutzer & Rollen (RBAC)</a></li>
+      <li><a href="/dokumentation/row-level-security" style="color:var(--secondary-color);">Row-Level-Security</a></li>
+      <li><a href="/dokumentation/audit-log" style="color:var(--secondary-color);">Audit-Protokoll</a></li>
+      <li><a href="/dokumentation/tls" style="color:var(--secondary-color);">TLS-Verschlüsselung</a></li>
+    </ul>
+  </div>
+
+  <div class="community-card" style="text-align:left;">
+    <h3>🌐 Verteilung & Skalierung</h3>
+    <ul style="color:var(--text-secondary);list-style:none;padding:0;margin:0 0 1rem;line-height:2;">
+      <li><a href="/dokumentation/replikation" style="color:var(--secondary-color);">Replikation</a></li>
+      <li><a href="/dokumentation/sharding" style="color:var(--secondary-color);">Sharding & Partitionierung</a></li>
+      <li><a href="/dokumentation/high-availability" style="color:var(--secondary-color);">High Availability</a></li>
+      <li><a href="/dokumentation/kubernetes" style="color:var(--secondary-color);">Kubernetes Operator</a></li>
+    </ul>
+  </div>
+
+  <div class="community-card" style="text-align:left;">
+    <h3>🔌 Integrationen & SDKs</h3>
+    <ul style="color:var(--text-secondary);list-style:none;padding:0;margin:0 0 1rem;line-height:2;">
+      <li><a href="/dokumentation/python-sdk" style="color:var(--secondary-color);">Python SDK</a></li>
+      <li><a href="/dokumentation/node-sdk" style="color:var(--secondary-color);">Node.js SDK</a></li>
+      <li><a href="/dokumentation/rest-api" style="color:var(--secondary-color);">REST API</a></li>
+      <li><a href="/dokumentation/graphql" style="color:var(--secondary-color);">GraphQL</a></li>
+    </ul>
+  </div>
+
+  <div class="community-card" style="text-align:left;">
+    <h3>📦 Plugins & Erweiterungen</h3>
+    <ul style="color:var(--text-secondary);list-style:none;padding:0;margin:0 0 1rem;line-height:2;">
+      <li><a href="/dokumentation/plugin-api" style="color:var(--secondary-color);">Plugin-API</a></li>
+      <li><a href="/dokumentation/extensions" style="color:var(--secondary-color);">Integrierte Extensions</a></li>
+      <li><a href="/plugins" style="color:var(--secondary-color);">Plugin-Verzeichnis</a></li>
+      <li><a href="/dokumentation/plugin-entwicklung" style="color:var(--secondary-color);">Eigene Plugins schreiben</a></li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- Zuletzt aktualisiert -->
+<div style="background:linear-gradient(135deg,rgba(30,111,186,.05) 0%,rgba(26,181,200,.05) 100%);border:1px solid var(--border-light);border-radius:14px;padding:2rem;margin-bottom:3rem;">
+  <p class="section-eyebrow" style="text-align:left;margin-bottom:1rem;">Zuletzt aktualisiert</p>
+  <div class="releases-list">
+    <div class="release-item">
+      <span class="release-date">2026-03-10</span>
+      <h3><a href="/dokumentation/vektor-suche">Vektor-Suche: HNSW-Index-Tuning</a></h3>
+      <p>Neue Parameter und Benchmarks für Approximate Nearest Neighbour Suche mit HNSW.</p>
+    </div>
+    <div class="release-item">
+      <span class="release-date">2026-02-28</span>
+      <h3><a href="/dokumentation/kubernetes">Kubernetes Operator v1.4 — Upgrade-Guide</a></h3>
+      <p>Rolling-Upgrade-Strategien und automatische Zertifikatsverwaltung mit cert-manager.</p>
+    </div>
+    <div class="release-item">
+      <span class="release-date">2026-02-14</span>
+      <h3><a href="/dokumentation/llm-integration">LLM-Integration: Ollama lokal betreiben</a></h3>
+      <p>Schritt-für-Schritt-Anleitung zur lokalen KI-Integration ohne Cloud-Abhängigkeit.</p>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="homepage-cta homepage-cta-dark" style="border-radius:18px;">
+  <h2>Etwas nicht gefunden?</h2>
+  <p>Unser Support-Team und die Community helfen weiter.</p>
+  <div class="cta-buttons">
+    <a href="/support" class="btn btn-primary">❓ Support kontaktieren</a>
+    <a href="/community" class="btn btn-outline-light">👥 Community-Forum</a>
+  </div>
+</div>

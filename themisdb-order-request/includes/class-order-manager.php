@@ -40,6 +40,13 @@ class ThemisDB_Order_Manager {
         global $wpdb;
         
         $table_orders = $wpdb->prefix . 'themisdb_orders';
+
+        $product_edition = isset($data['product_edition']) ? sanitize_text_field($data['product_edition']) : 'community';
+        $product_type = isset($data['product_type']) ? sanitize_text_field($data['product_type']) : '';
+        if ($product_type === '') {
+            $product = self::get_product_by_edition($product_edition);
+            $product_type = ($product && !empty($product['product_type'])) ? $product['product_type'] : 'database';
+        }
         
         // Generate order number
         $order_number = self::generate_order_number();
@@ -50,10 +57,37 @@ class ThemisDB_Order_Manager {
             'customer_email' => sanitize_email($data['customer_email']),
             'customer_name' => sanitize_text_field($data['customer_name']),
             'customer_company' => isset($data['customer_company']) ? sanitize_text_field($data['customer_company']) : null,
-            'product_type' => sanitize_text_field($data['product_type']),
-            'product_edition' => sanitize_text_field($data['product_edition']),
+            'customer_type' => isset($data['customer_type']) ? sanitize_text_field($data['customer_type']) : 'consumer',
+            'vat_id' => isset($data['vat_id']) ? sanitize_text_field($data['vat_id']) : null,
+            'billing_name' => isset($data['billing_name']) ? sanitize_text_field($data['billing_name']) : null,
+            'billing_address_line1' => isset($data['billing_address_line1']) ? sanitize_text_field($data['billing_address_line1']) : null,
+            'billing_address_line2' => isset($data['billing_address_line2']) ? sanitize_text_field($data['billing_address_line2']) : null,
+            'billing_postal_code' => isset($data['billing_postal_code']) ? sanitize_text_field($data['billing_postal_code']) : null,
+            'billing_city' => isset($data['billing_city']) ? sanitize_text_field($data['billing_city']) : null,
+            'billing_country' => isset($data['billing_country']) ? strtoupper(sanitize_text_field($data['billing_country'])) : 'DE',
+            'product_type' => $product_type,
+            'product_edition' => $product_edition,
             'modules' => isset($data['modules']) ? json_encode($data['modules']) : null,
             'training_modules' => isset($data['training_modules']) ? json_encode($data['training_modules']) : null,
+            'legal_terms_accepted' => !empty($data['legal_terms_accepted']) ? 1 : 0,
+            'legal_privacy_accepted' => !empty($data['legal_privacy_accepted']) ? 1 : 0,
+            'legal_withdrawal_acknowledged' => !empty($data['legal_withdrawal_acknowledged']) ? 1 : 0,
+            'legal_withdrawal_waiver' => !empty($data['legal_withdrawal_waiver']) ? 1 : 0,
+            'legal_acceptance_version' => isset($data['legal_acceptance_version']) ? sanitize_text_field($data['legal_acceptance_version']) : 'de-v1',
+            'legal_accepted_at' => isset($data['legal_accepted_at']) ? sanitize_text_field($data['legal_accepted_at']) : null,
+            'legal_accepted_ip' => isset($data['legal_accepted_ip']) ? sanitize_text_field($data['legal_accepted_ip']) : null,
+            'legal_accepted_user_agent' => isset($data['legal_accepted_user_agent']) ? sanitize_text_field($data['legal_accepted_user_agent']) : null,
+            'shipping_name' => isset($data['shipping_name']) ? sanitize_text_field($data['shipping_name']) : null,
+            'shipping_address_line1' => isset($data['shipping_address_line1']) ? sanitize_text_field($data['shipping_address_line1']) : null,
+            'shipping_address_line2' => isset($data['shipping_address_line2']) ? sanitize_text_field($data['shipping_address_line2']) : null,
+            'shipping_postal_code' => isset($data['shipping_postal_code']) ? sanitize_text_field($data['shipping_postal_code']) : null,
+            'shipping_city' => isset($data['shipping_city']) ? sanitize_text_field($data['shipping_city']) : null,
+            'shipping_country' => isset($data['shipping_country']) ? strtoupper(sanitize_text_field($data['shipping_country'])) : 'DE',
+            'shipping_method' => isset($data['shipping_method']) ? sanitize_text_field($data['shipping_method']) : null,
+            'shipping_cost' => isset($data['shipping_cost']) ? floatval($data['shipping_cost']) : 0.00,
+            'tracking_number' => isset($data['tracking_number']) ? sanitize_text_field($data['tracking_number']) : null,
+            'fulfillment_status' => isset($data['fulfillment_status']) ? sanitize_text_field($data['fulfillment_status']) : 'not_required',
+            'fulfilled_at' => isset($data['fulfilled_at']) ? sanitize_text_field($data['fulfilled_at']) : null,
             'total_amount' => isset($data['total_amount']) ? floatval($data['total_amount']) : 0.00,
             'currency' => isset($data['currency']) ? sanitize_text_field($data['currency']) : 'EUR',
             'status' => 'draft',
@@ -67,6 +101,22 @@ class ThemisDB_Order_Manager {
         }
         
         return false;
+    }
+
+    /**
+     * Get one active product by edition key.
+     */
+    public static function get_product_by_edition($edition) {
+        global $wpdb;
+
+        $table_products = $wpdb->prefix . 'themisdb_products';
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM $table_products WHERE edition = %s AND is_active = 1 LIMIT 1",
+                $edition
+            ),
+            ARRAY_A
+        );
     }
     
     /**
@@ -88,6 +138,30 @@ class ThemisDB_Order_Manager {
         if (isset($data['customer_company'])) {
             $update_data['customer_company'] = sanitize_text_field($data['customer_company']);
         }
+        if (isset($data['customer_type'])) {
+            $update_data['customer_type'] = sanitize_text_field($data['customer_type']);
+        }
+        if (isset($data['vat_id'])) {
+            $update_data['vat_id'] = sanitize_text_field($data['vat_id']);
+        }
+        if (isset($data['billing_name'])) {
+            $update_data['billing_name'] = sanitize_text_field($data['billing_name']);
+        }
+        if (isset($data['billing_address_line1'])) {
+            $update_data['billing_address_line1'] = sanitize_text_field($data['billing_address_line1']);
+        }
+        if (isset($data['billing_address_line2'])) {
+            $update_data['billing_address_line2'] = sanitize_text_field($data['billing_address_line2']);
+        }
+        if (isset($data['billing_postal_code'])) {
+            $update_data['billing_postal_code'] = sanitize_text_field($data['billing_postal_code']);
+        }
+        if (isset($data['billing_city'])) {
+            $update_data['billing_city'] = sanitize_text_field($data['billing_city']);
+        }
+        if (isset($data['billing_country'])) {
+            $update_data['billing_country'] = strtoupper(sanitize_text_field($data['billing_country']));
+        }
         if (isset($data['product_type'])) {
             $update_data['product_type'] = sanitize_text_field($data['product_type']);
         }
@@ -99,6 +173,63 @@ class ThemisDB_Order_Manager {
         }
         if (isset($data['training_modules'])) {
             $update_data['training_modules'] = json_encode($data['training_modules']);
+        }
+        if (isset($data['legal_terms_accepted'])) {
+            $update_data['legal_terms_accepted'] = !empty($data['legal_terms_accepted']) ? 1 : 0;
+        }
+        if (isset($data['legal_privacy_accepted'])) {
+            $update_data['legal_privacy_accepted'] = !empty($data['legal_privacy_accepted']) ? 1 : 0;
+        }
+        if (isset($data['legal_withdrawal_acknowledged'])) {
+            $update_data['legal_withdrawal_acknowledged'] = !empty($data['legal_withdrawal_acknowledged']) ? 1 : 0;
+        }
+        if (isset($data['legal_withdrawal_waiver'])) {
+            $update_data['legal_withdrawal_waiver'] = !empty($data['legal_withdrawal_waiver']) ? 1 : 0;
+        }
+        if (isset($data['legal_acceptance_version'])) {
+            $update_data['legal_acceptance_version'] = sanitize_text_field($data['legal_acceptance_version']);
+        }
+        if (isset($data['legal_accepted_at'])) {
+            $update_data['legal_accepted_at'] = sanitize_text_field($data['legal_accepted_at']);
+        }
+        if (isset($data['legal_accepted_ip'])) {
+            $update_data['legal_accepted_ip'] = sanitize_text_field($data['legal_accepted_ip']);
+        }
+        if (isset($data['legal_accepted_user_agent'])) {
+            $update_data['legal_accepted_user_agent'] = sanitize_text_field($data['legal_accepted_user_agent']);
+        }
+        if (isset($data['shipping_name'])) {
+            $update_data['shipping_name'] = sanitize_text_field($data['shipping_name']);
+        }
+        if (isset($data['shipping_address_line1'])) {
+            $update_data['shipping_address_line1'] = sanitize_text_field($data['shipping_address_line1']);
+        }
+        if (isset($data['shipping_address_line2'])) {
+            $update_data['shipping_address_line2'] = sanitize_text_field($data['shipping_address_line2']);
+        }
+        if (isset($data['shipping_postal_code'])) {
+            $update_data['shipping_postal_code'] = sanitize_text_field($data['shipping_postal_code']);
+        }
+        if (isset($data['shipping_city'])) {
+            $update_data['shipping_city'] = sanitize_text_field($data['shipping_city']);
+        }
+        if (isset($data['shipping_country'])) {
+            $update_data['shipping_country'] = strtoupper(sanitize_text_field($data['shipping_country']));
+        }
+        if (isset($data['shipping_method'])) {
+            $update_data['shipping_method'] = sanitize_text_field($data['shipping_method']);
+        }
+        if (isset($data['shipping_cost'])) {
+            $update_data['shipping_cost'] = floatval($data['shipping_cost']);
+        }
+        if (isset($data['tracking_number'])) {
+            $update_data['tracking_number'] = sanitize_text_field($data['tracking_number']);
+        }
+        if (isset($data['fulfillment_status'])) {
+            $update_data['fulfillment_status'] = sanitize_text_field($data['fulfillment_status']);
+        }
+        if (isset($data['fulfilled_at'])) {
+            $update_data['fulfilled_at'] = sanitize_text_field($data['fulfilled_at']);
         }
         if (isset($data['total_amount'])) {
             $update_data['total_amount'] = floatval($data['total_amount']);
@@ -264,6 +395,14 @@ class ThemisDB_Order_Manager {
         global $wpdb;
         
         $table_orders = $wpdb->prefix . 'themisdb_orders';
+        $table_order_items = $wpdb->prefix . 'themisdb_order_items';
+
+        // Delete line items first
+        $wpdb->delete(
+            $table_order_items,
+            array('order_id' => $order_id),
+            array('%d')
+        );
         
         $result = $wpdb->delete(
             $table_orders,
@@ -272,6 +411,327 @@ class ThemisDB_Order_Manager {
         );
         
         return $result !== false;
+    }
+
+    /**
+     * Replace all order items for one order.
+     */
+    public static function set_order_items($order_id, $items, $currency = 'EUR') {
+        global $wpdb;
+
+        $table_order_items = $wpdb->prefix . 'themisdb_order_items';
+
+        $wpdb->delete(
+            $table_order_items,
+            array('order_id' => $order_id),
+            array('%d')
+        );
+
+        if (empty($items) || !is_array($items)) {
+            return true;
+        }
+
+        foreach ($items as $item) {
+            $quantity = isset($item['quantity']) ? max(1, intval($item['quantity'])) : 1;
+            $unit_price = isset($item['unit_price']) ? floatval($item['unit_price']) : 0.00;
+
+            $wpdb->insert(
+                $table_order_items,
+                array(
+                    'order_id' => $order_id,
+                    'item_type' => isset($item['item_type']) ? sanitize_text_field($item['item_type']) : 'product',
+                    'product_id' => isset($item['product_id']) ? intval($item['product_id']) : null,
+                    'sku' => isset($item['sku']) ? sanitize_text_field($item['sku']) : null,
+                    'item_name' => isset($item['item_name']) ? sanitize_text_field($item['item_name']) : '',
+                    'variant_data' => isset($item['variant_data']) ? wp_json_encode($item['variant_data']) : null,
+                    'quantity' => $quantity,
+                    'unit_price' => $unit_price,
+                    'total_price' => $unit_price * $quantity,
+                    'currency' => sanitize_text_field($currency),
+                    'metadata' => isset($item['metadata']) ? wp_json_encode($item['metadata']) : null,
+                )
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Return all line items for an order.
+     */
+    public static function get_order_items($order_id) {
+        global $wpdb;
+
+        $table_order_items = $wpdb->prefix . 'themisdb_order_items';
+        $items = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM $table_order_items WHERE order_id = %d ORDER BY id ASC",
+                $order_id
+            ),
+            ARRAY_A
+        );
+
+        foreach ($items as &$item) {
+            if (!empty($item['variant_data'])) {
+                $item['variant_data'] = json_decode($item['variant_data'], true);
+            }
+            if (!empty($item['metadata'])) {
+                $item['metadata'] = json_decode($item['metadata'], true);
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * Recalculate order total from stored line items.
+     */
+    public static function recalculate_order_total_from_items($order_id) {
+        global $wpdb;
+
+        $table_order_items = $wpdb->prefix . 'themisdb_order_items';
+        $sum = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COALESCE(SUM(total_price), 0) FROM $table_order_items WHERE order_id = %d",
+                $order_id
+            )
+        );
+
+        self::update_order($order_id, array('total_amount' => floatval($sum)));
+        return floatval($sum);
+    }
+
+    /**
+     * Upsert inventory stock by SKU.
+     */
+    public static function set_inventory_stock($sku, $product_name, $stock_on_hand, $product_id = null, $reorder_level = 0) {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $sku = sanitize_text_field($sku);
+
+        $existing = $wpdb->get_row(
+            $wpdb->prepare("SELECT id FROM $table_inventory WHERE sku = %s", $sku),
+            ARRAY_A
+        );
+
+        $data = array(
+            'product_id' => $product_id ? intval($product_id) : null,
+            'product_name' => sanitize_text_field($product_name),
+            'stock_on_hand' => intval($stock_on_hand),
+            'reorder_level' => intval($reorder_level),
+            'is_active' => 1,
+        );
+
+        if ($existing) {
+            $wpdb->update($table_inventory, $data, array('id' => intval($existing['id'])));
+            return intval($existing['id']);
+        }
+
+        $data['sku'] = $sku;
+        $data['reserved_stock'] = 0;
+        $wpdb->insert($table_inventory, $data);
+        return $wpdb->insert_id;
+    }
+
+    /**
+     * Get one inventory record by SKU.
+     */
+    public static function get_inventory_stock($sku) {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        return $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $table_inventory WHERE sku = %s", sanitize_text_field($sku)),
+            ARRAY_A
+        );
+    }
+
+    /**
+     * Register an inventory movement.
+     */
+    public static function add_inventory_movement($sku, $quantity_delta, $movement_type, $reason = '', $order_id = null, $created_by = null, $adjust_stock = true) {
+        global $wpdb;
+
+        $table_movements = $wpdb->prefix . 'themisdb_inventory_movements';
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+
+        $sku = sanitize_text_field($sku);
+        $quantity_delta = intval($quantity_delta);
+
+        $wpdb->insert(
+            $table_movements,
+            array(
+                'sku' => $sku,
+                'order_id' => $order_id ? intval($order_id) : null,
+                'movement_type' => sanitize_text_field($movement_type),
+                'quantity_delta' => $quantity_delta,
+                'reason' => sanitize_text_field($reason),
+                'created_by' => $created_by ? intval($created_by) : get_current_user_id(),
+            )
+        );
+
+        if ($adjust_stock) {
+            $wpdb->query(
+                $wpdb->prepare(
+                    "UPDATE $table_inventory SET stock_on_hand = stock_on_hand + %d WHERE sku = %s",
+                    $quantity_delta,
+                    $sku
+                )
+            );
+        }
+
+        return $wpdb->insert_id;
+    }
+
+    /**
+     * Reserve stock for all merchandise items in an order.
+     */
+    public static function reserve_inventory_for_order($order_id) {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $items = self::get_order_items($order_id);
+
+        foreach ($items as $item) {
+            if (empty($item['sku']) || intval($item['quantity']) <= 0) {
+                continue;
+            }
+
+            if (self::inventory_movement_exists($order_id, $item['sku'], 'reserve')) {
+                continue;
+            }
+
+            $inventory = self::get_inventory_stock($item['sku']);
+            if (!$inventory) {
+                continue;
+            }
+
+            $available = intval($inventory['stock_on_hand']) - intval($inventory['reserved_stock']);
+            if ($available < intval($item['quantity'])) {
+                error_log('ThemisDB Inventory Warning: insufficient stock for SKU ' . $item['sku'] . ' on order ' . $order_id);
+                continue;
+            }
+
+            $wpdb->query(
+                $wpdb->prepare(
+                    "UPDATE $table_inventory SET reserved_stock = reserved_stock + %d WHERE sku = %s",
+                    intval($item['quantity']),
+                    $item['sku']
+                )
+            );
+
+            self::add_inventory_movement(
+                $item['sku'],
+                intval($item['quantity']),
+                'reserve',
+                'Stock reservation for order',
+                $order_id,
+                null,
+                false
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Release previously reserved stock for an order.
+     */
+    public static function release_inventory_for_order($order_id) {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $items = self::get_order_items($order_id);
+
+        foreach ($items as $item) {
+            if (empty($item['sku']) || intval($item['quantity']) <= 0) {
+                continue;
+            }
+
+            if (!self::inventory_movement_exists($order_id, $item['sku'], 'reserve') || self::inventory_movement_exists($order_id, $item['sku'], 'release')) {
+                continue;
+            }
+
+            $wpdb->query(
+                $wpdb->prepare(
+                    "UPDATE $table_inventory SET reserved_stock = GREATEST(reserved_stock - %d, 0) WHERE sku = %s",
+                    intval($item['quantity']),
+                    $item['sku']
+                )
+            );
+
+            self::add_inventory_movement(
+                $item['sku'],
+                intval($item['quantity']) * -1,
+                'release',
+                'Stock release for order',
+                $order_id,
+                null,
+                false
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Convert reserved stock into shipped stock for an order.
+     */
+    public static function fulfill_inventory_for_order($order_id) {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $items = self::get_order_items($order_id);
+
+        foreach ($items as $item) {
+            if (empty($item['sku']) || intval($item['quantity']) <= 0) {
+                continue;
+            }
+
+            if (self::inventory_movement_exists($order_id, $item['sku'], 'fulfill')) {
+                continue;
+            }
+
+            $wpdb->query(
+                $wpdb->prepare(
+                    "UPDATE $table_inventory SET reserved_stock = GREATEST(reserved_stock - %d, 0) WHERE sku = %s",
+                    intval($item['quantity']),
+                    $item['sku']
+                )
+            );
+
+            self::add_inventory_movement(
+                $item['sku'],
+                intval($item['quantity']) * -1,
+                'fulfill',
+                'Stock shipped for order',
+                $order_id,
+                null,
+                true
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Check whether a movement already exists for an order/SKU/type.
+     */
+    private static function inventory_movement_exists($order_id, $sku, $movement_type) {
+        global $wpdb;
+
+        $table_movements = $wpdb->prefix . 'themisdb_inventory_movements';
+        $count = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM $table_movements WHERE order_id = %d AND sku = %s AND movement_type = %s",
+                $order_id,
+                sanitize_text_field($sku),
+                sanitize_text_field($movement_type)
+            )
+        );
+
+        return intval($count) > 0;
     }
     
     /**
@@ -332,10 +792,17 @@ class ThemisDB_Order_Manager {
     /**
      * Get products
      */
-    public static function get_products() {
+    public static function get_products($include_inactive = false) {
         global $wpdb;
         
         $table_products = $wpdb->prefix . 'themisdb_products';
+
+        if ($include_inactive) {
+            return $wpdb->get_results(
+                "SELECT * FROM $table_products ORDER BY is_active DESC, price ASC",
+                ARRAY_A
+            );
+        }
         
         return $wpdb->get_results(
             "SELECT * FROM $table_products WHERE is_active = 1 ORDER BY price ASC",
@@ -346,16 +813,30 @@ class ThemisDB_Order_Manager {
     /**
      * Get modules
      */
-    public static function get_modules($category = null) {
+    public static function get_modules($category = null, $include_inactive = false) {
         global $wpdb;
         
         $table_modules = $wpdb->prefix . 'themisdb_modules';
         
         if ($category) {
+            if ($include_inactive) {
+                return $wpdb->get_results($wpdb->prepare(
+                    "SELECT * FROM $table_modules WHERE module_category = %s ORDER BY is_active DESC, module_name ASC",
+                    $category
+                ), ARRAY_A);
+            }
+
             return $wpdb->get_results($wpdb->prepare(
                 "SELECT * FROM $table_modules WHERE is_active = 1 AND module_category = %s ORDER BY module_name ASC",
                 $category
             ), ARRAY_A);
+        }
+
+        if ($include_inactive) {
+            return $wpdb->get_results(
+                "SELECT * FROM $table_modules ORDER BY is_active DESC, module_category, module_name ASC",
+                ARRAY_A
+            );
         }
         
         return $wpdb->get_results(
@@ -367,21 +848,217 @@ class ThemisDB_Order_Manager {
     /**
      * Get training modules
      */
-    public static function get_training_modules($type = null) {
+    public static function get_training_modules($type = null, $include_inactive = false) {
         global $wpdb;
         
         $table_training = $wpdb->prefix . 'themisdb_training_modules';
         
         if ($type) {
+            if ($include_inactive) {
+                return $wpdb->get_results($wpdb->prepare(
+                    "SELECT * FROM $table_training WHERE training_type = %s ORDER BY is_active DESC, training_name ASC",
+                    $type
+                ), ARRAY_A);
+            }
+
             return $wpdb->get_results($wpdb->prepare(
                 "SELECT * FROM $table_training WHERE is_active = 1 AND training_type = %s ORDER BY training_name ASC",
                 $type
             ), ARRAY_A);
+        }
+
+        if ($include_inactive) {
+            return $wpdb->get_results(
+                "SELECT * FROM $table_training ORDER BY is_active DESC, training_type, training_name ASC",
+                ARRAY_A
+            );
         }
         
         return $wpdb->get_results(
             "SELECT * FROM $table_training WHERE is_active = 1 ORDER BY training_type, training_name ASC",
             ARRAY_A
         );
+    }
+
+    /**
+     * Get one product by ID (optionally including inactive entries).
+     */
+    public static function get_product($id, $include_inactive = true) {
+        global $wpdb;
+
+        $table_products = $wpdb->prefix . 'themisdb_products';
+        $query = "SELECT * FROM $table_products WHERE id = %d";
+
+        if (!$include_inactive) {
+            $query .= " AND is_active = 1";
+        }
+
+        return $wpdb->get_row($wpdb->prepare($query, intval($id)), ARRAY_A);
+    }
+
+    /**
+     * Get one module by ID (optionally including inactive entries).
+     */
+    public static function get_module($id, $include_inactive = true) {
+        global $wpdb;
+
+        $table_modules = $wpdb->prefix . 'themisdb_modules';
+        $query = "SELECT * FROM $table_modules WHERE id = %d";
+
+        if (!$include_inactive) {
+            $query .= " AND is_active = 1";
+        }
+
+        return $wpdb->get_row($wpdb->prepare($query, intval($id)), ARRAY_A);
+    }
+
+    /**
+     * Get one training module by ID (optionally including inactive entries).
+     */
+    public static function get_training_module($id, $include_inactive = true) {
+        global $wpdb;
+
+        $table_training = $wpdb->prefix . 'themisdb_training_modules';
+        $query = "SELECT * FROM $table_training WHERE id = %d";
+
+        if (!$include_inactive) {
+            $query .= " AND is_active = 1";
+        }
+
+        return $wpdb->get_row($wpdb->prepare($query, intval($id)), ARRAY_A);
+    }
+
+    /**
+     * Save (create/update) one product row.
+     */
+    public static function save_product($data, $id = 0) {
+        global $wpdb;
+
+        $table_products = $wpdb->prefix . 'themisdb_products';
+        $payload = array(
+            'product_code' => sanitize_text_field($data['product_code'] ?? ''),
+            'product_name' => sanitize_text_field($data['product_name'] ?? ''),
+            'product_type' => sanitize_text_field($data['product_type'] ?? 'database'),
+            'edition' => sanitize_text_field($data['edition'] ?? ''),
+            'description' => isset($data['description']) ? sanitize_textarea_field($data['description']) : null,
+            'price' => floatval($data['price'] ?? 0),
+            'currency' => sanitize_text_field($data['currency'] ?? 'EUR'),
+            'is_active' => !empty($data['is_active']) ? 1 : 0,
+        );
+
+        if (intval($id) > 0) {
+            $result = $wpdb->update($table_products, $payload, array('id' => intval($id)));
+            return $result !== false;
+        }
+
+        $result = $wpdb->insert($table_products, $payload);
+        return $result ? intval($wpdb->insert_id) : false;
+    }
+
+    /**
+     * Save (create/update) one module row.
+     */
+    public static function save_module($data, $id = 0) {
+        global $wpdb;
+
+        $table_modules = $wpdb->prefix . 'themisdb_modules';
+        $payload = array(
+            'module_code' => sanitize_text_field($data['module_code'] ?? ''),
+            'module_name' => sanitize_text_field($data['module_name'] ?? ''),
+            'module_category' => sanitize_text_field($data['module_category'] ?? 'general'),
+            'description' => isset($data['description']) ? sanitize_textarea_field($data['description']) : null,
+            'price' => floatval($data['price'] ?? 0),
+            'currency' => sanitize_text_field($data['currency'] ?? 'EUR'),
+            'is_active' => !empty($data['is_active']) ? 1 : 0,
+        );
+
+        if (intval($id) > 0) {
+            $result = $wpdb->update($table_modules, $payload, array('id' => intval($id)));
+            return $result !== false;
+        }
+
+        $result = $wpdb->insert($table_modules, $payload);
+        return $result ? intval($wpdb->insert_id) : false;
+    }
+
+    /**
+     * Save (create/update) one training row.
+     */
+    public static function save_training_module($data, $id = 0) {
+        global $wpdb;
+
+        $table_training = $wpdb->prefix . 'themisdb_training_modules';
+        $payload = array(
+            'training_code' => sanitize_text_field($data['training_code'] ?? ''),
+            'training_name' => sanitize_text_field($data['training_name'] ?? ''),
+            'training_type' => sanitize_text_field($data['training_type'] ?? 'online'),
+            'duration_hours' => isset($data['duration_hours']) ? intval($data['duration_hours']) : null,
+            'description' => isset($data['description']) ? sanitize_textarea_field($data['description']) : null,
+            'price' => floatval($data['price'] ?? 0),
+            'currency' => sanitize_text_field($data['currency'] ?? 'EUR'),
+            'is_active' => !empty($data['is_active']) ? 1 : 0,
+        );
+
+        if (intval($id) > 0) {
+            $result = $wpdb->update($table_training, $payload, array('id' => intval($id)));
+            return $result !== false;
+        }
+
+        $result = $wpdb->insert($table_training, $payload);
+        return $result ? intval($wpdb->insert_id) : false;
+    }
+
+    /**
+     * Soft-delete (deactivate) one catalog row by table kind.
+     */
+    public static function deactivate_catalog_item($entity, $id) {
+        global $wpdb;
+
+        $map = array(
+            'product' => $wpdb->prefix . 'themisdb_products',
+            'module' => $wpdb->prefix . 'themisdb_modules',
+            'training' => $wpdb->prefix . 'themisdb_training_modules',
+        );
+
+        if (!isset($map[$entity])) {
+            return false;
+        }
+
+        $result = $wpdb->update(
+            $map[$entity],
+            array('is_active' => 0),
+            array('id' => intval($id)),
+            array('%d'),
+            array('%d')
+        );
+
+        return $result !== false;
+    }
+
+    /**
+     * Toggle active state for one catalog row by table kind.
+     */
+    public static function set_catalog_item_active($entity, $id, $is_active) {
+        global $wpdb;
+
+        $map = array(
+            'product' => $wpdb->prefix . 'themisdb_products',
+            'module' => $wpdb->prefix . 'themisdb_modules',
+            'training' => $wpdb->prefix . 'themisdb_training_modules',
+        );
+
+        if (!isset($map[$entity])) {
+            return false;
+        }
+
+        $result = $wpdb->update(
+            $map[$entity],
+            array('is_active' => $is_active ? 1 : 0),
+            array('id' => intval($id)),
+            array('%d'),
+            array('%d')
+        );
+
+        return $result !== false;
     }
 }

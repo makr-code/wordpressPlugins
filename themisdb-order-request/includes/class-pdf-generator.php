@@ -100,6 +100,152 @@ class ThemisDB_PDF_Generator {
     }
     
     /**
+     * Generate PDF for invoice
+     */
+    public static function generate_invoice_pdf($order_id) {
+        $order = ThemisDB_Order_Manager::get_order($order_id);
+        
+        if (!$order) {
+            return false;
+        }
+        
+        // Generate invoice HTML
+        $html = self::generate_invoice_html($order);
+        
+        // Convert to PDF
+        $invoice_number = self::generate_invoice_number_for_order($order_id);
+        return self::html_to_pdf($html, 'invoice-' . $invoice_number);
+    }
+    
+    /**
+     * Generate PDF from raw HTML
+     * Useful for converting template content to PDF
+     */
+    public static function generate_pdf_from_html($html_content, $filename = 'document') {
+        if (empty($html_content)) {
+            return false;
+        }
+        
+        // Ensure HTML wrapper
+        if (strpos($html_content, '<html') === false) {
+            $html_content = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' . $html_content . '</body></html>';
+        }
+        
+        return self::html_to_pdf($html_content, $filename);
+    }
+    
+    /**
+     * Generate invoice HTML
+     */
+    private static function generate_invoice_html($order) {
+        $invoice_number = self::generate_invoice_number_for_order($order['id']);
+        
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.4; color: #333; margin: 0; padding: 20px; }
+                .container { max-width: 210mm; margin: 0 auto; padding: 20px; background: white; }
+                .header { margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #0073aa; }
+                .company-info { font-size: 14px; margin-bottom: 30px; }
+                .title { font-size: 28px; font-weight: bold; color: #0073aa; margin: 0; }
+                .meta-row { display: flex; justify-content: space-between; margin: 10px 0; }
+                .meta-col { flex: 1; }
+                .meta-label { font-weight: bold; }
+                .invoice-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                .invoice-table th { background-color: #f5f5f5; border: 1px solid #ddd; padding: 8px; text-align: left; }
+                .invoice-table td { border: 1px solid #ddd; padding: 8px; }
+                .invoice-table .amount { text-align: right; }
+                .total-row { background-color: #f0f0f0; font-weight: bold; font-size: 14px; }
+                .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; text-align: center; color: #666; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 class="title">RECHNUNG</h1>
+                </div>
+                
+                <div class="company-info">
+                    <p><?php echo esc_html(get_option('blogname')); ?></p>
+                    <p><?php echo esc_html(get_option('admin_email')); ?></p>
+                </div>
+                
+                <div style="display: flex; gap: 40px;">
+                    <div style="flex: 1;">
+                        <div class="meta-label">RECHNUNGSADRESSE:</div>
+                        <p><?php echo esc_html($order['customer_name']); ?><br>
+                        <?php if (!empty($order['customer_company'])): ?>
+                            <?php echo esc_html($order['customer_company']); ?><br>
+                        <?php endif; ?>
+                        <?php echo esc_html($order['customer_email']); ?></p>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="meta-row">
+                            <div class="meta-col"><span class="meta-label">Rechnungsnummer:</span></div>
+                            <div class="meta-col"><?php echo esc_html($invoice_number); ?></div>
+                        </div>
+                        <div class="meta-row">
+                            <div class="meta-col"><span class="meta-label">Rechnungsdatum:</span></div>
+                            <div class="meta-col"><?php echo date('d.m.Y'); ?></div>
+                        </div>
+                        <div class="meta-row">
+                            <div class="meta-col"><span class="meta-label">Bestellnummer:</span></div>
+                            <div class="meta-col"><?php echo esc_html($order['order_number']); ?></div>
+                        </div>
+                        <div class="meta-row">
+                            <div class="meta-col"><span class="meta-label">Fälligkeitsdatum:</span></div>
+                            <div class="meta-col"><?php echo date('d.m.Y', strtotime('+14 days')); ?></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <table class="invoice-table">
+                    <thead>
+                        <tr>
+                            <th>Position</th>
+                            <th class="amount">Menge</th>
+                            <th class="amount">Einzelpreis</th>
+                            <th class="amount">Gesamtpreis</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>ThemisDB <?php echo esc_html(ucfirst($order['product_edition'])); ?> Edition</td>
+                            <td class="amount">1</td>
+                            <td class="amount"><?php echo number_format($order['total_amount'], 2, ',', '.'); ?> <?php echo esc_html($order['currency']); ?></td>
+                            <td class="amount"><?php echo number_format($order['total_amount'], 2, ',', '.'); ?> <?php echo esc_html($order['currency']); ?></td>
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="3" class="amount">GESAMTSUMME:</td>
+                            <td class="amount"><?php echo number_format($order['total_amount'], 2, ',', '.'); ?> <?php echo esc_html($order['currency']); ?></td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="footer">
+                    <p><?php echo esc_html(get_option('blogname')); ?> | <?php echo esc_html(get_option('admin_email')); ?></p>
+                </div>
+            </div>
+        </body>
+        </html>
+        <?php
+        return ob_get_clean();
+    }
+    
+    /**
+     * Generate invoice number for order
+     */
+    private static function generate_invoice_number_for_order($order_id) {
+        $year = date('Y');
+        $formatted_id = str_pad($order_id, 5, '0', STR_PAD_LEFT);
+        return 'INV-' . $year . '-' . $formatted_id;
+    }
+    
+    /**
      * Generate PDF for order
      */
     public static function generate_order_pdf($order_id) {

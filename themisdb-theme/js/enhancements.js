@@ -111,6 +111,30 @@
     }
 
     /**
+     * Homepage micro-effects (minimal and intentional)
+     * - Staggered reveal for key sections
+     */
+    function initHomepageMicroEffects() {
+        const homeRoot = document.querySelector('.home, .page-template-front-page, body.front-page');
+        if (!homeRoot) {
+            return;
+        }
+
+        const targets = document.querySelectorAll(
+            '.homepage-hero, .homepage-stats, #homepage-intro-section, .homepage-widget-area, #homepage-latest-articles, #homepage-stats-section .stat-box'
+        );
+
+        if (targets.length === 0) {
+            return;
+        }
+
+        targets.forEach(function(target, index) {
+            target.classList.add('reveal-on-scroll');
+            target.style.setProperty('--reveal-delay', Math.min(index * 70, 420) + 'ms');
+        });
+    }
+
+    /**
      * Image Gallery Lightbox
      */
     function initImageGallery() {
@@ -464,6 +488,7 @@
             initReadingProgress();
             initLazyLoading();
             initAccordion();
+            initHomepageMicroEffects();
             initScrollAnimations();
             initImageGallery();
             initCounters();
@@ -475,6 +500,7 @@
             initFeaturedImageContrast();
             initStickyHeader();
             initDarkMode();
+            normalizeInternalLinks();
             initTableOfContents();
             initSearchOverlay();
         } catch (error) {
@@ -607,8 +633,50 @@
             }
         });
 
-        // Insert the TOC right before the entry-content div
-        content.parentNode.insertBefore(toc, content);
+        // Prefer the left sidebar; fall back to before the content if no sidebar exists.
+        var sidebarInner = document.querySelector('.sidebar-inner') || document.querySelector('#secondary');
+        if (sidebarInner) {
+            sidebarInner.insertBefore(toc, sidebarInner.firstChild);
+        } else {
+            content.parentNode.insertBefore(toc, content);
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Normalize root-relative internal links for index.php permalink mode */
+    /* ------------------------------------------------------------------ */
+    function normalizeInternalLinks() {
+        var path = window.location.pathname || '';
+        var usesIndexPhp = path.indexOf('/index.php/') !== -1;
+
+        if (!usesIndexPhp) {
+            return;
+        }
+
+        var indexPos = path.indexOf('/index.php/');
+        var basePath = indexPos > -1 ? path.slice(0, indexPos) : '';
+        var normalizedBase = window.location.origin + basePath + '/index.php';
+
+        document.querySelectorAll('a[href]').forEach(function (link) {
+            var href = link.getAttribute('href');
+            if (!href) {
+                return;
+            }
+
+            if (href.indexOf('/index.php/') !== -1 || href.charAt(0) === '#' || href.indexOf('mailto:') === 0 || href.indexOf('tel:') === 0) {
+                return;
+            }
+
+            if (href.charAt(0) === '/') {
+                link.setAttribute('href', normalizedBase + href);
+                return;
+            }
+
+            if (href.indexOf(window.location.origin + '/') === 0) {
+                var absPath = href.slice(window.location.origin.length);
+                link.setAttribute('href', normalizedBase + absPath);
+            }
+        });
     }
 
     /* ------------------------------------------------------------------ */

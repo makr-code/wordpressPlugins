@@ -57,10 +57,37 @@ class ThemisDB_Order_Database {
             customer_email varchar(100) NOT NULL,
             customer_name varchar(255) NOT NULL,
             customer_company varchar(255) DEFAULT NULL,
+            customer_type varchar(20) NOT NULL DEFAULT 'consumer',
+            vat_id varchar(50) DEFAULT NULL,
+            billing_name varchar(255) DEFAULT NULL,
+            billing_address_line1 varchar(255) DEFAULT NULL,
+            billing_address_line2 varchar(255) DEFAULT NULL,
+            billing_postal_code varchar(20) DEFAULT NULL,
+            billing_city varchar(100) DEFAULT NULL,
+            billing_country varchar(2) DEFAULT 'DE',
             product_type varchar(50) NOT NULL,
             product_edition varchar(50) NOT NULL,
             modules longtext DEFAULT NULL,
             training_modules longtext DEFAULT NULL,
+            legal_terms_accepted tinyint(1) NOT NULL DEFAULT 0,
+            legal_privacy_accepted tinyint(1) NOT NULL DEFAULT 0,
+            legal_withdrawal_acknowledged tinyint(1) NOT NULL DEFAULT 0,
+            legal_withdrawal_waiver tinyint(1) NOT NULL DEFAULT 0,
+            legal_acceptance_version varchar(50) DEFAULT 'de-v1',
+            legal_accepted_at datetime DEFAULT NULL,
+            legal_accepted_ip varchar(45) DEFAULT NULL,
+            legal_accepted_user_agent text DEFAULT NULL,
+            shipping_name varchar(255) DEFAULT NULL,
+            shipping_address_line1 varchar(255) DEFAULT NULL,
+            shipping_address_line2 varchar(255) DEFAULT NULL,
+            shipping_postal_code varchar(20) DEFAULT NULL,
+            shipping_city varchar(100) DEFAULT NULL,
+            shipping_country varchar(2) DEFAULT 'DE',
+            shipping_method varchar(50) DEFAULT NULL,
+            shipping_cost decimal(10,2) NOT NULL DEFAULT 0.00,
+            tracking_number varchar(100) DEFAULT NULL,
+            fulfillment_status varchar(50) NOT NULL DEFAULT 'not_required',
+            fulfilled_at datetime DEFAULT NULL,
             total_amount decimal(10,2) NOT NULL DEFAULT 0.00,
             currency varchar(10) NOT NULL DEFAULT 'EUR',
             status varchar(50) NOT NULL DEFAULT 'draft',
@@ -70,6 +97,70 @@ class ThemisDB_Order_Database {
             PRIMARY KEY  (id),
             KEY customer_id (customer_id),
             KEY status (status),
+            KEY fulfillment_status (fulfillment_status),
+            KEY created_at (created_at)
+        ) $charset_collate;";
+
+        // Order items table (multi-line positions, quantities, SKU/variant)
+        $table_order_items = $wpdb->prefix . 'themisdb_order_items';
+        $sql_order_items = "CREATE TABLE IF NOT EXISTS $table_order_items (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            order_id bigint(20) NOT NULL,
+            item_type varchar(50) NOT NULL DEFAULT 'product',
+            product_id bigint(20) DEFAULT NULL,
+            sku varchar(100) DEFAULT NULL,
+            item_name varchar(255) NOT NULL,
+            variant_data longtext DEFAULT NULL,
+            quantity int(11) NOT NULL DEFAULT 1,
+            unit_price decimal(10,2) NOT NULL DEFAULT 0.00,
+            total_price decimal(10,2) NOT NULL DEFAULT 0.00,
+            currency varchar(10) NOT NULL DEFAULT 'EUR',
+            metadata longtext DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY order_id (order_id),
+            KEY item_type (item_type),
+            KEY product_id (product_id),
+            KEY sku (sku)
+        ) $charset_collate;";
+
+        // Inventory stock table (current stock by SKU)
+        $table_inventory_stock = $wpdb->prefix . 'themisdb_inventory_stock';
+        $sql_inventory_stock = "CREATE TABLE IF NOT EXISTS $table_inventory_stock (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            sku varchar(100) NOT NULL,
+            product_id bigint(20) DEFAULT NULL,
+            product_name varchar(255) NOT NULL,
+            stock_on_hand int(11) NOT NULL DEFAULT 0,
+            reserved_stock int(11) NOT NULL DEFAULT 0,
+            reorder_level int(11) NOT NULL DEFAULT 0,
+            is_active tinyint(1) NOT NULL DEFAULT 1,
+            metadata longtext DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY sku (sku),
+            KEY product_id (product_id),
+            KEY is_active (is_active)
+        ) $charset_collate;";
+
+        // Inventory movements table (audit trail for stock changes)
+        $table_inventory_movements = $wpdb->prefix . 'themisdb_inventory_movements';
+        $sql_inventory_movements = "CREATE TABLE IF NOT EXISTS $table_inventory_movements (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            sku varchar(100) NOT NULL,
+            order_id bigint(20) DEFAULT NULL,
+            movement_type varchar(50) NOT NULL,
+            quantity_delta int(11) NOT NULL,
+            reason varchar(255) DEFAULT NULL,
+            created_by bigint(20) DEFAULT NULL,
+            metadata longtext DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY sku (sku),
+            KEY order_id (order_id),
+            KEY movement_type (movement_type),
             KEY created_at (created_at)
         ) $charset_collate;";
         
@@ -327,9 +418,111 @@ class ThemisDB_Order_Database {
             KEY created_at (created_at)
         ) $charset_collate;";
         
+        // License pricing table (versioniert - für Preisunterschiede pro Vertrag)
+        $table_license_prices = $wpdb->prefix . 'themisdb_license_prices';
+        $sql_license_prices = "CREATE TABLE IF NOT EXISTS $table_license_prices (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            license_id bigint(20) NOT NULL,
+            contract_id bigint(20) DEFAULT NULL,
+            license_type varchar(50) NOT NULL,
+            product_edition varchar(50) NOT NULL,
+            base_price decimal(10,2) NOT NULL,
+            currency varchar(10) NOT NULL DEFAULT 'EUR',
+            max_nodes int(11) DEFAULT 1,
+            max_cores int(11) DEFAULT NULL,
+            max_storage_gb int(11) DEFAULT NULL,
+            valid_from date NOT NULL,
+            valid_until date DEFAULT NULL,
+            notes text DEFAULT NULL,
+            created_by bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY license_id (license_id),
+            KEY contract_id (contract_id),
+            KEY product_edition (product_edition),
+            KEY license_type (license_type),
+            KEY valid_from (valid_from),
+            UNIQUE KEY unique_license_version (license_id, valid_from, license_type)
+        ) $charset_collate;";
+        
+        // License upgrade paths and costs
+        $table_license_upgrades = $wpdb->prefix . 'themisdb_license_upgrades';
+        $sql_license_upgrades = "CREATE TABLE IF NOT EXISTS $table_license_upgrades (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            license_id bigint(20) NOT NULL,
+            contract_id bigint(20) NOT NULL,
+            upgrade_from varchar(50) NOT NULL,
+            upgrade_to varchar(50) NOT NULL,
+            upgrade_type varchar(50) NOT NULL,
+            upgrade_cost decimal(10,2) NOT NULL,
+            currency varchar(10) NOT NULL DEFAULT 'EUR',
+            upgrade_date datetime NOT NULL,
+            effective_date date NOT NULL,
+            status varchar(50) NOT NULL DEFAULT 'pending',
+            approved_by bigint(20) DEFAULT NULL,
+            approved_at datetime DEFAULT NULL,
+            notes text DEFAULT NULL,
+            created_by bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY license_id (license_id),
+            KEY contract_id (contract_id),
+            KEY upgrade_date (upgrade_date),
+            KEY status (status),
+            KEY effective_date (effective_date)
+        ) $charset_collate;";
+        
+        // License history/changelog (detaillierte Änderungen)
+        $table_license_history = $wpdb->prefix . 'themisdb_license_history';
+        $sql_license_history = "CREATE TABLE IF NOT EXISTS $table_license_history (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            license_id bigint(20) NOT NULL,
+            contract_id bigint(20) DEFAULT NULL,
+            change_type varchar(50) NOT NULL,
+            old_value longtext DEFAULT NULL,
+            new_value longtext DEFAULT NULL,
+            changed_field varchar(100) NOT NULL,
+            change_reason text DEFAULT NULL,
+            changed_by bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY license_id (license_id),
+            KEY contract_id (contract_id),
+            KEY change_type (change_type),
+            KEY created_at (created_at),
+            KEY changed_field (changed_field)
+        ) $charset_collate;";
+        
+        // License features (was kann diese Lizenz?)
+        $table_license_features = $wpdb->prefix . 'themisdb_license_features';
+        $sql_license_features = "CREATE TABLE IF NOT EXISTS $table_license_features (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            license_id bigint(20) NOT NULL,
+            contract_id bigint(20) DEFAULT NULL,
+            feature_code varchar(100) NOT NULL,
+            feature_name varchar(255) NOT NULL,
+            feature_value longtext DEFAULT NULL,
+            is_active tinyint(1) NOT NULL DEFAULT 1,
+            valid_from date NOT NULL,
+            valid_until date DEFAULT NULL,
+            notes text DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY license_id (license_id),
+            KEY contract_id (contract_id),
+            KEY feature_code (feature_code),
+            KEY is_active (is_active),
+            UNIQUE KEY unique_feature (license_id, feature_code, valid_from)
+        ) $charset_collate;";
+        
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         
         dbDelta($sql_orders);
+        dbDelta($sql_order_items);
+        dbDelta($sql_inventory_stock);
+        dbDelta($sql_inventory_movements);
         dbDelta($sql_contracts);
         dbDelta($sql_revisions);
         dbDelta($sql_products);
@@ -339,6 +532,10 @@ class ThemisDB_Order_Database {
         dbDelta($sql_payments);
         dbDelta($sql_licenses);
         dbDelta($sql_license_auth);
+        dbDelta($sql_license_prices);
+        dbDelta($sql_license_upgrades);
+        dbDelta($sql_license_history);
+        dbDelta($sql_license_features);
         dbDelta($sql_bank_imports);
         dbDelta($sql_bank_transactions);
         

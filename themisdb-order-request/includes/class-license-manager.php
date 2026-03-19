@@ -110,19 +110,30 @@ class ThemisDB_License_Manager {
         global $wpdb;
         
         $table_licenses = $wpdb->prefix . 'themisdb_licenses';
+
+        $license = self::get_license($license_id);
+        if (!$license || $license['license_status'] === 'cancelled') {
+            return false;
+        }
         
         $update_data = array(
             'license_status' => 'active',
             'activation_date' => current_time('mysql')
         );
         
-        return $wpdb->update(
+        $result = $wpdb->update(
             $table_licenses,
             $update_data,
             array('id' => $license_id),
             null,
             array('%d')
         ) !== false;
+
+        if ($result) {
+            self::generate_license_file($license_id);
+        }
+
+        return $result;
     }
     
     /**
@@ -177,7 +188,7 @@ class ThemisDB_License_Manager {
         $table_licenses = $wpdb->prefix . 'themisdb_licenses';
         
         $license = self::get_license($license_id);
-        if (!$license) {
+        if (!$license || $license['license_status'] === 'cancelled') {
             return false;
         }
         
@@ -512,6 +523,110 @@ class ThemisDB_License_Manager {
         }
         
         return $license;
+    }
+
+    /**
+     * Get all licenses for admin listing.
+     */
+    public static function get_all_licenses($limit = 100, $offset = 0) {
+        global $wpdb;
+
+        $table_licenses = $wpdb->prefix . 'themisdb_licenses';
+        $limit = max(1, intval($limit));
+        $offset = max(0, intval($offset));
+
+        return $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM $table_licenses ORDER BY created_at DESC LIMIT %d OFFSET %d",
+                $limit,
+                $offset
+            ),
+            ARRAY_A
+        );
+    }
+
+    /**
+     * Update editable license fields.
+     */
+    public static function update_license($license_id, $data) {
+        global $wpdb;
+
+        $table_licenses = $wpdb->prefix . 'themisdb_licenses';
+        $license = self::get_license($license_id);
+
+        if (!$license) {
+            return false;
+        }
+
+        $update_data = array();
+
+        if (isset($data['license_type'])) {
+            $update_data['license_type'] = sanitize_text_field($data['license_type']);
+        }
+        if (isset($data['max_nodes'])) {
+            $update_data['max_nodes'] = intval($data['max_nodes']);
+        }
+        if (isset($data['max_cores'])) {
+            $update_data['max_cores'] = intval($data['max_cores']);
+        }
+        if (isset($data['max_storage_gb'])) {
+            $update_data['max_storage_gb'] = intval($data['max_storage_gb']);
+        }
+        if (array_key_exists('expiry_date', $data)) {
+            $update_data['expiry_date'] = !empty($data['expiry_date']) ? sanitize_text_field($data['expiry_date']) : null;
+        }
+        if (isset($data['epserver_subscription_id'])) {
+            $update_data['epserver_subscription_id'] = sanitize_text_field($data['epserver_subscription_id']);
+        }
+        if (isset($data['license_status'])) {
+            $new_status = sanitize_text_field($data['license_status']);
+            $allowed = array('pending', 'active', 'suspended', 'expired', 'cancelled');
+
+            if (in_array($new_status, $allowed, true)) {
+                if ($license['license_status'] === 'cancelled' && $new_status !== 'cancelled') {
+                    return false;
+                }
+
+                $update_data['license_status'] = $new_status;
+                if ($new_status === 'active' && empty($license['activation_date'])) {
+                    $update_data['activation_date'] = current_time('mysql');
+                }
+            }
+        }
+
+        if (empty($update_data)) {
+            return true;
+        }
+
+        $result = $wpdb->update(
+            $table_licenses,
+            $update_data,
+            array('id' => intval($license_id)),
+            null,
+            array('%d')
+        );
+
+        if ($result !== false && !empty($update_data['license_status']) && $update_data['license_status'] === 'active') {
+            self::generate_license_file($license_id);
+        }
+
+        return $result !== false;
+    }
+
+    /**
+     * Permanently delete a license row.
+     */
+    public static function delete_license($license_id) {
+        global $wpdb;
+
+        $table_licenses = $wpdb->prefix . 'themisdb_licenses';
+        $result = $wpdb->delete(
+            $table_licenses,
+            array('id' => intval($license_id)),
+            array('%d')
+        );
+
+        return $result !== false;
     }
     
     /**

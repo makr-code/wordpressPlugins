@@ -24,7 +24,7 @@
 
 <!-- ThemisDB TCO Calculator WordPress Template -->
 <div class="themisdb-tco-calculator-wrapper">
-     if ($atts['show_intro'] === 'yes'): ?>
+    <?php if ($atts['show_intro'] === 'yes'): ?>
     <!-- Introduction Section -->
     <section class="intro-section">
         <div class="info-box">

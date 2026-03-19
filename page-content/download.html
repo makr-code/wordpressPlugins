@@ -1,0 +1,109 @@
+<!-- ================================================
+   SEITE: Download
+   URL:   /download
+   Einfügen als: "Custom HTML"-Block in WordPress
+   ================================================ -->
+
+<!-- Hero -->
+<div style="background:linear-gradient(160deg,#0b1e3d 0%,#1e6fba 60%,#1ab5c8 100%);padding:4rem 2rem;text-align:center;border-radius:18px;margin-bottom:3rem;color:#fff;">
+  <p class="section-eyebrow" style="color:#1ab5c8;">Download</p>
+  <h1 style="color:#fff;font-size:2.8rem;margin:.5rem 0 1rem;">ThemisDB herunterladen</h1>
+  <p style="color:rgba(255,255,255,.85);font-size:1.15rem;max-width:620px;margin:0 auto 2rem;">
+    Aktuelle stabile Version: <strong style="color:#1ab5c8;">ThemisDB 2.1.0</strong> — veröffentlicht 10. März 2026
+  </p>
+  <div class="cta-buttons">
+    <a href="#stable" class="btn btn-primary">⬇️ Stabile Version</a>
+    <a href="#beta" class="btn btn-outline-light">🧪 Beta / RC</a>
+    <a href="/releases" class="btn btn-outline-light">📋 Release Notes</a>
+  </div>
+</div>
+
+<!-- Stabile Version -->
+<div id="stable">
+  <div class="section-header">
+    <p class="section-eyebrow">Stable Release</p>
+    <h2 class="section-title">Version 2.1.0 — Stabil</h2>
+    <p class="section-description">Die empfohlene Version für Produktivumgebungen. Vollständig getestet und dokumentiert.</p>
+  </div>
+
+  <div class="features-grid" style="margin-bottom:3rem;">
+
+    <div class="feature-card">
+      <div class="feature-icon">🐧</div>
+      <h3>Linux</h3>
+      <p>DEB / RPM / Tarball für alle gängigen Distributionen</p>
+      <div style="margin-top:1.25rem;display:flex;flex-direction:column;gap:.6rem;">
+        <a href="#" class="btn btn-primary" style="width:100%;justify-content:center;">Download .deb (Ubuntu/Debian)</a>
+        <a href="#" class="btn btn-outline" style="width:100%;justify-content:center;">Download .rpm (RHEL/CentOS)</a>
+        <a href="#" class="btn btn-outline" style="width:100%;justify-content:center;">Download .tar.gz</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🪟</div>
+      <h3>Windows</h3>
+      <p>Installer und ZIP-Archiv für Windows 10/11 (64‑bit)</p>
+      <div style="margin-top:1.25rem;display:flex;flex-direction:column;gap:.6rem;">
+        <a href="#" class="btn btn-primary" style="width:100%;justify-content:center;">Download .msi Installer</a>
+        <a href="#" class="btn btn-outline" style="width:100%;justify-content:center;">Download .zip (portabel)</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🍎</div>
+      <h3>macOS</h3>
+      <p>Universelles Binary für Apple Silicon und Intel</p>
+      <div style="margin-top:1.25rem;display:flex;flex-direction:column;gap:.6rem;">
+        <a href="#" class="btn btn-primary" style="width:100%;justify-content:center;">Download .dmg (Universal)</a>
+        <a href="#" class="btn btn-outline" style="width:100%;justify-content:center;">Homebrew: brew install themisdb</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🐳</div>
+      <h3>Docker</h3>
+      <p>Offizielles Docker-Image auf Docker Hub</p>
+      <div style="margin-top:1.25rem;">
+        <code style="display:block;background:#f4f6f8;padding:1rem;border-radius:8px;font-size:.88rem;word-break:break-all;text-align:left;">docker pull themisdb/themisdb:2.1.0</code>
+        <a href="#" class="btn btn-outline" style="margin-top:.75rem;width:100%;justify-content:center;">Docker Hub →</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Checksums -->
+<div style="background:linear-gradient(135deg,rgba(30,111,186,.06) 0%,rgba(26,181,200,.06) 100%);border:1px solid var(--border-light);border-radius:14px;padding:2rem;margin-bottom:3rem;">
+  <h3 style="color:var(--primary-color);margin-top:0;">🔐 Prüfsummen (SHA-256)</h3>
+  <p style="color:var(--text-secondary);margin-bottom:1rem;">Verifizieren Sie die Integrität der heruntergeladenen Datei:</p>
+  <code style="display:block;background:#fff;padding:1rem;border-radius:8px;font-size:.82rem;line-height:1.7;border:1px solid var(--border-light);word-break:break-all;">
+    themisdb_2.1.0_linux_amd64.deb  &nbsp;a3f8c2d1e4b7... (SHA-256)<br>
+    themisdb_2.1.0_windows_x64.msi  &nbsp;b9e1d7f2a5c4... (SHA-256)<br>
+    themisdb_2.1.0_macos_universal.dmg &nbsp;c6a4e8d3f1b9... (SHA-256)
+  </code>
+  <a href="#" style="color:var(--secondary-color);font-size:.9rem;margin-top:.75rem;display:inline-block;">📄 Vollständige SHA-256-Liste herunterladen</a>
+</div>
+
+<!-- Beta -->
+<div id="beta">
+  <div class="section-header">
+    <p class="section-eyebrow" style="color:#e67e22;">Beta / Release Candidate</p>
+    <h2 class="section-title">Version 2.2.0-beta.1</h2>
+    <p class="section-description">Für Testumgebungen und Early Adopter. <strong>Nicht für Produktion empfohlen.</strong></p>
+  </div>
+  <div style="text-align:center;margin-bottom:3rem;">
+    <a href="#" class="btn btn-outline" style="margin:.5rem;">⬇️ Linux .tar.gz (beta)</a>
+    <a href="#" class="btn btn-outline" style="margin:.5rem;">⬇️ Windows .zip (beta)</a>
+    <a href="/releases#beta" class="btn btn-outline" style="margin:.5rem;">📋 Beta Release Notes</a>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="homepage-cta homepage-cta-dark" style="border-radius:18px;">
+  <h2>Benötigen Sie Hilfe beim Einstieg?</h2>
+  <p>Unsere Dokumentation führt Sie Schritt für Schritt durch die Installation.</p>
+  <div class="cta-buttons">
+    <a href="/dokumentation/installation" class="btn btn-primary">📖 Installationsanleitung</a>
+    <a href="/support" class="btn btn-outline-light">❓ Support kontaktieren</a>
+  </div>
+</div>

@@ -103,7 +103,15 @@ class ThemisDB_Payment_Manager {
                 if ($payment['contract_id']) {
                     $license = ThemisDB_License_Manager::get_license_by_contract($payment['contract_id']);
                     if ($license) {
-                        ThemisDB_License_Manager::activate_license($license['id']);
+                        $activated = ThemisDB_License_Manager::activate_license($license['id']);
+
+                        if ($activated) {
+                            try {
+                                ThemisDB_Email_Handler::send_license_email($license['id']);
+                            } catch (Exception $e) {
+                                error_log('ThemisDB License Email Error: ' . $e->getMessage());
+                            }
+                        }
                     }
                 }
             }

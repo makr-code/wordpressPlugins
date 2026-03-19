@@ -1,0 +1,154 @@
+<!-- ================================================
+   SEITE: Features
+   URL:   /features
+   Einfügen als: "Custom HTML"-Block in WordPress
+   ================================================ -->
+
+<!-- Hero -->
+<div style="background:linear-gradient(160deg,#0b1e3d 0%,#1e6fba 60%,#1ab5c8 100%);padding:4rem 2rem;text-align:center;border-radius:18px;margin-bottom:3rem;color:#fff;">
+  <p class="section-eyebrow" style="color:#1ab5c8;">Features</p>
+  <h1 style="color:#fff;font-size:2.8rem;margin:.5rem 0 1rem;">Was ThemisDB kann</h1>
+  <p style="color:rgba(255,255,255,.85);font-size:1.15rem;max-width:640px;margin:0 auto 2rem;">
+    Eine hochmoderne Multi-Model-Datenbank mit nativer KI-Integration, höchster Performance und Enterprise-Sicherheit.
+  </p>
+  <div class="cta-buttons">
+    <a href="/download" class="btn btn-primary">⬇️ Jetzt herunterladen</a>
+    <a href="/dokumentation" class="btn btn-outline-light">📖 Dokumentation</a>
+  </div>
+</div>
+
+<!-- Kernfeatures -->
+<div class="section-header">
+  <p class="section-eyebrow">Kernfähigkeiten</p>
+  <h2 class="section-title">Die wichtigsten Features</h2>
+  <p class="section-description">Von KI-nativen Abfragen bis zu Echtzeit-Streaming – ThemisDB ist für moderne Anforderungen gebaut.</p>
+</div>
+
+<div class="features-grid" style="margin-bottom:4rem;">
+  <div class="feature-card">
+    <div class="feature-icon">⚡</div>
+    <h3>Höchste Performance</h3>
+    <p>Optimierte Query-Engine mit vektorisierten Operationen. Bis zu 10× schneller als vergleichbare Systeme bei analytischen Workloads.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">🤖</div>
+    <h3>Native KI-Integration</h3>
+    <p>Direkte Verbindung zu OpenAI, Anthropic, Ollama und lokalen LLMs. SQL-Abfragen mit natürlicher Sprache formulieren.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">🔒</div>
+    <h3>Enterprise-Sicherheit</h3>
+    <p>TLS-Verschlüsselung, Row-Level-Security, RBAC und vollständige Audit-Trails. DSGVO-konform by Design.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">📊</div>
+    <h3>Multi-Model-Daten</h3>
+    <p>Relationale Tabellen, Vektoren, Graphen und Zeitreihen in einer einzigen Datenbank – kein Silodenken mehr.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">🔄</div>
+    <h3>Echtzeit-Streaming</h3>
+    <p>Native CDC-Integration (Change Data Capture), Kafka-Connector und WebSocket-Push für Live-Dashboards.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">🌐</div>
+    <h3>Verteilte Architektur</h3>
+    <p>Horizontale Skalierung mit automatischem Sharding. Multi-Region-Replikation und automatisches Failover.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">🔌</div>
+    <h3>Breites Ökosystem</h3>
+    <p>Kompatibel mit PostgreSQL-Protokoll, JDBC/ODBC, REST-API und GraphQL. Ihre bestehenden Tools laufen weiter.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">💾</div>
+    <h3>Intelligentes Caching</h3>
+    <p>Adaptive Query-Cache mit ML-basierter Prefetch-Strategie. Automatisches Materialisieren häufiger Abfragen.</p>
+  </div>
+</div>
+
+<!-- Performance-Benchmark-Tabelle -->
+<div style="margin-bottom:4rem;">
+  <div class="section-header">
+    <p class="section-eyebrow">Performance</p>
+    <h2 class="section-title">Benchmarks</h2>
+    <p class="section-description">Gemessen auf einem Standard-Server (32 vCPU, 128 GB RAM) mit 100 Mio. Datensätzen.</p>
+  </div>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.07);">
+      <thead>
+        <tr style="background:linear-gradient(90deg,var(--primary-color),var(--secondary-color));color:#fff;">
+          <th style="padding:1rem 1.25rem;text-align:left;font-size:.9rem;font-weight:700;">Workload</th>
+          <th style="padding:1rem 1.25rem;text-align:center;font-size:.9rem;font-weight:700;">ThemisDB 2.1</th>
+          <th style="padding:1rem 1.25rem;text-align:center;font-size:.9rem;font-weight:700;">PostgreSQL 16</th>
+          <th style="padding:1rem 1.25rem;text-align:center;font-size:.9rem;font-weight:700;">MySQL 8.3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border-light);">
+          <td style="padding:.85rem 1.25rem;color:var(--text-primary);font-weight:600;">OLTP (TPS)</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--secondary-color);font-weight:700;">142.000</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--text-secondary);">98.000</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--text-secondary);">87.000</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border-light);background:var(--lighter-bg);">
+          <td style="padding:.85rem 1.25rem;color:var(--text-primary);font-weight:600;">Analytische Abfragen (ms)</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--secondary-color);font-weight:700;">38 ms</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--text-secondary);">312 ms</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--text-secondary);">498 ms</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border-light);">
+          <td style="padding:.85rem 1.25rem;color:var(--text-primary);font-weight:600;">Vektor-Suche (Ø ms, 1M Vektoren)</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--secondary-color);font-weight:700;">2,4 ms</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--text-secondary);">14 ms (pgvector)</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--text-secondary);">n/a</td>
+        </tr>
+        <tr>
+          <td style="padding:.85rem 1.25rem;color:var(--text-primary);font-weight:600;">Bulk-Insert (Zeilen/s)</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--secondary-color);font-weight:700;">2,1 Mio.</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--text-secondary);">890.000</td>
+          <td style="padding:.85rem 1.25rem;text-align:center;color:var(--text-secondary);">740.000</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:.82rem;color:var(--text-muted);margin-top:.75rem;text-align:center;">
+    * Alle Benchmarks reproduzierbar. Testskripte und Rohdaten: <a href="/performance" style="color:var(--secondary-color);">/performance</a>
+  </p>
+</div>
+
+<!-- Use Cases -->
+<div style="margin-bottom:4rem;">
+  <div class="section-header">
+    <p class="section-eyebrow">Anwendungsfälle</p>
+    <h2 class="section-title">Wer nutzt ThemisDB?</h2>
+  </div>
+  <div class="getting-started-grid">
+    <div class="getting-started-card" style="text-decoration:none;cursor:default;">
+      <div class="gs-icon">🏦</div>
+      <h3>Finanzwesen</h3>
+      <p>Echtzeit-Risikoanalyse, Betrugserkennungs-Pipelines und regulatorisches Reporting mit Sub-Millisekunden-Latenz.</p>
+    </div>
+    <div class="getting-started-card" style="text-decoration:none;cursor:default;">
+      <div class="gs-icon">🧬</div>
+      <h3>Bioinformatik / KI</h3>
+      <p>Embedding-Speicherung, Similarity-Search über Genomdaten und LLM-Pipeline-Ergebnisse direkt in der Datenbank.</p>
+    </div>
+    <div class="getting-started-card" style="text-decoration:none;cursor:default;">
+      <div class="gs-icon">🛒</div>
+      <h3>E-Commerce</h3>
+      <p>Produkt-Recommendations via Vektor-Suche, Lagerbestandsmanagement und Echtzeit-Personalisierung.</p>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="homepage-cta homepage-cta-dark" style="border-radius:18px;">
+  <h2>Überzeugt? Starten Sie jetzt.</h2>
+  <p>ThemisDB ist Open Source und kostenlos herunterladbar.</p>
+  <div class="cta-buttons">
+    <a href="/download" class="btn btn-primary">⬇️ Download starten</a>
+    <a href="/dokumentation/quick-start" class="btn btn-outline-light">🚀 5-Minuten-Quickstart</a>
+    <a href="/pricing" class="btn btn-outline-light">💰 Enterprise-Pläne</a>
+  </div>
+</div>

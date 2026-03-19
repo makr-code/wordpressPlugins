@@ -86,6 +86,8 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-portal.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-renewal.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-pdf-generator.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-email-handler.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-document-template-manager.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-pricing.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-epserver-api.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-bank-import.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-admin.php';

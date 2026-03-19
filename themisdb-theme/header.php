@@ -44,7 +44,9 @@
                 wp_nav_menu( array(
                     'theme_location' => 'primary',
                     'menu_id'        => 'primary-menu',
+                    'menu_class'     => 'primary-menu',
                     'container'      => false,
+                    'depth'          => 3,
                     'fallback_cb'    => 'themisdb_nav_fallback',
                 ) );
                 ?>

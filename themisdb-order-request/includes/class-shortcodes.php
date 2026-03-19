@@ -38,6 +38,8 @@ class ThemisDB_Order_Shortcodes {
         add_shortcode('themisdb_order_flow', array($this, 'order_flow_shortcode'));
         add_shortcode('themisdb_my_orders', array($this, 'my_orders_shortcode'));
         add_shortcode('themisdb_my_contracts', array($this, 'my_contracts_shortcode'));
+        add_shortcode('themisdb_pricing', array($this, 'pricing_shortcode'));
+        add_shortcode('themisdb_pricing_table', array($this, 'pricing_table_shortcode'));
         
         // AJAX handlers
         add_action('wp_ajax_themisdb_save_order_step', array($this, 'ajax_save_order_step'));
@@ -295,6 +297,28 @@ class ThemisDB_Order_Shortcodes {
         $customer_name = $order ? $order['customer_name'] : '';
         $customer_email = $order ? $order['customer_email'] : '';
         $customer_company = $order ? $order['customer_company'] : '';
+        $customer_type = $order ? ($order['customer_type'] ?? 'consumer') : 'consumer';
+        $vat_id = $order ? ($order['vat_id'] ?? '') : '';
+        $billing_name = $order ? ($order['billing_name'] ?? '') : '';
+        $billing_address_line1 = $order ? ($order['billing_address_line1'] ?? '') : '';
+        $billing_address_line2 = $order ? ($order['billing_address_line2'] ?? '') : '';
+        $billing_postal_code = $order ? ($order['billing_postal_code'] ?? '') : '';
+        $billing_city = $order ? ($order['billing_city'] ?? '') : '';
+        $billing_country = $order ? ($order['billing_country'] ?? 'DE') : 'DE';
+        $legal_terms_accepted = !empty($order['legal_terms_accepted']);
+        $legal_privacy_accepted = !empty($order['legal_privacy_accepted']);
+        $legal_withdrawal_acknowledged = !empty($order['legal_withdrawal_acknowledged']);
+        $legal_withdrawal_waiver = !empty($order['legal_withdrawal_waiver']);
+        $agb_url = get_option('themisdb_order_legal_agb_url', site_url('/agb'));
+        $privacy_url = get_option('themisdb_order_legal_privacy_url', site_url('/datenschutz'));
+        $withdrawal_url = get_option('themisdb_order_legal_withdrawal_url', site_url('/widerruf'));
+        $shipping_name = $order ? ($order['shipping_name'] ?? '') : '';
+        $shipping_address_line1 = $order ? ($order['shipping_address_line1'] ?? '') : '';
+        $shipping_address_line2 = $order ? ($order['shipping_address_line2'] ?? '') : '';
+        $shipping_postal_code = $order ? ($order['shipping_postal_code'] ?? '') : '';
+        $shipping_city = $order ? ($order['shipping_city'] ?? '') : '';
+        $shipping_country = $order ? ($order['shipping_country'] ?? 'DE') : 'DE';
+        $shipping_method = $order ? ($order['shipping_method'] ?? 'standard') : 'standard';
         
         ?>
         <div class="order-step-content" data-step="4">
@@ -319,11 +343,134 @@ class ThemisDB_Order_Shortcodes {
                     <input type="text" id="customer_company" name="customer_company" 
                            value="<?php echo esc_attr($customer_company); ?>">
                 </div>
+
+                <h3 style="margin-top:1.5rem;"><?php _e('Rechnungsdaten (Deutschland)', 'themisdb-order-request'); ?></h3>
+
+                <div class="form-group">
+                    <label><?php _e('Kundentyp', 'themisdb-order-request'); ?> *</label>
+                    <label style="display:block;margin-top:.4rem;">
+                        <input type="radio" name="customer_type" value="consumer" <?php checked($customer_type, 'consumer'); ?>>
+                        <?php _e('Verbraucher', 'themisdb-order-request'); ?>
+                    </label>
+                    <label style="display:block;">
+                        <input type="radio" name="customer_type" value="business" <?php checked($customer_type, 'business'); ?>>
+                        <?php _e('Unternehmer / Firma', 'themisdb-order-request'); ?>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="billing_name"><?php _e('Rechnungsempfänger', 'themisdb-order-request'); ?> *</label>
+                    <input type="text" id="billing_name" name="billing_name"
+                           value="<?php echo esc_attr($billing_name); ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="billing_address_line1"><?php _e('Rechnungsadresse: Straße und Hausnummer', 'themisdb-order-request'); ?> *</label>
+                    <input type="text" id="billing_address_line1" name="billing_address_line1"
+                           value="<?php echo esc_attr($billing_address_line1); ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="billing_address_line2"><?php _e('Rechnungsadresse: Zusatz', 'themisdb-order-request'); ?></label>
+                    <input type="text" id="billing_address_line2" name="billing_address_line2"
+                           value="<?php echo esc_attr($billing_address_line2); ?>">
+                </div>
+
+                <div class="form-group">
+                    <label for="billing_postal_code"><?php _e('Rechnungsadresse: PLZ', 'themisdb-order-request'); ?> *</label>
+                    <input type="text" id="billing_postal_code" name="billing_postal_code"
+                           value="<?php echo esc_attr($billing_postal_code); ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="billing_city"><?php _e('Rechnungsadresse: Ort', 'themisdb-order-request'); ?> *</label>
+                    <input type="text" id="billing_city" name="billing_city"
+                           value="<?php echo esc_attr($billing_city); ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="billing_country"><?php _e('Rechnungsadresse: Land (ISO-Code)', 'themisdb-order-request'); ?> *</label>
+                    <input type="text" id="billing_country" name="billing_country" maxlength="2"
+                           value="<?php echo esc_attr($billing_country); ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="vat_id"><?php _e('USt-IdNr. (optional, für B2B)', 'themisdb-order-request'); ?></label>
+                    <input type="text" id="vat_id" name="vat_id"
+                           value="<?php echo esc_attr($vat_id); ?>">
+                </div>
+
+                <h3 style="margin-top:1.5rem;"><?php _e('Lieferadresse (fuer Merchandise)', 'themisdb-order-request'); ?></h3>
+
+                <div class="form-group">
+                    <label for="shipping_name"><?php _e('Empfaenger', 'themisdb-order-request'); ?></label>
+                    <input type="text" id="shipping_name" name="shipping_name"
+                           value="<?php echo esc_attr($shipping_name); ?>">
+                </div>
+
+                <div class="form-group">
+                    <label for="shipping_address_line1"><?php _e('Strasse und Hausnummer', 'themisdb-order-request'); ?></label>
+                    <input type="text" id="shipping_address_line1" name="shipping_address_line1"
+                           value="<?php echo esc_attr($shipping_address_line1); ?>">
+                </div>
+
+                <div class="form-group">
+                    <label for="shipping_address_line2"><?php _e('Adresszusatz', 'themisdb-order-request'); ?></label>
+                    <input type="text" id="shipping_address_line2" name="shipping_address_line2"
+                           value="<?php echo esc_attr($shipping_address_line2); ?>">
+                </div>
+
+                <div class="form-group">
+                    <label for="shipping_postal_code"><?php _e('PLZ', 'themisdb-order-request'); ?></label>
+                    <input type="text" id="shipping_postal_code" name="shipping_postal_code"
+                           value="<?php echo esc_attr($shipping_postal_code); ?>">
+                </div>
+
+                <div class="form-group">
+                    <label for="shipping_city"><?php _e('Ort', 'themisdb-order-request'); ?></label>
+                    <input type="text" id="shipping_city" name="shipping_city"
+                           value="<?php echo esc_attr($shipping_city); ?>">
+                </div>
+
+                <div class="form-group">
+                    <label for="shipping_country"><?php _e('Land (ISO-Code)', 'themisdb-order-request'); ?></label>
+                    <input type="text" id="shipping_country" name="shipping_country" maxlength="2"
+                           value="<?php echo esc_attr($shipping_country); ?>">
+                </div>
+
+                <div class="form-group">
+                    <label for="shipping_method"><?php _e('Versandart', 'themisdb-order-request'); ?></label>
+                    <select id="shipping_method" name="shipping_method">
+                        <option value="standard" <?php selected($shipping_method, 'standard'); ?>><?php _e('Standard', 'themisdb-order-request'); ?></option>
+                        <option value="express" <?php selected($shipping_method, 'express'); ?>><?php _e('Express', 'themisdb-order-request'); ?></option>
+                    </select>
+                </div>
                 
                 <div class="form-group">
                     <label>
-                        <input type="checkbox" name="accept_terms" required>
-                        <?php _e('Ich akzeptiere die AGB und Datenschutzerklärung', 'themisdb-order-request'); ?> *
+                        <input type="checkbox" name="legal_terms_accepted" value="1" <?php checked($legal_terms_accepted); ?> required>
+                        <?php printf(__('Ich akzeptiere die <a href="%s" target="_blank" rel="noopener">AGB</a>', 'themisdb-order-request'), esc_url($agb_url)); ?> *
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="legal_privacy_accepted" value="1" <?php checked($legal_privacy_accepted); ?> required>
+                        <?php printf(__('Ich akzeptiere die <a href="%s" target="_blank" rel="noopener">Datenschutzerklärung</a>', 'themisdb-order-request'), esc_url($privacy_url)); ?> *
+                    </label>
+                </div>
+
+                <div class="form-group legal-withdrawal-consent">
+                    <label>
+                        <input type="checkbox" name="legal_withdrawal_acknowledged" value="1" <?php checked($legal_withdrawal_acknowledged); ?>>
+                        <?php printf(__('Ich habe die <a href="%s" target="_blank" rel="noopener">Widerrufsbelehrung</a> gelesen', 'themisdb-order-request'), esc_url($withdrawal_url)); ?> *
+                    </label>
+                </div>
+
+                <div class="form-group legal-withdrawal-waiver">
+                    <label>
+                        <input type="checkbox" name="legal_withdrawal_waiver" value="1" <?php checked($legal_withdrawal_waiver); ?>>
+                        <?php _e('Ich stimme ausdrücklich zu, dass mit der Ausführung digitaler Leistungen vor Ablauf der Widerrufsfrist begonnen wird.', 'themisdb-order-request'); ?>
                     </label>
                 </div>
             </div>
@@ -404,6 +551,38 @@ class ThemisDB_Order_Shortcodes {
                         <?php echo esc_html($order['customer_email']); ?>
                     </p>
                 </div>
+
+                <?php if (!empty($order['billing_address_line1'])): ?>
+                <div class="summary-section">
+                    <h3><?php _e('Rechnungsadresse', 'themisdb-order-request'); ?></h3>
+                    <p>
+                        <strong><?php echo esc_html($order['billing_name'] ?: $order['customer_name']); ?></strong><br>
+                        <?php echo esc_html($order['billing_address_line1']); ?><br>
+                        <?php if (!empty($order['billing_address_line2'])): ?>
+                            <?php echo esc_html($order['billing_address_line2']); ?><br>
+                        <?php endif; ?>
+                        <?php echo esc_html(trim(($order['billing_postal_code'] ?? '') . ' ' . ($order['billing_city'] ?? ''))); ?><br>
+                        <?php echo esc_html($order['billing_country'] ?? 'DE'); ?>
+                    </p>
+                </div>
+                <?php endif; ?>
+
+                <?php if (!empty($order['shipping_address_line1'])): ?>
+                <div class="summary-section">
+                    <h3><?php _e('Lieferadresse', 'themisdb-order-request'); ?></h3>
+                    <p>
+                        <?php if (!empty($order['shipping_name'])): ?>
+                            <strong><?php echo esc_html($order['shipping_name']); ?></strong><br>
+                        <?php endif; ?>
+                        <?php echo esc_html($order['shipping_address_line1']); ?><br>
+                        <?php if (!empty($order['shipping_address_line2'])): ?>
+                            <?php echo esc_html($order['shipping_address_line2']); ?><br>
+                        <?php endif; ?>
+                        <?php echo esc_html(trim(($order['shipping_postal_code'] ?? '') . ' ' . ($order['shipping_city'] ?? ''))); ?><br>
+                        <?php echo esc_html($order['shipping_country'] ?? 'DE'); ?>
+                    </p>
+                </div>
+                <?php endif; ?>
                 
                 <div class="summary-total">
                     <h3><?php _e('Gesamtbetrag', 'themisdb-order-request'); ?></h3>
@@ -538,6 +717,39 @@ class ThemisDB_Order_Shortcodes {
             }
         }
         $data = $sanitized_data;
+
+        if ($step === 4) {
+            $customer_type = isset($data['customer_type']) && in_array($data['customer_type'], array('consumer', 'business'), true)
+                ? $data['customer_type']
+                : 'consumer';
+
+            $required_fields = array('customer_name', 'customer_email', 'billing_name', 'billing_address_line1', 'billing_postal_code', 'billing_city', 'billing_country');
+            foreach ($required_fields as $field) {
+                if (empty($data[$field])) {
+                    wp_send_json_error(array('message' => __('Bitte füllen Sie alle Pflichtfelder für die Rechnungsdaten aus.', 'themisdb-order-request')));
+                    return;
+                }
+            }
+
+            $legal_compliance_enabled = get_option('themisdb_order_legal_compliance') === '1';
+            if ($legal_compliance_enabled) {
+                if (empty($data['legal_terms_accepted']) || empty($data['legal_privacy_accepted'])) {
+                    wp_send_json_error(array('message' => __('Bitte akzeptieren Sie AGB und Datenschutzerklärung.', 'themisdb-order-request')));
+                    return;
+                }
+
+                if ($customer_type === 'consumer' && empty($data['legal_withdrawal_acknowledged'])) {
+                    wp_send_json_error(array('message' => __('Bitte bestätigen Sie die Kenntnis der Widerrufsbelehrung.', 'themisdb-order-request')));
+                    return;
+                }
+            }
+
+            $data['customer_type'] = $customer_type;
+            $data['legal_acceptance_version'] = get_option('themisdb_order_legal_version', 'de-v1');
+            $data['legal_accepted_at'] = current_time('mysql');
+            $data['legal_accepted_ip'] = isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field($_SERVER['REMOTE_ADDR']) : null;
+            $data['legal_accepted_user_agent'] = isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : null;
+        }
         
         // Start session if not started
         if (!session_id()) {
@@ -548,12 +760,16 @@ class ThemisDB_Order_Shortcodes {
         
         if (!$order_id) {
             // Create new order
+            $product_edition = isset($data['product_edition']) ? $data['product_edition'] : 'community';
+            $product = ThemisDB_Order_Manager::get_product_by_edition($product_edition);
+            $product_type = ($product && !empty($product['product_type'])) ? $product['product_type'] : 'database';
+
             $order_data = array(
                 'customer_email' => isset($data['customer_email']) ? $data['customer_email'] : '',
                 'customer_name' => isset($data['customer_name']) ? $data['customer_name'] : '',
                 'customer_company' => isset($data['customer_company']) ? $data['customer_company'] : '',
-                'product_type' => 'database',
-                'product_edition' => isset($data['product_edition']) ? $data['product_edition'] : 'community'
+                'product_type' => $product_type,
+                'product_edition' => $product_edition
             );
             
             $order_id = ThemisDB_Order_Manager::create_order($order_data);
@@ -619,44 +835,84 @@ class ThemisDB_Order_Shortcodes {
         // Send confirmation email
         ThemisDB_Email_Handler::send_order_confirmation($order_id);
         
-        // Create contract
         $order = ThemisDB_Order_Manager::get_order($order_id);
-        $contract_data = array(
-            'order_id' => $order_id,
-            'customer_id' => $order['customer_id'],
-            'contract_type' => 'license',
-            'contract_data' => $order
-        );
-        
-        $contract_id = ThemisDB_Contract_Manager::create_contract($contract_data);
-        
-        if ($contract_id) {
-            // Generate PDF
-            ThemisDB_PDF_Generator::generate_contract_pdf($contract_id);
-            
-            // Send contract email
-            ThemisDB_Email_Handler::send_contract_email($contract_id);
-            
-            // Create payment record
+
+        // Ensure at least one order item exists for downstream processing.
+        $existing_items = ThemisDB_Order_Manager::get_order_items($order_id);
+        if (empty($existing_items)) {
+            $product = ThemisDB_Order_Manager::get_product_by_edition($order['product_edition']);
+            if ($product) {
+                ThemisDB_Order_Manager::set_order_items($order_id, array(
+                    array(
+                        'item_type' => $order['product_type'],
+                        'product_id' => $product['id'],
+                        'sku' => !empty($product['product_code']) ? $product['product_code'] : null,
+                        'item_name' => $product['product_name'],
+                        'quantity' => 1,
+                        'unit_price' => $product['price'],
+                    )
+                ), $order['currency']);
+                ThemisDB_Order_Manager::recalculate_order_total_from_items($order_id);
+                $order = ThemisDB_Order_Manager::get_order($order_id);
+            }
+        }
+
+        // Merchandise flow: no contract/license creation, only payment + invoice.
+        if ($order['product_type'] === 'merchandise') {
             $payment_data = array(
                 'order_id' => $order_id,
-                'contract_id' => $contract_id,
                 'amount' => $order['total_amount'],
                 'currency' => $order['currency'],
                 'payment_method' => 'bank_transfer'
             );
-            $payment_id = ThemisDB_Payment_Manager::create_payment($payment_data);
-            
-            // Create license
-            $license_data = array(
+            ThemisDB_Payment_Manager::create_payment($payment_data);
+
+            ThemisDB_Order_Manager::reserve_inventory_for_order($order_id);
+
+            try {
+                ThemisDB_Email_Handler::send_invoice_email($order_id);
+            } catch (Exception $e) {
+                error_log('ThemisDB Invoice Email Error (Merchandise Submit): ' . $e->getMessage());
+            }
+        } else {
+            // License flow: keep current contract/license workflow.
+            $contract_data = array(
                 'order_id' => $order_id,
-                'contract_id' => $contract_id,
                 'customer_id' => $order['customer_id'],
-                'product_edition' => $order['product_edition'],
-                'license_type' => 'standard'
-                // Limits will be set automatically based on tier in create_license()
+                'contract_type' => 'license',
+                'contract_data' => $order
             );
-            $license_id = ThemisDB_License_Manager::create_license($license_data);
+
+            $contract_id = ThemisDB_Contract_Manager::create_contract($contract_data);
+
+            if ($contract_id) {
+                ThemisDB_PDF_Generator::generate_contract_pdf($contract_id);
+                ThemisDB_Email_Handler::send_contract_email($contract_id);
+
+                try {
+                    ThemisDB_Email_Handler::send_invoice_email($order_id);
+                } catch (Exception $e) {
+                    error_log('ThemisDB Invoice Email Error (AJAX Submit): ' . $e->getMessage());
+                }
+
+                $payment_data = array(
+                    'order_id' => $order_id,
+                    'contract_id' => $contract_id,
+                    'amount' => $order['total_amount'],
+                    'currency' => $order['currency'],
+                    'payment_method' => 'bank_transfer'
+                );
+                ThemisDB_Payment_Manager::create_payment($payment_data);
+
+                $license_data = array(
+                    'order_id' => $order_id,
+                    'contract_id' => $contract_id,
+                    'customer_id' => $order['customer_id'],
+                    'product_edition' => $order['product_edition'],
+                    'license_type' => 'standard'
+                );
+                ThemisDB_License_Manager::create_license($license_data);
+            }
         }
         
         // Clear session
@@ -666,5 +922,377 @@ class ThemisDB_Order_Shortcodes {
             'order_number' => $order['order_number'],
             'message' => __('Ihre Bestellung wurde erfolgreich übermittelt!', 'themisdb-order-request')
         ));
+    }
+    
+    /**
+     * Dynamic pricing display shortcode
+     * Usage: [themisdb_pricing] or [themisdb_pricing format="cards"]
+     */
+    public function pricing_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'format' => 'cards', // cards, table, comparison
+            'currency' => 'EUR',
+            'show_features' => 'yes'
+        ), $atts);
+        
+        ob_start();
+        $this->render_pricing(
+            sanitize_text_field($atts['format']),
+            sanitize_text_field($atts['currency']),
+            sanitize_text_field($atts['show_features']) === 'yes'
+        );
+        return ob_get_clean();
+    }
+    
+    /**
+     * Pricing table shortcode (legacy/alternative)
+     * Usage: [themisdb_pricing_table]
+     */
+    public function pricing_table_shortcode($atts) {
+        ob_start();
+        $this->render_pricing('table', 'EUR', true);
+        return ob_get_clean();
+    }
+    
+    /**
+     * Render pricing from database
+     */
+    private function render_pricing($format = 'cards', $currency = 'EUR', $show_features = true) {
+        global $wpdb;
+        
+        // Get latest license prices (distinct by product_edition, valid_from DESC)
+        $query = "
+            SELECT lp.*, p.edition, p.product_name, p.description
+            FROM {$wpdb->prefix}themisdb_license_prices lp
+            LEFT JOIN {$wpdb->prefix}themisdb_products p ON lp.product_edition = p.edition
+            WHERE lp.valid_from <= CURDATE()
+            AND (lp.valid_until IS NULL OR lp.valid_until >= CURDATE())
+            AND lp.currency = %s
+            ORDER BY lp.product_edition, lp.valid_from DESC
+            GROUP BY lp.product_edition
+        ";
+        
+        $prices = $wpdb->get_results($wpdb->prepare($query, $currency), ARRAY_A);
+        
+        if (empty($prices)) {
+            echo '<p>' . esc_html__('Keine Lizenzpreise verfügbar.', 'themisdb-order-request') . '</p>';
+            return;
+        }
+        
+        // Get features for each license type
+        $features_by_type = array();
+        if ($show_features) {
+            $features_query = "
+                SELECT lf.*, lp.product_edition
+                FROM {$wpdb->prefix}themisdb_license_features lf
+                LEFT JOIN {$wpdb->prefix}themisdb_license_prices lp ON lf.license_id = lp.license_id
+                WHERE lf.is_active = 1
+                AND lf.valid_from <= CURDATE()
+                AND (lf.valid_until IS NULL OR lf.valid_until >= CURDATE())
+                GROUP BY lf.feature_code, lp.product_edition
+            ";
+            
+            $features = $wpdb->get_results($features_query, ARRAY_A);
+            foreach ($features as $feature) {
+                if (!isset($features_by_type[$feature['product_edition']])) {
+                    $features_by_type[$feature['product_edition']] = array();
+                }
+                $features_by_type[$feature['product_edition']][] = $feature;
+            }
+        }
+        
+        // Render based on format
+        if ($format === 'table') {
+            $this->render_pricing_table($prices, $features_by_type, $show_features);
+        } elseif ($format === 'comparison') {
+            $this->render_pricing_comparison($prices, $features_by_type, $show_features);
+        } else {
+            // Default: cards
+            $this->render_pricing_cards($prices, $features_by_type, $show_features);
+        }
+    }
+    
+    /**
+     * Render pricing as cards
+     */
+    private function render_pricing_cards($prices, $features_by_type, $show_features) {
+        ?>
+        <div class="themisdb-pricing-cards">
+            <div class="pricing-grid">
+                <?php foreach ($prices as $price): ?>
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3 class="pricing-title">
+                            <?php echo esc_html($price['product_name'] ?: ucfirst($price['product_edition'])); ?>
+                        </h3>
+                        <p class="pricing-description">
+                            <?php echo esc_html($price['description'] ?: ''); ?>
+                        </p>
+                    </div>
+                    
+                    <div class="pricing-price">
+                        <?php if ($price['base_price'] == 0): ?>
+                            <p class="price-amount"><strong><?php _e('Kostenlos', 'themisdb-order-request'); ?></strong></p>
+                        <?php else: ?>
+                            <p class="price-currency"><?php echo esc_html($price['currency']); ?></p>
+                            <p class="price-amount"><strong><?php echo number_format($price['base_price'], 0, ',', '.'); ?></strong></p>
+                            <p class="price-period"><?php _e('pro Jahr', 'themisdb-order-request'); ?></p>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="pricing-specs">
+                        <?php if ($price['max_nodes']): ?>
+                        <div class="spec"><strong><?php _e('Knoten', 'themisdb-order-request'); ?>:</strong> <?php echo esc_html($price['max_nodes']); ?></div>
+                        <?php endif; ?>
+                        <?php if ($price['max_cores']): ?>
+                        <div class="spec"><strong><?php _e('CPU-Cores', 'themisdb-order-request'); ?>:</strong> <?php echo esc_html($price['max_cores']); ?></div>
+                        <?php endif; ?>
+                        <?php if ($price['max_storage_gb']): ?>
+                        <div class="spec"><strong><?php _e('Speicher', 'themisdb-order-request'); ?>:</strong> <?php echo number_format($price['max_storage_gb'], 0, '', '.'); ?> GB</div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <?php if ($show_features && isset($features_by_type[$price['product_edition']])): ?>
+                    <div class="pricing-features">
+                        <h4><?php _e('Features', 'themisdb-order-request'); ?></h4>
+                        <ul>
+                            <?php foreach ($features_by_type[$price['product_edition']] as $feature): ?>
+                            <li>
+                                <span class="feature-check">✓</span>
+                                <span class="feature-name"><?php echo esc_html($feature['feature_name']); ?></span>
+                            </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <div class="pricing-action">
+                        <a href="<?php echo esc_url(home_url('/bestellung')); ?>" class="button button-primary">
+                            <?php _e('Jetzt wählen', 'themisdb-order-request'); ?>
+                        </a>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        
+        <style>
+            .themisdb-pricing-cards { padding: 40px 0; }
+            .pricing-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 30px;
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            .pricing-card {
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 30px;
+                background: #fff;
+                display: flex;
+                flex-direction: column;
+                transition: transform 0.3s, box-shadow 0.3s;
+            }
+            .pricing-card:hover { 
+                transform: translateY(-5px);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            }
+            .pricing-title { margin: 0 0 10px 0; font-size: 22px; }
+            .pricing-description { margin: 0 0 20px 0; color: #666; font-size: 14px; }
+            .pricing-price { 
+                text-align: center; 
+                padding: 20px 0; 
+                border-top: 1px solid #f0f0f0;
+                border-bottom: 1px solid #f0f0f0;
+                margin-bottom: 20px;
+            }
+            .price-amount { font-size: 36px; margin: 10px 0; }
+            .price-period { font-size: 12px; color: #999; margin: 0; }
+            .pricing-specs { margin-bottom: 20px; }
+            .spec { padding: 8px 0; font-size: 14px; }
+            .pricing-features { background: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+            .pricing-features h4 { margin-top: 0; font-size: 14px; }
+            .pricing-features ul { list-style: none; padding: 0; margin: 0; }
+            .pricing-features li { padding: 6px 0; font-size: 13px; }
+            .feature-check { color: #28a745; margin-right: 8px; font-weight: bold; }
+            .pricing-action { flex-grow: 1; display: flex; align-items: flex-end; }
+        </style>
+        <?php
+    }
+    
+    /**
+     * Render pricing as table
+     */
+    private function render_pricing_table($prices, $features_by_type, $show_features) {
+        ?>
+        <table class="themisdb-pricing-table">
+            <thead>
+                <tr>
+                    <th><?php _e('Edition', 'themisdb-order-request'); ?></th>
+                    <th><?php _e('Preis', 'themisdb-order-request'); ?></th>
+                    <th><?php _e('Knoten', 'themisdb-order-request'); ?></th>
+                    <th><?php _e('CPU-Cores', 'themisdb-order-request'); ?></th>
+                    <th><?php _e('Speicher', 'themisdb-order-request'); ?></th>
+                    <?php if ($show_features): ?>
+                    <th><?php _e('Hauptfeatures', 'themisdb-order-request'); ?></th>
+                    <?php endif; ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($prices as $price): ?>
+                <tr>
+                    <td><strong><?php echo esc_html($price['product_name'] ?: ucfirst($price['product_edition'])); ?></strong></td>
+                    <td>
+                        <?php if ($price['base_price'] == 0): ?>
+                            <strong><?php _e('Kostenlos', 'themisdb-order-request'); ?></strong>
+                        <?php else: ?>
+                            <strong><?php echo number_format($price['base_price'], 2, ',', '.'); ?> <?php echo esc_html($price['currency']); ?></strong> / a
+                        <?php endif; ?>
+                    </td>
+                    <td><?php echo $price['max_nodes'] ?: '∞'; ?></td>
+                    <td><?php echo $price['max_cores'] ?: '—'; ?></td>
+                    <td><?php echo $price['max_storage_gb'] ? number_format($price['max_storage_gb'], 0, '', '.') . ' GB' : '∞'; ?></td>
+                    <?php if ($show_features): ?>
+                    <td>
+                        <?php if (isset($features_by_type[$price['product_edition']])): ?>
+                            <?php 
+                            $feature_names = array_column($features_by_type[$price['product_edition']], 'feature_name');
+                            echo esc_html(implode(', ', array_slice($feature_names, 0, 3)));
+                            if (count($feature_names) > 3) {
+                                echo sprintf(' <em>+%d weitere</em>', count($feature_names) - 3);
+                            }
+                            ?>
+                        <?php endif; ?>
+                    </td>
+                    <?php endif; ?>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        
+        <style>
+            .themisdb-pricing-table { 
+                width: 100%;
+                border-collapse: collapse;
+                margin: 20px 0;
+            }
+            .themisdb-pricing-table th, .themisdb-pricing-table td {
+                padding: 15px;
+                border: 1px solid #ddd;
+                text-align: left;
+            }
+            .themisdb-pricing-table th {
+                background-color: #f5f5f5;
+                font-weight: bold;
+            }
+            .themisdb-pricing-table tbody tr:nth-child(even) {
+                background-color: #fafafa;
+            }
+        </style>
+        <?php
+    }
+    
+    /**
+     * Render pricing as comparison view
+     */
+    private function render_pricing_comparison($prices, $features_by_type, $show_features) {
+        ?>
+        <div class="themisdb-pricing-comparison">
+            <h2><?php _e('Vergleichen Sie unsere Editionen', 'themisdb-order-request'); ?></h2>
+            
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th<?php _e('Funktion', 'themisdb-order-request'); ?></th>
+                        <?php foreach ($prices as $price): ?>
+                        <th>
+                            <div class="edition-name"><?php echo esc_html($price['product_name'] ?: ucfirst($price['product_edition'])); ?></div>
+                            <div class="edition-price">
+                                <?php if ($price['base_price'] == 0): ?>
+                                    <?php _e('Kostenlos', 'themisdb-order-request'); ?>
+                                <?php else: ?>
+                                    <?php echo number_format($price['base_price'], 0, ',', '.'); ?> <?php echo esc_html($price['currency']); ?>/a
+                                <?php endif; ?>
+                            </div>
+                        </th>
+                        <?php endforeach; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    // Collect all unique features
+                    $all_features = array();
+                    foreach ($features_by_type as $features) {
+                        foreach ($features as $feature) {
+                            $all_features[$feature['feature_code']] = $feature['feature_name'];
+                        }
+                    }
+                    ?>
+                    
+                    <?php foreach ($all_features as $code => $name): ?>
+                    <tr>
+                        <td class="feature-name"><strong><?php echo esc_html($name); ?></strong></td>
+                        <?php foreach ($prices as $price): ?>
+                        <td class="feature-availability">
+                            <?php
+                            $has_feature = false;
+                            if (isset($features_by_type[$price['product_edition']])) {
+                                foreach ($features_by_type[$price['product_edition']] as $feature) {
+                                    if ($feature['feature_code'] === $code) {
+                                        $has_feature = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if ($has_feature) {
+                                echo '<span class="feature-included">✓</span>';
+                            } else {
+                                echo '<span class="feature-excluded">—</span>';
+                            }
+                            ?>
+                        </td>
+                        <?php endforeach; ?>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        
+        <style>
+            .themisdb-pricing-comparison { padding: 40px 0; }
+            .comparison-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 20px 0;
+                background: white;
+            }
+            .comparison-table th {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                text-align: center;
+                font-weight: bold;
+            }
+            .edition-name { font-size: 16px; margin-bottom: 8px; }
+            .edition-price { font-size: 14px; opacity: 0.9; }
+            .comparison-table td {
+                padding: 15px 20px;
+                border: 1px solid #e0e0e0;
+                text-align: center;
+            }
+            .comparison-table td.feature-name {
+                text-align: left;
+                background: #f9f9f9;
+                font-weight: 600;
+            }
+            .feature-included { color: #28a745; font-weight: bold; font-size: 18px; }
+            .feature-excluded { color: #ccc; }
+            .comparison-table tbody tr:hover {
+                background-color: #f5f5f5;
+            }
+        </style>
+        <?php
     }
 }

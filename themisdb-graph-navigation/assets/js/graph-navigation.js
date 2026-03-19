@@ -545,6 +545,7 @@
             selectedOnly: false,
             filterMode: 'hide',
             helpVisible: false,
+            panelCollapsed: false,
             minCount: 0,
             dateFrom: '',
             dateTo: '',
@@ -557,6 +558,7 @@
         };
 
         const panelStorageKey = 'themisdbGraphPanelStateV2';
+        const panelFloatPosKey = 'themisdbGraphPanelPosV1';
         const panelPresetStorageKey = 'themisdbGraphPanelPresetsV1';
         const panelPresetMetaStorageKey = 'themisdbGraphPanelPresetMetaV1';
         let panelPresets = {};
@@ -590,6 +592,8 @@
             importConflictLabel: panelContainer.querySelector('#graph-import-conflict-label'),
             toggleHelpBtn: panelContainer.querySelector('#graph-toggle-help'),
             inlineHelp: panelContainer.querySelector('#graph-inline-help'),
+            collapseBtn: panelContainer.querySelector('#graph-panel-collapse'),
+            body: panelContainer.querySelector('.graph-panel-body'),
             autoApplyPresetCheckbox: panelContainer.querySelector('#graph-auto-apply-preset'),
             presetAuditList: panelContainer.querySelector('#graph-preset-audit'),
             selectVisibleBtn: panelContainer.querySelector('#graph-select-visible'),
@@ -928,6 +932,7 @@
                     selectedOnly: panelState.selectedOnly,
                     filterMode: panelState.filterMode,
                     helpVisible: panelState.helpVisible,
+                    panelCollapsed: panelState.panelCollapsed,
                     minCount: panelState.minCount,
                     dateFrom: panelState.dateFrom,
                     dateTo: panelState.dateTo,
@@ -952,6 +957,7 @@
                 panelState.selectedOnly = Boolean(parsed.selectedOnly);
                 panelState.filterMode = parsed.filterMode === 'highlight' ? 'highlight' : 'hide';
                 panelState.helpVisible = Boolean(parsed.helpVisible);
+                panelState.panelCollapsed = Boolean(parsed.panelCollapsed);
 
                 const minCount = Number(parsed.minCount);
                 panelState.minCount = Number.isFinite(minCount) && minCount > 0 ? minCount : 0;
@@ -1092,6 +1098,7 @@
             if (panel.dateFromInput) panel.dateFromInput.value = panelState.dateFrom;
             if (panel.dateToInput) panel.dateToInput.value = panelState.dateTo;
             renderInlineHelpState();
+            renderPanelCollapsedState();
         }
 
         function renderInlineHelpState() {
@@ -1104,6 +1111,15 @@
             panel.inlineHelp.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
             panel.toggleHelpBtn.setAttribute('aria-expanded', isVisible ? 'true' : 'false');
             panel.toggleHelpBtn.textContent = isVisible ? 'Hilfe ausblenden' : 'Hilfe anzeigen';
+        }
+
+        function renderPanelCollapsedState() {
+            if (!panel?.root || !panel?.collapseBtn) return;
+            const collapsed = panelState.panelCollapsed;
+            panel.root.classList.toggle('collapsed', collapsed);
+            panel.collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            panel.collapseBtn.setAttribute('aria-label', collapsed ? 'Panel maximieren' : 'Panel minimieren');
+            panel.collapseBtn.textContent = collapsed ? '+' : '\u2212';
         }
 
         function serializeCurrentPanelState() {
@@ -1749,6 +1765,97 @@
             syncUrlState();
         }
 
+        function initPanelDrag(el) {
+            const handle = el.querySelector('.graph-panel-header');
+            if (!handle) return;
+
+            let dragging = false;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            function clampPos(x, y) {
+                return {
+                    x: Math.max(0, Math.min(window.innerWidth - el.offsetWidth, x)),
+                    y: Math.max(0, Math.min(window.innerHeight - 60, y))
+                };
+            }
+
+            function applyPos(x, y) {
+                const p = clampPos(x, y);
+                el.style.left = `${p.x}px`;
+                el.style.top = `${p.y}px`;
+                el.style.right = 'auto';
+            }
+
+            function savePos() {
+                try {
+                    localStorage.setItem(panelFloatPosKey, JSON.stringify({
+                        x: parseInt(el.style.left, 10) || 0,
+                        y: parseInt(el.style.top, 10) || 0
+                    }));
+                } catch {}
+            }
+
+            try {
+                const saved = JSON.parse(localStorage.getItem(panelFloatPosKey) || 'null');
+                if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+                    applyPos(saved.x, saved.y);
+                }
+            } catch {}
+
+            handle.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.graph-panel-collapse-btn')) return;
+                if (e.button !== 0) return;
+                dragging = true;
+                const rect = el.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+                el.style.right = 'auto';
+                if (!el.style.left) {
+                    el.style.left = `${rect.left}px`;
+                    el.style.top = `${rect.top}px`;
+                }
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!dragging) return;
+                applyPos(e.clientX - offsetX, e.clientY - offsetY);
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (!dragging) return;
+                dragging = false;
+                savePos();
+            });
+
+            handle.addEventListener('touchstart', (e) => {
+                if (e.target.closest('.graph-panel-collapse-btn')) return;
+                const touch = e.touches[0];
+                dragging = true;
+                const rect = el.getBoundingClientRect();
+                offsetX = touch.clientX - rect.left;
+                offsetY = touch.clientY - rect.top;
+                el.style.right = 'auto';
+                if (!el.style.left) {
+                    el.style.left = `${rect.left}px`;
+                    el.style.top = `${rect.top}px`;
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!dragging) return;
+                const touch = e.touches[0];
+                applyPos(touch.clientX - offsetX, touch.clientY - offsetY);
+            }, { passive: true });
+
+            document.addEventListener('touchend', () => {
+                if (!dragging) return;
+                dragging = false;
+                savePos();
+            });
+        }
+
         function initializePanel() {
             if (!panel) {
                 return;
@@ -1783,6 +1890,31 @@
                 renderInlineHelpState();
                 persistPanelState();
             });
+
+            panel.collapseBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                panelState.panelCollapsed = !panelState.panelCollapsed;
+                renderPanelCollapsedState();
+                persistPanelState();
+            });
+
+            // Context-sensitive help: hover a control -> highlight matching help item
+            const panelGrid = panelContainer.querySelector('.graph-panel-grid');
+            if (panelGrid) {
+                panelGrid.addEventListener('mouseover', (e) => {
+                    if (!panelState.helpVisible || !panel.inlineHelp) return;
+                    const target = e.target.closest('[data-help-section]');
+                    const section = target?.dataset.helpSection ?? null;
+                    panel.inlineHelp.querySelectorAll('li[data-help-id]').forEach(li => {
+                        li.classList.toggle('graph-help-active', section !== null && li.dataset.helpId === section);
+                    });
+                });
+                panelGrid.addEventListener('mouseleave', () => {
+                    panel.inlineHelp?.querySelectorAll('li.graph-help-active').forEach(li =>
+                        li.classList.remove('graph-help-active')
+                    );
+                });
+            }
 
             panel.searchInput?.addEventListener('input', (e) => {
                 panelState.search = e.target.value || '';
@@ -2025,9 +2157,11 @@
                 copyShareLink();
             });
 
-            if (panel.list && !panelState.isListScrollBound) {
-                panel.list.addEventListener('scroll', () => {
-                    const nearBottom = panel.list.scrollTop + panel.list.clientHeight >= panel.list.scrollHeight - 80;
+            initPanelDrag(panel.root);
+
+            if (panel.body && !panelState.isListScrollBound) {
+                panel.body.addEventListener('scroll', () => {
+                    const nearBottom = panel.body.scrollTop + panel.body.clientHeight >= panel.body.scrollHeight - 80;
                     if (!nearBottom) {
                         return;
                     }
@@ -2315,31 +2449,91 @@
         style.id = 'themisdb-graph-panel-styles';
         style.textContent = `
             .themisdb-graph-layout {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) 340px;
-                gap: 14px;
-                width: min(1320px, calc(100vw - 40px));
-                height: min(84vh, 860px);
-                margin: 0 auto;
+                position: absolute;
+                inset: 0;
             }
 
             .graph-side-panel {
-                background: linear-gradient(180deg, rgba(16, 20, 30, 0.95) 0%, rgba(24, 29, 42, 0.95) 100%);
-                border: 1px solid rgba(107, 139, 255, 0.32);
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                width: 320px;
+                max-height: calc(100% - 40px);
+                z-index: 50;
+                background: linear-gradient(180deg, rgba(16, 20, 30, 0.97) 0%, rgba(24, 29, 42, 0.97) 100%);
+                border: 1px solid rgba(107, 139, 255, 0.42);
                 border-radius: 14px;
-                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
                 padding: 14px;
                 color: #e8efff;
                 display: flex;
                 flex-direction: column;
-                min-height: 0;
+                overflow: hidden;
+                touch-action: none;
+            }
+
+            .graph-panel-header {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid rgba(130, 152, 233, 0.3);
+                flex-shrink: 0;
+                cursor: grab;
+                user-select: none;
+            }
+
+            .graph-panel-header:active {
+                cursor: grabbing;
+            }
+
+            .graph-panel-drag-icon {
+                color: rgba(130, 152, 233, 0.6);
+                font-size: 16px;
+                line-height: 1;
+                flex-shrink: 0;
             }
 
             .graph-panel-title {
-                margin: 0 0 10px;
+                flex: 1;
+                margin: 0;
                 font-size: 1rem;
                 font-weight: 700;
                 letter-spacing: 0.02em;
+                pointer-events: none;
+            }
+
+            .graph-panel-collapse-btn {
+                background: transparent;
+                border: 1px solid rgba(107, 139, 255, 0.35);
+                color: #c8d8fa;
+                border-radius: 6px;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                font-size: 18px;
+                line-height: 1;
+                padding: 0;
+                flex-shrink: 0;
+            }
+
+            .graph-panel-collapse-btn:hover {
+                background: rgba(107, 139, 255, 0.2);
+                color: #fff;
+            }
+
+            .graph-panel-body {
+                overflow-y: auto;
+                flex: 1;
+                min-height: 0;
+                padding-top: 10px;
+            }
+
+            .graph-side-panel.collapsed .graph-panel-body {
+                display: none;
             }
 
             .graph-panel-grid {
@@ -2466,6 +2660,16 @@
 
             .graph-inline-help li {
                 margin: 4px 0;
+                transition: background 0.15s, color 0.15s;
+                border-radius: 4px;
+                padding-left: 2px;
+            }
+
+            .graph-inline-help li.graph-help-active {
+                background: rgba(120, 150, 235, 0.22);
+                color: #fff;
+                font-weight: 600;
+                padding-left: 4px;
             }
 
             .graph-import-conflict-modal {
@@ -2546,8 +2750,6 @@
                 margin-top: 10px;
                 border-top: 1px solid rgba(130, 152, 233, 0.3);
                 padding-top: 10px;
-                overflow: auto;
-                min-height: 0;
                 display: flex;
                 flex-direction: column;
                 gap: 6px;
@@ -2593,13 +2795,10 @@
             }
 
             @media (max-width: 960px) {
-                .themisdb-graph-layout {
-                    grid-template-columns: 1fr;
-                    height: min(90vh, 920px);
-                }
-
                 .graph-side-panel {
-                    max-height: 36vh;
+                    width: min(300px, calc(100% - 40px));
+                    right: 10px;
+                    top: 10px;
                 }
             }
         `;
@@ -2670,27 +2869,32 @@
                     </div>
                 </div>
                 <aside class="graph-side-panel" aria-label="Graph controls">
-                    <h3 class="graph-panel-title">Navigation Explorer</h3>
+                    <div class="graph-panel-header">
+                        <span class="graph-panel-drag-icon" aria-hidden="true">⠿</span>
+                        <h3 class="graph-panel-title">Navigation Explorer</h3>
+                        <button class="graph-panel-collapse-btn" id="graph-panel-collapse" type="button" aria-expanded="true" aria-label="Panel minimieren">−</button>
+                    </div>
+                    <div class="graph-panel-body">
                     <div class="graph-panel-grid">
-                        <div class="graph-type-chips" id="graph-type-chips" aria-label="Schnellfilter Typ"></div>
-                        <input id="graph-filter-search" type="search" placeholder="Suchen nach Titel..." />
-                        <select id="graph-filter-type">
+                        <div class="graph-type-chips" id="graph-type-chips" aria-label="Schnellfilter Typ" data-help-section="filter"></div>
+                        <input id="graph-filter-search" type="search" placeholder="Suchen nach Titel..." data-help-section="filter" />
+                        <select id="graph-filter-type" data-help-section="filter">
                             <option value="all">Alle Typen</option>
                         </select>
-                        <select id="graph-sort-select">
+                        <select id="graph-sort-select" data-help-section="filter">
                             <option value="label_asc">Sortierung: Titel A-Z</option>
                             <option value="label_desc">Sortierung: Titel Z-A</option>
                             <option value="type_asc">Sortierung: Typ</option>
                             <option value="size_desc">Sortierung: Groesse</option>
                             <option value="count_desc">Sortierung: Count</option>
                         </select>
-                        <label class="graph-panel-row" for="graph-highlight-only">
+                        <label class="graph-panel-row" for="graph-highlight-only" data-help-section="highlight">
                             <span>Highlight-only Modus</span>
                             <input id="graph-highlight-only" type="checkbox" />
                         </label>
-                        <input id="graph-filter-min-count" type="number" min="0" step="1" placeholder="Mindest-Count (z. B. 3)" />
-                        <input id="graph-filter-date-from" type="date" aria-label="Datum von" />
-                        <input id="graph-filter-date-to" type="date" aria-label="Datum bis" />
+                        <input id="graph-filter-min-count" type="number" min="0" step="1" placeholder="Mindest-Count (z. B. 3)" data-help-section="filter" />
+                        <input id="graph-filter-date-from" type="date" aria-label="Datum von" data-help-section="filter" />
+                        <input id="graph-filter-date-to" type="date" aria-label="Datum bis" data-help-section="filter" />
                         <label class="graph-panel-row" for="graph-selected-only">
                             <span>Nur Selektion anzeigen</span>
                             <input id="graph-selected-only" type="checkbox" />
@@ -2699,15 +2903,15 @@
                         <div class="graph-inline-help" id="graph-inline-help" aria-hidden="true">
                             <strong>Schnellhilfe Bedienung</strong>
                             <ul>
-                                <li>Maus: Hover zeigt Details, Klick auf Node oeffnet Zielseite.</li>
-                                <li>Tastatur: Tab auf Node, Enter/Leertaste oeffnet, Escape schliesst Tooltip.</li>
-                                <li>Panel: Suche, Typ, Sortierung und Datum filtern den Graph live.</li>
-                                <li>Modus: Highlight-only dimmt unpassende Knoten statt sie auszublenden.</li>
-                                <li>Presets: Speichern/Laden fuer wiederkehrende Ansichten.</li>
-                                <li>Import: Konflikte ueber den Modus waehlen oder je Preset entscheiden.</li>
+                                <li data-help-id="mouse">Maus: Hover zeigt Details, Klick auf Node oeffnet Zielseite.</li>
+                                <li data-help-id="keyboard">Tastatur: Tab auf Node, Enter/Leertaste oeffnet, Escape schliesst Tooltip.</li>
+                                <li data-help-id="filter">Panel: Suche, Typ, Sortierung und Datum filtern den Graph live.</li>
+                                <li data-help-id="highlight">Modus: Highlight-only dimmt unpassende Knoten statt sie auszublenden.</li>
+                                <li data-help-id="preset">Presets: Speichern/Laden fuer wiederkehrende Ansichten.</li>
+                                <li data-help-id="import">Import: Konflikte ueber den Modus waehlen oder je Preset entscheiden.</li>
                             </ul>
                         </div>
-                        <label class="graph-panel-row" for="graph-auto-apply-preset">
+                        <label class="graph-panel-row" for="graph-auto-apply-preset" data-help-section="preset">
                             <span>Preset automatisch laden</span>
                             <input id="graph-auto-apply-preset" type="checkbox" />
                         </label>
@@ -2715,7 +2919,7 @@
                             <button id="graph-select-visible" type="button">Sichtbare auswaehlen</button>
                             <button id="graph-clear-selection" type="button">Selektion loeschen</button>
                         </div>
-                        <div class="graph-panel-row">
+                        <div class="graph-panel-row" data-help-section="preset">
                             <select id="graph-preset-select" aria-label="Preset Auswahl">
                                 <option value="">Preset laden...</option>
                             </select>
@@ -2723,13 +2927,13 @@
                             <button id="graph-delete-preset" type="button">Loeschen</button>
                         </div>
                         <div class="graph-panel-row wrap">
-                            <button id="graph-rename-preset" type="button">Umbenennen</button>
-                            <button id="graph-duplicate-preset" type="button">Duplizieren</button>
-                            <button id="graph-export-presets" type="button">Export</button>
-                            <button id="graph-import-presets" type="button">Import</button>
+                            <button id="graph-rename-preset" type="button" data-help-section="preset">Umbenennen</button>
+                            <button id="graph-duplicate-preset" type="button" data-help-section="preset">Duplizieren</button>
+                            <button id="graph-export-presets" type="button" data-help-section="import">Export</button>
+                            <button id="graph-import-presets" type="button" data-help-section="import">Import</button>
                             <input id="graph-import-presets-input" class="graph-visually-hidden" type="file" accept="application/json,.json" />
                         </div>
-                        <label class="graph-panel-row" for="graph-import-mode">
+                        <label class="graph-panel-row" for="graph-import-mode" data-help-section="import">
                             <span class="small">Import-Konflikte</span>
                             <select id="graph-import-mode" aria-label="Import Konfliktmodus">
                                 <option value="overwrite">Ueberschreiben</option>
@@ -2754,6 +2958,7 @@
                         <div class="graph-selection-count" id="graph-selection-count">0 ausgewaehlt</div>
                     </div>
                     <div class="graph-node-list" id="graph-node-list" role="listbox" aria-label="Graph nodes"></div>
+                    </div>
                 </aside>
             </div>
             <div class="graph-controls">

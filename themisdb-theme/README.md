@@ -10,7 +10,7 @@ ThemisDB is a sophisticated WordPress theme that combines clean design with powe
 
 - **Modern Design**: Clean, professional layout inspired by midnight-blogger theme
 - **Featured Slider**: Showcase important posts with an animated slider (NEW!)
-- **Custom Widgets**: 4 specialized widgets for enhanced content presentation (NEW!)
+- **Custom Widgets**: 20+ specialized widgets for enhanced content presentation
 - **Themis Brand Colors**: 
   - Primary: #2c3e50 (dark blue-gray)
   - Secondary: #3498db (bright blue)
@@ -21,7 +21,7 @@ ThemisDB is a sophisticated WordPress theme that combines clean design with powe
 - **SEO Optimized**: Clean, semantic HTML5 markup
 - **Accessibility Ready**: WCAG 2.1 Level AA compliant
 - **Translation Ready**: Full i18n support
-- **Widget Areas**: Sidebar + 3 footer widget areas
+- **Widget Areas**: Sidebar + 3 footer widget areas + 2 front page widget areas
 - **Custom Templates**: Full-width page template included
 - **Post Formats**: Support for standard, gallery, video, and more
 - **Navigation Menus**: Primary and footer menu locations
@@ -52,7 +52,7 @@ ThemisDB is a sophisticated WordPress theme that combines clean design with powe
 - 4 color styles (Primary, Secondary, Accent, Success)
 - Perfect for downloads, links, or announcements
 
-For detailed widget documentation, see `/wordpress-theme/WIDGETS_GUIDE.md`
+For detailed widget documentation, see `WIDGETS_GUIDE.md`
 
 ## Installation
 
@@ -87,7 +87,7 @@ For detailed widget documentation, see `/wordpress-theme/WIDGETS_GUIDE.md`
 
 2. **Configure widgets**:
    - Go to Appearance > Widgets
-   - Add widgets to Sidebar and Footer areas
+   - Add widgets to Sidebar, Footer, and Front Page widget areas
 
 3. **Customize colors**:
    - Go to Appearance > Customize > Theme Colors
