@@ -98,12 +98,17 @@ class ThemisDB_Taxonomy_SEO {
         
         // Add taxonomy archive
         $tax_obj = get_taxonomy($term->taxonomy);
-        if ($tax_obj) {
+        $tax_slug = '';
+        if ($tax_obj && !empty($tax_obj->rewrite) && is_array($tax_obj->rewrite) && !empty($tax_obj->rewrite['slug'])) {
+            $tax_slug = (string) $tax_obj->rewrite['slug'];
+        }
+
+        if ($tax_obj && '' !== $tax_slug) {
             $breadcrumbs[] = array(
                 '@type' => 'ListItem',
                 'position' => $position++,
                 'name' => $tax_obj->labels->name,
-                'item' => home_url('/' . $tax_obj->rewrite['slug'])
+                'item' => home_url('/' . user_trailingslashit($tax_slug))
             );
         }
         

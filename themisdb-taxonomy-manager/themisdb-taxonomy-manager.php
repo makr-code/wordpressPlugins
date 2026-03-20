@@ -645,8 +645,13 @@ class ThemisDB_Taxonomy_Manager_Plugin {
         echo '<a href="' . esc_url(home_url('/')) . '">Home</a>' . $separator;
         
         $taxonomy_obj = get_taxonomy($term->taxonomy);
-        if ($taxonomy_obj) {
-            echo '<a href="' . esc_url(home_url('/' . $taxonomy_obj->rewrite['slug'] . '/')) . '">' . esc_html($taxonomy_obj->label) . '</a>' . $separator;
+        $tax_slug = '';
+        if ($taxonomy_obj && !empty($taxonomy_obj->rewrite) && is_array($taxonomy_obj->rewrite) && !empty($taxonomy_obj->rewrite['slug'])) {
+            $tax_slug = (string) $taxonomy_obj->rewrite['slug'];
+        }
+
+        if ($taxonomy_obj && '' !== $tax_slug) {
+            echo '<a href="' . esc_url(home_url('/' . user_trailingslashit($tax_slug))) . '">' . esc_html($taxonomy_obj->label) . '</a>' . $separator;
         }
         
         $count = count($breadcrumbs);

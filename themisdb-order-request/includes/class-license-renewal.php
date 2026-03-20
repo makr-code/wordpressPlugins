@@ -149,7 +149,7 @@ class ThemisDB_License_Renewal {
 
         $renewal_url = apply_filters(
             'themisdb_renewal_url',
-            site_url( '/contact/' ),
+            home_url( '/contact/' ),
             $license
         );
 

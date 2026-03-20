@@ -4,7 +4,7 @@ Tags: orders, crm, pdf, license, themisdb
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -116,6 +116,16 @@ Order data is stored in the WordPress database and can be exported using standar
 
 == Changelog ==
 
+= 1.1.0 =
+* Deutsches Recht: Vollständige Compliance-Felder (Rechnungsadresse, Kundentyp B2C/B2B, USt-IdNr.)
+* Rechtliche Zustimmungen: AGB, Datenschutz, Widerrufsbelehrung (§ 356 Abs. 5 BGB)
+* Pflichtfeld-Validierung: PLZ (DE 5 Ziffern), ISO-Ländercode, USt-IdNr.-Format
+* Workflow-Guard: Statusübergänge zu confirmed/signed/active erfordern vollständige Compliance
+* Feldgenaue Fehlermeldungen (PHP + JavaScript)
+* CSS: Feldmarkierung, Kundentyp-Karten, Compliance-Sections, Legal-Checkbox-Block
+* Admin: B2B-Toggle, Auto-Uppercase für Länderfelder, Abschnitts-Header
+* Step 5: Vorschau aller Legal-Zustimmungen vor dem Absenden
+
 = 1.0.0 =
 * Initial release
 * Complete order CRUD functionality
@@ -129,6 +139,9 @@ Order data is stored in the WordPress database and can be exported using standar
 * RESTful API
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Wichtiges Update für deutsche Rechtssicherheit: Compliance-Felder, BGB-konformer Widerruf, DSGVO-Einwilligungen und regulatorische Formatprüfungen.
 
 = 1.0.0 =
 Initial release of ThemisDB Order Request system.

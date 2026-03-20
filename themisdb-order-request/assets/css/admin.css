@@ -48,8 +48,57 @@
     background-color: #f8d7da;
     color: #721c24;
 }
+    .order-status.status-confirmed {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
 
-.status-sent {
+    .order-status.status-signed {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .order-status.status-active {
+        background-color: #155724;
+        color: #ffffff;
+    }
+
+    .order-status.status-ended {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+
+    /* Contract Status Styles */
+    .contract-status {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+
+    .contract-status.status-draft {
+        background-color: #f0f0f1;
+        color: #3c434a;
+    }
+
+    .contract-status.status-active {
+        background-color: #155724;
+        color: #ffffff;
+    }
+
+    .contract-status.status-ended {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+
+    .contract-status.status-cancelled {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .status-sent {
     color: #155724;
     font-weight: bold;
 }
@@ -119,6 +168,87 @@
     color: #3c434a;
 }
 
+/* ===== Admin Compliance-Felder ===== */
+
+/* Compliance-Pflichthinweis-Banner */
+.themisdb-admin-compliance-notice {
+    background: #fdf2f2;
+    border: 1px solid #f5c6cb;
+    border-left: 4px solid #b32d2e;
+    color: #721c24;
+    padding: 10px 14px;
+    margin: 8px 0 16px 0;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.themisdb-admin-compliance-notice strong {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 13px;
+}
+
+/* Pflichtfeld-Markierung ungültig */
+.form-table input.themisdb-invalid-field,
+.form-table select.themisdb-invalid-field,
+.form-table textarea.themisdb-invalid-field {
+    border: 1.5px solid #b32d2e !important;
+    background-color: #fff5f5 !important;
+    box-shadow: 0 0 0 2px rgba(179, 45, 46, 0.12) !important;
+}
+
+/* Fehlermeldung unterhalb Admin-Formularfeld */
+.form-table .themisdb-field-error {
+    display: block;
+    color: #b32d2e;
+    font-size: 12px;
+    font-style: italic;
+    margin-top: 3px;
+}
+
+/* Abschnitts-Header in Admin-Formular */
+.themisdb-form-section-header {
+    margin: 24px 0 8px 0;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #0073aa;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0073aa;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Zwei-Spalten-Layout für Adressfelder im Admin */
+.themisdb-admin-address-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 20px;
+}
+
+.themisdb-admin-address-grid .full-width {
+    grid-column: 1 / -1;
+}
+
+/* Workflow-Guard-Hinweis (gelbe Infobox) */
+.themisdb-workflow-notice {
+    background: #fffef5;
+    border: 1px solid #e8e3b5;
+    border-left: 4px solid #e8a120;
+    color: #5a4e00;
+    padding: 10px 14px;
+    margin: 8px 0;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+/* USt-IdNr. Feld hint */
+.themisdb-field-hint {
+    font-size: 11px;
+    color: #777;
+    margin-top: 3px;
+    display: block;
+}
+
 .license-status.status-cancelled {
     background-color: #f8d7da;
     color: #721c24;
@@ -142,4 +272,103 @@
 /* Form Enhancements */
 .form-table th {
     width: 200px;
+}
+
+/* Order Dashboard */
+.themisdb-dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 12px 0 18px;
+}
+
+.themisdb-dashboard-card {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-left: 4px solid #0073aa;
+    border-radius: 4px;
+    padding: 10px 12px;
+}
+
+.themisdb-dashboard-card h2 {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #50575e;
+}
+
+.themisdb-dashboard-value {
+    margin: 8px 0 0;
+    font-size: 26px;
+    line-height: 1;
+    font-weight: 700;
+    color: #1d2327;
+}
+
+.themisdb-module-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.themisdb-module-tile {
+    position: relative;
+    display: block;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-left: 4px solid #8c8f94;
+    border-radius: 4px;
+    padding: 10px 12px;
+}
+
+.themisdb-module-tile:hover {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+.themisdb-module-title {
+    display: block;
+    color: #1d2327;
+    margin-bottom: 4px;
+}
+
+.themisdb-module-meta {
+    display: block;
+    color: #50575e;
+    font-size: 12px;
+}
+
+.themisdb-module-count {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-weight: 700;
+    color: #2271b1;
+}
+
+.themisdb-module-tile--ok {
+    border-left-color: #2a7f62;
+}
+
+.themisdb-module-tile--info {
+    border-left-color: #2271b1;
+}
+
+.themisdb-module-tile--warn {
+    border-left-color: #b26200;
+    background: #fffbf5;
+}
+
+.themisdb-module-tile--alert {
+    border-left-color: #b32d2e;
+    background: #fff7f7;
+}
+
+.themisdb-module-tile--warn .themisdb-module-count {
+    color: #b26200;
+}
+
+.themisdb-module-tile--alert .themisdb-module-count {
+    color: #b32d2e;
 }

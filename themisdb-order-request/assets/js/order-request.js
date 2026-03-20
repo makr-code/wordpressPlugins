@@ -13,6 +13,46 @@ jQuery(document).ready(function($) {
         $(this).find('input[type="radio"]').prop('checked', true);
     });
     
+    // Kundentyp: B2B-Felder ein-/ausblenden und .selected-Klasse an Options-Labels setzen
+    $(document).on('change', 'input[name="customer_type"]', function() {
+        var type = $(this).val();
+        $('.customer-type-option').removeClass('selected');
+        $(this).closest('.customer-type-option').addClass('selected');
+        if (type === 'business') {
+            $('.themisdb-b2b-fields').slideDown(200);
+        } else {
+            $('.themisdb-b2b-fields').slideUp(200);
+        }
+    });
+
+    // Auto-Uppercase und Live-Format-Feedback für Land-ISO-Codes
+    $(document).on('input', '#billing_country, #shipping_country', function() {
+        var $input = $(this);
+        var val = $input.val().toUpperCase().replace(/[^A-Z]/g, '').substring(0, 2);
+        $input.val(val);
+        if (val.length === 2) {
+            $input.removeClass('themisdb-invalid-field');
+            $input.next('.themisdb-field-error').remove();
+        }
+    });
+
+    // Auto-Format PLZ: nur Ziffern wenn Land = DE (live, nach Verlassen des Feldes)
+    $(document).on('blur', '#billing_postal_code', function() {
+        var country = ($('#billing_country').val() || '').toUpperCase();
+        if (country === 'DE') {
+            var val = $(this).val().replace(/\D/g, '').substring(0, 5);
+            $(this).val(val);
+        }
+    });
+
+    $(document).on('blur', '#shipping_postal_code', function() {
+        var country = ($('#shipping_country').val() || '').toUpperCase();
+        if (country === 'DE') {
+            var val = $(this).val().replace(/\D/g, '').substring(0, 5);
+            $(this).val(val);
+        }
+    });
+
     // Module/Training card selection
     $(document).on('change', '.module-card input[type="checkbox"], .training-card input[type="checkbox"]', function() {
         if ($(this).is(':checked')) {
@@ -59,6 +99,7 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success) {
+                    clearFieldErrors();
                     showSuccessMessage(response.data.message);
                     // Redirect or show confirmation
                     setTimeout(function() {
@@ -66,6 +107,9 @@ jQuery(document).ready(function($) {
                     }, 2000);
                 } else {
                     showErrorMessage(response.data.message);
+                    if (response.data && response.data.field_errors) {
+                        showFieldErrors(response.data.field_errors);
+                    }
                     $button.prop('disabled', false).text('Bestellung absenden');
                 }
             },
@@ -134,6 +178,8 @@ jQuery(document).ready(function($) {
      * Validate step data
      */
     function validateStep(step, data) {
+        clearFieldErrors();
+
         switch(step) {
             case 1:
                 if (!data.product_edition) {
@@ -150,6 +196,44 @@ jQuery(document).ready(function($) {
                 
                 if (!isValidEmail(data.customer_email)) {
                     showErrorMessage('Bitte geben Sie eine gültige E-Mail-Adresse ein.');
+                    return false;
+                }
+
+                if ((data.customer_type || 'consumer') === 'business' && !data.customer_company) {
+                    showErrorMessage('Für Unternehmenskunden ist der Firmenname erforderlich.');
+                    showFieldErrors({ customer_company: 'Pflichtfeld für Unternehmenskunden.' });
+                    return false;
+                }
+
+                if (!/^[A-Z]{2}$/.test(data.billing_country || '')) {
+                    showErrorMessage('Bitte geben Sie das Rechnungsland als 2-stelligen ISO-Code an (z. B. DE).');
+                    showFieldErrors({ billing_country: 'Ungültiger ISO-Code.' });
+                    return false;
+                }
+
+                if ((data.billing_country || '') === 'DE' && !/^\d{5}$/.test(data.billing_postal_code || '')) {
+                    showErrorMessage('Für Deutschland muss die Rechnungs-PLZ genau 5 Ziffern haben.');
+                    showFieldErrors({ billing_postal_code: 'Ungültige PLZ.' });
+                    return false;
+                }
+
+                if ((data.shipping_postal_code || '').length > 0) {
+                    if (!/^[A-Z]{2}$/.test(data.shipping_country || '')) {
+                        showErrorMessage('Bitte geben Sie das Lieferland als 2-stelligen ISO-Code an (z. B. DE).');
+                        showFieldErrors({ shipping_country: 'Ungültiger ISO-Code.' });
+                        return false;
+                    }
+
+                    if ((data.shipping_country || '') === 'DE' && !/^\d{5}$/.test(data.shipping_postal_code || '')) {
+                        showErrorMessage('Für Deutschland muss die Liefer-PLZ genau 5 Ziffern haben.');
+                        showFieldErrors({ shipping_postal_code: 'Ungültige PLZ.' });
+                        return false;
+                    }
+                }
+
+                if ((data.vat_id || '').length > 0 && !/^[A-Z]{2}[A-Z0-9]{2,12}$/.test((data.vat_id || '').toUpperCase())) {
+                    showErrorMessage('Die USt-IdNr. hat ein ungültiges Format (z. B. DE123456789).');
+                    showFieldErrors({ vat_id: 'Ungültiges USt-IdNr.-Format.' });
                     return false;
                 }
                 
@@ -186,7 +270,19 @@ jQuery(document).ready(function($) {
                 step: step,
                 data: data
             },
-            success: callback,
+            success: function(response) {
+                if (!response || !response.success) {
+                    var message = (response && response.data && response.data.message) ? response.data.message : themisdbOrder.strings.error;
+                    showErrorMessage(message);
+                    if (response && response.data && response.data.field_errors) {
+                        showFieldErrors(response.data.field_errors);
+                    }
+                    return;
+                }
+
+                clearFieldErrors();
+                callback(response);
+            },
             error: function() {
                 showErrorMessage(themisdbOrder.strings.error);
             }
@@ -284,32 +380,62 @@ jQuery(document).ready(function($) {
      * Show success message
      */
     function showSuccessMessage(message) {
-        var $notice = $('<div class="notice notice-success"><p>' + message + '</p></div>');
-        $('.themisdb-order-flow').prepend($notice);
-        
+        var $notice = $('<div class="themisdb-success-message"></div>').text(message);
+        $('.order-step-content:visible').prepend($notice);
+
         setTimeout(function() {
             $notice.fadeOut(function() {
                 $(this).remove();
             });
-        }, 5000);
+        }, 6000);
     }
-    
+
     /**
      * Show error message
      */
     function showErrorMessage(message) {
-        var $notice = $('<div class="notice notice-error"><p>' + message + '</p></div>');
-        $('.themisdb-order-flow').prepend($notice);
-        
+        $('.themisdb-error-message').remove();
+        var $notice = $('<div class="themisdb-error-message"></div>').text(message);
+        $('.order-step-content:visible').prepend($notice);
+
         setTimeout(function() {
             $notice.fadeOut(function() {
                 $(this).remove();
             });
-        }, 5000);
-        
-        // Scroll to top to show error
+        }, 8000);
+
+        // Zur Meldung scrollen
         $('html, body').animate({
-            scrollTop: $('.themisdb-order-flow').offset().top - 100
-        }, 500);
+            scrollTop: $('.themisdb-order-flow').offset().top - 80
+        }, 400);
+    }
+
+    function clearFieldErrors() {
+        $('.themisdb-field-error').remove();
+        $('.themisdb-invalid-field').removeClass('themisdb-invalid-field');
+    }
+
+    function showFieldErrors(fieldErrors) {
+        if (!fieldErrors) {
+            return;
+        }
+
+        Object.keys(fieldErrors).forEach(function(fieldName) {
+            var selector = '[name="' + fieldName + '"]';
+            var $field = $(selector).first();
+
+            if (!$field.length) {
+                selector = '[name="' + fieldName + '[]"]';
+                $field = $(selector).first();
+            }
+
+            if (!$field.length) {
+                return;
+            }
+
+            $field.addClass('themisdb-invalid-field');
+            var $msg = $('<div class="themisdb-field-error" style="color:#b32d2e;margin-top:4px;font-size:12px;"></div>').text(fieldErrors[fieldName]);
+            $field.closest('.form-group, td').append($msg);
+        });
     }
 });

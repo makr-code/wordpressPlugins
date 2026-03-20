@@ -269,7 +269,12 @@ class ThemisDB_Term_Cleaner {
 			$term1 = get_term( $suggestion['id1'], $taxonomy );
 			$term2 = get_term( $suggestion['id2'], $taxonomy );
 
-			if ( is_wp_error( $term1 ) || is_wp_error( $term2 ) ) {
+			if (
+				is_wp_error( $term1 ) ||
+				is_wp_error( $term2 ) ||
+				! ( $term1 instanceof WP_Term ) ||
+				! ( $term2 instanceof WP_Term )
+			) {
 				continue;
 			}
 
@@ -290,8 +295,11 @@ class ThemisDB_Term_Cleaner {
 			$result = $this->merge_terms( $keep_id, $remove_id, $taxonomy );
 
 			if ( $result['success'] ) {
+				$kept_term = get_term( $keep_id, $taxonomy );
+				$kept_name = ( $kept_term instanceof WP_Term ) ? $kept_term->name : (string) $keep_id;
+
 				$consolidated[] = array(
-					'kept'        => get_term( $keep_id, $taxonomy )->name,
+					'kept'        => $kept_name,
 					'merged'      => $result['message'],
 					'posts_moved' => $result['posts_moved'],
 				);

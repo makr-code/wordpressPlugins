@@ -83,6 +83,112 @@ function themisdb_v2_flush_rewrite_on_switch() {
 }
 add_action( 'after_switch_theme', 'themisdb_v2_flush_rewrite_on_switch' );
 
+/**
+ * Refresh rewrite rules once per theme version while the theme is active.
+ */
+function themisdb_v2_maybe_flush_rewrite_rules() {
+	$option_key = 'themisdb_v2_rewrite_flushed_version';
+
+	if ( get_option( $option_key ) === THEMISDB_V2_VERSION ) {
+		return;
+	}
+
+	flush_rewrite_rules( false );
+	update_option( $option_key, THEMISDB_V2_VERSION );
+}
+add_action( 'init', 'themisdb_v2_maybe_flush_rewrite_rules', 20 );
+
+/**
+ * Optional permalink fallback for environments with unreliable rewrite rules.
+ * Disabled by default to keep WordPress-native behavior.
+ */
+function themisdb_v2_is_plesk_permalink_fallback_enabled() {
+	$enabled = (bool) get_theme_mod( 'themisdb_enable_plesk_permalink_fallback', false );
+
+	return (bool) apply_filters( 'themisdb_enable_plesk_permalink_fallback', $enabled );
+}
+
+function themisdb_v2_maybe_redirect_404_to_resolved_permalink() {
+	if ( ! themisdb_v2_is_plesk_permalink_fallback_enabled() ) {
+		return;
+	}
+
+	if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+		return;
+	}
+
+	if ( ! is_404() || ! empty( $_GET ) ) {
+		return;
+	}
+
+	$request_uri     = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	$request_path    = (string) wp_parse_url( $request_uri, PHP_URL_PATH );
+	$normalized_path = trim( $request_path, '/' );
+
+	if ( '' === $normalized_path ) {
+		return;
+	}
+
+	if ( preg_match( '/\.(?:css|js|map|png|jpe?g|gif|svg|webp|ico|txt|xml|json|woff2?)$/i', $normalized_path ) ) {
+		return;
+	}
+
+	$target_url = '';
+	$page = get_page_by_path( $normalized_path, OBJECT, 'page' );
+
+	if ( $page instanceof WP_Post ) {
+		$target_url = get_permalink( $page->ID );
+	} else {
+		$post = get_page_by_path( $normalized_path, OBJECT, 'post' );
+		if ( $post instanceof WP_Post ) {
+			$target_url = get_permalink( $post->ID );
+		}
+	}
+
+	if ( empty( $target_url ) ) {
+		return;
+	}
+
+	wp_safe_redirect( $target_url, 301 );
+	exit;
+}
+add_action( 'template_redirect', 'themisdb_v2_maybe_redirect_404_to_resolved_permalink', 1 );
+
+/**
+ * Provide a 60-second cron interval used by some scheduling libraries.
+ */
+function themisdb_v2_add_every_minute_schedule( $schedules ) {
+	if ( ! isset( $schedules['every_minute'] ) ) {
+		$schedules['every_minute'] = array(
+			'interval' => 60,
+			'display'  => __( 'Every Minute', 'themisdb-v2' ),
+		);
+	}
+
+	return $schedules;
+}
+add_filter( 'cron_schedules', 'themisdb_v2_add_every_minute_schedule' );
+
+/**
+ * Register empty shortcode fallbacks so block patterns keep a clean layout
+ * when related ThemisDB plugins are temporarily deactivated.
+ */
+function themisdb_v2_register_shortcode_fallbacks() {
+	$shortcodes = array(
+		'themisdb_latest',
+		'themisdb_docker_latest',
+		'themisdb_compendium_downloads',
+		'themisdb_benchmark_visualizer',
+	);
+
+	foreach ( $shortcodes as $shortcode ) {
+		if ( ! shortcode_exists( $shortcode ) ) {
+			add_shortcode( $shortcode, '__return_empty_string' );
+		}
+	}
+}
+add_action( 'init', 'themisdb_v2_register_shortcode_fallbacks', 30 );
+
 /* ================================================================
    2. ENQUEUE ASSETS
    ================================================================ */
@@ -140,6 +246,15 @@ function themisdb_v2_normalize_block_root_relative_urls( $content ) {
 			$attribute = strtolower( $matches[1] );
 			$quote     = $matches[2];
 			$path      = ltrim( (string) $matches[3], '/' );
+
+			if ( 'href' === $attribute ) {
+				$page = get_page_by_path( $path );
+				if ( $page instanceof WP_Post ) {
+					return $attribute . '=' . $quote . esc_url( get_permalink( $page->ID ) ) . $quote;
+				}
+
+				return $attribute . '=' . $quote . esc_url( add_query_arg( 'pagename', $path, home_url( '/' ) ) ) . $quote;
+			}
 
 			return $attribute . '=' . $quote . esc_url( home_url( '/' . $path ) ) . $quote;
 		},

@@ -4,8 +4,8 @@
 ║ ThemisDB - Hybrid Database System                                   ║
 ╠═════════════════════════════════════════════════════════════════════╣
   File:            themisdb-order-request.php                         ║
-  Version:         0.0.2                                              ║
-  Last Modified:   2026-03-09 04:08:20                                ║
+  Version:         1.1.0                                              ║
+  Last Modified:   2026-03-20 00:00:00                                ║
   Author:          unknown                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
@@ -27,7 +27,7 @@
  * Plugin Name: ThemisDB Order Request & Contract Management
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Description: Dialog-basiertes Bestellanfrage-System für ThemisDB mit Vertragsrecht-CRUD, automatischer PDF-Generierung und E-Mail-Versand. Integriert mit epServer für Stammdaten.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -51,7 +51,7 @@ if (version_compare(PHP_VERSION, '7.4', '<')) {
 }
 
 // Plugin constants
-define('THEMISDB_ORDER_VERSION', '1.0.0');
+define('THEMISDB_ORDER_VERSION', '1.1.0');
 define('THEMISDB_ORDER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_ORDER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_ORDER_PLUGIN_FILE', __FILE__);
@@ -81,6 +81,7 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-order-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-contract-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-payment-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-manager.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-build-dispatcher.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-api.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-portal.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-renewal.php';

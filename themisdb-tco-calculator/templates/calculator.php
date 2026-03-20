@@ -21,6 +21,7 @@
   Status: ✅ Production Ready                                          ║
 ╚═════════════════════════════════════════════════════════════════════╝
  */
+?>
 
 <!-- ThemisDB TCO Calculator WordPress Template -->
 <div class="themisdb-tco-calculator-wrapper">

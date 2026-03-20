@@ -139,6 +139,94 @@ function themisdb_flush_rewrite_on_switch() {
 add_action( 'after_switch_theme', 'themisdb_flush_rewrite_on_switch' );
 
 /**
+ * Run a one-time rewrite refresh after updates while the theme is active.
+ */
+function themisdb_maybe_flush_rewrite_rules() {
+    $theme        = wp_get_theme();
+    $theme_version = (string) $theme->get( 'Version' );
+    $option_key   = 'themisdb_theme_rewrite_flushed_version';
+
+    if ( get_option( $option_key ) === $theme_version ) {
+        return;
+    }
+
+    flush_rewrite_rules( false );
+    update_option( $option_key, $theme_version );
+}
+add_action( 'init', 'themisdb_maybe_flush_rewrite_rules', 20 );
+
+/**
+ * Optional permalink fallback for environments with unreliable rewrite rules.
+ * Disabled by default to keep WordPress-native behavior.
+ */
+function themisdb_is_plesk_permalink_fallback_enabled() {
+    $enabled = (bool) get_theme_mod( 'themisdb_enable_plesk_permalink_fallback', false );
+
+    return (bool) apply_filters( 'themisdb_enable_plesk_permalink_fallback', $enabled );
+}
+
+function themisdb_maybe_redirect_404_to_resolved_permalink() {
+    if ( ! themisdb_is_plesk_permalink_fallback_enabled() ) {
+        return;
+    }
+
+    if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+        return;
+    }
+
+    if ( ! is_404() || ! empty( $_GET ) ) {
+        return;
+    }
+
+    $request_uri    = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+    $request_path   = (string) wp_parse_url( $request_uri, PHP_URL_PATH );
+    $normalized_path = trim( $request_path, '/' );
+
+    if ( '' === $normalized_path ) {
+        return;
+    }
+
+    if ( preg_match( '/\.(?:css|js|map|png|jpe?g|gif|svg|webp|ico|txt|xml|json|woff2?)$/i', $normalized_path ) ) {
+        return;
+    }
+
+    $target_url = '';
+    $page = get_page_by_path( $normalized_path, OBJECT, 'page' );
+
+    if ( $page instanceof WP_Post ) {
+        $target_url = get_permalink( $page->ID );
+    } else {
+        $post = get_page_by_path( $normalized_path, OBJECT, 'post' );
+        if ( $post instanceof WP_Post ) {
+            $target_url = get_permalink( $post->ID );
+        }
+    }
+
+    if ( empty( $target_url ) ) {
+        return;
+    }
+
+    wp_safe_redirect( $target_url, 301 );
+    exit;
+}
+add_action( 'template_redirect', 'themisdb_maybe_redirect_404_to_resolved_permalink', 1 );
+
+/**
+ * Provide a 60-second cron interval used by some scheduling libraries.
+ */
+function themisdb_add_every_minute_schedule( $schedules ) {
+    if ( ! isset( $schedules['every_minute'] ) ) {
+        $schedules['every_minute'] = array(
+            'interval' => 60,
+            'display'  => __( 'Every Minute', 'themisdb' ),
+        );
+    }
+
+    return $schedules;
+}
+add_filter( 'cron_schedules', 'themisdb_add_every_minute_schedule' );
+
+/**
  * Register widget areas
  */
 function themisdb_widgets_init() {
@@ -188,9 +276,12 @@ function themisdb_widgets_init() {
 add_action( 'widgets_init', 'themisdb_widgets_init' );
 
 /**
- * Load custom widgets
+ * Load widget classes after theme setup to avoid early i18n notices.
  */
-require get_template_directory() . '/inc/widgets.php';
+function themisdb_load_widgets_file() {
+    require_once get_template_directory() . '/inc/widgets.php';
+}
+add_action( 'after_setup_theme', 'themisdb_load_widgets_file', 20 );
 
 /**
  * Primary navigation fallback.

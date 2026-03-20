@@ -94,10 +94,12 @@ class ThemisDB_Payment_Manager {
             $payment = self::get_payment($payment_id);
             
             if ($payment) {
-                // Update order status
-                ThemisDB_Order_Manager::update_order($payment['order_id'], array(
-                    'status' => 'paid'
-                ));
+                // Keep order status aligned with the lifecycle used in admin workflows.
+                $target_order_status = !empty($payment['contract_id']) ? 'active' : 'confirmed';
+                $status_synced = ThemisDB_Order_Manager::set_order_status($payment['order_id'], $target_order_status);
+                if (!$status_synced) {
+                    error_log('ThemisDB Payment Sync Error: Failed to set order status for order ID ' . $payment['order_id'] . ' to ' . $target_order_status);
+                }
                 
                 // Activate license if exists
                 if ($payment['contract_id']) {
@@ -138,6 +140,109 @@ class ThemisDB_Payment_Manager {
             $update_data,
             array('id' => $payment_id),
             null,
+            array('%d')
+        ) !== false;
+    }
+
+    /**
+     * Mark payment as overdue.
+     */
+    public static function mark_payment_overdue($payment_id, $reason = '') {
+        global $wpdb;
+
+        $table_payments = $wpdb->prefix . 'themisdb_payments';
+        $payment = self::get_payment($payment_id);
+
+        if (!$payment) {
+            return false;
+        }
+
+        if (in_array($payment['payment_status'], array('verified', 'failed'), true)) {
+            return false;
+        }
+
+        return $wpdb->update(
+            $table_payments,
+            array(
+                'payment_status' => 'overdue',
+                'notes' => $reason !== '' ? sanitize_textarea_field($reason) : $payment['notes']
+            ),
+            array('id' => $payment_id),
+            null,
+            array('%d')
+        ) !== false;
+    }
+
+    /**
+     * Update editable payment fields.
+     */
+    public static function update_payment($payment_id, $data) {
+        global $wpdb;
+
+        $table_payments = $wpdb->prefix . 'themisdb_payments';
+        $payment = self::get_payment($payment_id);
+
+        if (!$payment) {
+            return false;
+        }
+
+        $update_data = array();
+
+        if (isset($data['payment_status'])) {
+            $update_data['payment_status'] = sanitize_text_field($data['payment_status']);
+        }
+        if (isset($data['order_id'])) {
+            $update_data['order_id'] = intval($data['order_id']);
+        }
+        if (isset($data['contract_id'])) {
+            $update_data['contract_id'] = !empty($data['contract_id']) ? intval($data['contract_id']) : null;
+        }
+        if (isset($data['amount'])) {
+            $update_data['amount'] = floatval($data['amount']);
+        }
+        if (isset($data['currency'])) {
+            $update_data['currency'] = sanitize_text_field($data['currency']);
+        }
+        if (isset($data['payment_method'])) {
+            $update_data['payment_method'] = sanitize_text_field($data['payment_method']);
+        }
+        if (isset($data['transaction_id'])) {
+            $update_data['transaction_id'] = sanitize_text_field($data['transaction_id']);
+        }
+        if (isset($data['notes'])) {
+            $update_data['notes'] = sanitize_textarea_field($data['notes']);
+        }
+        if (array_key_exists('metadata', $data)) {
+            $update_data['metadata'] = !empty($data['metadata']) ? wp_json_encode($data['metadata']) : null;
+        }
+        if (isset($data['payment_date'])) {
+            $update_data['payment_date'] = sanitize_text_field($data['payment_date']);
+        }
+
+        if (empty($update_data)) {
+            return true;
+        }
+
+        return $wpdb->update(
+            $table_payments,
+            $update_data,
+            array('id' => intval($payment_id)),
+            null,
+            array('%d')
+        ) !== false;
+    }
+
+    /**
+     * Delete payment row.
+     */
+    public static function delete_payment($payment_id) {
+        global $wpdb;
+
+        $table_payments = $wpdb->prefix . 'themisdb_payments';
+
+        return $wpdb->delete(
+            $table_payments,
+            array('id' => intval($payment_id)),
             array('%d')
         ) !== false;
     }
@@ -182,6 +287,47 @@ class ThemisDB_Payment_Manager {
         }
         
         return $payments;
+    }
+
+    /**
+     * Get payments by contract.
+     */
+    public static function get_payments_by_contract($contract_id) {
+        global $wpdb;
+
+        $table_payments = $wpdb->prefix . 'themisdb_payments';
+
+        $payments = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table_payments WHERE contract_id = %d ORDER BY created_at DESC",
+            $contract_id
+        ), ARRAY_A);
+
+        foreach ($payments as &$payment) {
+            if ($payment['metadata']) {
+                $payment['metadata'] = json_decode($payment['metadata'], true);
+            }
+        }
+
+        return $payments;
+    }
+
+    /**
+     * Get the most relevant payment for a contract.
+     */
+    public static function get_primary_payment_by_contract($contract_id) {
+        $payments = self::get_payments_by_contract($contract_id);
+
+        if (empty($payments)) {
+            return null;
+        }
+
+        foreach ($payments as $payment) {
+            if (in_array($payment['payment_status'], array('pending', 'overdue'), true)) {
+                return $payment;
+            }
+        }
+
+        return $payments[0];
     }
     
     /**

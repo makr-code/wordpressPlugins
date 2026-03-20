@@ -381,6 +381,235 @@
     background: #005a87;
 }
 
+/* ===== Feldvalidierung: Fehlermarkierung ===== */
+
+/* Ungültiges Eingabefeld – roter Rand */
+.themisdb-invalid-field {
+    border: 1.5px solid #b32d2e !important;
+    background-color: #fff5f5 !important;
+    box-shadow: 0 0 0 2px rgba(179, 45, 46, 0.15) !important;
+}
+
+.themisdb-invalid-field:focus {
+    outline: none !important;
+    border-color: #b32d2e !important;
+    box-shadow: 0 0 0 3px rgba(179, 45, 46, 0.25) !important;
+}
+
+/* Fehlermeldung unterhalb eines Feldes */
+.themisdb-field-error {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #b32d2e;
+    font-style: italic;
+}
+
+/* Allgemeine Fehlermeldungsbox im Flow */
+.themisdb-error-message {
+    background-color: #fdf2f2;
+    border: 1px solid #f5c6cb;
+    border-left: 4px solid #b32d2e;
+    color: #721c24;
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+/* Erfolgsmeldungsbox */
+.themisdb-success-message {
+    background-color: #f2fdf4;
+    border: 1px solid #c3e6cb;
+    border-left: 4px solid #28a745;
+    color: #155724;
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+/* ===== Kundentyp-Auswahl (Verbraucher / Unternehmer) ===== */
+
+.customer-type-group {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.customer-type-option {
+    flex: 1;
+    min-width: 200px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    padding: 14px 18px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.customer-type-option:hover {
+    border-color: #0073aa;
+    background-color: #f0f8ff;
+}
+
+.customer-type-option input[type="radio"] {
+    margin-right: 10px;
+    accent-color: #0073aa;
+}
+
+.customer-type-option.selected {
+    border-color: #0073aa;
+    background-color: #f0f8ff;
+}
+
+.customer-type-option strong {
+    display: block;
+    color: #333;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.customer-type-option small {
+    color: #666;
+    font-size: 12px;
+}
+
+/* ===== Compliance-Bereich (Rechnungsadresse / Rechtliches) ===== */
+
+.compliance-section {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.compliance-section h3 {
+    margin-top: 0;
+    color: #333;
+    font-size: 16px;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+}
+
+/* Zweispaltige Adressfelder */
+.address-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.address-grid .form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 600px) {
+    .address-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Optionaler Block (z.B. Lieferadresse toggle) */
+.optional-section {
+    border: 1px dashed #ccc;
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 12px;
+}
+
+.optional-section .optional-toggle {
+    cursor: pointer;
+    color: #0073aa;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ===== Rechtliche Checkboxen ===== */
+
+.legal-checkboxes {
+    background: #fffef5;
+    border: 1px solid #e8e3b5;
+    border-left: 4px solid #e8a120;
+    border-radius: 4px;
+    padding: 16px 20px;
+    margin: 20px 0;
+}
+
+.legal-checkboxes h4 {
+    margin-top: 0;
+    color: #5a4e00;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+}
+
+.legal-check-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    gap: 10px;
+}
+
+.legal-check-item:last-child {
+    margin-bottom: 0;
+}
+
+.legal-check-item input[type="checkbox"] {
+    margin-top: 2px;
+    flex-shrink: 0;
+    accent-color: #0073aa;
+    width: 16px;
+    height: 16px;
+}
+
+.legal-check-item label {
+    font-size: 13px;
+    color: #333;
+    line-height: 1.5;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.legal-check-item label a {
+    color: #0073aa;
+    text-decoration: underline;
+}
+
+.legal-check-item label a:hover {
+    color: #005a87;
+}
+
+/* Pflichtcheckbox hervorheben wenn nicht gesetzt */
+.legal-check-item input[type="checkbox"].themisdb-invalid-field {
+    outline: 2px solid #b32d2e;
+    box-shadow: 0 0 0 3px rgba(179, 45, 46, 0.2) !important;
+}
+
+/* ===== Compliance-Notice (Admin & Frontend) ===== */
+
+.themisdb-compliance-notice {
+    background-color: #fdf2f2;
+    border: 1px solid #f5c6cb;
+    border-left: 4px solid #b32d2e;
+    color: #721c24;
+    padding: 10px 14px;
+    border-radius: 4px;
+    margin: 8px 0 16px 0;
+    font-size: 13px;
+}
+
+.themisdb-compliance-notice strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+/* ===== My Orders / Contracts Tables ===== */
+
 /* My Orders / Contracts Tables */
 .orders-table,
 .contracts-table {

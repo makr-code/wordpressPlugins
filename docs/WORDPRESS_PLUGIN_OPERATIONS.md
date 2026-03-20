@@ -86,3 +86,4 @@ curl "https://raw.githubusercontent.com/makr-code/wordpressPlugins/main/<plugin-
 - `docs/ci-cd/WORDPRESS_PLUGIN_RELEASE_PIPELINE.md`
 - `docs/plugins/WORDPRESS_PLUGIN_AUTOMATIC_UPDATES.md`
 - `docs/plugins/WORDPRESS_PLUGIN_UPDATE_EXAMPLES.md`
+- `docs/THEMISDB_ORDER_REQUEST_E2E_RUNBOOK.md`

@@ -161,7 +161,7 @@ get_header(); ?>
                     <h4><?php _e('Pages linking here', 'themisdb-wiki'); ?></h4>
                     <ul>
                     <?php foreach ($backlinks as $page) : ?>
-                        <li><a href="<?php echo get_permalink($page->ID); ?>"><?php echo esc_html($page->post_title); ?></a></li>
+                        <li><a href="<?php echo esc_url(get_permalink($page->ID)); ?>"><?php echo esc_html($page->post_title); ?></a></li>
                     <?php endforeach; ?>
                     </ul>
                 </div>

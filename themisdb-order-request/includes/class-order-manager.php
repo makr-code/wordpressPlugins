@@ -51,6 +51,11 @@ class ThemisDB_Order_Manager {
         // Generate order number
         $order_number = self::generate_order_number();
         
+        $initial_status = self::normalize_order_status(isset($data['status']) ? $data['status'] : 'draft');
+        if ($initial_status === null) {
+            $initial_status = 'draft';
+        }
+
         $order_data = array(
             'order_number' => $order_number,
             'customer_id' => isset($data['customer_id']) ? intval($data['customer_id']) : get_current_user_id(),
@@ -90,7 +95,7 @@ class ThemisDB_Order_Manager {
             'fulfilled_at' => isset($data['fulfilled_at']) ? sanitize_text_field($data['fulfilled_at']) : null,
             'total_amount' => isset($data['total_amount']) ? floatval($data['total_amount']) : 0.00,
             'currency' => isset($data['currency']) ? sanitize_text_field($data['currency']) : 'EUR',
-            'status' => 'draft',
+            'status' => $initial_status,
             'step' => 1
         );
         
@@ -119,6 +124,48 @@ class ThemisDB_Order_Manager {
         );
     }
     
+    /**
+     * Normalize order status to the canonical lifecycle value.
+     */
+    private static function normalize_order_status($status) {
+        $normalized = sanitize_key((string) $status);
+
+        if ($normalized === 'paid') {
+            $normalized = 'confirmed';
+        }
+
+        $allowed_statuses = array('draft', 'pending', 'confirmed', 'signed', 'active', 'suspended', 'ended', 'cancelled', 'fulfilled', 'failed');
+        if (!in_array($normalized, $allowed_statuses, true)) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Set only the order status using a dedicated, validated update path.
+     */
+    public static function set_order_status($order_id, $status) {
+        global $wpdb;
+
+        $normalized_status = self::normalize_order_status($status);
+        if ($normalized_status === null) {
+            return false;
+        }
+
+        $table_orders = $wpdb->prefix . 'themisdb_orders';
+
+        $result = $wpdb->update(
+            $table_orders,
+            array('status' => $normalized_status),
+            array('id' => intval($order_id)),
+            array('%s'),
+            array('%d')
+        );
+
+        return $result !== false;
+    }
+
     /**
      * Update an existing order
      */
@@ -238,7 +285,10 @@ class ThemisDB_Order_Manager {
             $update_data['currency'] = sanitize_text_field($data['currency']);
         }
         if (isset($data['status'])) {
-            $update_data['status'] = sanitize_text_field($data['status']);
+            $status = self::normalize_order_status($data['status']);
+            if ($status !== null) {
+                $update_data['status'] = $status;
+            }
         }
         if (isset($data['step'])) {
             $update_data['step'] = intval($data['step']);
@@ -504,34 +554,23 @@ class ThemisDB_Order_Manager {
     /**
      * Upsert inventory stock by SKU.
      */
-    public static function set_inventory_stock($sku, $product_name, $stock_on_hand, $product_id = null, $reorder_level = 0) {
+    public static function set_inventory_stock($sku, $product_name, $stock_on_hand, $product_id = null, $reorder_level = 0, $category_slug = '', $is_active = 1) {
         global $wpdb;
 
         $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
         $sku = sanitize_text_field($sku);
 
-        $existing = $wpdb->get_row(
-            $wpdb->prepare("SELECT id FROM $table_inventory WHERE sku = %s", $sku),
-            ARRAY_A
+        return self::save_inventory_item(
+            array(
+                'sku' => $sku,
+                'product_name' => $product_name,
+                'stock_on_hand' => $stock_on_hand,
+                'product_id' => $product_id,
+                'reorder_level' => $reorder_level,
+                'category_slug' => $category_slug,
+                'is_active' => $is_active,
+            )
         );
-
-        $data = array(
-            'product_id' => $product_id ? intval($product_id) : null,
-            'product_name' => sanitize_text_field($product_name),
-            'stock_on_hand' => intval($stock_on_hand),
-            'reorder_level' => intval($reorder_level),
-            'is_active' => 1,
-        );
-
-        if ($existing) {
-            $wpdb->update($table_inventory, $data, array('id' => intval($existing['id'])));
-            return intval($existing['id']);
-        }
-
-        $data['sku'] = $sku;
-        $data['reserved_stock'] = 0;
-        $wpdb->insert($table_inventory, $data);
-        return $wpdb->insert_id;
     }
 
     /**
@@ -541,10 +580,128 @@ class ThemisDB_Order_Manager {
         global $wpdb;
 
         $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
-        return $wpdb->get_row(
+        $item = $wpdb->get_row(
             $wpdb->prepare("SELECT * FROM $table_inventory WHERE sku = %s", sanitize_text_field($sku)),
             ARRAY_A
         );
+
+        return $item ? self::hydrate_inventory_item($item) : null;
+    }
+
+    /**
+     * Get one inventory record by ID.
+     */
+    public static function get_inventory_item($id) {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $item = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $table_inventory WHERE id = %d", intval($id)),
+            ARRAY_A
+        );
+
+        return $item ? self::hydrate_inventory_item($item) : null;
+    }
+
+    /**
+     * Get all inventory rows, optionally filtered by category.
+     */
+    public static function get_inventory_items($include_inactive = true, $category_slug = '') {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $query = $include_inactive
+            ? "SELECT * FROM $table_inventory ORDER BY is_active DESC, product_name ASC"
+            : "SELECT * FROM $table_inventory WHERE is_active = 1 ORDER BY product_name ASC";
+
+        $items = $wpdb->get_results($query, ARRAY_A);
+        $items = array_map(array(__CLASS__, 'hydrate_inventory_item'), $items);
+
+        if ($category_slug === '') {
+            return $items;
+        }
+
+        return array_values(array_filter($items, function ($item) use ($category_slug) {
+            return isset($item['category_slug']) && $item['category_slug'] === $category_slug;
+        }));
+    }
+
+    /**
+     * Create or update one inventory row.
+     */
+    public static function save_inventory_item($data, $id = 0) {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $inventory_id = intval($id ?: ($data['id'] ?? 0));
+        $sku = sanitize_text_field($data['sku'] ?? '');
+
+        if ($sku === '') {
+            return false;
+        }
+
+        $existing = null;
+        if ($inventory_id > 0) {
+            $existing = $wpdb->get_row(
+                $wpdb->prepare("SELECT * FROM $table_inventory WHERE id = %d", $inventory_id),
+                ARRAY_A
+            );
+        }
+
+        if (!$existing) {
+            $existing = $wpdb->get_row(
+                $wpdb->prepare("SELECT * FROM $table_inventory WHERE sku = %s", $sku),
+                ARRAY_A
+            );
+        }
+
+        $category_slug = self::resolve_inventory_category_slug($data, $existing);
+        $metadata = self::prepare_inventory_metadata($existing['metadata'] ?? null, $category_slug);
+        $payload = array(
+            'product_id' => !empty($data['product_id']) ? intval($data['product_id']) : null,
+            'product_name' => sanitize_text_field($data['product_name'] ?? ''),
+            'stock_on_hand' => intval($data['stock_on_hand'] ?? 0),
+            'reorder_level' => intval($data['reorder_level'] ?? 0),
+            'is_active' => isset($data['is_active']) ? (!empty($data['is_active']) ? 1 : 0) : 1,
+            'metadata' => wp_json_encode($metadata),
+        );
+
+        if ($existing) {
+            $payload['sku'] = $sku;
+            $result = $wpdb->update($table_inventory, $payload, array('id' => intval($existing['id'])));
+            return $result !== false ? intval($existing['id']) : false;
+        }
+
+        $payload['sku'] = $sku;
+        $payload['reserved_stock'] = intval($data['reserved_stock'] ?? 0);
+        $result = $wpdb->insert($table_inventory, $payload);
+
+        return $result ? intval($wpdb->insert_id) : false;
+    }
+
+    /**
+     * Toggle active state for inventory.
+     */
+    public static function set_inventory_item_active($id, $is_active) {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $result = $wpdb->update(
+            $table_inventory,
+            array('is_active' => $is_active ? 1 : 0),
+            array('id' => intval($id)),
+            array('%d'),
+            array('%d')
+        );
+
+        return $result !== false;
+    }
+
+    /**
+     * Soft-delete one inventory row.
+     */
+    public static function deactivate_inventory_item($id) {
+        return self::set_inventory_item_active($id, 0);
     }
 
     /**
@@ -1033,6 +1190,295 @@ class ThemisDB_Order_Manager {
         );
 
         return $result !== false;
+    }
+
+    /**
+     * Get all persisted catalog categories.
+     */
+    public static function get_catalog_categories($include_inactive = true) {
+        self::sync_catalog_categories_from_data();
+
+        $categories = self::load_catalog_categories_option();
+
+        if (!$include_inactive) {
+            $categories = array_values(array_filter($categories, function ($category) {
+                return !empty($category['is_active']);
+            }));
+        }
+
+        usort($categories, function ($left, $right) {
+            $left_order = intval($left['sort_order'] ?? 0);
+            $right_order = intval($right['sort_order'] ?? 0);
+
+            if ($left_order === $right_order) {
+                return strcasecmp($left['name'] ?? '', $right['name'] ?? '');
+            }
+
+            return $left_order <=> $right_order;
+        });
+
+        return $categories;
+    }
+
+    /**
+     * Get one catalog category by ID.
+     */
+    public static function get_catalog_category($id) {
+        foreach (self::load_catalog_categories_option() as $category) {
+            if (intval($category['id']) === intval($id)) {
+                return $category;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Create or update one catalog category.
+     */
+    public static function save_catalog_category($data, $id = 0) {
+        $categories = self::load_catalog_categories_option();
+        $category_id = intval($id ?: ($data['id'] ?? 0));
+        $name = sanitize_text_field($data['name'] ?? '');
+        $slug = sanitize_title($data['slug'] ?? $name);
+
+        if ($name === '' || $slug === '') {
+            return false;
+        }
+
+        foreach ($categories as $existing) {
+            if (intval($existing['id']) !== $category_id && ($existing['slug'] ?? '') === $slug) {
+                return false;
+            }
+        }
+
+        $payload = array(
+            'id' => $category_id > 0 ? $category_id : self::get_next_catalog_category_id($categories),
+            'slug' => $slug,
+            'name' => $name,
+            'description' => sanitize_textarea_field($data['description'] ?? ''),
+            'sort_order' => intval($data['sort_order'] ?? 0),
+            'is_active' => isset($data['is_active']) ? (!empty($data['is_active']) ? 1 : 0) : 1,
+        );
+
+        $updated = false;
+        foreach ($categories as $index => $existing) {
+            if (intval($existing['id']) === intval($payload['id'])) {
+                $categories[$index] = $payload;
+                $updated = true;
+                break;
+            }
+        }
+
+        if (!$updated) {
+            $categories[] = $payload;
+        }
+
+        return update_option('themisdb_catalog_categories', array_values($categories), false) ? $payload['id'] : $payload['id'];
+    }
+
+    /**
+     * Toggle one catalog category.
+     */
+    public static function set_catalog_category_active($id, $is_active) {
+        $categories = self::load_catalog_categories_option();
+        $updated = false;
+
+        foreach ($categories as $index => $category) {
+            if (intval($category['id']) === intval($id)) {
+                $categories[$index]['is_active'] = $is_active ? 1 : 0;
+                $updated = true;
+                break;
+            }
+        }
+
+        if (!$updated) {
+            return false;
+        }
+
+        return update_option('themisdb_catalog_categories', array_values($categories), false);
+    }
+
+    /**
+     * Delete one catalog category definition.
+     */
+    public static function delete_catalog_category($id) {
+        $categories = array_values(array_filter(self::load_catalog_categories_option(), function ($category) use ($id) {
+            return intval($category['id']) !== intval($id);
+        }));
+
+        return update_option('themisdb_catalog_categories', $categories, false);
+    }
+
+    /**
+     * Ensure category definitions exist for current catalog data.
+     */
+    public static function sync_catalog_categories_from_data() {
+        $categories = self::load_catalog_categories_option();
+        $known_slugs = array();
+
+        foreach ($categories as $category) {
+            $known_slugs[$category['slug']] = true;
+        }
+
+        $raw_slugs = array();
+        foreach (self::get_products(true) as $product) {
+            if (!empty($product['product_type'])) {
+                $raw_slugs[] = $product['product_type'];
+            }
+        }
+
+        foreach (self::get_modules(null, true) as $module) {
+            if (!empty($module['module_category'])) {
+                $raw_slugs[] = $module['module_category'];
+            }
+        }
+
+        foreach (self::get_training_modules(null, true) as $training) {
+            if (!empty($training['training_type'])) {
+                $raw_slugs[] = $training['training_type'];
+            }
+        }
+
+        foreach (self::get_inventory_items(true) as $inventory_item) {
+            if (!empty($inventory_item['category_slug'])) {
+                $raw_slugs[] = $inventory_item['category_slug'];
+            }
+        }
+
+        $next_id = self::get_next_catalog_category_id($categories);
+        $changed = false;
+
+        foreach (array_unique(array_filter(array_map('sanitize_title', $raw_slugs))) as $slug) {
+            if (isset($known_slugs[$slug])) {
+                continue;
+            }
+
+            $categories[] = array(
+                'id' => $next_id++,
+                'slug' => $slug,
+                'name' => ucwords(str_replace(array('-', '_'), ' ', $slug)),
+                'description' => '',
+                'sort_order' => 0,
+                'is_active' => 1,
+            );
+            $changed = true;
+        }
+
+        if ($changed) {
+            update_option('themisdb_catalog_categories', array_values($categories), false);
+        }
+    }
+
+    /**
+     * Hydrate one inventory row with metadata-derived category information.
+     */
+    private static function hydrate_inventory_item($item) {
+        if (!is_array($item)) {
+            return $item;
+        }
+
+        $metadata = array();
+        if (!empty($item['metadata'])) {
+            $decoded = json_decode($item['metadata'], true);
+            if (is_array($decoded)) {
+                $metadata = $decoded;
+            }
+        }
+
+        $item['metadata_array'] = $metadata;
+        $item['category_slug'] = sanitize_title($metadata['category_slug'] ?? '');
+
+        if ($item['category_slug'] === '' && !empty($item['product_id'])) {
+            $product = self::get_product($item['product_id'], true);
+            if ($product && !empty($product['product_type'])) {
+                $item['category_slug'] = sanitize_title($product['product_type']);
+            }
+        }
+
+        return $item;
+    }
+
+    /**
+     * Prepare inventory metadata payload.
+     */
+    private static function prepare_inventory_metadata($existing_metadata, $category_slug) {
+        $metadata = array();
+
+        if (!empty($existing_metadata)) {
+            $decoded = json_decode($existing_metadata, true);
+            if (is_array($decoded)) {
+                $metadata = $decoded;
+            }
+        }
+
+        $metadata['category_slug'] = sanitize_title($category_slug);
+
+        return $metadata;
+    }
+
+    /**
+     * Resolve the inventory category to persist.
+     */
+    private static function resolve_inventory_category_slug($data, $existing = null) {
+        if (!empty($data['category_slug'])) {
+            return sanitize_title($data['category_slug']);
+        }
+
+        if (!empty($data['product_id'])) {
+            $product = self::get_product($data['product_id'], true);
+            if ($product && !empty($product['product_type'])) {
+                return sanitize_title($product['product_type']);
+            }
+        }
+
+        if (!empty($existing['metadata'])) {
+            $decoded = json_decode($existing['metadata'], true);
+            if (is_array($decoded) && !empty($decoded['category_slug'])) {
+                return sanitize_title($decoded['category_slug']);
+            }
+        }
+
+        return 'uncategorized';
+    }
+
+    /**
+     * Load category definitions from the WordPress option.
+     */
+    private static function load_catalog_categories_option() {
+        $categories = get_option('themisdb_catalog_categories', array());
+
+        if (!is_array($categories)) {
+            return array();
+        }
+
+        return array_values(array_filter(array_map(function ($category) {
+            if (!is_array($category) || empty($category['slug']) || empty($category['name'])) {
+                return null;
+            }
+
+            return array(
+                'id' => intval($category['id'] ?? 0),
+                'slug' => sanitize_title($category['slug']),
+                'name' => sanitize_text_field($category['name']),
+                'description' => sanitize_textarea_field($category['description'] ?? ''),
+                'sort_order' => intval($category['sort_order'] ?? 0),
+                'is_active' => !empty($category['is_active']) ? 1 : 0,
+            );
+        }, $categories)));
+    }
+
+    /**
+     * Compute the next category ID.
+     */
+    private static function get_next_catalog_category_id($categories) {
+        $max_id = 0;
+
+        foreach ($categories as $category) {
+            $max_id = max($max_id, intval($category['id'] ?? 0));
+        }
+
+        return $max_id + 1;
     }
 
     /**

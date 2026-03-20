@@ -309,9 +309,9 @@ class ThemisDB_Order_Shortcodes {
         $legal_privacy_accepted = !empty($order['legal_privacy_accepted']);
         $legal_withdrawal_acknowledged = !empty($order['legal_withdrawal_acknowledged']);
         $legal_withdrawal_waiver = !empty($order['legal_withdrawal_waiver']);
-        $agb_url = get_option('themisdb_order_legal_agb_url', site_url('/agb'));
-        $privacy_url = get_option('themisdb_order_legal_privacy_url', site_url('/datenschutz'));
-        $withdrawal_url = get_option('themisdb_order_legal_withdrawal_url', site_url('/widerruf'));
+        $agb_url = get_option('themisdb_order_legal_agb_url', home_url('/agb'));
+        $privacy_url = get_option('themisdb_order_legal_privacy_url', home_url('/datenschutz'));
+        $withdrawal_url = get_option('themisdb_order_legal_withdrawal_url', home_url('/widerruf'));
         $shipping_name = $order ? ($order['shipping_name'] ?? '') : '';
         $shipping_address_line1 = $order ? ($order['shipping_address_line1'] ?? '') : '';
         $shipping_address_line2 = $order ? ($order['shipping_address_line2'] ?? '') : '';
@@ -323,156 +323,203 @@ class ThemisDB_Order_Shortcodes {
         ?>
         <div class="order-step-content" data-step="4">
             <h2><?php _e('Ihre Kontaktdaten', 'themisdb-order-request'); ?></h2>
-            <p><?php _e('Bitte geben Sie Ihre Kontaktdaten ein.', 'themisdb-order-request'); ?></p>
-            
+            <p><?php _e('Bitte geben Sie Ihre Kontakt- und Rechnungsdaten ein.', 'themisdb-order-request'); ?></p>
+
             <div class="customer-form">
-                <div class="form-group">
-                    <label for="customer_name"><?php _e('Name', 'themisdb-order-request'); ?> *</label>
-                    <input type="text" id="customer_name" name="customer_name" 
-                           value="<?php echo esc_attr($customer_name); ?>" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="customer_email"><?php _e('E-Mail', 'themisdb-order-request'); ?> *</label>
-                    <input type="email" id="customer_email" name="customer_email" 
-                           value="<?php echo esc_attr($customer_email); ?>" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="customer_company"><?php _e('Unternehmen', 'themisdb-order-request'); ?></label>
-                    <input type="text" id="customer_company" name="customer_company" 
-                           value="<?php echo esc_attr($customer_company); ?>">
+
+                <!-- Kontaktdaten -->
+                <div class="compliance-section">
+                    <h3><?php _e('Kontakt', 'themisdb-order-request'); ?></h3>
+
+                    <div class="form-group">
+                        <label for="customer_name"><?php _e('Name', 'themisdb-order-request'); ?> *</label>
+                        <input type="text" id="customer_name" name="customer_name"
+                               value="<?php echo esc_attr($customer_name); ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="customer_email"><?php _e('E-Mail-Adresse', 'themisdb-order-request'); ?> *</label>
+                        <input type="email" id="customer_email" name="customer_email"
+                               value="<?php echo esc_attr($customer_email); ?>" required>
+                    </div>
                 </div>
 
-                <h3 style="margin-top:1.5rem;"><?php _e('Rechnungsdaten (Deutschland)', 'themisdb-order-request'); ?></h3>
+                <!-- Kundentyp -->
+                <div class="compliance-section">
+                    <h3><?php _e('Kundentyp', 'themisdb-order-request'); ?></h3>
+                    <div class="customer-type-group">
+                        <label class="customer-type-option <?php echo $customer_type === 'consumer' ? 'selected' : ''; ?>">
+                            <input type="radio" name="customer_type" value="consumer" <?php checked($customer_type, 'consumer'); ?>>
+                            <strong><?php _e('Verbraucher', 'themisdb-order-request'); ?></strong>
+                            <small><?php _e('Privatperson (B2C)', 'themisdb-order-request'); ?></small>
+                        </label>
+                        <label class="customer-type-option <?php echo $customer_type === 'business' ? 'selected' : ''; ?>">
+                            <input type="radio" name="customer_type" value="business" <?php checked($customer_type, 'business'); ?>>
+                            <strong><?php _e('Unternehmer / Firma', 'themisdb-order-request'); ?></strong>
+                            <small><?php _e('Gewerblicher Käufer (B2B)', 'themisdb-order-request'); ?></small>
+                        </label>
+                    </div>
 
-                <div class="form-group">
-                    <label><?php _e('Kundentyp', 'themisdb-order-request'); ?> *</label>
-                    <label style="display:block;margin-top:.4rem;">
-                        <input type="radio" name="customer_type" value="consumer" <?php checked($customer_type, 'consumer'); ?>>
-                        <?php _e('Verbraucher', 'themisdb-order-request'); ?>
-                    </label>
-                    <label style="display:block;">
-                        <input type="radio" name="customer_type" value="business" <?php checked($customer_type, 'business'); ?>>
-                        <?php _e('Unternehmer / Firma', 'themisdb-order-request'); ?>
-                    </label>
+                    <!-- B2B-Felder (nur sichtbar wenn Unternehmer gewählt) -->
+                    <div class="themisdb-b2b-fields" <?php echo $customer_type !== 'business' ? 'style="display:none"' : ''; ?>>
+                        <div class="form-group">
+                            <label for="customer_company"><?php _e('Firmenname', 'themisdb-order-request'); ?> *</label>
+                            <input type="text" id="customer_company" name="customer_company"
+                                   value="<?php echo esc_attr($customer_company); ?>">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="vat_id"><?php _e('USt-IdNr.', 'themisdb-order-request'); ?></label>
+                            <input type="text" id="vat_id" name="vat_id"
+                                   value="<?php echo esc_attr($vat_id); ?>"
+                                   placeholder="DE123456789">
+                            <span class="themisdb-field-hint"><?php _e('Format: zwei Buchstaben Ländercode + Ziffern/Buchstaben, z. B. DE123456789', 'themisdb-order-request'); ?></span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="billing_name"><?php _e('Rechnungsempfänger', 'themisdb-order-request'); ?> *</label>
-                    <input type="text" id="billing_name" name="billing_name"
-                           value="<?php echo esc_attr($billing_name); ?>" required>
+                <!-- Rechnungsadresse -->
+                <div class="compliance-section">
+                    <h3><?php _e('Rechnungsadresse', 'themisdb-order-request'); ?></h3>
+
+                    <div class="form-group">
+                        <label for="billing_name"><?php _e('Rechnungsempfänger (Name / Firma)', 'themisdb-order-request'); ?> *</label>
+                        <input type="text" id="billing_name" name="billing_name"
+                               value="<?php echo esc_attr($billing_name); ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="billing_address_line1"><?php _e('Straße und Hausnummer', 'themisdb-order-request'); ?> *</label>
+                        <input type="text" id="billing_address_line1" name="billing_address_line1"
+                               value="<?php echo esc_attr($billing_address_line1); ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="billing_address_line2"><?php _e('Adresszusatz (optional)', 'themisdb-order-request'); ?></label>
+                        <input type="text" id="billing_address_line2" name="billing_address_line2"
+                               value="<?php echo esc_attr($billing_address_line2); ?>">
+                    </div>
+
+                    <div class="address-grid">
+                        <div class="form-group">
+                            <label for="billing_postal_code"><?php _e('PLZ', 'themisdb-order-request'); ?> *</label>
+                            <input type="text" id="billing_postal_code" name="billing_postal_code"
+                                   value="<?php echo esc_attr($billing_postal_code); ?>"
+                                   placeholder="z. B. 80333" maxlength="10" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="billing_city"><?php _e('Ort', 'themisdb-order-request'); ?> *</label>
+                            <input type="text" id="billing_city" name="billing_city"
+                                   value="<?php echo esc_attr($billing_city); ?>" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="billing_country"><?php _e('Land', 'themisdb-order-request'); ?> *</label>
+                            <input type="text" id="billing_country" name="billing_country"
+                                   value="<?php echo esc_attr($billing_country); ?>"
+                                   placeholder="DE" maxlength="2" required>
+                            <span class="themisdb-field-hint"><?php _e('ISO-Ländercode, 2 Großbuchstaben (z. B. DE, AT, CH)', 'themisdb-order-request'); ?></span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="billing_address_line1"><?php _e('Rechnungsadresse: Straße und Hausnummer', 'themisdb-order-request'); ?> *</label>
-                    <input type="text" id="billing_address_line1" name="billing_address_line1"
-                           value="<?php echo esc_attr($billing_address_line1); ?>" required>
+                <!-- Lieferadresse (optional) -->
+                <div class="compliance-section optional-section">
+                    <h3><?php _e('Lieferadresse', 'themisdb-order-request'); ?> <small style="font-weight:normal;color:#666;">(<?php _e('optional, z. B. für Merchandise', 'themisdb-order-request'); ?>)</small></h3>
+
+                    <div class="form-group">
+                        <label for="shipping_name"><?php _e('Empfänger', 'themisdb-order-request'); ?></label>
+                        <input type="text" id="shipping_name" name="shipping_name"
+                               value="<?php echo esc_attr($shipping_name); ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="shipping_address_line1"><?php _e('Straße und Hausnummer', 'themisdb-order-request'); ?></label>
+                        <input type="text" id="shipping_address_line1" name="shipping_address_line1"
+                               value="<?php echo esc_attr($shipping_address_line1); ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="shipping_address_line2"><?php _e('Adresszusatz', 'themisdb-order-request'); ?></label>
+                        <input type="text" id="shipping_address_line2" name="shipping_address_line2"
+                               value="<?php echo esc_attr($shipping_address_line2); ?>">
+                    </div>
+
+                    <div class="address-grid">
+                        <div class="form-group">
+                            <label for="shipping_postal_code"><?php _e('PLZ', 'themisdb-order-request'); ?></label>
+                            <input type="text" id="shipping_postal_code" name="shipping_postal_code"
+                                   value="<?php echo esc_attr($shipping_postal_code); ?>"
+                                   placeholder="z. B. 80333" maxlength="10">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shipping_city"><?php _e('Ort', 'themisdb-order-request'); ?></label>
+                            <input type="text" id="shipping_city" name="shipping_city"
+                                   value="<?php echo esc_attr($shipping_city); ?>">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shipping_country"><?php _e('Land', 'themisdb-order-request'); ?></label>
+                            <input type="text" id="shipping_country" name="shipping_country"
+                                   value="<?php echo esc_attr($shipping_country); ?>"
+                                   placeholder="DE" maxlength="2">
+                            <span class="themisdb-field-hint"><?php _e('ISO-Ländercode, 2 Großbuchstaben', 'themisdb-order-request'); ?></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="shipping_method"><?php _e('Versandart', 'themisdb-order-request'); ?></label>
+                        <select id="shipping_method" name="shipping_method">
+                            <option value="standard" <?php selected($shipping_method, 'standard'); ?>><?php _e('Standard', 'themisdb-order-request'); ?></option>
+                            <option value="express" <?php selected($shipping_method, 'express'); ?>><?php _e('Express', 'themisdb-order-request'); ?></option>
+                        </select>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="billing_address_line2"><?php _e('Rechnungsadresse: Zusatz', 'themisdb-order-request'); ?></label>
-                    <input type="text" id="billing_address_line2" name="billing_address_line2"
-                           value="<?php echo esc_attr($billing_address_line2); ?>">
+                <!-- Rechtliche Zustimmungen -->
+                <div class="legal-checkboxes">
+                    <h4><?php _e('Rechtliche Zustimmungen', 'themisdb-order-request'); ?></h4>
+
+                    <div class="legal-check-item">
+                        <input type="checkbox" id="legal_terms_accepted" name="legal_terms_accepted" value="1" <?php checked($legal_terms_accepted); ?> required>
+                        <label for="legal_terms_accepted">
+                            <?php printf(
+                                __('Ich akzeptiere die <a href="%s" target="_blank" rel="noopener noreferrer">Allgemeinen Geschäftsbedingungen (AGB)</a>.', 'themisdb-order-request'),
+                                esc_url($agb_url)
+                            ); ?> *
+                        </label>
+                    </div>
+
+                    <div class="legal-check-item">
+                        <input type="checkbox" id="legal_privacy_accepted" name="legal_privacy_accepted" value="1" <?php checked($legal_privacy_accepted); ?> required>
+                        <label for="legal_privacy_accepted">
+                            <?php printf(
+                                __('Ich habe die <a href="%s" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a> gelesen und akzeptiere die Verarbeitung meiner Daten.', 'themisdb-order-request'),
+                                esc_url($privacy_url)
+                            ); ?> *
+                        </label>
+                    </div>
+
+                    <div class="legal-check-item legal-withdrawal-consent">
+                        <input type="checkbox" id="legal_withdrawal_acknowledged" name="legal_withdrawal_acknowledged" value="1" <?php checked($legal_withdrawal_acknowledged); ?>>
+                        <label for="legal_withdrawal_acknowledged">
+                            <?php printf(
+                                __('Ich habe die <a href="%s" target="_blank" rel="noopener noreferrer">Widerrufsbelehrung</a> zur Kenntnis genommen.', 'themisdb-order-request'),
+                                esc_url($withdrawal_url)
+                            ); ?> *
+                        </label>
+                    </div>
+
+                    <div class="legal-check-item legal-withdrawal-waiver">
+                        <input type="checkbox" id="legal_withdrawal_waiver" name="legal_withdrawal_waiver" value="1" <?php checked($legal_withdrawal_waiver); ?>>
+                        <label for="legal_withdrawal_waiver">
+                            <?php _e('Ich stimme ausdrücklich zu, dass mit der Ausführung der digitalen Leistungen vor Ablauf der Widerrufsfrist begonnen wird und erkenne an, dass mein Widerrufsrecht damit erlischt (§ 356 Abs. 5 BGB).', 'themisdb-order-request'); ?>
+                        </label>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="billing_postal_code"><?php _e('Rechnungsadresse: PLZ', 'themisdb-order-request'); ?> *</label>
-                    <input type="text" id="billing_postal_code" name="billing_postal_code"
-                           value="<?php echo esc_attr($billing_postal_code); ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="billing_city"><?php _e('Rechnungsadresse: Ort', 'themisdb-order-request'); ?> *</label>
-                    <input type="text" id="billing_city" name="billing_city"
-                           value="<?php echo esc_attr($billing_city); ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="billing_country"><?php _e('Rechnungsadresse: Land (ISO-Code)', 'themisdb-order-request'); ?> *</label>
-                    <input type="text" id="billing_country" name="billing_country" maxlength="2"
-                           value="<?php echo esc_attr($billing_country); ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="vat_id"><?php _e('USt-IdNr. (optional, für B2B)', 'themisdb-order-request'); ?></label>
-                    <input type="text" id="vat_id" name="vat_id"
-                           value="<?php echo esc_attr($vat_id); ?>">
-                </div>
-
-                <h3 style="margin-top:1.5rem;"><?php _e('Lieferadresse (fuer Merchandise)', 'themisdb-order-request'); ?></h3>
-
-                <div class="form-group">
-                    <label for="shipping_name"><?php _e('Empfaenger', 'themisdb-order-request'); ?></label>
-                    <input type="text" id="shipping_name" name="shipping_name"
-                           value="<?php echo esc_attr($shipping_name); ?>">
-                </div>
-
-                <div class="form-group">
-                    <label for="shipping_address_line1"><?php _e('Strasse und Hausnummer', 'themisdb-order-request'); ?></label>
-                    <input type="text" id="shipping_address_line1" name="shipping_address_line1"
-                           value="<?php echo esc_attr($shipping_address_line1); ?>">
-                </div>
-
-                <div class="form-group">
-                    <label for="shipping_address_line2"><?php _e('Adresszusatz', 'themisdb-order-request'); ?></label>
-                    <input type="text" id="shipping_address_line2" name="shipping_address_line2"
-                           value="<?php echo esc_attr($shipping_address_line2); ?>">
-                </div>
-
-                <div class="form-group">
-                    <label for="shipping_postal_code"><?php _e('PLZ', 'themisdb-order-request'); ?></label>
-                    <input type="text" id="shipping_postal_code" name="shipping_postal_code"
-                           value="<?php echo esc_attr($shipping_postal_code); ?>">
-                </div>
-
-                <div class="form-group">
-                    <label for="shipping_city"><?php _e('Ort', 'themisdb-order-request'); ?></label>
-                    <input type="text" id="shipping_city" name="shipping_city"
-                           value="<?php echo esc_attr($shipping_city); ?>">
-                </div>
-
-                <div class="form-group">
-                    <label for="shipping_country"><?php _e('Land (ISO-Code)', 'themisdb-order-request'); ?></label>
-                    <input type="text" id="shipping_country" name="shipping_country" maxlength="2"
-                           value="<?php echo esc_attr($shipping_country); ?>">
-                </div>
-
-                <div class="form-group">
-                    <label for="shipping_method"><?php _e('Versandart', 'themisdb-order-request'); ?></label>
-                    <select id="shipping_method" name="shipping_method">
-                        <option value="standard" <?php selected($shipping_method, 'standard'); ?>><?php _e('Standard', 'themisdb-order-request'); ?></option>
-                        <option value="express" <?php selected($shipping_method, 'express'); ?>><?php _e('Express', 'themisdb-order-request'); ?></option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" name="legal_terms_accepted" value="1" <?php checked($legal_terms_accepted); ?> required>
-                        <?php printf(__('Ich akzeptiere die <a href="%s" target="_blank" rel="noopener">AGB</a>', 'themisdb-order-request'), esc_url($agb_url)); ?> *
-                    </label>
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" name="legal_privacy_accepted" value="1" <?php checked($legal_privacy_accepted); ?> required>
-                        <?php printf(__('Ich akzeptiere die <a href="%s" target="_blank" rel="noopener">Datenschutzerklärung</a>', 'themisdb-order-request'), esc_url($privacy_url)); ?> *
-                    </label>
-                </div>
-
-                <div class="form-group legal-withdrawal-consent">
-                    <label>
-                        <input type="checkbox" name="legal_withdrawal_acknowledged" value="1" <?php checked($legal_withdrawal_acknowledged); ?>>
-                        <?php printf(__('Ich habe die <a href="%s" target="_blank" rel="noopener">Widerrufsbelehrung</a> gelesen', 'themisdb-order-request'), esc_url($withdrawal_url)); ?> *
-                    </label>
-                </div>
-
-                <div class="form-group legal-withdrawal-waiver">
-                    <label>
-                        <input type="checkbox" name="legal_withdrawal_waiver" value="1" <?php checked($legal_withdrawal_waiver); ?>>
-                        <?php _e('Ich stimme ausdrücklich zu, dass mit der Ausführung digitaler Leistungen vor Ablauf der Widerrufsfrist begonnen wird.', 'themisdb-order-request'); ?>
-                    </label>
-                </div>
             </div>
             
             <div class="order-navigation">
@@ -545,10 +592,19 @@ class ThemisDB_Order_Shortcodes {
                     <h3><?php _e('Kontaktdaten', 'themisdb-order-request'); ?></h3>
                     <p>
                         <strong><?php echo esc_html($order['customer_name']); ?></strong><br>
-                        <?php if ($order['customer_company']): ?>
+                        <?php if (!empty($order['customer_company'])): ?>
                             <?php echo esc_html($order['customer_company']); ?><br>
                         <?php endif; ?>
-                        <?php echo esc_html($order['customer_email']); ?>
+                        <?php echo esc_html($order['customer_email']); ?><br>
+                        <?php
+                        $ct_label = (($order['customer_type'] ?? 'consumer') === 'business')
+                            ? __('Unternehmer / Firma (B2B)', 'themisdb-order-request')
+                            : __('Verbraucher (B2C)', 'themisdb-order-request');
+                        echo '<em>' . esc_html($ct_label) . '</em>';
+                        ?>
+                        <?php if (!empty($order['vat_id'])): ?><br>
+                            <?php echo esc_html__('USt-IdNr.', 'themisdb-order-request') . ': ' . esc_html($order['vat_id']); ?>
+                        <?php endif; ?>
                     </p>
                 </div>
 
@@ -584,6 +640,35 @@ class ThemisDB_Order_Shortcodes {
                 </div>
                 <?php endif; ?>
                 
+                <!-- Rechtliche Zustimmungen (Bestätigung vor Absenden) -->
+                <div class="summary-section">
+                    <h3><?php _e('Rechtliche Zustimmungen', 'themisdb-order-request'); ?></h3>
+                    <ul style="margin:0;padding-left:1.4em;">
+                        <li style="color:<?php echo !empty($order['legal_terms_accepted']) ? '#155724' : '#b32d2e'; ?>">
+                            <?php echo !empty($order['legal_terms_accepted'])
+                                ? '&#10003; ' . esc_html__('AGB akzeptiert', 'themisdb-order-request')
+                                : '&#10007; ' . esc_html__('AGB NICHT akzeptiert', 'themisdb-order-request'); ?>
+                        </li>
+                        <li style="color:<?php echo !empty($order['legal_privacy_accepted']) ? '#155724' : '#b32d2e'; ?>">
+                            <?php echo !empty($order['legal_privacy_accepted'])
+                                ? '&#10003; ' . esc_html__('Datenschutzerklärung akzeptiert', 'themisdb-order-request')
+                                : '&#10007; ' . esc_html__('Datenschutzerklärung NICHT akzeptiert', 'themisdb-order-request'); ?>
+                        </li>
+                        <?php if (($order['customer_type'] ?? 'consumer') === 'consumer'): ?>
+                        <li style="color:<?php echo !empty($order['legal_withdrawal_acknowledged']) ? '#155724' : '#b32d2e'; ?>">
+                            <?php echo !empty($order['legal_withdrawal_acknowledged'])
+                                ? '&#10003; ' . esc_html__('Widerrufsbelehrung zur Kenntnis genommen', 'themisdb-order-request')
+                                : '&#10007; ' . esc_html__('Widerrufsbelehrung NICHT bestätigt', 'themisdb-order-request'); ?>
+                        </li>
+                        <?php endif; ?>
+                        <?php if (!empty($order['legal_withdrawal_waiver'])): ?>
+                        <li style="color:#155724;">
+                            &#10003; <?php _e('Verzicht auf Widerrufsrecht (§ 356 Abs. 5 BGB) erklärt', 'themisdb-order-request'); ?>
+                        </li>
+                        <?php endif; ?>
+                    </ul>
+                </div>
+
                 <div class="summary-total">
                     <h3><?php _e('Gesamtbetrag', 'themisdb-order-request'); ?></h3>
                     <p class="total-amount">
@@ -695,6 +780,81 @@ class ThemisDB_Order_Shortcodes {
         <?php
         return ob_get_clean();
     }
+
+    /**
+     * Validate billing/legal fields for German compliance.
+     */
+    private function validate_regulatory_fields($data, $strict_legal = true) {
+        $errors = array();
+        $field_errors = array();
+
+        $customer_type = isset($data['customer_type']) && in_array($data['customer_type'], array('consumer', 'business'), true)
+            ? $data['customer_type']
+            : 'consumer';
+        $billing_country = strtoupper(trim((string) ($data['billing_country'] ?? '')));
+        $billing_postal_code = trim((string) ($data['billing_postal_code'] ?? ''));
+        $shipping_country = strtoupper(trim((string) ($data['shipping_country'] ?? 'DE')));
+        $shipping_postal_code = trim((string) ($data['shipping_postal_code'] ?? ''));
+        $vat_id = strtoupper(trim((string) ($data['vat_id'] ?? '')));
+
+        $required_fields = array('customer_name', 'customer_email', 'billing_name', 'billing_address_line1', 'billing_postal_code', 'billing_city', 'billing_country');
+        foreach ($required_fields as $field) {
+            if (empty($data[$field])) {
+                $field_errors[$field] = __('Pflichtfeld.', 'themisdb-order-request');
+            }
+        }
+
+        if (!empty($data['customer_email']) && !is_email($data['customer_email'])) {
+            $field_errors['customer_email'] = __('Ungültige E-Mail-Adresse.', 'themisdb-order-request');
+        }
+
+        if ($billing_country !== '' && !preg_match('/^[A-Z]{2}$/', $billing_country)) {
+            $field_errors['billing_country'] = __('Land als 2-stelliger ISO-Code (z. B. DE).', 'themisdb-order-request');
+        }
+
+        if ($billing_country === 'DE' && $billing_postal_code !== '' && !preg_match('/^\d{5}$/', $billing_postal_code)) {
+            $field_errors['billing_postal_code'] = __('Für Deutschland sind 5 Ziffern erforderlich.', 'themisdb-order-request');
+        }
+
+        if ($shipping_country !== '' && !preg_match('/^[A-Z]{2}$/', $shipping_country)) {
+            $field_errors['shipping_country'] = __('Land als 2-stelliger ISO-Code (z. B. DE).', 'themisdb-order-request');
+        }
+
+        if ($shipping_postal_code !== '' && $shipping_country === 'DE' && !preg_match('/^\d{5}$/', $shipping_postal_code)) {
+            $field_errors['shipping_postal_code'] = __('Für Deutschland sind 5 Ziffern erforderlich.', 'themisdb-order-request');
+        }
+
+        if ($customer_type === 'business' && empty($data['customer_company'])) {
+            $field_errors['customer_company'] = __('Firmennamen für Unternehmenskunden angeben.', 'themisdb-order-request');
+        }
+
+        if ($vat_id !== '' && !preg_match('/^[A-Z]{2}[A-Z0-9]{2,12}$/', $vat_id)) {
+            $field_errors['vat_id'] = __('Ungültiges USt-IdNr.-Format (z. B. DE123456789).', 'themisdb-order-request');
+        }
+
+        if ($strict_legal) {
+            if (empty($data['legal_terms_accepted'])) {
+                $field_errors['legal_terms_accepted'] = __('AGB müssen akzeptiert werden.', 'themisdb-order-request');
+            }
+
+            if (empty($data['legal_privacy_accepted'])) {
+                $field_errors['legal_privacy_accepted'] = __('Datenschutz muss akzeptiert werden.', 'themisdb-order-request');
+            }
+
+            if ($customer_type === 'consumer' && empty($data['legal_withdrawal_acknowledged'])) {
+                $field_errors['legal_withdrawal_acknowledged'] = __('Widerrufsbelehrung muss bestätigt werden.', 'themisdb-order-request');
+            }
+        }
+
+        if (!empty($field_errors)) {
+            $errors[] = __('Bitte prüfen Sie die markierten Eingaben.', 'themisdb-order-request');
+        }
+
+        return array(
+            'errors' => $errors,
+            'field_errors' => $field_errors,
+        );
+    }
     
     /**
      * AJAX: Save order step
@@ -723,25 +883,14 @@ class ThemisDB_Order_Shortcodes {
                 ? $data['customer_type']
                 : 'consumer';
 
-            $required_fields = array('customer_name', 'customer_email', 'billing_name', 'billing_address_line1', 'billing_postal_code', 'billing_city', 'billing_country');
-            foreach ($required_fields as $field) {
-                if (empty($data[$field])) {
-                    wp_send_json_error(array('message' => __('Bitte füllen Sie alle Pflichtfelder für die Rechnungsdaten aus.', 'themisdb-order-request')));
-                    return;
-                }
-            }
-
             $legal_compliance_enabled = get_option('themisdb_order_legal_compliance') === '1';
-            if ($legal_compliance_enabled) {
-                if (empty($data['legal_terms_accepted']) || empty($data['legal_privacy_accepted'])) {
-                    wp_send_json_error(array('message' => __('Bitte akzeptieren Sie AGB und Datenschutzerklärung.', 'themisdb-order-request')));
-                    return;
-                }
-
-                if ($customer_type === 'consumer' && empty($data['legal_withdrawal_acknowledged'])) {
-                    wp_send_json_error(array('message' => __('Bitte bestätigen Sie die Kenntnis der Widerrufsbelehrung.', 'themisdb-order-request')));
-                    return;
-                }
+            $validation = $this->validate_regulatory_fields($data, $legal_compliance_enabled);
+            if (!empty($validation['field_errors'])) {
+                wp_send_json_error(array(
+                    'message' => __('Bitte korrigieren Sie die Eingaben in Schritt 4.', 'themisdb-order-request'),
+                    'field_errors' => $validation['field_errors'],
+                ));
+                return;
             }
 
             $data['customer_type'] = $customer_type;
@@ -828,9 +977,39 @@ class ThemisDB_Order_Shortcodes {
             wp_send_json_error(array('message' => __('Keine Bestellung gefunden', 'themisdb-order-request')));
             return;
         }
+
+        $order = ThemisDB_Order_Manager::get_order($order_id);
+        if (!$order) {
+            wp_send_json_error(array('message' => __('Bestellung nicht gefunden', 'themisdb-order-request')));
+            return;
+        }
+
+        $validation = $this->validate_regulatory_fields($order, true);
+        if (!empty($validation['field_errors'])) {
+            wp_send_json_error(array(
+                'message' => __('Rechnungs- und Rechtsdaten sind unvollständig oder ungültig. Bitte Schritt 4 prüfen.', 'themisdb-order-request'),
+                'field_errors' => $validation['field_errors'],
+            ));
+            return;
+        }
+
+        if (empty($order['legal_accepted_at'])) {
+            ThemisDB_Order_Manager::update_order($order_id, array(
+                'legal_accepted_at' => current_time('mysql'),
+                'legal_accepted_ip' => isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field($_SERVER['REMOTE_ADDR']) : null,
+                'legal_accepted_user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : null,
+                'legal_acceptance_version' => get_option('themisdb_order_legal_version', 'de-v1'),
+            ));
+            $order = ThemisDB_Order_Manager::get_order($order_id);
+        }
         
-        // Update order status
-        ThemisDB_Order_Manager::update_order($order_id, array('status' => 'pending'));
+        // Update order status and stop immediately if the transition fails.
+        $status_updated = ThemisDB_Order_Manager::set_order_status($order_id, 'pending');
+        if (!$status_updated) {
+            error_log('ThemisDB Order Submit Error: Failed to set order status to pending for order ID ' . $order_id);
+            wp_send_json_error(array('message' => __('Bestellung konnte nicht finalisiert werden. Bitte erneut versuchen.', 'themisdb-order-request')));
+            return;
+        }
         
         // Send confirmation email
         ThemisDB_Email_Handler::send_order_confirmation($order_id);
@@ -876,18 +1055,17 @@ class ThemisDB_Order_Shortcodes {
             }
         } else {
             // License flow: keep current contract/license workflow.
-            $contract_data = array(
-                'order_id' => $order_id,
-                'customer_id' => $order['customer_id'],
-                'contract_type' => 'license',
-                'contract_data' => $order
+            $conversion = ThemisDB_Contract_Manager::ensure_contract_for_order(
+                $order_id,
+                array(
+                    'contract_type' => 'license',
+                    'generate_pdf' => true,
+                    'send_email' => true
+                )
             );
 
-            $contract_id = ThemisDB_Contract_Manager::create_contract($contract_data);
-
-            if ($contract_id) {
-                ThemisDB_PDF_Generator::generate_contract_pdf($contract_id);
-                ThemisDB_Email_Handler::send_contract_email($contract_id);
+            if (!empty($conversion['success']) && !empty($conversion['contract_id'])) {
+                $contract_id = intval($conversion['contract_id']);
 
                 try {
                     ThemisDB_Email_Handler::send_invoice_email($order_id);
@@ -895,23 +1073,29 @@ class ThemisDB_Order_Shortcodes {
                     error_log('ThemisDB Invoice Email Error (AJAX Submit): ' . $e->getMessage());
                 }
 
-                $payment_data = array(
-                    'order_id' => $order_id,
-                    'contract_id' => $contract_id,
-                    'amount' => $order['total_amount'],
-                    'currency' => $order['currency'],
-                    'payment_method' => 'bank_transfer'
-                );
-                ThemisDB_Payment_Manager::create_payment($payment_data);
+                $existing_payments = ThemisDB_Payment_Manager::get_payments_by_order($order_id);
+                if (empty($existing_payments)) {
+                    $payment_data = array(
+                        'order_id' => $order_id,
+                        'contract_id' => $contract_id,
+                        'amount' => $order['total_amount'],
+                        'currency' => $order['currency'],
+                        'payment_method' => 'bank_transfer'
+                    );
+                    ThemisDB_Payment_Manager::create_payment($payment_data);
+                }
 
-                $license_data = array(
-                    'order_id' => $order_id,
-                    'contract_id' => $contract_id,
-                    'customer_id' => $order['customer_id'],
-                    'product_edition' => $order['product_edition'],
-                    'license_type' => 'standard'
-                );
-                ThemisDB_License_Manager::create_license($license_data);
+                $existing_license = ThemisDB_License_Manager::get_license_by_contract($contract_id);
+                if (!$existing_license) {
+                    $license_data = array(
+                        'order_id' => $order_id,
+                        'contract_id' => $contract_id,
+                        'customer_id' => $order['customer_id'],
+                        'product_edition' => $order['product_edition'],
+                        'license_type' => 'standard'
+                    );
+                    ThemisDB_License_Manager::create_license($license_data);
+                }
             }
         }
         

@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-03-20
+
+### Added – Deutsches Recht & Compliance
+- **Regulatorische Felder**: Vollständige Rechnungsadresse (billing_name, address_line1/2, PLZ, Ort, Land), Lieferadresse, Kundentyp (B2C/B2B), USt-IdNr., Versandart
+- **Rechtliche Zustimmungen**: Checkboxen für AGB, Datenschutzerklärung, Widerrufsbelehrung (B2C) und Verzicht auf Widerrufsrecht § 356 Abs. 5 BGB (B2B/digital)
+- **Pflichtfeld-Validierung (PHP)**: `validate_order_regulatory_fields()` prüft ISO-Ländercode (`^[A-Z]{2}$`), DE-PLZ (`^\d{5}$`), USt-IdNr.-Format (`^[A-Z]{2}[A-Z0-9]{2,12}$`), B2B-Firmenpflicht
+- **Compliance-Vollständigkeitsprüfung**: `is_order_compliance_complete()` – AGB + Datenschutz + Widerrufsbelehrung (B2C)
+- **Workflow-Guard**: Statusübergänge zu `confirmed/signed/active` blockiert, solange Compliance unvollständig
+- **Strukturierte Feldfehlermeldungen**: `validate_regulatory_fields()` liefert `field_errors`-Map; AJAX-Antworten enthalten feldgenaue Fehler
+
+### Added – Frontend UX
+- **Kundentyp-Karten** (`.customer-type-option`): Visuell klickbare B2C/B2B-Auswahl mit Hover-Highlight
+- **B2B-Felder dynamisch** (`slideDown/Up`): Firma und USt-IdNr. nur sichtbar wenn „Unternehmer" gewählt
+- **Auto-Uppercase** für ISO-Länderfelder: Nicht-Buchstaben entfernt, max. 2 Zeichen, Live-Formatierung
+- **Auto-Strip DE-PLZ**: Bei `blur` auf PLZ-Felder werden Nicht-Ziffern entfernt wenn Land = DE
+- **Feldmarkierung** (`.themisdb-invalid-field`): Roter Rahmen + Hintergrund für ungültige Felder
+- **Feldfehlermeldungen** (`.themisdb-field-error`): Kleiner roter Text unterhalb jedes ungültigen Feldes
+- **Step 5 – Compliance-Vorschau**: Zusammenfassung zeigt Kundentyp, USt-IdNr. und Status aller Legal-Zustimmungen mit ✓/✗
+
+### Added – Admin Backend
+- **Compliance-Felder in Create/Edit-Formularen**: Rechnungsadresse, Lieferadresse, Kundentyp, USt-IdNr. mit Feldhinweisen
+- **Abschnitts-Header** (`.themisdb-form-section-header`): Optische Trennung von Kontakt-, Rechnungs-, Liefer- und Rechtsdaten
+- **B2B-Toggle (Admin)**: `syncB2bRow()` in admin.js blendet Firma/USt-IdNr.-Zeilen je nach customer_type ein/aus
+- **Auto-Uppercase** für Land-ISO-Felder auch im Admin
+
+### Added – CSS / Styling
+- `order-request.css`: Feldvalidierung, Kundentyp-Karten, Compliance-Sections, Adress-Grid (2-spaltig, responsiv), Legal-Checkboxen-Block, Error/Success-Notices
+- `admin.css`: Admin-Compliance-Notice, Feldmarkierung, Abschnitts-Header, Workflow-Guard-Hinweis, Feldhinweis
+
+### Added – Dokumentation & Ops
+- `docs/THEMISDB_ORDER_REQUEST_E2E_RUNBOOK.md`: 10 E2E-Testszenarien mit Go/No-Go-Kriterien
+- `scripts/themisdb-order-request-e2e-smoke.ps1`: Automatisierbarer Smoke-Check per WP-CLI
+
+### Changed
+- Step-4-Formular überarbeitet: Semantische Sections, PLZ/Ort/Land in `.address-grid`, Legal-Zustimmungen in `.legal-checkboxes`
+- `showErrorMessage` / `showSuccessMessage` nutzen neue CSS-Klassen statt WordPress-`notice`-Klassen
+- Widerruf-Text präzisiert auf § 356 Abs. 5 BGB
+- Admin-Formulare: Abschnitts-h3 mit `themisdb-form-section-header`-Klasse
+
+---
+
 ## [1.0.0] - 2026-01-08
 
 ### Added
