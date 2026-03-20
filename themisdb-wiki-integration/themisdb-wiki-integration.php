@@ -120,6 +120,13 @@ class ThemisDB_Wiki_Integration {
                 wp_schedule_event(time(), 'hourly', 'themisdb_wiki_auto_sync_hook');
             }
         }
+
+        // Register CPT + taxonomy so WordPress can flush their rewrite rules immediately.
+        if (class_exists('ThemisDB_Wiki')) {
+            $wiki = new ThemisDB_Wiki();
+            $wiki->register_post_type();
+        }
+        flush_rewrite_rules();
     }
     
     /**
@@ -131,6 +138,8 @@ class ThemisDB_Wiki_Integration {
         
         // Clear cache
         $this->clear_all_cache();
+
+        flush_rewrite_rules();
     }
     
     /**

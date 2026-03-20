@@ -38,7 +38,10 @@ class ThemisDB_Custom_Taxonomies {
      * Constructor
      */
     public function __construct() {
-        add_action('init', array($this, 'register_taxonomies'));
+        // Priority -1 ensures these richer taxonomy definitions (with correct slugs
+        // like 'features', 'use-cases') are registered BEFORE ThemisDB_Taxonomy_Manager
+        // (priority 0), which would otherwise win with generic single-word slugs.
+        add_action('init', array($this, 'register_taxonomies'), -1);
         add_action('init', array($this, 'create_default_terms'), 15);
         add_action('create_term', array($this, 'save_term_meta'), 10, 3);
         add_action('edit_term', array($this, 'save_term_meta'), 10, 3);

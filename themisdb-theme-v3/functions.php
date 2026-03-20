@@ -76,6 +76,15 @@ function themisdb_v3_setup() {
 	) );
 }
 
+/**
+ * Flush rewrite rules when switching to this theme so pretty permalinks
+ * are available immediately.
+ */
+function themisdb_v3_flush_rewrite_on_switch() {
+	flush_rewrite_rules();
+}
+add_action( 'after_switch_theme', 'themisdb_v3_flush_rewrite_on_switch' );
+
 /* ================================================================
    2. ENQUEUE ASSETS
    ================================================================ */
@@ -117,6 +126,43 @@ function themisdb_v3_enqueue() {
 		'version' => THEMISDB_V3_VERSION,
 	) );
 }
+
+/**
+ * Convert root-relative links from block HTML to full site URLs.
+ *
+ * This keeps links stable when WordPress is installed in a subdirectory.
+ */
+function themisdb_v3_normalize_block_root_relative_urls( $content ) {
+	if ( ! is_string( $content ) || '' === $content ) {
+		return $content;
+	}
+
+	if (
+		false === strpos( $content, 'href="/' ) &&
+		false === strpos( $content, "href='/'" ) &&
+		false === strpos( $content, 'src="/' ) &&
+		false === strpos( $content, "src='/'" )
+	) {
+		return $content;
+	}
+
+	return (string) preg_replace_callback(
+		'/(href|src)=(["\'])\/(?!\/)([^"\']*)\2/i',
+		static function( $matches ) {
+			$attribute = strtolower( $matches[1] );
+			$quote     = $matches[2];
+			$path      = ltrim( (string) $matches[3], '/' );
+
+			return $attribute . '=' . $quote . esc_url( home_url( '/' . $path ) ) . $quote;
+		},
+		$content
+	);
+}
+
+function themisdb_v3_filter_render_block_urls( $block_content ) {
+	return themisdb_v3_normalize_block_root_relative_urls( $block_content );
+}
+add_filter( 'render_block', 'themisdb_v3_filter_render_block_urls', 20, 1 );
 
 /* ================================================================
    3. BLOCK PATTERNS

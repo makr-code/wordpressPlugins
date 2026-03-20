@@ -119,6 +119,9 @@ function themisdb_order_request_init() {
     // Initialize license REST API and customer portal
     new ThemisDB_License_API();
     new ThemisDB_License_Portal();
+
+    // Ensure core public pages exist independently of the active theme.
+    themisdb_order_ensure_contact_page();
     
     // Load text domain for translations
     load_plugin_textdomain('themisdb-order-request', false, dirname(plugin_basename(__FILE__)) . '/languages');
@@ -126,11 +129,78 @@ function themisdb_order_request_init() {
 add_action('plugins_loaded', 'themisdb_order_request_init');
 
 /**
+ * Ensure a published /contact page exists.
+ *
+ * This keeps https://.../contact available even when themes change.
+ */
+function themisdb_order_ensure_contact_page() {
+    if (wp_installing()) {
+        return;
+    }
+
+    $sync_version = '1';
+    $sync_option  = 'themisdb_order_contact_page_sync';
+
+    if (get_option($sync_option) === $sync_version) {
+        return;
+    }
+
+    $contact_page = get_page_by_path('contact', OBJECT, 'page');
+
+    if ($contact_page instanceof WP_Post) {
+        if ($contact_page->post_status !== 'publish') {
+            wp_update_post(array(
+                'ID'          => $contact_page->ID,
+                'post_status' => 'publish',
+            ));
+        }
+
+        update_option($sync_option, $sync_version);
+        return;
+    }
+
+    $contact_candidates = get_posts(array(
+        'post_type'        => 'page',
+        'name'             => 'contact',
+        'post_status'      => array('publish', 'draft', 'pending', 'private', 'future', 'trash'),
+        'numberposts'      => 1,
+        'suppress_filters' => true,
+    ));
+
+    if (!empty($contact_candidates) && $contact_candidates[0] instanceof WP_Post) {
+        wp_update_post(array(
+            'ID'          => $contact_candidates[0]->ID,
+            'post_name'   => 'contact',
+            'post_title'  => 'Contact',
+            'post_status' => 'publish',
+        ));
+
+        update_option($sync_option, $sync_version);
+        return;
+    }
+
+    $insert_result = wp_insert_post(array(
+        'post_type'    => 'page',
+        'post_status'  => 'publish',
+        'post_title'   => 'Contact',
+        'post_name'    => 'contact',
+        'post_content' => "<h2>Contact ThemisDB</h2>\n<p>For sales, support, and general questions, please use our support channels or email us directly at <a href=\"mailto:info@themisdb.org\">info@themisdb.org</a>.</p>",
+    ), true);
+
+    if (!is_wp_error($insert_result)) {
+        update_option($sync_option, $sync_version);
+    }
+}
+
+/**
  * Activation hook
  */
 function themisdb_order_request_activate() {
     // Create database tables
     ThemisDB_Order_Database::create_tables();
+
+    // Ensure public pages are present immediately after activation.
+    themisdb_order_ensure_contact_page();
     
     // Set default options
     if (!get_option('themisdb_order_epserver_url')) {

@@ -129,6 +129,16 @@ function themisdb_content_width() {
 add_action( 'after_setup_theme', 'themisdb_content_width', 0 );
 
 /**
+ * Flush rewrite rules on theme switch so permalink structures like
+ * "Post name" (/%postname%/) resolve correctly immediately without
+ * requiring a manual visit to Settings → Permalinks.
+ */
+function themisdb_flush_rewrite_on_switch() {
+    flush_rewrite_rules();
+}
+add_action( 'after_switch_theme', 'themisdb_flush_rewrite_on_switch' );
+
+/**
  * Register widget areas
  */
 function themisdb_widgets_init() {

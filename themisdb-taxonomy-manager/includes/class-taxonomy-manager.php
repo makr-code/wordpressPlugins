@@ -99,6 +99,12 @@ class ThemisDB_Taxonomy_Manager {
      */
     public function register_taxonomies() {
         foreach ($this->taxonomies as $taxonomy => $config) {
+            // Skip taxonomies already registered by ThemisDB_Custom_Taxonomies
+            // (which runs at priority -1 with the intended canonical slugs).
+            if (taxonomy_exists($taxonomy)) {
+                continue;
+            }
+
             $labels = array(
                 'name' => _x($config['plural'], 'taxonomy general name', 'themisdb-taxonomy'),
                 'singular_name' => _x($config['singular'], 'taxonomy singular name', 'themisdb-taxonomy'),
