@@ -97,6 +97,12 @@ class ThemisDB_License_Manager {
             // Generate license file
             self::generate_license_file($license_id);
             
+            // Automatically create support benefits for this license
+            $tier_level = strtolower($data['product_edition']);
+            if (class_exists('ThemisDB_Support_Benefits_Manager')) {
+                ThemisDB_Support_Benefits_Manager::create_for_license($license_id, $tier_level);
+            }
+            
             return $license_id;
         }
         
@@ -131,6 +137,14 @@ class ThemisDB_License_Manager {
 
         if ($result) {
             self::generate_license_file($license_id);
+            
+            // Activate associated support benefits
+            if (class_exists('ThemisDB_Support_Benefits_Manager')) {
+                $benefit_id = ThemisDB_Support_Benefits_Manager::get_benefit_id_by_license($license_id);
+                if ($benefit_id) {
+                    ThemisDB_Support_Benefits_Manager::activate($benefit_id);
+                }
+            }
         }
 
         return $result;
@@ -176,6 +190,16 @@ class ThemisDB_License_Manager {
             array('%d')
         );
         
+        if ($result !== false) {
+            // Deactivate associated support benefits
+            if (class_exists('ThemisDB_Support_Benefits_Manager')) {
+                $benefit_id = ThemisDB_Support_Benefits_Manager::get_benefit_id_by_license($license_id);
+                if ($benefit_id) {
+                    ThemisDB_Support_Benefits_Manager::deactivate($benefit_id);
+                }
+            }
+        }
+        
         return $result !== false;
     }
     
@@ -201,13 +225,25 @@ class ThemisDB_License_Manager {
             'usage_data' => json_encode($usage_data)
         );
         
-        return $wpdb->update(
+        $result = $wpdb->update(
             $table_licenses,
             $update_data,
             array('id' => $license_id),
             null,
             array('%d')
         ) !== false;
+        
+        if ($result) {
+            // Suspend associated support benefits
+            if (class_exists('ThemisDB_Support_Benefits_Manager')) {
+                $benefit_id = ThemisDB_Support_Benefits_Manager::get_benefit_id_by_license($license_id);
+                if ($benefit_id) {
+                    ThemisDB_Support_Benefits_Manager::suspend($benefit_id, $reason);
+                }
+            }
+        }
+        
+        return $result;
     }
     
     /**

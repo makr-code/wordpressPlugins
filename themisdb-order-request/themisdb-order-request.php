@@ -81,6 +81,7 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-order-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-contract-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-payment-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-manager.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-support-benefits-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-build-dispatcher.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-api.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-portal.php';
@@ -237,6 +238,16 @@ function themisdb_order_request_activate() {
         wp_schedule_event(time(), 'daily', 'themisdb_license_renewal_check');
     }
     
+    // Schedule support benefits monthly reset cron job
+    if (!wp_next_scheduled('themisdb_support_benefits_monthly_reset')) {
+        wp_schedule_event(time(), 'daily', 'themisdb_support_benefits_monthly_reset');
+    }
+    
+    // Schedule support benefits expiry check (daily)
+    if (!wp_next_scheduled('themisdb_support_benefits_expiry_check')) {
+        wp_schedule_event(time(), 'daily', 'themisdb_support_benefits_expiry_check');
+    }
+    
     // Flush rewrite rules
     flush_rewrite_rules();
 }
@@ -251,6 +262,18 @@ function themisdb_order_request_deactivate() {
     if ($timestamp) {
         wp_unschedule_event($timestamp, 'themisdb_license_renewal_check');
     }
+    
+    // Clear support benefits cron jobs
+    $timestamp = wp_next_scheduled('themisdb_support_benefits_monthly_reset');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'themisdb_support_benefits_monthly_reset');
+    }
+    
+    $timestamp = wp_next_scheduled('themisdb_support_benefits_expiry_check');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'themisdb_support_benefits_expiry_check');
+    }
+    
     // Flush rewrite rules
     flush_rewrite_rules();
 }
@@ -263,6 +286,26 @@ add_action('themisdb_license_renewal_check', 'themisdb_run_license_renewal_check
 function themisdb_run_license_renewal_check() {
     if (class_exists('ThemisDB_License_Renewal')) {
         ThemisDB_License_Renewal::send_renewal_reminders();
+    }
+}
+
+/**
+ * Support benefits monthly reset cron hook
+ */
+add_action('themisdb_support_benefits_monthly_reset', 'themisdb_run_support_benefits_monthly_reset');
+function themisdb_run_support_benefits_monthly_reset() {
+    if (class_exists('ThemisDB_Support_Benefits_Manager')) {
+        ThemisDB_Support_Benefits_Manager::reset_monthly_counts();
+    }
+}
+
+/**
+ * Support benefits expiry check cron hook
+ */
+add_action('themisdb_support_benefits_expiry_check', 'themisdb_run_support_benefits_expiry_check');
+function themisdb_run_support_benefits_expiry_check() {
+    if (class_exists('ThemisDB_Support_Benefits_Manager')) {
+        ThemisDB_Support_Benefits_Manager::expire_expired_licenses();
     }
 }
 

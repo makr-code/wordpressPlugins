@@ -32,6 +32,13 @@ if (!defined('ABSPATH')) {
 }
 
 class ThemisDB_Order_Manager {
+
+    /**
+     * Runtime cache for orders table columns.
+     *
+     * @var array|null
+     */
+    private static $orders_table_columns = null;
     
     /**
      * Create a new order
@@ -98,6 +105,8 @@ class ThemisDB_Order_Manager {
             'status' => $initial_status,
             'step' => 1
         );
+
+        $order_data = self::filter_order_data_for_schema($order_data);
         
         $result = $wpdb->insert($table_orders, $order_data);
         
@@ -143,11 +152,52 @@ class ThemisDB_Order_Manager {
     }
 
     /**
+     * Load existing columns of the orders table to support safe writes
+     * on installations with older schemas.
+     *
+     * @return array
+     */
+    private static function get_orders_table_columns() {
+        global $wpdb;
+
+        if (is_array(self::$orders_table_columns)) {
+            return self::$orders_table_columns;
+        }
+
+        $table_orders = $wpdb->prefix . 'themisdb_orders';
+        $columns = $wpdb->get_col("SHOW COLUMNS FROM $table_orders", 0);
+
+        if (!is_array($columns) || empty($columns)) {
+            self::$orders_table_columns = array();
+            return self::$orders_table_columns;
+        }
+
+        self::$orders_table_columns = array_map('strval', $columns);
+        return self::$orders_table_columns;
+    }
+
+    /**
+     * Keep only fields that actually exist in the current orders table.
+     *
+     * @param array $data
+     * @return array
+     */
+    private static function filter_order_data_for_schema($data) {
+        $columns = self::get_orders_table_columns();
+        if (empty($columns)) {
+            return $data;
+        }
+
+        return array_intersect_key($data, array_flip($columns));
+    }
+
+    /**
      * Set only the order status using a dedicated, validated update path.
      */
     public static function set_order_status($order_id, $status) {
         global $wpdb;
 
+        $order_id = intval($order_id);
         $normalized_status = self::normalize_order_status($status);
         if ($normalized_status === null) {
             return false;
@@ -155,15 +205,33 @@ class ThemisDB_Order_Manager {
 
         $table_orders = $wpdb->prefix . 'themisdb_orders';
 
+        // Verify order exists before attempting update.
+        $order_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM $table_orders WHERE id = %d",
+            $order_id
+        ));
+
+        if (!$order_exists) {
+            error_log('ThemisDB Status Update Error: Order ID ' . $order_id . ' does not exist.');
+            return false;
+        }
+
         $result = $wpdb->update(
             $table_orders,
             array('status' => $normalized_status),
-            array('id' => intval($order_id)),
+            array('id' => $order_id),
             array('%s'),
             array('%d')
         );
 
-        return $result !== false;
+        if ($result === false) {
+            error_log('ThemisDB Status Update Error: Database error while updating order ' . $order_id . ': ' . $wpdb->last_error);
+            return false;
+        }
+
+        // $result is 0 if no rows were affected (status already set), or > 0 if updated.
+        // Both are acceptable outcomes - the important thing is no DB error occurred.
+        return true;
     }
 
     /**
@@ -297,6 +365,11 @@ class ThemisDB_Order_Manager {
         if (empty($update_data)) {
             return false;
         }
+
+        $update_data = self::filter_order_data_for_schema($update_data);
+        if (empty($update_data)) {
+            return false;
+        }
         
         $result = $wpdb->update(
             $table_orders,
@@ -401,13 +474,15 @@ class ThemisDB_Order_Manager {
         global $wpdb;
         
         $table_orders = $wpdb->prefix . 'themisdb_orders';
+        $table_contracts = $wpdb->prefix . 'themisdb_contracts';
         
         $defaults = array(
             'status' => null,
             'limit' => 50,
             'offset' => 0,
             'orderby' => 'created_at',
-            'order' => 'DESC'
+            'order' => 'DESC',
+            'exclude_with_contracts' => false,  // Filter out orders that have contracts
         );
         
         $args = wp_parse_args($args, $defaults);
@@ -416,11 +491,17 @@ class ThemisDB_Order_Manager {
         $where_values = array();
         
         if ($args['status']) {
-            $where .= " AND status = %s";
+            $where .= " AND {$table_orders}.status = %s";
             $where_values[] = $args['status'];
         }
+
+        $join = "";
+        if ($args['exclude_with_contracts']) {
+            $join = "LEFT JOIN $table_contracts ON {$table_orders}.id = {$table_contracts}.order_id";
+            $where .= " AND {$table_contracts}.id IS NULL";
+        }
         
-        $query = "SELECT * FROM $table_orders WHERE $where ORDER BY {$args['orderby']} {$args['order']} LIMIT %d OFFSET %d";
+        $query = "SELECT {$table_orders}.* FROM $table_orders $join WHERE $where ORDER BY {$table_orders}.{$args['orderby']} {$args['order']} LIMIT %d OFFSET %d";
         $where_values[] = $args['limit'];
         $where_values[] = $args['offset'];
         
@@ -634,7 +715,19 @@ class ThemisDB_Order_Manager {
 
         $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
         $inventory_id = intval($id ?: ($data['id'] ?? 0));
+        $product_id = !empty($data['product_id']) ? intval($data['product_id']) : 0;
         $sku = sanitize_text_field($data['sku'] ?? '');
+        $product_name = sanitize_text_field($data['product_name'] ?? '');
+        $linked_product = null;
+
+        // Product is canonical source for linked inventory rows.
+        if ($product_id > 0) {
+            $linked_product = self::get_product($product_id, true);
+            if ($linked_product) {
+                $sku = sanitize_text_field($linked_product['product_code'] ?? $sku);
+                $product_name = sanitize_text_field($linked_product['product_name'] ?? $product_name);
+            }
+        }
 
         if ($sku === '') {
             return false;
@@ -656,13 +749,16 @@ class ThemisDB_Order_Manager {
         }
 
         $category_slug = self::resolve_inventory_category_slug($data, $existing);
+        if ($linked_product && !empty($linked_product['product_type'])) {
+            $category_slug = sanitize_title($linked_product['product_type']);
+        }
         $metadata = self::prepare_inventory_metadata($existing['metadata'] ?? null, $category_slug);
         $payload = array(
-            'product_id' => !empty($data['product_id']) ? intval($data['product_id']) : null,
-            'product_name' => sanitize_text_field($data['product_name'] ?? ''),
+            'product_id' => $product_id > 0 ? $product_id : null,
+            'product_name' => $product_name,
             'stock_on_hand' => intval($data['stock_on_hand'] ?? 0),
             'reorder_level' => intval($data['reorder_level'] ?? 0),
-            'is_active' => isset($data['is_active']) ? (!empty($data['is_active']) ? 1 : 0) : 1,
+            'is_active' => $linked_product ? (!empty($linked_product['is_active']) ? 1 : 0) : (isset($data['is_active']) ? (!empty($data['is_active']) ? 1 : 0) : 1),
             'metadata' => wp_json_encode($metadata),
         );
 
@@ -1105,11 +1201,20 @@ class ThemisDB_Order_Manager {
 
         if (intval($id) > 0) {
             $result = $wpdb->update($table_products, $payload, array('id' => intval($id)));
+            if ($result !== false) {
+                self::sync_product_inventory_link(intval($id));
+            }
             return $result !== false;
         }
 
         $result = $wpdb->insert($table_products, $payload);
-        return $result ? intval($wpdb->insert_id) : false;
+        if ($result) {
+            $new_id = intval($wpdb->insert_id);
+            self::sync_product_inventory_link($new_id);
+            return $new_id;
+        }
+
+        return false;
     }
 
     /**
@@ -1188,6 +1293,10 @@ class ThemisDB_Order_Manager {
             array('%d'),
             array('%d')
         );
+
+        if ($result !== false && $entity === 'product') {
+            self::sync_product_inventory_link(intval($id));
+        }
 
         return $result !== false;
     }
@@ -1505,6 +1614,562 @@ class ThemisDB_Order_Manager {
             array('%d')
         );
 
+        if ($result !== false && $entity === 'product') {
+            self::sync_product_inventory_link(intval($id));
+        }
+
         return $result !== false;
+    }
+
+    /**
+     * Keep exactly one inventory record linked to a product record.
+     */
+    private static function sync_product_inventory_link($product_id) {
+        global $wpdb;
+
+        $product_id = intval($product_id);
+        if ($product_id <= 0) {
+            return false;
+        }
+
+        $product = self::get_product($product_id, true);
+        if (!$product) {
+            return false;
+        }
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $sku = sanitize_text_field($product['product_code'] ?? '');
+        $product_name = sanitize_text_field($product['product_name'] ?? '');
+
+        if ($sku === '' || $product_name === '') {
+            return false;
+        }
+
+        $existing = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM $table_inventory WHERE (product_id = %d AND product_id > 0) OR sku = %s ORDER BY id ASC LIMIT 1",
+                $product_id,
+                $sku
+            ),
+            ARRAY_A
+        );
+
+        $metadata = array();
+        if (!empty($existing['metadata'])) {
+            $decoded = json_decode($existing['metadata'], true);
+            if (is_array($decoded)) {
+                $metadata = $decoded;
+            }
+        }
+
+        if (empty($metadata['internal_uuid'])) {
+            $metadata['internal_uuid'] = self::generate_internal_uuid();
+        }
+
+        $metadata['sync_type'] = 'product';
+        $metadata['category_slug'] = sanitize_title($product['product_type'] ?? 'products');
+        $metadata['synced_at'] = current_time('mysql');
+
+        $payload = array(
+            'sku' => $sku,
+            'product_id' => $product_id,
+            'product_name' => $product_name,
+            'is_active' => !empty($product['is_active']) ? 1 : 0,
+            'metadata' => wp_json_encode($metadata),
+        );
+
+        if ($existing) {
+            $result = $wpdb->update($table_inventory, $payload, array('id' => intval($existing['id'])));
+            return $result !== false;
+        }
+
+        $payload['stock_on_hand'] = -1;
+        $payload['reserved_stock'] = 0;
+        $payload['reorder_level'] = 0;
+
+        $result = $wpdb->insert($table_inventory, $payload);
+        return $result !== false;
+    }
+
+    /**
+     * Generate a unique internal UUID for inventory items.
+     * UUIDs are stored in metadata for product/license synchronization.
+     */
+    public static function generate_internal_uuid() {
+        // Generate RFC 4122 compliant UUID v4
+        $bytes = openssl_random_pseudo_bytes(16, $strong);
+        if (!$strong) {
+            // Fallback: Use WordPress unique ID if openssl fails
+            $bytes = pack('H*', md5(uniqid('themisdb-', true)));
+        }
+
+        // Set version (4) and variant bits
+        $bytes[6] = chr(ord($bytes[6]) & 0x0f | 0x40);
+        $bytes[8] = chr(ord($bytes[8]) & 0x3f | 0x80);
+
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
+    }
+
+    /**
+     * Get or create a UUID for an inventory item.
+     * Returns existing UUID from metadata or generates new one.
+     */
+    public static function get_or_create_inventory_uuid($inventory_id) {
+        global $wpdb;
+
+        if ($inventory_id <= 0) {
+            return self::generate_internal_uuid();
+        }
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $item = $wpdb->get_row(
+            $wpdb->prepare("SELECT metadata FROM $table_inventory WHERE id = %d", $inventory_id),
+            ARRAY_A
+        );
+
+        if (!$item) {
+            return self::generate_internal_uuid();
+        }
+
+        $metadata = array();
+        if (!empty($item['metadata'])) {
+            $decoded = json_decode($item['metadata'], true);
+            if (is_array($decoded)) {
+                $metadata = $decoded;
+            }
+        }
+
+        if (!empty($metadata['internal_uuid'])) {
+            return $metadata['internal_uuid'];
+        }
+
+        $new_uuid = self::generate_internal_uuid();
+        $metadata['internal_uuid'] = $new_uuid;
+
+        $wpdb->update(
+            $table_inventory,
+            array('metadata' => wp_json_encode($metadata)),
+            array('id' => $inventory_id),
+            array('%s'),
+            array('%d')
+        );
+
+        return $new_uuid;
+    }
+
+    /**
+     * Synchronize all products to inventory stock as items with infinite stock.
+     * Each product gets a unique SKU (product_code) and infinite stock (-1).
+     * Products are marked with 'sync_type' => 'product' and 'internal_uuid'.
+     */
+    public static function sync_products_to_inventory() {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $table_products = $wpdb->prefix . 'themisdb_products';
+        $products = self::get_products(true); // Include inactive
+
+        $synced_count = 0;
+        $error_count = 0;
+
+        foreach ($products as $product) {
+            $product_id = intval($product['id']);
+            $sku = sanitize_text_field($product['product_code']);
+            $product_name = sanitize_text_field($product['product_name']);
+
+            if (empty($sku) || empty($product_name)) {
+                $error_count++;
+                continue;
+            }
+
+            // Check if inventory item already exists for this product
+            $existing = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT id FROM $table_inventory WHERE sku = %s OR (product_id = %d AND product_id > 0)",
+                    $sku,
+                    $product_id
+                ),
+                ARRAY_A
+            );
+
+            $metadata = array(
+                'sync_type' => 'product',
+                'internal_uuid' => self::generate_internal_uuid(),
+                'synced_at' => current_time('mysql'),
+                'category_slug' => sanitize_title($product['product_type'] ?? 'products'),
+            );
+
+            $payload = array(
+                'product_id' => $product_id,
+                'product_name' => $product_name,
+                'stock_on_hand' => -1, // Infinite stock
+                'reserved_stock' => 0,
+                'reorder_level' => 0,
+                'is_active' => !empty($product['is_active']) ? 1 : 0,
+                'metadata' => wp_json_encode($metadata),
+            );
+
+            if ($existing) {
+                // Update existing inventory item
+                $result = $wpdb->update(
+                    $table_inventory,
+                    $payload,
+                    array('id' => intval($existing['id'])),
+                    array_fill(0, count($payload), '%s'),
+                    array('%d')
+                );
+
+                if ($result !== false) {
+                    $synced_count++;
+                } else {
+                    $error_count++;
+                }
+            } else {
+                // Create new inventory item for product
+                $payload['sku'] = $sku;
+                $result = $wpdb->insert(
+                    $table_inventory,
+                    $payload,
+                    array('%s', '%d', '%s', '%d', '%d', '%d', '%d', '%s')
+                );
+
+                if ($result) {
+                    $synced_count++;
+                } else {
+                    $error_count++;
+                }
+            }
+        }
+
+        return array(
+            'type' => 'products',
+            'synced' => $synced_count,
+            'errors' => $error_count,
+            'total' => count($products),
+        );
+    }
+
+    /**
+     * Synchronize all licenses to inventory stock as items with infinite stock.
+     * Each license gets a unique SKU (license_key) and infinite stock (-1).
+     * Licenses are marked with 'sync_type' => 'license' and contain license details.
+     */
+    public static function sync_licenses_to_inventory() {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $table_licenses = $wpdb->prefix . 'themisdb_licenses';
+
+        // Get all licenses
+        $licenses = $wpdb->get_results(
+            "SELECT id, license_key, product_edition, license_type, license_status 
+             FROM $table_licenses 
+             ORDER BY created_at DESC",
+            ARRAY_A
+        );
+
+        if (!$licenses) {
+            $licenses = array();
+        }
+
+        $synced_count = 0;
+        $error_count = 0;
+
+        foreach ($licenses as $license) {
+            $license_id = intval($license['id']);
+            $license_key = sanitize_text_field($license['license_key']);
+            $product_edition = sanitize_text_field($license['product_edition']);
+            $license_type = sanitize_text_field($license['license_type']);
+
+            if (empty($license_key)) {
+                $error_count++;
+                continue;
+            }
+
+            // Check if inventory item already exists for this license
+            $existing = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT id FROM $table_inventory WHERE sku = %s",
+                    'license_' . $license_key
+                ),
+                ARRAY_A
+            );
+
+            $metadata = array(
+                'sync_type' => 'license',
+                'license_id' => $license_id,
+                'license_key' => $license_key,
+                'license_edition' => $product_edition,
+                'license_type' => $license_type,
+                'license_status' => $license['license_status'],
+                'internal_uuid' => self::generate_internal_uuid(),
+                'synced_at' => current_time('mysql'),
+                'category_slug' => 'licenses',
+            );
+
+            $product_name = sprintf(
+                __('Lizenz: %s (%s)', 'themisdb-order-request'),
+                $product_edition,
+                $license_type
+            );
+
+            $payload = array(
+                'product_name' => $product_name,
+                'stock_on_hand' => -1, // Infinite stock for licenses
+                'reserved_stock' => 0,
+                'reorder_level' => 0,
+                'is_active' => ($license['license_status'] !== 'cancelled') ? 1 : 0,
+                'metadata' => wp_json_encode($metadata),
+            );
+
+            if ($existing) {
+                // Update existing inventory item
+                $result = $wpdb->update(
+                    $table_inventory,
+                    $payload,
+                    array('id' => intval($existing['id'])),
+                    array_fill(0, count($payload), '%s'),
+                    array('%d')
+                );
+
+                if ($result !== false) {
+                    $synced_count++;
+                } else {
+                    $error_count++;
+                }
+            } else {
+                // Create new inventory item for license
+                $payload['sku'] = 'license_' . $license_key;
+                $result = $wpdb->insert(
+                    $table_inventory,
+                    $payload,
+                    array('%s', '%d', '%d', '%d', '%d', '%s')
+                );
+
+                if ($result) {
+                    $synced_count++;
+                } else {
+                    $error_count++;
+                }
+            }
+        }
+
+        return array(
+            'type' => 'licenses',
+            'synced' => $synced_count,
+            'errors' => $error_count,
+            'total' => count($licenses),
+        );
+    }
+
+    /**
+     * Synchronize modules to inventory stock as items with infinite stock.
+     * Each module gets a unique SKU (module_code) and infinite stock (-1).
+     */
+    public static function sync_modules_to_inventory() {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $table_modules = $wpdb->prefix . 'themisdb_modules';
+        $modules = self::get_modules(null, true); // Include all, including inactive
+
+        if (!$modules) {
+            $modules = array();
+        }
+
+        $synced_count = 0;
+        $error_count = 0;
+
+        foreach ($modules as $module) {
+            $module_id = intval($module['id']);
+            $sku = sanitize_text_field($module['module_code']);
+            $module_name = sanitize_text_field($module['module_name']);
+
+            if (empty($sku) || empty($module_name)) {
+                $error_count++;
+                continue;
+            }
+
+            // Check if inventory item exists
+            $existing = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT id FROM $table_inventory WHERE sku = %s",
+                    $sku
+                ),
+                ARRAY_A
+            );
+
+            $metadata = array(
+                'sync_type' => 'module',
+                'module_id' => $module_id,
+                'module_category' => sanitize_text_field($module['module_category']),
+                'internal_uuid' => self::generate_internal_uuid(),
+                'synced_at' => current_time('mysql'),
+                'category_slug' => sanitize_title($module['module_category']),
+            );
+
+            $payload = array(
+                'product_name' => $module_name,
+                'stock_on_hand' => -1, // Infinite stock
+                'reserved_stock' => 0,
+                'reorder_level' => 0,
+                'is_active' => !empty($module['is_active']) ? 1 : 0,
+                'metadata' => wp_json_encode($metadata),
+            );
+
+            if ($existing) {
+                $result = $wpdb->update(
+                    $table_inventory,
+                    $payload,
+                    array('id' => intval($existing['id'])),
+                    array_fill(0, count($payload), '%s'),
+                    array('%d')
+                );
+                if ($result !== false) {
+                    $synced_count++;
+                } else {
+                    $error_count++;
+                }
+            } else {
+                $payload['sku'] = $sku;
+                $result = $wpdb->insert(
+                    $table_inventory,
+                    $payload,
+                    array('%s', '%d', '%d', '%d', '%d', '%s')
+                );
+                if ($result) {
+                    $synced_count++;
+                } else {
+                    $error_count++;
+                }
+            }
+        }
+
+        return array(
+            'type' => 'modules',
+            'synced' => $synced_count,
+            'errors' => $error_count,
+            'total' => count($modules),
+        );
+    }
+
+    /**
+     * Synchronize training modules to inventory stock as items with infinite stock.
+     */
+    public static function sync_training_to_inventory() {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $table_training = $wpdb->prefix . 'themisdb_training_modules';
+        $training = $wpdb->get_results(
+            "SELECT id, training_code, training_name, training_type, is_active 
+             FROM $table_training 
+             ORDER BY training_name ASC",
+            ARRAY_A
+        );
+
+        if (!$training) {
+            $training = array();
+        }
+
+        $synced_count = 0;
+        $error_count = 0;
+
+        foreach ($training as $item) {
+            $item_id = intval($item['id']);
+            $sku = sanitize_text_field($item['training_code']);
+            $training_name = sanitize_text_field($item['training_name']);
+
+            if (empty($sku) || empty($training_name)) {
+                $error_count++;
+                continue;
+            }
+
+            // Check if inventory item exists
+            $existing = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT id FROM $table_inventory WHERE sku = %s",
+                    $sku
+                ),
+                ARRAY_A
+            );
+
+            $metadata = array(
+                'sync_type' => 'training',
+                'training_id' => $item_id,
+                'training_type' => sanitize_text_field($item['training_type']),
+                'internal_uuid' => self::generate_internal_uuid(),
+                'synced_at' => current_time('mysql'),
+                'category_slug' => 'training',
+            );
+
+            $payload = array(
+                'product_name' => $training_name,
+                'stock_on_hand' => -1, // Infinite stock
+                'reserved_stock' => 0,
+                'reorder_level' => 0,
+                'is_active' => !empty($item['is_active']) ? 1 : 0,
+                'metadata' => wp_json_encode($metadata),
+            );
+
+            if ($existing) {
+                $result = $wpdb->update(
+                    $table_inventory,
+                    $payload,
+                    array('id' => intval($existing['id'])),
+                    array_fill(0, count($payload), '%s'),
+                    array('%d')
+                );
+                if ($result !== false) {
+                    $synced_count++;
+                } else {
+                    $error_count++;
+                }
+            } else {
+                $payload['sku'] = $sku;
+                $result = $wpdb->insert(
+                    $table_inventory,
+                    $payload,
+                    array('%s', '%d', '%d', '%d', '%d', '%s')
+                );
+                if ($result) {
+                    $synced_count++;
+                } else {
+                    $error_count++;
+                }
+            }
+        }
+
+        return array(
+            'type' => 'training',
+            'synced' => $synced_count,
+            'errors' => $error_count,
+            'total' => count($training),
+        );
+    }
+
+    /**
+     * Synchronize all products, licenses, and modules to inventory.
+     * Returns comprehensive sync results.
+     */
+    public static function sync_all_to_inventory() {
+        $results = array(
+            array(),
+            array(),
+            array(),
+            array(),
+        );
+
+        $results[0] = self::sync_products_to_inventory();
+        $results[1] = self::sync_licenses_to_inventory();
+        $results[2] = self::sync_modules_to_inventory();
+        $results[3] = self::sync_training_to_inventory();
+
+        return array(
+            'timestamp' => current_time('mysql'),
+            'results' => $results,
+            'total_synced' => array_sum(array_column($results, 'synced')),
+            'total_errors' => array_sum(array_column($results, 'errors')),
+        );
     }
 }

@@ -53,6 +53,36 @@ class ThemisDB_Support_Ticket_Manager {
         $table_tickets  = $wpdb->prefix . 'themisdb_support_tickets';
         $table_messages = $wpdb->prefix . 'themisdb_support_messages';
 
+        // Validate support benefits limits if license is provided
+        if (!empty($data['license_key']) && class_exists('ThemisDB_Support_Benefits_Manager')) {
+            // Get license from support portal's license auth system
+            $license_table = $wpdb->prefix . 'themisdb_licenses';
+            $license = $wpdb->get_row(
+                $wpdb->prepare("SELECT id FROM $license_table WHERE license_key = %s", $data['license_key']),
+                ARRAY_A
+            );
+            
+            if ($license) {
+                $license_id = $license['id'];
+                $benefit = ThemisDB_Support_Benefits_Manager::get_by_license($license_id);
+                
+                if ($benefit && $benefit['benefit_status'] === 'active') {
+                    $priority = isset($data['priority']) ? $data['priority'] : 'normal';
+                    $limits_check = ThemisDB_Support_Benefits_Manager::check_limits($benefit['id'], $priority);
+                    
+                    if (!$limits_check['allowed']) {
+                        // Log the limit violation
+                        error_log("Support ticket creation blocked for license $license_id: " . $limits_check['reason']);
+                        return false;
+                    }
+                } elseif ($benefit && $benefit['benefit_status'] !== 'active') {
+                    // Benefit exists but is not active (pending, suspended, expired)
+                    error_log("Support ticket creation blocked for license $license_id: Benefit status is " . $benefit['benefit_status']);
+                    return false;
+                }
+            }
+        }
+
         $ticket_data = array(
             'ticket_number'    => self::generate_ticket_number(),
             'subject'          => sanitize_text_field($data['subject']),
@@ -84,6 +114,22 @@ class ThemisDB_Support_Ticket_Manager {
                 'message'       => wp_kses_post($data['message']),
                 'is_admin_reply' => 0,
             ));
+        }
+
+        // Increment support benefit usage counter if applicable
+        if (!empty($data['license_key']) && class_exists('ThemisDB_Support_Benefits_Manager')) {
+            $license_table = $wpdb->prefix . 'themisdb_licenses';
+            $license = $wpdb->get_row(
+                $wpdb->prepare("SELECT id FROM $license_table WHERE license_key = %s", $data['license_key']),
+                ARRAY_A
+            );
+            
+            if ($license) {
+                $benefit = ThemisDB_Support_Benefits_Manager::get_by_license($license['id']);
+                if ($benefit) {
+                    ThemisDB_Support_Benefits_Manager::increment_ticket_usage($benefit['id']);
+                }
+            }
         }
 
         // Send admin notification

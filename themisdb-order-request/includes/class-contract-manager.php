@@ -149,7 +149,7 @@ class ThemisDB_Contract_Manager {
         if (!empty($args['order_status_after'])) {
             $new_status = sanitize_text_field($args['order_status_after']);
             if (!empty($order['status']) && $order['status'] !== $new_status) {
-                ThemisDB_Order_Manager::update_order($order_id, array('status' => $new_status));
+                ThemisDB_Order_Manager::set_order_status($order_id, $new_status);
             }
         }
 

@@ -37,7 +37,8 @@ class ThemisDB_Order_Database {
      * Initialize database
      */
     public static function init() {
-        // Nothing to do on init
+        // Ensure post-schema migrations also run on existing installations.
+        self::run_post_schema_migrations();
     }
     
     /**
@@ -517,6 +518,33 @@ class ThemisDB_Order_Database {
             UNIQUE KEY unique_feature (license_id, feature_code, valid_from)
         ) $charset_collate;";
         
+        // Support benefits table (tier-based support levels)
+        $table_support_benefits = $wpdb->prefix . 'themisdb_support_benefits';
+        $sql_support_benefits = "CREATE TABLE IF NOT EXISTS $table_support_benefits (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            license_id bigint(20) NOT NULL,
+            tier_level varchar(50) NOT NULL DEFAULT 'community',
+            max_open_tickets int(11) NOT NULL DEFAULT 5,
+            max_tickets_per_month int(11) NOT NULL DEFAULT 12,
+            response_sla_hours int(11) NOT NULL DEFAULT 48,
+            priority_can_assign tinyint(1) NOT NULL DEFAULT 0,
+            included_hours_per_month int(11) NOT NULL DEFAULT 0,
+            benefit_status varchar(50) NOT NULL DEFAULT 'pending',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            activated_at datetime DEFAULT NULL,
+            expires_at datetime DEFAULT NULL,
+            tickets_used_this_month int(11) NOT NULL DEFAULT 0,
+            hours_used_this_month int(11) NOT NULL DEFAULT 0,
+            last_reset datetime DEFAULT NULL,
+            PRIMARY KEY  (id),
+            UNIQUE KEY unique_license_benefit (license_id),
+            KEY tier_level (tier_level),
+            KEY benefit_status (benefit_status),
+            KEY expires_at (expires_at),
+            KEY created_at (created_at),
+            CONSTRAINT fk_support_benefits_license FOREIGN KEY (license_id) REFERENCES {$wpdb->prefix}themisdb_licenses(id) ON DELETE CASCADE
+        ) $charset_collate;";
+        
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         
         dbDelta($sql_orders);
@@ -536,11 +564,98 @@ class ThemisDB_Order_Database {
         dbDelta($sql_license_upgrades);
         dbDelta($sql_license_history);
         dbDelta($sql_license_features);
+        dbDelta($sql_support_benefits);
         dbDelta($sql_bank_imports);
         dbDelta($sql_bank_transactions);
+
+        // Run online-safe migrations that are hard to express via dbDelta.
+        self::run_post_schema_migrations();
         
         // Insert default product data
         self::insert_default_data();
+    }
+
+    /**
+     * Execute post schema migrations that should be idempotent and online-safe.
+     */
+    private static function run_post_schema_migrations() {
+        self::ensure_inventory_product_foreign_key();
+    }
+
+    /**
+     * Ensure hard FK from inventory_stock.product_id to products.id.
+     *
+     * Migration strategy (online-safe):
+     * 1) Validate table/column presence.
+     * 2) Null out orphan product_id references.
+     * 3) Add FK only if it does not exist yet.
+     *
+     * The method is idempotent and can be called repeatedly.
+     */
+    private static function ensure_inventory_product_foreign_key() {
+        global $wpdb;
+
+        $table_inventory = $wpdb->prefix . 'themisdb_inventory_stock';
+        $table_products = $wpdb->prefix . 'themisdb_products';
+        $constraint_name = 'fk_themisdb_inventory_product';
+
+        // Guard: required tables must exist.
+        $inventory_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table_inventory));
+        $products_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table_products));
+        if ($inventory_exists !== $table_inventory || $products_exists !== $table_products) {
+            return;
+        }
+
+        // Guard: required column must exist.
+        $product_id_column = $wpdb->get_var(
+            $wpdb->prepare(
+                "SHOW COLUMNS FROM $table_inventory LIKE %s",
+                'product_id'
+            )
+        );
+        if (empty($product_id_column)) {
+            return;
+        }
+
+        // If FK already exists, nothing to do.
+        $fk_exists = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*)
+                 FROM information_schema.TABLE_CONSTRAINTS
+                 WHERE CONSTRAINT_SCHEMA = DATABASE()
+                   AND TABLE_NAME = %s
+                   AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+                   AND CONSTRAINT_NAME = %s",
+                $table_inventory,
+                $constraint_name
+            )
+        );
+
+        if (intval($fk_exists) > 0) {
+            return;
+        }
+
+        // Online data cleanup: remove orphan references before adding FK.
+        $wpdb->query(
+            "UPDATE $table_inventory i
+             LEFT JOIN $table_products p ON p.id = i.product_id
+             SET i.product_id = NULL
+             WHERE i.product_id IS NOT NULL
+               AND p.id IS NULL"
+        );
+
+        // Add FK with safe semantics for product lifecycle changes.
+        $alter_sql = "ALTER TABLE $table_inventory
+            ADD CONSTRAINT $constraint_name
+            FOREIGN KEY (product_id)
+            REFERENCES $table_products(id)
+            ON DELETE SET NULL
+            ON UPDATE CASCADE";
+
+        $result = $wpdb->query($alter_sql);
+        if ($result === false) {
+            error_log('ThemisDB DB Migration Warning: Could not add inventory/product FK: ' . $wpdb->last_error);
+        }
     }
     
     /**

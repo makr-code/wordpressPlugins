@@ -922,6 +922,11 @@ class ThemisDB_Order_Shortcodes {
             );
             
             $order_id = ThemisDB_Order_Manager::create_order($order_data);
+            if (!$order_id) {
+                error_log('ThemisDB Step Save Error: Failed to create new order.');
+                wp_send_json_error(array('message' => __('Bestellung konnte nicht erstellt werden. Bitte versuchen Sie später erneut.', 'themisdb-order-request')));
+                return;
+            }
             $_SESSION['themisdb_order_id'] = $order_id;
         } else {
             // Update existing order
