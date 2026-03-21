@@ -428,7 +428,14 @@ class ThemisDB_Bank_Import {
      */
     public static function get_import_count() {
         global $wpdb;
-        return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}themisdb_bank_imports" );
+
+        $table_imports = $wpdb->prefix . 'themisdb_bank_imports';
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table_imports)) {
+            return 0;
+        }
+
+        $table_imports_sql = '`' . $table_imports . '`';
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table_imports_sql}");
     }
 
     // -------------------------------------------------------------------------

@@ -471,6 +471,205 @@ class ThemisDB_License_Pricing {
             'discount_percentage' => 0 // kann später für zeitbasierte Rabatte genutzt werden
         );
     }
+
+    /**
+     * Calculate pro-rated edition change cost based on remaining term.
+     * Positive result = upgrade charge, negative result = downgrade credit.
+     *
+     * @param int    $license_id
+     * @param string $from_edition
+     * @param string $to_edition
+     * @param string $effective_date Y-m-d
+     * @return array|false
+     */
+    public static function calculate_prorated_change_cost($license_id, $from_edition, $to_edition, $effective_date = null) {
+        if (!class_exists('ThemisDB_License_Manager')) {
+            return false;
+        }
+
+        $license = ThemisDB_License_Manager::get_license($license_id);
+        if (!$license) {
+            return false;
+        }
+
+        $effective_date = $effective_date ?: date('Y-m-d');
+
+        // Perpetual licenses are not prorated.
+        if (empty($license['expiry_date']) || $license['expiry_date'] === '9999-12-31') {
+            $base = self::calculate_upgrade_cost($license_id, $from_edition, $to_edition);
+            if (!$base) {
+                return false;
+            }
+            $base['remaining_ratio'] = 1.0;
+            $base['prorated_cost'] = floatval($base['upgrade_cost']);
+            $base['days_remaining'] = null;
+            $base['total_term_days'] = null;
+            return $base;
+        }
+
+        $start_reference = !empty($license['activation_date']) ? $license['activation_date'] : $license['created_at'];
+        $start_ts = strtotime(date('Y-m-d', strtotime($start_reference)) . ' 00:00:00');
+        $effective_ts = strtotime(date('Y-m-d', strtotime($effective_date)) . ' 00:00:00');
+        $expiry_ts = strtotime(date('Y-m-d', strtotime($license['expiry_date'])) . ' 00:00:00');
+
+        if ($effective_ts >= $expiry_ts) {
+            return array(
+                'from_price' => 0.0,
+                'to_price' => 0.0,
+                'upgrade_cost' => 0.0,
+                'remaining_ratio' => 0.0,
+                'prorated_cost' => 0.0,
+                'days_remaining' => 0,
+                'total_term_days' => 0,
+            );
+        }
+
+        $total_term_days = max(1, intval(($expiry_ts - $start_ts) / DAY_IN_SECONDS));
+        $days_remaining = max(0, intval(($expiry_ts - $effective_ts) / DAY_IN_SECONDS));
+        $remaining_ratio = min(1, max(0, $days_remaining / $total_term_days));
+
+        $base = self::calculate_upgrade_cost($license_id, $from_edition, $to_edition);
+        if (!$base) {
+            return false;
+        }
+
+        $base['remaining_ratio'] = $remaining_ratio;
+        $base['prorated_cost'] = round(floatval($base['upgrade_cost']) * $remaining_ratio, 2);
+        $base['days_remaining'] = $days_remaining;
+        $base['total_term_days'] = $total_term_days;
+
+        return $base;
+    }
+
+    /**
+     * Apply a mid-term edition change (upgrade or downgrade) with proration.
+     *
+     * @param int    $license_id
+     * @param string $target_edition
+     * @param string $effective_date Y-m-d
+     * @param string $notes
+     * @return array|false
+     */
+    public static function apply_mid_term_edition_change($license_id, $target_edition, $effective_date = null, $notes = '') {
+        global $wpdb;
+
+        if (!class_exists('ThemisDB_License_Manager')) {
+            return false;
+        }
+
+        $license_id = intval($license_id);
+        $target_edition = sanitize_key($target_edition);
+        $effective_date = $effective_date ?: date('Y-m-d');
+
+        $license = ThemisDB_License_Manager::get_license($license_id);
+        if (!$license || $license['license_status'] === 'cancelled') {
+            return false;
+        }
+
+        $source_edition = sanitize_key($license['product_edition']);
+        if ($source_edition === $target_edition) {
+            return array(
+                'license_id' => $license_id,
+                'from_edition' => $source_edition,
+                'to_edition' => $target_edition,
+                'change_type' => 'none',
+                'prorated_cost' => 0.0,
+            );
+        }
+
+        $cost = self::calculate_prorated_change_cost($license_id, $source_edition, $target_edition, $effective_date);
+        if ($cost === false) {
+            return false;
+        }
+
+        $change_type = floatval($cost['prorated_cost']) >= 0 ? 'upgrade' : 'downgrade';
+        $contract_id = intval($license['contract_id']);
+
+        $wpdb->query('START TRANSACTION');
+
+        $license_update_ok = $wpdb->update(
+            $wpdb->prefix . 'themisdb_licenses',
+            array(
+                'product_edition' => $target_edition,
+                'updated_at' => current_time('mysql'),
+            ),
+            array('id' => $license_id),
+            array('%s', '%s'),
+            array('%d')
+        );
+
+        if ($license_update_ok === false) {
+            $wpdb->query('ROLLBACK');
+            return false;
+        }
+
+        $upgrade_id = self::create_upgrade($license_id, $contract_id, array(
+            'upgrade_from' => $source_edition,
+            'upgrade_to' => $target_edition,
+            'upgrade_type' => 'edition_' . $change_type,
+            'upgrade_cost' => floatval($cost['prorated_cost']),
+            'currency' => 'EUR',
+            'effective_date' => $effective_date,
+            'notes' => $notes,
+        ));
+
+        if (!$upgrade_id) {
+            $wpdb->query('ROLLBACK');
+            return false;
+        }
+
+        $approve_ok = self::approve_upgrade($upgrade_id, 'Mid-term edition change applied');
+        if (!$approve_ok) {
+            $wpdb->query('ROLLBACK');
+            return false;
+        }
+
+        self::add_history_entry(
+            $license_id,
+            $contract_id,
+            'mid_term_edition_change',
+            $source_edition,
+            $target_edition,
+            'product_edition',
+            sprintf(
+                'Mid-term %s with proration %.2f (remaining %.2f%%). %s',
+                $change_type,
+                floatval($cost['prorated_cost']),
+                floatval($cost['remaining_ratio']) * 100,
+                sanitize_textarea_field($notes)
+            )
+        );
+
+        // Keep support tier aligned with the new edition.
+        if (class_exists('ThemisDB_Support_Benefits_Manager') && method_exists('ThemisDB_Support_Benefits_Manager', 'update_tier_for_license')) {
+            ThemisDB_Support_Benefits_Manager::update_tier_for_license($license_id, $target_edition);
+        }
+
+        if (class_exists('ThemisDB_Error_Handler')) {
+            ThemisDB_Error_Handler::log('info', 'Mid-term edition change applied', array(
+                'license_id' => $license_id,
+                'from_edition' => $source_edition,
+                'to_edition' => $target_edition,
+                'change_type' => $change_type,
+                'prorated_cost' => floatval($cost['prorated_cost']),
+                'remaining_ratio' => floatval($cost['remaining_ratio']),
+            ));
+        }
+
+        $wpdb->query('COMMIT');
+
+        return array(
+            'license_id' => $license_id,
+            'from_edition' => $source_edition,
+            'to_edition' => $target_edition,
+            'change_type' => $change_type,
+            'upgrade_id' => intval($upgrade_id),
+            'prorated_cost' => floatval($cost['prorated_cost']),
+            'remaining_ratio' => floatval($cost['remaining_ratio']),
+            'days_remaining' => $cost['days_remaining'],
+            'total_term_days' => $cost['total_term_days'],
+        );
+    }
     
     /**
      * Erstelle PDF-Zusammenfassung aller Lizenzkosten/Preisänderungen

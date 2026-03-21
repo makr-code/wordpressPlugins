@@ -544,6 +544,201 @@ class ThemisDB_Order_Database {
             KEY created_at (created_at),
             CONSTRAINT fk_support_benefits_license FOREIGN KEY (license_id) REFERENCES {$wpdb->prefix}themisdb_licenses(id) ON DELETE CASCADE
         ) $charset_collate;";
+
+        // Support tickets
+        $table_support_tickets = $wpdb->prefix . 'themisdb_support_tickets';
+        $sql_support_tickets = "CREATE TABLE IF NOT EXISTS $table_support_tickets (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            benefit_id bigint(20) DEFAULT NULL,
+            license_id bigint(20) DEFAULT NULL,
+            order_id bigint(20) DEFAULT NULL,
+            customer_email varchar(255) DEFAULT NULL,
+            subject varchar(255) NOT NULL,
+            description longtext NOT NULL,
+            priority varchar(20) NOT NULL DEFAULT 'normal',
+            status varchar(30) NOT NULL DEFAULT 'open',
+            github_issue_number int(11) DEFAULT NULL,
+            github_issue_url varchar(512) DEFAULT NULL,
+            github_issue_state varchar(30) DEFAULT NULL,
+            github_synced_at datetime DEFAULT NULL,
+            github_sync_error text DEFAULT NULL,
+            created_by bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY benefit_id (benefit_id),
+            KEY license_id (license_id),
+            KEY order_id (order_id),
+            KEY priority (priority),
+            KEY status (status),
+            KEY created_at (created_at),
+            KEY github_issue_number (github_issue_number)
+        ) $charset_collate;";
+
+        // Affiliate accounts
+        $table_affiliates = $wpdb->prefix . 'themisdb_affiliates';
+        $sql_affiliates = "CREATE TABLE IF NOT EXISTS $table_affiliates (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) DEFAULT NULL,
+            referral_code varchar(64) NOT NULL,
+            contact_email varchar(255) DEFAULT NULL,
+            commission_rate decimal(5,2) NOT NULL DEFAULT 10.00,
+            status varchar(30) NOT NULL DEFAULT 'active',
+            metadata longtext DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY referral_code (referral_code),
+            KEY user_id (user_id),
+            KEY status (status)
+        ) $charset_collate;";
+
+        // Affiliate conversions (one conversion per order)
+        $table_affiliate_conversions = $wpdb->prefix . 'themisdb_affiliate_conversions';
+        $sql_affiliate_conversions = "CREATE TABLE IF NOT EXISTS $table_affiliate_conversions (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            affiliate_id bigint(20) NOT NULL,
+            order_id bigint(20) NOT NULL,
+            referral_code varchar(64) NOT NULL,
+            conversion_source varchar(50) NOT NULL DEFAULT 'frontend',
+            order_total decimal(10,2) NOT NULL DEFAULT 0.00,
+            currency varchar(10) NOT NULL DEFAULT 'EUR',
+            metadata longtext DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY unique_order_conversion (order_id),
+            KEY affiliate_id (affiliate_id),
+            KEY referral_code (referral_code),
+            KEY created_at (created_at)
+        ) $charset_collate;";
+
+        // Affiliate commissions per conversion
+        $table_affiliate_commissions = $wpdb->prefix . 'themisdb_affiliate_commissions';
+        $sql_affiliate_commissions = "CREATE TABLE IF NOT EXISTS $table_affiliate_commissions (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            affiliate_id bigint(20) NOT NULL,
+            conversion_id bigint(20) NOT NULL,
+            order_id bigint(20) NOT NULL,
+            commission_rate decimal(5,2) NOT NULL DEFAULT 10.00,
+            commission_amount decimal(10,2) NOT NULL DEFAULT 0.00,
+            currency varchar(10) NOT NULL DEFAULT 'EUR',
+            status varchar(30) NOT NULL DEFAULT 'pending',
+            payout_id bigint(20) DEFAULT NULL,
+            notes text DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY unique_conversion_commission (conversion_id),
+            KEY affiliate_id (affiliate_id),
+            KEY order_id (order_id),
+            KEY status (status),
+            KEY payout_id (payout_id)
+        ) $charset_collate;";
+
+        // Affiliate payout records
+        $table_affiliate_payouts = $wpdb->prefix . 'themisdb_affiliate_payouts';
+        $sql_affiliate_payouts = "CREATE TABLE IF NOT EXISTS $table_affiliate_payouts (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            affiliate_id bigint(20) NOT NULL,
+            amount decimal(10,2) NOT NULL DEFAULT 0.00,
+            currency varchar(10) NOT NULL DEFAULT 'EUR',
+            payout_method varchar(50) NOT NULL DEFAULT 'bank_transfer',
+            status varchar(30) NOT NULL DEFAULT 'completed',
+            payout_date datetime NOT NULL,
+            transaction_reference varchar(120) DEFAULT NULL,
+            notes text DEFAULT NULL,
+            created_by bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY affiliate_id (affiliate_id),
+            KEY status (status),
+            KEY payout_date (payout_date)
+        ) $charset_collate;";
+
+        // B2B departments
+        $table_b2b_departments = $wpdb->prefix . 'themisdb_b2b_departments';
+        $sql_b2b_departments = "CREATE TABLE IF NOT EXISTS $table_b2b_departments (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            department_code varchar(64) NOT NULL,
+            department_name varchar(255) NOT NULL,
+            company_name varchar(255) NOT NULL,
+            contact_email varchar(255) DEFAULT NULL,
+            status varchar(30) NOT NULL DEFAULT 'active',
+            metadata longtext DEFAULT NULL,
+            created_by bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY department_code (department_code),
+            KEY company_name (company_name),
+            KEY status (status)
+        ) $charset_collate;";
+
+        // Department members (WordPress users and/or external e-mails)
+        $table_b2b_department_users = $wpdb->prefix . 'themisdb_b2b_department_users';
+        $sql_b2b_department_users = "CREATE TABLE IF NOT EXISTS $table_b2b_department_users (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            department_id bigint(20) NOT NULL,
+            user_id bigint(20) DEFAULT NULL,
+            user_email varchar(255) NOT NULL,
+            full_name varchar(255) DEFAULT NULL,
+            role varchar(50) NOT NULL DEFAULT 'member',
+            status varchar(30) NOT NULL DEFAULT 'active',
+            metadata longtext DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY unique_department_email (department_id, user_email),
+            KEY department_id (department_id),
+            KEY user_id (user_id),
+            KEY status (status)
+        ) $charset_collate;";
+
+        // Department custom pricing rules
+        $table_b2b_pricing_rules = $wpdb->prefix . 'themisdb_b2b_pricing_rules';
+        $sql_b2b_pricing_rules = "CREATE TABLE IF NOT EXISTS $table_b2b_pricing_rules (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            department_id bigint(20) NOT NULL,
+            product_edition varchar(50) NOT NULL,
+            discount_type varchar(30) NOT NULL DEFAULT 'percent',
+            discount_value decimal(10,2) NOT NULL DEFAULT 0.00,
+            min_quantity int(11) NOT NULL DEFAULT 1,
+            valid_from date DEFAULT NULL,
+            valid_until date DEFAULT NULL,
+            is_active tinyint(1) NOT NULL DEFAULT 1,
+            notes text DEFAULT NULL,
+            created_by bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY department_id (department_id),
+            KEY product_edition (product_edition),
+            KEY is_active (is_active)
+        ) $charset_collate;";
+
+        // B2B PO/Invoice management per order
+        $table_b2b_procurements = $wpdb->prefix . 'themisdb_b2b_procurements';
+        $sql_b2b_procurements = "CREATE TABLE IF NOT EXISTS $table_b2b_procurements (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            order_id bigint(20) NOT NULL,
+            department_id bigint(20) DEFAULT NULL,
+            purchase_order_number varchar(100) DEFAULT NULL,
+            procurement_status varchar(30) NOT NULL DEFAULT 'draft',
+            invoice_required tinyint(1) NOT NULL DEFAULT 1,
+            invoice_number varchar(100) DEFAULT NULL,
+            invoice_status varchar(30) NOT NULL DEFAULT 'pending',
+            invoice_due_date date DEFAULT NULL,
+            billing_reference varchar(255) DEFAULT NULL,
+            metadata longtext DEFAULT NULL,
+            created_by bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY unique_order_procurement (order_id),
+            KEY department_id (department_id),
+            KEY procurement_status (procurement_status),
+            KEY invoice_status (invoice_status)
+        ) $charset_collate;";
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         
@@ -565,6 +760,15 @@ class ThemisDB_Order_Database {
         dbDelta($sql_license_history);
         dbDelta($sql_license_features);
         dbDelta($sql_support_benefits);
+        dbDelta($sql_support_tickets);
+        dbDelta($sql_affiliates);
+        dbDelta($sql_affiliate_conversions);
+        dbDelta($sql_affiliate_commissions);
+        dbDelta($sql_affiliate_payouts);
+        dbDelta($sql_b2b_departments);
+        dbDelta($sql_b2b_department_users);
+        dbDelta($sql_b2b_pricing_rules);
+        dbDelta($sql_b2b_procurements);
         dbDelta($sql_bank_imports);
         dbDelta($sql_bank_transactions);
 
@@ -606,10 +810,15 @@ class ThemisDB_Order_Database {
             return;
         }
 
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table_inventory)) {
+            return;
+        }
+        $table_inventory_sql = '`' . $table_inventory . '`';
+
         // Guard: required column must exist.
         $product_id_column = $wpdb->get_var(
             $wpdb->prepare(
-                "SHOW COLUMNS FROM $table_inventory LIKE %s",
+                "SHOW COLUMNS FROM {$table_inventory_sql} LIKE %s",
                 'product_id'
             )
         );
@@ -635,20 +844,26 @@ class ThemisDB_Order_Database {
             return;
         }
 
+        // Validate table_products identifier before use in SQL
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table_products)) {
+            return;
+        }
+        $table_products_sql = '`' . $table_products . '`';
+
         // Online data cleanup: remove orphan references before adding FK.
         $wpdb->query(
-            "UPDATE $table_inventory i
-             LEFT JOIN $table_products p ON p.id = i.product_id
+            "UPDATE {$table_inventory_sql} i
+             LEFT JOIN {$table_products_sql} p ON p.id = i.product_id
              SET i.product_id = NULL
              WHERE i.product_id IS NOT NULL
                AND p.id IS NULL"
         );
 
         // Add FK with safe semantics for product lifecycle changes.
-        $alter_sql = "ALTER TABLE $table_inventory
+        $alter_sql = "ALTER TABLE {$table_inventory_sql}
             ADD CONSTRAINT $constraint_name
             FOREIGN KEY (product_id)
-            REFERENCES $table_products(id)
+            REFERENCES {$table_products_sql}(id)
             ON DELETE SET NULL
             ON UPDATE CASCADE";
 
@@ -665,9 +880,16 @@ class ThemisDB_Order_Database {
         global $wpdb;
         
         $table_products = $wpdb->prefix . 'themisdb_products';
+
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table_products)) {
+            error_log('ThemisDB DB Init Warning: Invalid products table identifier.');
+            return;
+        }
+
+        $table_products_sql = '`' . $table_products . '`';
         
         // Check if data already exists
-        $count = $wpdb->get_var("SELECT COUNT(*) FROM $table_products");
+        $count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_products_sql}");
         if ($count > 0) {
             return;
         }

@@ -969,6 +969,12 @@ class ThemisDB_Email_Handler {
         );
         
         $args = wp_parse_args($args, $defaults);
+
+        $allowed_orderby = array('id', 'order_id', 'contract_id', 'recipient_email', 'subject', 'status', 'sent_at', 'created_at');
+        $orderby = in_array($args['orderby'], $allowed_orderby, true) ? $args['orderby'] : 'created_at';
+        $order = strtoupper((string) $args['order']) === 'ASC' ? 'ASC' : 'DESC';
+        $limit = max(1, absint($args['limit']));
+        $offset = max(0, absint($args['offset']));
         
         $where = "1=1";
         $where_values = array();
@@ -988,9 +994,9 @@ class ThemisDB_Email_Handler {
             $where_values[] = $args['status'];
         }
         
-        $query = "SELECT * FROM $table_email_log WHERE $where ORDER BY {$args['orderby']} {$args['order']} LIMIT %d OFFSET %d";
-        $where_values[] = $args['limit'];
-        $where_values[] = $args['offset'];
+        $query = "SELECT * FROM $table_email_log WHERE $where ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d";
+        $where_values[] = $limit;
+        $where_values[] = $offset;
         
         return $wpdb->get_results($wpdb->prepare($query, $where_values), ARRAY_A);
     }

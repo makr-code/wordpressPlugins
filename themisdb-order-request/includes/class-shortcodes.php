@@ -36,11 +36,14 @@ class ThemisDB_Order_Shortcodes {
     
     public function __construct() {
         add_shortcode('themisdb_order_flow', array($this, 'order_flow_shortcode'));
+        add_shortcode('themisdb_express_checkout', array($this, 'express_checkout_shortcode'));
         add_shortcode('themisdb_my_orders', array($this, 'my_orders_shortcode'));
         add_shortcode('themisdb_my_contracts', array($this, 'my_contracts_shortcode'));
         add_shortcode('themisdb_pricing', array($this, 'pricing_shortcode'));
         add_shortcode('themisdb_pricing_table', array($this, 'pricing_table_shortcode'));
-        
+        add_shortcode('themisdb_product_detail', array($this, 'product_detail_shortcode'));
+        add_shortcode('themisdb_shopping_cart',  array($this, 'shopping_cart_shortcode'));
+
         // AJAX handlers
         add_action('wp_ajax_themisdb_save_order_step', array($this, 'ajax_save_order_step'));
         add_action('wp_ajax_nopriv_themisdb_save_order_step', array($this, 'ajax_save_order_step'));
@@ -48,6 +51,11 @@ class ThemisDB_Order_Shortcodes {
         add_action('wp_ajax_nopriv_themisdb_calculate_total', array($this, 'ajax_calculate_total'));
         add_action('wp_ajax_themisdb_submit_order', array($this, 'ajax_submit_order'));
         add_action('wp_ajax_nopriv_themisdb_submit_order', array($this, 'ajax_submit_order'));
+        // Shopping cart AJAX.
+        add_action('wp_ajax_themisdb_cart_remove_item',   array($this, 'ajax_cart_remove_item'));
+        add_action('wp_ajax_nopriv_themisdb_cart_remove_item', array($this, 'ajax_cart_remove_item'));
+        add_action('wp_ajax_themisdb_cart_clear',         array($this, 'ajax_cart_clear'));
+        add_action('wp_ajax_nopriv_themisdb_cart_clear',  array($this, 'ajax_cart_clear'));
     }
     
     /**
@@ -59,14 +67,105 @@ class ThemisDB_Order_Shortcodes {
         ), $atts);
         
         ob_start();
-        $this->render_order_flow(intval($atts['step']));
+        $this->render_order_flow(intval($atts['step']), array(
+            'flow_mode' => 'default',
+            'skip_modules' => false,
+            'skip_training' => false,
+        ));
         return ob_get_clean();
+    }
+
+    /**
+     * Express checkout shortcode (3-step wrapper over the existing 5-step engine).
+     * Usage: [themisdb_express_checkout product="community" show_modules="false" show_training="false"]
+     */
+    public function express_checkout_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'product' => '',
+            'show_modules' => 'false',
+            'show_training' => 'false',
+            'step' => 1,
+        ), $atts);
+
+        $show_modules = sanitize_text_field($atts['show_modules']) === 'true';
+        $show_training = sanitize_text_field($atts['show_training']) === 'true';
+
+        // If add-ons are requested, use the regular 5-step flow.
+        if ($show_modules || $show_training) {
+            return $this->order_flow_shortcode(array('step' => intval($atts['step'])));
+        }
+
+        $preset_product = sanitize_key((string) $atts['product']);
+        $start_step = intval($atts['step']);
+        if ($start_step < 1) {
+            $start_step = 1;
+        }
+
+        $this->bootstrap_express_order($preset_product);
+
+        ob_start();
+        $this->render_order_flow($start_step, array(
+            'flow_mode' => 'express',
+            'skip_modules' => true,
+            'skip_training' => true,
+        ));
+        return ob_get_clean();
+    }
+
+    /**
+     * Ensure a draft session order exists for express checkout and apply an optional preset product.
+     */
+    private function bootstrap_express_order($preset_product) {
+        if (!session_id()) {
+            session_start();
+        }
+
+        if ($preset_product === '') {
+            return;
+        }
+
+        $product = ThemisDB_Order_Manager::get_product_by_edition($preset_product);
+        if (!$product) {
+            return;
+        }
+
+        $order_id = isset($_SESSION['themisdb_order_id']) ? intval($_SESSION['themisdb_order_id']) : 0;
+        $order = $order_id > 0 ? ThemisDB_Order_Manager::get_order($order_id) : null;
+
+        if (!$order || !in_array(($order['status'] ?? 'draft'), array('draft', 'pending'), true)) {
+            $order_id = ThemisDB_Order_Manager::create_order(array(
+                'product_edition' => $preset_product,
+                'product_type' => $product['product_type'] ?? 'database',
+            ));
+            if (!$order_id) {
+                return;
+            }
+            $_SESSION['themisdb_order_id'] = $order_id;
+        }
+
+        $total = ThemisDB_Order_Manager::calculate_total($preset_product, array(), array());
+        ThemisDB_Order_Manager::update_order($order_id, array(
+            'product_edition' => $preset_product,
+            'product_type' => $product['product_type'] ?? 'database',
+            'modules' => array(),
+            'training_modules' => array(),
+            'total_amount' => $total,
+            'step' => 4,
+        ));
     }
     
     /**
      * Render order flow
      */
-    private function render_order_flow($current_step = 1) {
+    private function render_order_flow($current_step = 1, $options = array()) {
+        $options = wp_parse_args($options, array(
+            'flow_mode' => 'default',
+            'skip_modules' => false,
+            'skip_training' => false,
+        ));
+
+        $is_express = ($options['flow_mode'] === 'express');
+
         // Get or create order session
         $order_id = isset($_SESSION['themisdb_order_id']) ? $_SESSION['themisdb_order_id'] : null;
         $order = null;
@@ -77,11 +176,40 @@ class ThemisDB_Order_Shortcodes {
                 $current_step = $order['step'];
             }
         }
+
+        if ($is_express) {
+            $current_step = intval($current_step);
+            if (in_array($current_step, array(2, 3), true)) {
+                $current_step = 4;
+            }
+
+            if ($order && !empty($order['product_edition']) && $current_step < 4) {
+                $current_step = 4;
+            }
+
+            if (!in_array($current_step, array(1, 4, 5), true)) {
+                $current_step = 1;
+            }
+        }
         
         ?>
-        <div class="themisdb-order-flow">
+        <div class="themisdb-order-flow <?php echo $is_express ? 'themisdb-order-flow--express' : ''; ?>" data-flow-mode="<?php echo esc_attr($is_express ? 'express' : 'default'); ?>">
             <!-- Progress Steps -->
             <div class="order-steps">
+                <?php if ($is_express) : ?>
+                <div class="step <?php echo $current_step >= 1 ? 'active' : ''; ?> <?php echo $current_step > 1 ? 'completed' : ''; ?>" data-step-value="1">
+                    <span class="step-number">1</span>
+                    <span class="step-title"><?php _e('Produkt', 'themisdb-order-request'); ?></span>
+                </div>
+                <div class="step <?php echo $current_step >= 4 ? 'active' : ''; ?> <?php echo $current_step > 4 ? 'completed' : ''; ?>" data-step-value="4">
+                    <span class="step-number">2</span>
+                    <span class="step-title"><?php _e('Checkout', 'themisdb-order-request'); ?></span>
+                </div>
+                <div class="step <?php echo $current_step >= 5 ? 'active' : ''; ?>" data-step-value="5">
+                    <span class="step-number">3</span>
+                    <span class="step-title"><?php _e('Bestätigung', 'themisdb-order-request'); ?></span>
+                </div>
+                <?php else : ?>
                 <div class="step <?php echo $current_step >= 1 ? 'active' : ''; ?> <?php echo $current_step > 1 ? 'completed' : ''; ?>">
                     <span class="step-number">1</span>
                     <span class="step-title"><?php _e('Produkt wählen', 'themisdb-order-request'); ?></span>
@@ -102,12 +230,27 @@ class ThemisDB_Order_Shortcodes {
                     <span class="step-number">5</span>
                     <span class="step-title"><?php _e('Zusammenfassung', 'themisdb-order-request'); ?></span>
                 </div>
+                <?php endif; ?>
             </div>
             
             <!-- Step Content -->
             <div class="order-content">
                 <?php
-                switch ($current_step) {
+                if ($is_express) {
+                    switch ($current_step) {
+                        case 4:
+                            $this->render_step_customer($order);
+                            break;
+                        case 5:
+                            $this->render_step_summary($order);
+                            break;
+                        case 1:
+                        default:
+                            $this->render_step_product($order);
+                            break;
+                    }
+                } else {
+                    switch ($current_step) {
                     case 1:
                         $this->render_step_product($order);
                         break;
@@ -126,8 +269,20 @@ class ThemisDB_Order_Shortcodes {
                     default:
                         $this->render_step_product($order);
                 }
+                }
                 ?>
             </div>
+
+            <?php if ($is_express) : ?>
+            <script>
+            (function($){
+                var $wrap = $('.themisdb-order-flow--express');
+                if (!$wrap.length) return;
+                $wrap.find('.order-step-content[data-step="1"] .button-next').attr('data-next-step', '4');
+                $wrap.find('.order-step-content[data-step="4"] .button-prev').attr('data-prev-step', '1');
+            })(jQuery);
+            </script>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -675,6 +830,35 @@ class ThemisDB_Order_Shortcodes {
                         <strong><?php echo number_format($order['total_amount'], 2, ',', '.'); ?> <?php echo esc_html($order['currency']); ?></strong>
                     </p>
                 </div>
+
+                <?php
+                $selected_payment_method = sanitize_key((string) ($order['payment_method'] ?? 'bank_transfer'));
+                if (!in_array($selected_payment_method, array('bank_transfer', 'stripe', 'paypal'), true)) {
+                    $selected_payment_method = 'bank_transfer';
+                }
+                ?>
+                <div class="summary-section themisdb-payment-methods">
+                    <h3><?php _e('Zahlungsmethode', 'themisdb-order-request'); ?></h3>
+
+                    <label class="themisdb-payment-option" style="display:block;margin:.4rem 0;">
+                        <input type="radio" name="payment_method" value="bank_transfer" <?php checked($selected_payment_method, 'bank_transfer'); ?>>
+                        <?php _e('Banküberweisung (Rechnung)', 'themisdb-order-request'); ?>
+                    </label>
+
+                    <label class="themisdb-payment-option" style="display:block;margin:.4rem 0;">
+                        <input type="radio" name="payment_method" value="stripe" <?php checked($selected_payment_method, 'stripe'); ?>>
+                        <?php _e('Kreditkarte (Stripe)', 'themisdb-order-request'); ?>
+                    </label>
+
+                    <label class="themisdb-payment-option" style="display:block;margin:.4rem 0;">
+                        <input type="radio" name="payment_method" value="paypal" <?php checked($selected_payment_method, 'paypal'); ?>>
+                        <?php _e('PayPal', 'themisdb-order-request'); ?>
+                    </label>
+
+                    <p style="margin:.6rem 0 0;color:#64748b;font-size:.9em;">
+                        <?php _e('Stripe/PayPal werden als Sofortzahlung verarbeitet. Bei Banküberweisung bleibt der Status auf ausstehend, bis der Zahlungseingang verifiziert ist.', 'themisdb-order-request'); ?>
+                    </p>
+                </div>
             </div>
             
             <div class="order-navigation">
@@ -863,6 +1047,8 @@ class ThemisDB_Order_Shortcodes {
         check_ajax_referer('themisdb_order_nonce', 'nonce');
         
         $step = isset($_POST['step']) ? intval($_POST['step']) : 0;
+        $flow_mode = isset($_POST['flow_mode']) ? sanitize_key($_POST['flow_mode']) : 'default';
+        $is_express = ($flow_mode === 'express');
         $data = isset($_POST['data']) ? $_POST['data'] : array();
         
         // Sanitize the data array
@@ -924,6 +1110,12 @@ class ThemisDB_Order_Shortcodes {
             $order_id = ThemisDB_Order_Manager::create_order($order_data);
             if (!$order_id) {
                 error_log('ThemisDB Step Save Error: Failed to create new order.');
+                if (class_exists('ThemisDB_Error_Handler')) {
+                    ThemisDB_Error_Handler::log('error', 'Step save failed: order creation returned false', array(
+                        'step' => $step,
+                        'flow_mode' => $flow_mode,
+                    ));
+                }
                 wp_send_json_error(array('message' => __('Bestellung konnte nicht erstellt werden. Bitte versuchen Sie später erneut.', 'themisdb-order-request')));
                 return;
             }
@@ -933,6 +1125,17 @@ class ThemisDB_Order_Shortcodes {
             ThemisDB_Order_Manager::update_order($order_id, $data);
         }
         
+        $next_step = $step + 1;
+        if ($is_express && $step === 1) {
+            $next_step = 4;
+        }
+        if ($next_step < 1) {
+            $next_step = 1;
+        }
+        if ($next_step > 5) {
+            $next_step = 5;
+        }
+
         // Calculate total
         if (isset($data['product_edition']) || isset($data['modules']) || isset($data['training_modules'])) {
             $order = ThemisDB_Order_Manager::get_order($order_id);
@@ -942,12 +1145,14 @@ class ThemisDB_Order_Shortcodes {
                 isset($data['training_modules']) ? $data['training_modules'] : ($order['training_modules'] ?: array())
             );
             
-            ThemisDB_Order_Manager::update_order($order_id, array('total_amount' => $total, 'step' => $step + 1));
+            ThemisDB_Order_Manager::update_order($order_id, array('total_amount' => $total, 'step' => $next_step));
+        } else {
+            ThemisDB_Order_Manager::update_order($order_id, array('step' => $next_step));
         }
         
         wp_send_json_success(array(
             'order_id' => $order_id,
-            'next_step' => $step + 1
+            'next_step' => $next_step
         ));
     }
     
@@ -971,6 +1176,11 @@ class ThemisDB_Order_Shortcodes {
      */
     public function ajax_submit_order() {
         check_ajax_referer('themisdb_order_nonce', 'nonce');
+
+        $payment_method = isset($_POST['payment_method']) ? sanitize_key($_POST['payment_method']) : 'bank_transfer';
+        if (!in_array($payment_method, array('bank_transfer', 'stripe', 'paypal'), true)) {
+            $payment_method = 'bank_transfer';
+        }
         
         if (!session_id()) {
             session_start();
@@ -1004,14 +1214,48 @@ class ThemisDB_Order_Shortcodes {
                 'legal_accepted_ip' => isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field($_SERVER['REMOTE_ADDR']) : null,
                 'legal_accepted_user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : null,
                 'legal_acceptance_version' => get_option('themisdb_order_legal_version', 'de-v1'),
+                'payment_method' => $payment_method,
             ));
             $order = ThemisDB_Order_Manager::get_order($order_id);
+        }
+
+        if (($order['payment_method'] ?? '') !== $payment_method) {
+            ThemisDB_Order_Manager::update_order($order_id, array('payment_method' => $payment_method));
+            $order = ThemisDB_Order_Manager::get_order($order_id);
+        }
+
+        // Apply B2B department custom pricing before status/payment processing.
+        if (class_exists('ThemisDB_B2B_Portal')) {
+            $b2b_pricing = ThemisDB_B2B_Portal::apply_custom_pricing_to_order($order_id, $order);
+            if (!empty($b2b_pricing)) {
+                $order = ThemisDB_Order_Manager::get_order($order_id);
+            }
+        }
+
+        // Optional procurement metadata can be passed from a custom checkout extension.
+        $purchase_order_number = isset($_POST['purchase_order_number']) ? sanitize_text_field($_POST['purchase_order_number']) : '';
+        $billing_reference = isset($_POST['billing_reference']) ? sanitize_text_field($_POST['billing_reference']) : '';
+        if (($purchase_order_number !== '' || $billing_reference !== '') && class_exists('ThemisDB_B2B_Portal')) {
+            ThemisDB_B2B_Portal::save_procurement($order_id, array(
+                'purchase_order_number' => $purchase_order_number,
+                'billing_reference' => $billing_reference,
+                'procurement_status' => 'submitted',
+                'invoice_required' => 1,
+                'invoice_status' => 'pending',
+                'invoice_due_date' => date('Y-m-d', strtotime('+' . intval(get_option('themisdb_b2b_default_invoice_due_days', 30)) . ' days')),
+            ));
         }
         
         // Update order status and stop immediately if the transition fails.
         $status_updated = ThemisDB_Order_Manager::set_order_status($order_id, 'pending');
         if (!$status_updated) {
             error_log('ThemisDB Order Submit Error: Failed to set order status to pending for order ID ' . $order_id);
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('error', 'Order submit failed: status transition to pending failed', array(
+                    'order_id' => intval($order_id),
+                    'payment_method' => $payment_method,
+                ));
+            }
             wp_send_json_error(array('message' => __('Bestellung konnte nicht finalisiert werden. Bitte erneut versuchen.', 'themisdb-order-request')));
             return;
         }
@@ -1042,14 +1286,21 @@ class ThemisDB_Order_Shortcodes {
         }
 
         // Merchandise flow: no contract/license creation, only payment + invoice.
+        $created_payment_id = 0;
+        $instant_methods = array('stripe', 'paypal');
+
         if ($order['product_type'] === 'merchandise') {
             $payment_data = array(
                 'order_id' => $order_id,
                 'amount' => $order['total_amount'],
                 'currency' => $order['currency'],
-                'payment_method' => 'bank_transfer'
+                'payment_method' => $payment_method,
+                'metadata' => array(
+                    'source' => 'frontend_checkout',
+                    'is_instant' => in_array($payment_method, $instant_methods, true),
+                ),
             );
-            ThemisDB_Payment_Manager::create_payment($payment_data);
+            $created_payment_id = intval(ThemisDB_Payment_Manager::create_payment($payment_data));
 
             ThemisDB_Order_Manager::reserve_inventory_for_order($order_id);
 
@@ -1057,6 +1308,12 @@ class ThemisDB_Order_Shortcodes {
                 ThemisDB_Email_Handler::send_invoice_email($order_id);
             } catch (Exception $e) {
                 error_log('ThemisDB Invoice Email Error (Merchandise Submit): ' . $e->getMessage());
+                if (class_exists('ThemisDB_Error_Handler')) {
+                    ThemisDB_Error_Handler::log('warning', 'Invoice email failed in merchandise submit', array(
+                        'order_id' => intval($order_id),
+                        'exception' => $e->getMessage(),
+                    ));
+                }
             }
         } else {
             // License flow: keep current contract/license workflow.
@@ -1076,6 +1333,12 @@ class ThemisDB_Order_Shortcodes {
                     ThemisDB_Email_Handler::send_invoice_email($order_id);
                 } catch (Exception $e) {
                     error_log('ThemisDB Invoice Email Error (AJAX Submit): ' . $e->getMessage());
+                    if (class_exists('ThemisDB_Error_Handler')) {
+                        ThemisDB_Error_Handler::log('warning', 'Invoice email failed in license submit', array(
+                            'order_id' => intval($order_id),
+                            'exception' => $e->getMessage(),
+                        ));
+                    }
                 }
 
                 $existing_payments = ThemisDB_Payment_Manager::get_payments_by_order($order_id);
@@ -1085,9 +1348,15 @@ class ThemisDB_Order_Shortcodes {
                         'contract_id' => $contract_id,
                         'amount' => $order['total_amount'],
                         'currency' => $order['currency'],
-                        'payment_method' => 'bank_transfer'
+                        'payment_method' => $payment_method,
+                        'metadata' => array(
+                            'source' => 'frontend_checkout',
+                            'is_instant' => in_array($payment_method, $instant_methods, true),
+                        ),
                     );
-                    ThemisDB_Payment_Manager::create_payment($payment_data);
+                    $created_payment_id = intval(ThemisDB_Payment_Manager::create_payment($payment_data));
+                } else {
+                    $created_payment_id = intval($existing_payments[0]['id']);
                 }
 
                 $existing_license = ThemisDB_License_Manager::get_license_by_contract($contract_id);
@@ -1103,6 +1372,14 @@ class ThemisDB_Order_Shortcodes {
                 }
             }
         }
+
+        // Instant methods are auto-verified for the current phase (full provider callbacks can be added via webhook handlers).
+        if ($created_payment_id > 0 && in_array($payment_method, $instant_methods, true)) {
+            ThemisDB_Payment_Manager::verify_payment($created_payment_id);
+        }
+
+        // Notify integrations (e.g., affiliate conversion tracking).
+        do_action('themisdb_order_submitted', $order_id, $order);
         
         // Clear session
         unset($_SESSION['themisdb_order_id']);
@@ -1483,5 +1760,677 @@ class ThemisDB_Order_Shortcodes {
             }
         </style>
         <?php
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    //  PRODUCT DETAIL PAGE (Phase 2.2)
+    // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Shortcode: [themisdb_product_detail]
+     *
+     * Attributes:
+     *   edition            - pre-selected edition slug (default: '')
+     *   order_url          - URL of the order flow page (default: get_permalink of page with [themisdb_order_flow])
+     *   show_support_table - 'yes'|'no' (default: 'yes')
+     *   currency           - currency symbol displayed (default: '€')
+     */
+    public function product_detail_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'edition'            => '',
+            'order_url'          => '',
+            'show_support_table' => 'yes',
+            'currency'           => '€',
+        ), $atts);
+
+        wp_enqueue_style(
+            'themisdb-product-detail-style',
+            THEMISDB_ORDER_PLUGIN_URL . 'assets/css/product-detail.css',
+            array(),
+            THEMISDB_ORDER_VERSION
+        );
+        wp_enqueue_script(
+            'themisdb-product-selector',
+            THEMISDB_ORDER_PLUGIN_URL . 'assets/js/product-selector.js',
+            array('jquery'),
+            THEMISDB_ORDER_VERSION,
+            true
+        );
+
+        // Build data for JS.
+        $products_raw  = ThemisDB_Order_Manager::get_products();
+        $modules_raw   = ThemisDB_Order_Manager::get_modules();
+        $trainings_raw = ThemisDB_Order_Manager::get_training_modules();
+
+        $products_map = array();
+        foreach ($products_raw as $p) {
+            $products_map[sanitize_key($p['edition'])] = array(
+                'name'  => esc_html($p['product_name']),
+                'price' => floatval($p['price']),
+            );
+        }
+
+        $modules_map = array();
+        foreach ($modules_raw as $m) {
+            $modules_map[sanitize_text_field($m['module_code'])] = array(
+                'name'     => esc_html($m['module_name']),
+                'price'    => floatval($m['price']),
+                'category' => sanitize_key($m['module_category']),
+            );
+        }
+
+        $trainings_map = array();
+        foreach ($trainings_raw as $t) {
+            $trainings_map[sanitize_text_field($t['training_code'])] = array(
+                'name'    => esc_html($t['training_name']),
+                'price'   => floatval($t['price']),
+                'type'    => sanitize_key($t['training_type']),
+                'hours'   => intval($t['duration_hours']),
+            );
+        }
+
+        // Fallback order URL: use a page with [themisdb_order_flow] if none given.
+        $order_url = esc_url_raw($atts['order_url']);
+        if ($order_url === '') {
+            $order_url = (string) get_option('themisdb_order_page_url', home_url('/bestellung'));
+        }
+
+        wp_localize_script('themisdb-product-selector', 'themisdbProductSelector', array(
+            'products'       => $products_map,
+            'modules'        => $modules_map,
+            'trainings'      => $trainings_map,
+            'defaultEdition' => sanitize_key($atts['edition']),
+            'orderUrl'       => $order_url,
+            'currency'       => sanitize_text_field($atts['currency']),
+            'i18n'           => array(
+                'free'        => __('Kostenlos', 'themisdb-order-request'),
+                'showSupport' => __('Support-Details anzeigen', 'themisdb-order-request'),
+                'hideSupport' => __('Support-Details ausblenden', 'themisdb-order-request'),
+            ),
+        ));
+
+        ob_start();
+        $this->render_product_detail(
+            $products_raw,
+            $modules_raw,
+            $trainings_raw,
+            sanitize_key($atts['edition']),
+            $order_url,
+            $atts['show_support_table'] === 'yes'
+        );
+        return ob_get_clean();
+    }
+
+    /**
+     * Render the product detail page HTML.
+     *
+     * @param array  $products
+     * @param array  $modules
+     * @param array  $trainings
+     * @param string $default_edition
+     * @param string $order_url
+     * @param bool   $show_support
+     */
+    private function render_product_detail($products, $modules, $trainings, $default_edition, $order_url, $show_support) {
+        if (empty($products)) {
+            echo '<p class="themisdb-notice">' . esc_html__('Keine Produkte verfügbar.', 'themisdb-order-request') . '</p>';
+            return;
+        }
+
+        // Determine pre-selected edition.
+        if ($default_edition === '') {
+            $default_edition = !empty($products[0]['edition']) ? sanitize_key($products[0]['edition']) : '';
+        }
+
+        ?>
+        <div class="themisdb-product-detail">
+            <div class="tpd-layout">
+
+                <!-- Left: configurator -->
+                <div class="tpd-configurator">
+
+                    <!-- 1. Edition selector -->
+                    <div class="tpd-section">
+                        <h2 class="tpd-section-title"><?php esc_html_e('Edition wählen', 'themisdb-order-request'); ?></h2>
+                        <p class="tpd-section-subtitle"><?php esc_html_e('Wählen Sie die Edition, die am besten zu Ihren Anforderungen passt.', 'themisdb-order-request'); ?></p>
+                        <div class="tpd-edition-grid">
+                            <?php foreach ($products as $product) :
+                                $edition = sanitize_key($product['edition']);
+                                $is_selected = $edition === $default_edition;
+                            ?>
+                            <div class="tpd-edition-card<?php echo $is_selected ? ' tpd-edition-card--selected' : ''; ?>" data-edition="<?php echo esc_attr($edition); ?>">
+                                <input type="radio" name="tpd_edition" value="<?php echo esc_attr($edition); ?>"<?php echo $is_selected ? ' checked' : ''; ?>>
+                                <?php if ($edition === 'enterprise') : ?>
+                                    <span class="tpd-edition-badge"><?php esc_html_e('Beliebt', 'themisdb-order-request'); ?></span>
+                                <?php endif; ?>
+                                <p class="tpd-edition-name"><?php echo esc_html($product['product_name']); ?></p>
+                                <p class="tpd-edition-desc"><?php echo esc_html($product['description'] ?? ''); ?></p>
+                                <?php if (floatval($product['price']) > 0) : ?>
+                                    <p class="tpd-edition-price"><?php echo esc_html(number_format(floatval($product['price']), 2, ',', '.') . ' €'); ?></p>
+                                <?php else : ?>
+                                    <p class="tpd-edition-price tpd-edition-price--free"><?php esc_html_e('Kostenlos', 'themisdb-order-request'); ?></p>
+                                <?php endif; ?>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <!-- 2. Module selector -->
+                    <?php if (!empty($modules)) : ?>
+                    <div class="tpd-section">
+                        <h2 class="tpd-section-title"><?php esc_html_e('Module', 'themisdb-order-request'); ?></h2>
+                        <p class="tpd-section-subtitle"><?php esc_html_e('Optionale Erweiterungen für Ihre ThemisDB-Installation.', 'themisdb-order-request'); ?></p>
+                        <?php
+                        $grouped_modules = array();
+                        foreach ($modules as $m) {
+                            $grouped_modules[$m['module_category']][] = $m;
+                        }
+                        foreach ($grouped_modules as $cat => $cat_modules) : ?>
+                        <div class="tpd-category-group">
+                            <p class="tpd-category-title"><?php echo esc_html(ucfirst($cat)); ?></p>
+                            <div class="tpd-item-grid">
+                                <?php foreach ($cat_modules as $mod) : ?>
+                                <div class="tpd-module-item" data-code="<?php echo esc_attr($mod['module_code']); ?>">
+                                    <label class="tpd-item-label">
+                                        <input type="checkbox" class="tpd-module-check" value="<?php echo esc_attr($mod['module_code']); ?>">
+                                        <div class="tpd-item-info">
+                                            <p class="tpd-item-name"><?php echo esc_html($mod['module_name']); ?></p>
+                                            <p class="tpd-item-desc"><?php echo esc_html($mod['description'] ?? ''); ?></p>
+                                            <div class="tpd-item-meta">
+                                                <?php if (floatval($mod['price']) > 0) : ?>
+                                                    <span class="tpd-item-price">+ <?php echo esc_html(number_format(floatval($mod['price']), 2, ',', '.') . ' €'); ?></span>
+                                                <?php else : ?>
+                                                    <span class="tpd-item-price tpd-item-price--free"><?php esc_html_e('Inklusive', 'themisdb-order-request'); ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- 3. Training selector -->
+                    <?php if (!empty($trainings)) : ?>
+                    <div class="tpd-section">
+                        <h2 class="tpd-section-title"><?php esc_html_e('Schulungen', 'themisdb-order-request'); ?></h2>
+                        <p class="tpd-section-subtitle"><?php esc_html_e('Professionelle Schulungen für Ihr Team.', 'themisdb-order-request'); ?></p>
+                        <?php
+                        $grouped_trainings = array();
+                        foreach ($trainings as $t) {
+                            $grouped_trainings[$t['training_type']][] = $t;
+                        }
+                        foreach ($grouped_trainings as $type => $type_trainings) : ?>
+                        <div class="tpd-category-group">
+                            <p class="tpd-category-title"><?php echo esc_html(ucfirst($type)); ?></p>
+                            <div class="tpd-item-grid">
+                                <?php foreach ($type_trainings as $train) : ?>
+                                <div class="tpd-training-item" data-code="<?php echo esc_attr($train['training_code']); ?>">
+                                    <label class="tpd-item-label">
+                                        <input type="checkbox" class="tpd-training-check" value="<?php echo esc_attr($train['training_code']); ?>">
+                                        <div class="tpd-item-info">
+                                            <p class="tpd-item-name"><?php echo esc_html($train['training_name']); ?></p>
+                                            <p class="tpd-item-desc"><?php echo esc_html($train['description'] ?? ''); ?></p>
+                                            <div class="tpd-item-meta">
+                                                <span class="tpd-item-price">+ <?php echo esc_html(number_format(floatval($train['price']), 2, ',', '.') . ' €'); ?></span>
+                                                <?php if (!empty($train['duration_hours'])) : ?>
+                                                    <span class="tpd-item-duration"><?php echo esc_html(absint($train['duration_hours'])); ?> <?php esc_html_e('Std.', 'themisdb-order-request'); ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- 4. Support comparison table -->
+                    <?php if ($show_support) : ?>
+                    <div class="tpd-section">
+                        <h2 class="tpd-section-title"><?php esc_html_e('Support-Level', 'themisdb-order-request'); ?></h2>
+                        <p class="tpd-section-subtitle"><?php esc_html_e('Vergleichen Sie den enthaltenen Support je Edition.', 'themisdb-order-request'); ?></p>
+                        <button type="button" class="tpd-support-toggle"><?php esc_html_e('Support-Details anzeigen', 'themisdb-order-request'); ?></button>
+                        <table class="tpd-support-table">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e('Merkmal', 'themisdb-order-request'); ?></th>
+                                    <th><?php esc_html_e('Community', 'themisdb-order-request'); ?></th>
+                                    <th><?php esc_html_e('Enterprise', 'themisdb-order-request'); ?></th>
+                                    <th><?php esc_html_e('Hyperscaler', 'themisdb-order-request'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $support_rows = apply_filters('themisdb_product_detail_support_rows', array(
+                                    array(
+                                        'label'       => __('Community Forum', 'themisdb-order-request'),
+                                        'community'   => true,
+                                        'enterprise'  => true,
+                                        'hyperscaler' => true,
+                                    ),
+                                    array(
+                                        'label'       => __('E-Mail Support', 'themisdb-order-request'),
+                                        'community'   => false,
+                                        'enterprise'  => true,
+                                        'hyperscaler' => true,
+                                    ),
+                                    array(
+                                        'label'       => __('Telefon-/Chat-Support', 'themisdb-order-request'),
+                                        'community'   => false,
+                                        'enterprise'  => false,
+                                        'hyperscaler' => true,
+                                    ),
+                                    array(
+                                        'label'       => __('SLA Reaktionszeit', 'themisdb-order-request'),
+                                        'community'   => __('&ndash;', 'themisdb-order-request'),
+                                        'enterprise'  => __('8&nbsp;h', 'themisdb-order-request'),
+                                        'hyperscaler' => __('2&nbsp;h', 'themisdb-order-request'),
+                                    ),
+                                    array(
+                                        'label'       => __('Dedizierter Account-Manager', 'themisdb-order-request'),
+                                        'community'   => false,
+                                        'enterprise'  => false,
+                                        'hyperscaler' => true,
+                                    ),
+                                    array(
+                                        'label'       => __('Security-Patches (priorisiert)', 'themisdb-order-request'),
+                                        'community'   => false,
+                                        'enterprise'  => true,
+                                        'hyperscaler' => true,
+                                    ),
+                                    array(
+                                        'label'       => __('Onboarding-Session', 'themisdb-order-request'),
+                                        'community'   => false,
+                                        'enterprise'  => true,
+                                        'hyperscaler' => true,
+                                    ),
+                                ));
+
+                                foreach ($support_rows as $row) :
+                                ?>
+                                <tr>
+                                    <td><?php echo wp_kses_post($row['label']); ?></td>
+                                    <?php foreach (array('community', 'enterprise', 'hyperscaler') as $col) :
+                                        $val = $row[$col];
+                                        if ($val === true) :
+                                    ?><td class="tpd-check">&#10003;</td><?php
+                                        elseif ($val === false) :
+                                    ?><td class="tpd-dash">&ndash;</td><?php
+                                        else :
+                                    ?><td><?php echo wp_kses_post((string) $val); ?></td><?php
+                                        endif;
+                                    endforeach; ?>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php endif; ?>
+
+                </div><!-- /tpd-configurator -->
+
+                <!-- Right: sticky pricing sidebar -->
+                <div class="tpd-pricing-sidebar">
+                    <div class="tpd-pricing-box">
+                        <p class="tpd-pricing-box-title"><?php esc_html_e('Ihre Konfiguration', 'themisdb-order-request'); ?></p>
+                        <p class="tpd-base-price-line"><?php esc_html_e('Basispreis:', 'themisdb-order-request'); ?> <span class="tpd-base-price">&ndash;</span></p>
+                        <ul class="tpd-price-summary"></ul>
+                        <div class="tpd-total-line">
+                            <span class="tpd-total-label"><?php esc_html_e('Gesamt', 'themisdb-order-request'); ?></span>
+                            <span class="tpd-total-amount">0,00&nbsp;€</span>
+                        </div>
+                        <span class="tpd-total-note"><?php esc_html_e('Netto, zzgl. gesetzl. MwSt.', 'themisdb-order-request'); ?></span>
+                        <a href="<?php echo esc_url($order_url); ?>" class="tpd-order-btn">
+                            <?php esc_html_e('Jetzt bestellen', 'themisdb-order-request'); ?>
+                        </a>
+                    </div>
+                </div>
+
+            </div><!-- /tpd-layout -->
+        </div><!-- /themisdb-product-detail -->
+        <?php
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    //  SHOPPING CART (Phase 2.3)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Shortcode: [themisdb_shopping_cart]
+     *
+     * Attributes:
+     *   checkout_url  - URL of the order-flow page (default: option themisdb_order_page_url)
+     *   show_tax_note - 'yes'|'no' (default: 'yes')
+     *   currency      - currency symbol (default: '€')
+     */
+    public function shopping_cart_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'checkout_url' => '',
+            'show_tax_note' => 'yes',
+            'currency'     => '€',
+        ), $atts);
+
+        wp_enqueue_style(
+            'themisdb-shopping-cart-style',
+            THEMISDB_ORDER_PLUGIN_URL . 'assets/css/shopping-cart.css',
+            array(),
+            THEMISDB_ORDER_VERSION
+        );
+        wp_enqueue_script(
+            'themisdb-shopping-cart',
+            THEMISDB_ORDER_PLUGIN_URL . 'assets/js/shopping-cart.js',
+            array('jquery'),
+            THEMISDB_ORDER_VERSION,
+            true
+        );
+
+        $checkout_url = esc_url_raw($atts['checkout_url']);
+        if ($checkout_url === '') {
+            $checkout_url = (string) get_option('themisdb_order_page_url', home_url('/bestellung'));
+        }
+
+        wp_localize_script('themisdb-shopping-cart', 'themisdbCart', array(
+            'ajaxUrl'     => admin_url('admin-ajax.php'),
+            'nonce'       => wp_create_nonce('themisdb_order_nonce'),
+            'checkoutUrl' => $checkout_url,
+            'currency'    => sanitize_text_field($atts['currency']),
+            'i18n'        => array(
+                'empty'         => __('Ihr Warenkorb ist leer.', 'themisdb-order-request'),
+                'removing'      => __('Wird entfernt…', 'themisdb-order-request'),
+                'clearing'      => __('Wird geleert…', 'themisdb-order-request'),
+                'error'         => __('Ein Fehler ist aufgetreten.', 'themisdb-order-request'),
+                'confirmClear'  => __('Warenkorb wirklich leeren?', 'themisdb-order-request'),
+            ),
+        ));
+
+        ob_start();
+        $this->render_shopping_cart(
+            $checkout_url,
+            $atts['show_tax_note'] === 'yes',
+            sanitize_text_field($atts['currency'])
+        );
+        return ob_get_clean();
+    }
+
+    /**
+     * Render the shopping cart HTML from the current session order.
+     *
+     * @param string $checkout_url
+     * @param bool   $show_tax_note
+     * @param string $currency
+     */
+    private function render_shopping_cart($checkout_url, $show_tax_note, $currency) {
+        if (!session_id()) {
+            session_start();
+        }
+
+        $order_id = isset($_SESSION['themisdb_order_id']) ? intval($_SESSION['themisdb_order_id']) : 0;
+        $order    = $order_id > 0 ? ThemisDB_Order_Manager::get_order($order_id) : null;
+        $is_empty = !$order || empty($order['product_edition']);
+
+        // Resolve readable product label.
+        $product_label = '';
+        $product_price = 0.0;
+        if ($order && !empty($order['product_edition'])) {
+            $product = ThemisDB_Order_Manager::get_product_by_edition($order['product_edition']);
+            $product_label = $product ? $product['product_name'] : ucfirst($order['product_edition']);
+            $product_price = $product ? floatval($product['price']) : 0.0;
+        }
+
+        // Resolve module details.
+        $module_list = array();
+        if ($order && !empty($order['modules'])) {
+            $all_modules = ThemisDB_Order_Manager::get_modules();
+            $mod_map     = array();
+            foreach ($all_modules as $m) {
+                $mod_map[$m['module_code']] = $m;
+            }
+            foreach ((array) $order['modules'] as $code) {
+                $info = isset($mod_map[$code]) ? $mod_map[$code] : null;
+                $module_list[] = array(
+                    'code'  => $code,
+                    'name'  => $info ? $info['module_name']  : $code,
+                    'price' => $info ? floatval($info['price']) : 0.0,
+                );
+            }
+        }
+
+        // Resolve training details.
+        $training_list = array();
+        if ($order && !empty($order['training_modules'])) {
+            $all_trainings = ThemisDB_Order_Manager::get_training_modules();
+            $train_map     = array();
+            foreach ($all_trainings as $t) {
+                $train_map[$t['training_code']] = $t;
+            }
+            foreach ((array) $order['training_modules'] as $code) {
+                $info = isset($train_map[$code]) ? $train_map[$code] : null;
+                $training_list[] = array(
+                    'code'  => $code,
+                    'name'  => $info ? $info['training_name'] : $code,
+                    'price' => $info ? floatval($info['price']) : 0.0,
+                );
+            }
+        }
+
+        $total = floatval($order['total_amount'] ?? 0);
+        if ($total <= 0 && !$is_empty) {
+            $mod_codes   = array_column($module_list,   'code');
+            $train_codes = array_column($training_list, 'code');
+            $total       = ThemisDB_Order_Manager::calculate_total($order['product_edition'], $mod_codes, $train_codes);
+        }
+
+        ?>
+        <div class="themisdb-shopping-cart" data-order-id="<?php echo esc_attr($order_id); ?>">
+
+            <?php if ($is_empty) : ?>
+            <div class="tsc-empty">
+                <p class="tsc-empty-msg"><?php esc_html_e('Ihr Warenkorb ist leer.', 'themisdb-order-request'); ?></p>
+                <?php
+                $product_page_url = (string) get_option('themisdb_product_page_url', '');
+                if ($product_page_url) :
+                ?>
+                <a href="<?php echo esc_url($product_page_url); ?>" class="tsc-btn tsc-btn--secondary">
+                    <?php esc_html_e('Produkte ansehen', 'themisdb-order-request'); ?>
+                </a>
+                <?php endif; ?>
+            </div>
+            <?php else : ?>
+
+            <table class="tsc-table">
+                <thead>
+                    <tr>
+                        <th class="tsc-col-product"><?php esc_html_e('Produkt', 'themisdb-order-request'); ?></th>
+                        <th class="tsc-col-price"><?php esc_html_e('Preis', 'themisdb-order-request'); ?></th>
+                        <th class="tsc-col-action"></th>
+                    </tr>
+                </thead>
+                <tbody class="tsc-items">
+
+                    <!-- Base product row (not removable while edition is set) -->
+                    <tr class="tsc-row tsc-row--product">
+                        <td class="tsc-col-product">
+                            <span class="tsc-item-type"><?php esc_html_e('Edition', 'themisdb-order-request'); ?></span>
+                            <strong class="tsc-item-name"><?php echo esc_html($product_label); ?></strong>
+                        </td>
+                        <td class="tsc-col-price">
+                            <?php if ($product_price > 0) : ?>
+                                <?php echo esc_html(number_format($product_price, 2, ',', '.') . "\xc2\xa0" . $currency); ?>
+                            <?php else : ?>
+                                <em><?php esc_html_e('Kostenlos', 'themisdb-order-request'); ?></em>
+                            <?php endif; ?>
+                        </td>
+                        <td class="tsc-col-action">
+                            <a href="<?php echo esc_url($checkout_url); ?>" class="tsc-edit-link" title="<?php esc_attr_e('Edition ändern', 'themisdb-order-request'); ?>">
+                                <?php esc_html_e('Ändern', 'themisdb-order-request'); ?>
+                            </a>
+                        </td>
+                    </tr>
+
+                    <!-- Module rows -->
+                    <?php foreach ($module_list as $mod) : ?>
+                    <tr class="tsc-row tsc-row--module" data-item-type="module" data-item-code="<?php echo esc_attr($mod['code']); ?>">
+                        <td class="tsc-col-product">
+                            <span class="tsc-item-type"><?php esc_html_e('Modul', 'themisdb-order-request'); ?></span>
+                            <span class="tsc-item-name"><?php echo esc_html($mod['name']); ?></span>
+                        </td>
+                        <td class="tsc-col-price">
+                            <?php if ($mod['price'] > 0) : ?>
+                                +&nbsp;<?php echo esc_html(number_format($mod['price'], 2, ',', '.') . "\xc2\xa0" . $currency); ?>
+                            <?php else : ?>
+                                <em><?php esc_html_e('Inklusive', 'themisdb-order-request'); ?></em>
+                            <?php endif; ?>
+                        </td>
+                        <td class="tsc-col-action">
+                            <button type="button" class="tsc-remove-btn"
+                                    data-item-type="module"
+                                    data-item-code="<?php echo esc_attr($mod['code']); ?>"
+                                    aria-label="<?php esc_attr_e('Modul entfernen', 'themisdb-order-request'); ?>">
+                                &times;
+                            </button>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+
+                    <!-- Training rows -->
+                    <?php foreach ($training_list as $train) : ?>
+                    <tr class="tsc-row tsc-row--training" data-item-type="training" data-item-code="<?php echo esc_attr($train['code']); ?>">
+                        <td class="tsc-col-product">
+                            <span class="tsc-item-type"><?php esc_html_e('Schulung', 'themisdb-order-request'); ?></span>
+                            <span class="tsc-item-name"><?php echo esc_html($train['name']); ?></span>
+                        </td>
+                        <td class="tsc-col-price">
+                            +&nbsp;<?php echo esc_html(number_format($train['price'], 2, ',', '.') . "\xc2\xa0" . $currency); ?>
+                        </td>
+                        <td class="tsc-col-action">
+                            <button type="button" class="tsc-remove-btn"
+                                    data-item-type="training"
+                                    data-item-code="<?php echo esc_attr($train['code']); ?>"
+                                    aria-label="<?php esc_attr_e('Schulung entfernen', 'themisdb-order-request'); ?>">
+                                &times;
+                            </button>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+
+                </tbody>
+                <tfoot>
+                    <tr class="tsc-total-row">
+                        <th colspan="2" class="tsc-total-label">
+                            <?php esc_html_e('Gesamt', 'themisdb-order-request'); ?>
+                            <?php if ($show_tax_note) : ?>
+                                <small class="tsc-tax-note"><?php esc_html_e('(Netto, zzgl. gesetzl. MwSt.)', 'themisdb-order-request'); ?></small>
+                            <?php endif; ?>
+                        </th>
+                        <td class="tsc-total-amount" data-raw="<?php echo esc_attr($total); ?>">
+                            <?php echo esc_html(number_format($total, 2, ',', '.') . "\xc2\xa0" . $currency); ?>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <div class="tsc-actions">
+                <button type="button" class="tsc-btn tsc-btn--danger tsc-clear-btn">
+                    <?php esc_html_e('Warenkorb leeren', 'themisdb-order-request'); ?>
+                </button>
+                <a href="<?php echo esc_url(add_query_arg('step', '5', $checkout_url)); ?>" class="tsc-btn tsc-btn--primary tsc-checkout-btn">
+                    <?php esc_html_e('Zur Kasse', 'themisdb-order-request'); ?>
+                </a>
+            </div>
+
+            <?php endif; ?>
+
+        </div><!-- /.themisdb-shopping-cart -->
+        <?php
+    }
+
+    /**
+     * AJAX: Remove one module or training from the session order.
+     *
+     * POST params: nonce, item_type (module|training), item_code
+     */
+    public function ajax_cart_remove_item() {
+        check_ajax_referer('themisdb_order_nonce', 'nonce');
+
+        $item_type = isset($_POST['item_type']) ? sanitize_key($_POST['item_type']) : '';
+        $item_code = isset($_POST['item_code']) ? sanitize_text_field($_POST['item_code']) : '';
+
+        if (!in_array($item_type, array('module', 'training'), true) || $item_code === '') {
+            wp_send_json_error(array('message' => __('Ungültige Parameter.', 'themisdb-order-request')));
+            return;
+        }
+
+        if (!session_id()) {
+            session_start();
+        }
+
+        $order_id = isset($_SESSION['themisdb_order_id']) ? intval($_SESSION['themisdb_order_id']) : 0;
+        if (!$order_id) {
+            wp_send_json_error(array('message' => __('Kein aktiver Warenkorb.', 'themisdb-order-request')));
+            return;
+        }
+
+        $order = ThemisDB_Order_Manager::get_order($order_id);
+        if (!$order) {
+            wp_send_json_error(array('message' => __('Bestellung nicht gefunden.', 'themisdb-order-request')));
+            return;
+        }
+
+        if ($item_type === 'module') {
+            $modules = is_array($order['modules']) ? $order['modules'] : array();
+            $modules = array_values(array_filter($modules, function ($c) use ($item_code) { return $c !== $item_code; }));
+            ThemisDB_Order_Manager::update_order($order_id, array('modules' => $modules));
+        } else {
+            $trainings = is_array($order['training_modules']) ? $order['training_modules'] : array();
+            $trainings = array_values(array_filter($trainings, function ($c) use ($item_code) { return $c !== $item_code; }));
+            ThemisDB_Order_Manager::update_order($order_id, array('training_modules' => $trainings));
+        }
+
+        // Recalculate total.
+        $updated = ThemisDB_Order_Manager::get_order($order_id);
+        $new_total = ThemisDB_Order_Manager::calculate_total(
+            $updated['product_edition'],
+            is_array($updated['modules'])          ? $updated['modules']          : array(),
+            is_array($updated['training_modules']) ? $updated['training_modules'] : array()
+        );
+        ThemisDB_Order_Manager::update_order($order_id, array('total_amount' => $new_total));
+
+        wp_send_json_success(array(
+            'new_total'  => $new_total,
+            'item_type'  => $item_type,
+            'item_code'  => $item_code,
+        ));
+    }
+
+    /**
+     * AJAX: Clear the entire session cart (destroys the draft order from the session).
+     *
+     * POST params: nonce
+     */
+    public function ajax_cart_clear() {
+        check_ajax_referer('themisdb_order_nonce', 'nonce');
+
+        if (!session_id()) {
+            session_start();
+        }
+
+        $order_id = isset($_SESSION['themisdb_order_id']) ? intval($_SESSION['themisdb_order_id']) : 0;
+        if ($order_id > 0) {
+            $order = ThemisDB_Order_Manager::get_order($order_id);
+            // Only delete truly draft/pending orders; leave confirmed ones intact.
+            if ($order && in_array($order['status'], array('draft', 'pending'), true)) {
+                ThemisDB_Order_Manager::delete_order($order_id);
+            }
+        }
+
+        unset($_SESSION['themisdb_order_id']);
+
+        wp_send_json_success(array('cleared' => true));
     }
 }

@@ -16,7 +16,10 @@ if (!defined('ABSPATH')) {
 /**
  * Manages support tickets and their messages.
  */
-class ThemisDB_Support_Ticket_Manager {
+if (!class_exists('ThemisDB_SupportPortal_Ticket_Manager')) {
+class ThemisDB_SupportPortal_Ticket_Manager {
+
+    private static $last_error = '';
 
     const STATUS_OPEN        = 'open';
     const STATUS_IN_PROGRESS = 'in_progress';
@@ -50,8 +53,11 @@ class ThemisDB_Support_Ticket_Manager {
     public static function create_ticket($data) {
         global $wpdb;
 
+        self::$last_error = '';
+
         $table_tickets  = $wpdb->prefix . 'themisdb_support_tickets';
         $table_messages = $wpdb->prefix . 'themisdb_support_messages';
+        $benefit_id = null;
 
         // Validate support benefits limits if license is provided
         if (!empty($data['license_key']) && class_exists('ThemisDB_Support_Benefits_Manager')) {
@@ -73,11 +79,15 @@ class ThemisDB_Support_Ticket_Manager {
                     if (!$limits_check['allowed']) {
                         // Log the limit violation
                         error_log("Support ticket creation blocked for license $license_id: " . $limits_check['reason']);
+                        self::$last_error = $limits_check['reason'];
                         return false;
                     }
+
+                    $benefit_id = intval($benefit['id']);
                 } elseif ($benefit && $benefit['benefit_status'] !== 'active') {
                     // Benefit exists but is not active (pending, suspended, expired)
                     error_log("Support ticket creation blocked for license $license_id: Benefit status is " . $benefit['benefit_status']);
+                    self::$last_error = sprintf('Support benefits are %s', $benefit['benefit_status']);
                     return false;
                 }
             }
@@ -94,12 +104,14 @@ class ThemisDB_Support_Ticket_Manager {
             'customer_email'   => sanitize_email($data['customer_email']),
             'customer_company' => isset($data['customer_company']) ? sanitize_text_field($data['customer_company']) : null,
             'license_key'      => isset($data['license_key'])  ? sanitize_text_field($data['license_key'])  : null,
+            'benefit_id'       => $benefit_id,
             'user_id'          => isset($data['user_id'])      ? intval($data['user_id'])                   : null,
         );
 
         $result = $wpdb->insert($table_tickets, $ticket_data);
 
         if (!$result) {
+            self::$last_error = __('Ticket konnte nicht gespeichert werden.', 'themisdb-support-portal');
             return false;
         }
 
@@ -117,25 +129,23 @@ class ThemisDB_Support_Ticket_Manager {
         }
 
         // Increment support benefit usage counter if applicable
-        if (!empty($data['license_key']) && class_exists('ThemisDB_Support_Benefits_Manager')) {
-            $license_table = $wpdb->prefix . 'themisdb_licenses';
-            $license = $wpdb->get_row(
-                $wpdb->prepare("SELECT id FROM $license_table WHERE license_key = %s", $data['license_key']),
-                ARRAY_A
-            );
-            
-            if ($license) {
-                $benefit = ThemisDB_Support_Benefits_Manager::get_by_license($license['id']);
-                if ($benefit) {
-                    ThemisDB_Support_Benefits_Manager::increment_ticket_usage($benefit['id']);
-                }
-            }
+        if (!empty($benefit_id) && class_exists('ThemisDB_Support_Benefits_Manager')) {
+            ThemisDB_Support_Benefits_Manager::increment_ticket_usage($benefit_id);
         }
 
         // Send admin notification
         self::notify_admin_new_ticket($ticket_id, $ticket_data);
 
         return $ticket_id;
+    }
+
+    /**
+     * Return last human-readable creation error for UI feedback.
+     *
+     * @return string
+     */
+    public static function get_last_error() {
+        return self::$last_error;
     }
 
     /**
@@ -292,6 +302,178 @@ class ThemisDB_Support_Ticket_Manager {
         );
 
         return $result !== false;
+    }
+
+    /**
+     * Update editable ticket fields.
+     *
+     * @param int   $ticket_id
+     * @param array $data
+     * @return bool
+     */
+    public static function update_ticket($ticket_id, $data) {
+        global $wpdb;
+
+        $ticket_id = intval($ticket_id);
+        if ($ticket_id <= 0 || !is_array($data)) {
+            return false;
+        }
+
+        $table = $wpdb->prefix . 'themisdb_support_tickets';
+        $fields = array();
+
+        if (isset($data['subject'])) {
+            $subject = sanitize_text_field($data['subject']);
+            if ($subject === '') {
+                return false;
+            }
+            $fields['subject'] = $subject;
+        }
+
+        if (isset($data['priority'])) {
+            $priority = sanitize_key($data['priority']);
+            $allowed_priority = array(self::PRIORITY_LOW, self::PRIORITY_NORMAL, self::PRIORITY_HIGH, self::PRIORITY_URGENT);
+            if (!in_array($priority, $allowed_priority, true)) {
+                return false;
+            }
+            $fields['priority'] = $priority;
+        }
+
+        if (isset($data['status'])) {
+            $status = sanitize_key($data['status']);
+            $allowed_status = array(self::STATUS_OPEN, self::STATUS_IN_PROGRESS, self::STATUS_RESOLVED, self::STATUS_CLOSED);
+            if (!in_array($status, $allowed_status, true)) {
+                return false;
+            }
+            $fields['status'] = $status;
+        }
+
+        if (isset($data['customer_name'])) {
+            $fields['customer_name'] = sanitize_text_field($data['customer_name']);
+        }
+
+        if (isset($data['customer_email'])) {
+            $email = sanitize_email($data['customer_email']);
+            if ($email === '' || !is_email($email)) {
+                return false;
+            }
+            $fields['customer_email'] = $email;
+        }
+
+        if (isset($data['customer_company'])) {
+            $fields['customer_company'] = sanitize_text_field($data['customer_company']);
+        }
+
+        if (isset($data['license_key'])) {
+            $fields['license_key'] = sanitize_text_field($data['license_key']);
+        }
+
+        if (empty($fields)) {
+            return false;
+        }
+
+        $result = $wpdb->update($table, $fields, array('id' => $ticket_id));
+        return $result !== false;
+    }
+
+    /**
+     * Delete ticket and all related messages.
+     *
+     * @param int $ticket_id
+     * @return bool
+     */
+    public static function delete_ticket($ticket_id) {
+        global $wpdb;
+
+        $ticket_id = intval($ticket_id);
+        if ($ticket_id <= 0) {
+            return false;
+        }
+
+        $table_tickets = $wpdb->prefix . 'themisdb_support_tickets';
+        $table_messages = $wpdb->prefix . 'themisdb_support_messages';
+
+        $wpdb->query('START TRANSACTION');
+
+        $wpdb->delete($table_messages, array('ticket_id' => $ticket_id), array('%d'));
+        $deleted = $wpdb->delete($table_tickets, array('id' => $ticket_id), array('%d'));
+
+        if ($deleted === false) {
+            $wpdb->query('ROLLBACK');
+            return false;
+        }
+
+        $wpdb->query('COMMIT');
+        return true;
+    }
+
+    /**
+     * Bulk update status for multiple tickets.
+     *
+     * @param array  $ticket_ids
+     * @param string $status
+     * @return int Number of updated tickets
+     */
+    public static function bulk_update_status($ticket_ids, $status) {
+        global $wpdb;
+
+        $allowed = array(self::STATUS_OPEN, self::STATUS_IN_PROGRESS, self::STATUS_RESOLVED, self::STATUS_CLOSED);
+        if (!in_array($status, $allowed, true)) {
+            return 0;
+        }
+
+        $ids = self::sanitize_ticket_ids($ticket_ids);
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $table = $wpdb->prefix . 'themisdb_support_tickets';
+        $id_sql = implode(',', $ids);
+
+        $updated = $wpdb->query(
+            $wpdb->prepare("UPDATE `$table` SET status = %s WHERE id IN ($id_sql)", $status)
+        );
+
+        return $updated !== false ? intval($updated) : 0;
+    }
+
+    /**
+     * Bulk delete tickets.
+     *
+     * @param array $ticket_ids
+     * @return int Number of deleted tickets
+     */
+    public static function bulk_delete_tickets($ticket_ids) {
+        $ids = self::sanitize_ticket_ids($ticket_ids);
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $deleted = 0;
+        foreach ($ids as $ticket_id) {
+            if (self::delete_ticket($ticket_id)) {
+                $deleted++;
+            }
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * @param array $ticket_ids
+     * @return array
+     */
+    private static function sanitize_ticket_ids($ticket_ids) {
+        if (!is_array($ticket_ids)) {
+            return array();
+        }
+
+        $ids = array_map('intval', $ticket_ids);
+        $ids = array_filter($ids, function ($id) {
+            return $id > 0;
+        });
+
+        return array_values(array_unique($ids));
     }
 
     // -------------------------------------------------------------------------
@@ -521,4 +703,12 @@ class ThemisDB_Support_Ticket_Manager {
 
         wp_mail(sanitize_email($ticket['customer_email']), $subject, $body, $headers);
     }
+}
+}
+
+// Backward compatibility for older integrations that still reference
+// ThemisDB_Support_Ticket_Manager. Do not alias when another plugin already
+// provides that class name.
+if (!class_exists('ThemisDB_Support_Ticket_Manager') && class_exists('ThemisDB_SupportPortal_Ticket_Manager')) {
+    class_alias('ThemisDB_SupportPortal_Ticket_Manager', 'ThemisDB_Support_Ticket_Manager');
 }

@@ -82,6 +82,7 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-contract-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-payment-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-support-benefits-manager.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-support-ticket-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-build-dispatcher.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-api.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-portal.php';
@@ -90,9 +91,17 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-pdf-generator.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-email-handler.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-document-template-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-pricing.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-affiliate-program.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-b2b-portal.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-advanced-reporting.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-epserver-api.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-error-handler.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-privacy.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-woocommerce-bridge.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-bank-import.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-admin.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-admin-dashboard.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-notification-manager.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-auth-system.php';
 
@@ -100,6 +109,14 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-auth-system.php';
  * Initialize the plugin
  */
 function themisdb_order_request_init() {
+    // Initialize error logging system
+    if (class_exists('ThemisDB_Error_Handler') && method_exists('ThemisDB_Error_Handler', 'init')) {
+        ThemisDB_Error_Handler::init();
+    }
+
+    // Initialize GDPR/Privacy compliance
+    ThemisDB_Privacy::init();
+
     // Initialize database
     ThemisDB_Order_Database::init();
 
@@ -113,10 +130,42 @@ function themisdb_order_request_init() {
     // Initialize admin panel
     if (is_admin()) {
         new ThemisDB_Order_Admin();
+        ThemisDB_Admin_Dashboard::init();
+        
+        // Initialize notifications & alerts system
+        ThemisDB_Notification_Manager::init();
     }
     
     // Initialize shortcodes
     new ThemisDB_Order_Shortcodes();
+
+    // Initialize renewal handlers (one-click flow).
+    if (class_exists('ThemisDB_License_Renewal')) {
+        ThemisDB_License_Renewal::init();
+    }
+
+    // Initialize support ticket manager.
+    if (class_exists('ThemisDB_Order_Support_Ticket_Manager')) {
+        ThemisDB_Order_Support_Ticket_Manager::init();
+    }
+
+    // Initialize affiliate program (referral capture + commission tracking).
+    if (class_exists('ThemisDB_Affiliate_Program')) {
+        ThemisDB_Affiliate_Program::init();
+    }
+
+    // Initialize B2B portal services.
+    if (class_exists('ThemisDB_B2B_Portal')) {
+        ThemisDB_B2B_Portal::init();
+    }
+
+    // Initialize advanced reporting pages/shortcode.
+    if (class_exists('ThemisDB_Advanced_Reporting')) {
+        ThemisDB_Advanced_Reporting::init();
+    }
+
+    // Initialize WooCommerce bridge (no-op when WooCommerce is not active)
+    new ThemisDB_WooCommerce_Bridge();
 
     // Initialize license REST API and customer portal
     new ThemisDB_License_API();
@@ -232,6 +281,36 @@ function themisdb_order_request_activate() {
     if (!get_option('themisdb_license_renewal_reminder_days')) {
         add_option('themisdb_license_renewal_reminder_days', '30'); // Days before expiry to send renewal reminder
     }
+    if (!get_option('themisdb_license_default_term_days')) {
+        add_option('themisdb_license_default_term_days', '365'); // Default renewal term
+    }
+    if (!get_option('themisdb_license_allow_auto_renewal')) {
+        add_option('themisdb_license_allow_auto_renewal', '1'); // Allow auto-renew processing
+    }
+    if (!get_option('themisdb_affiliate_default_commission_rate')) {
+        add_option('themisdb_affiliate_default_commission_rate', '10');
+    }
+    if (!get_option('themisdb_affiliate_cookie_days')) {
+        add_option('themisdb_affiliate_cookie_days', '30');
+    }
+    if (!get_option('themisdb_b2b_default_invoice_due_days')) {
+        add_option('themisdb_b2b_default_invoice_due_days', '30');
+    }
+    if (!get_option('themisdb_reporting_marketing_spend_json')) {
+        add_option('themisdb_reporting_marketing_spend_json', '{}');
+    }
+    if (!get_option('themisdb_support_github_enabled')) {
+        add_option('themisdb_support_github_enabled', '0');
+    }
+    if (!get_option('themisdb_support_github_token')) {
+        add_option('themisdb_support_github_token', '');
+    }
+    if (!get_option('themisdb_support_github_repository')) {
+        add_option('themisdb_support_github_repository', '');
+    }
+    if (!get_option('themisdb_support_github_labels')) {
+        add_option('themisdb_support_github_labels', 'support,themisdb');
+    }
 
     // Schedule daily renewal reminder cron job
     if (!wp_next_scheduled('themisdb_license_renewal_check')) {
@@ -315,8 +394,15 @@ function themisdb_run_support_benefits_expiry_check() {
 function themisdb_order_request_enqueue_scripts() {
     wp_enqueue_style('themisdb-order-request-style', THEMISDB_ORDER_PLUGIN_URL . 'assets/css/order-request.css', array(), THEMISDB_ORDER_VERSION);
     wp_enqueue_script('themisdb-order-request-script', THEMISDB_ORDER_PLUGIN_URL . 'assets/js/order-request.js', array('jquery'), THEMISDB_ORDER_VERSION, true);
+
+    // Product detail page assets (loaded globally; the shortcode guard via wp_enqueue is idempotent).
+    wp_register_style('themisdb-product-detail-style', THEMISDB_ORDER_PLUGIN_URL . 'assets/css/product-detail.css', array(), THEMISDB_ORDER_VERSION);
+    wp_register_script('themisdb-product-selector', THEMISDB_ORDER_PLUGIN_URL . 'assets/js/product-selector.js', array('jquery'), THEMISDB_ORDER_VERSION, true);
+
+        // Shopping cart assets – Phase 2.3 (enqueued lazily by the shortcode).
+        wp_register_style('themisdb-shopping-cart-style', THEMISDB_ORDER_PLUGIN_URL . 'assets/css/shopping-cart.css', array(), THEMISDB_ORDER_VERSION);
+        wp_register_script('themisdb-shopping-cart', THEMISDB_ORDER_PLUGIN_URL . 'assets/js/shopping-cart.js', array('jquery'), THEMISDB_ORDER_VERSION, true);
     
-    // Localize script
     wp_localize_script('themisdb-order-request-script', 'themisdbOrder', array(
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('themisdb_order_nonce'),

@@ -411,7 +411,7 @@ class ThemisDB_License_API {
         global $wpdb;
         $table = $wpdb->prefix . 'themisdb_license_audit_log';
 
-        if ( $wpdb->get_var( "SHOW TABLES LIKE '$table'" ) !== $table ) {
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
             $charset_collate = $wpdb->get_charset_collate();
             $sql = "CREATE TABLE IF NOT EXISTS $table (
                 id          BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,

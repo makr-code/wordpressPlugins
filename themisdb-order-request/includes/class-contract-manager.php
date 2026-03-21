@@ -135,6 +135,12 @@ class ThemisDB_Contract_Manager {
                 ThemisDB_PDF_Generator::generate_contract_pdf($contract_id);
             } catch (Throwable $e) {
                 error_log('ThemisDB Contract PDF Error: ' . $e->getMessage());
+                if (class_exists('ThemisDB_Error_Handler')) {
+                    ThemisDB_Error_Handler::log('warning', 'Contract PDF generation failed', array(
+                        'contract_id' => intval($contract_id),
+                        'exception' => $e->getMessage(),
+                    ));
+                }
             }
         }
 
@@ -143,6 +149,12 @@ class ThemisDB_Contract_Manager {
                 ThemisDB_Email_Handler::send_contract_email($contract_id);
             } catch (Throwable $e) {
                 error_log('ThemisDB Contract Email Error: ' . $e->getMessage());
+                if (class_exists('ThemisDB_Error_Handler')) {
+                    ThemisDB_Error_Handler::log('warning', 'Contract email send failed', array(
+                        'contract_id' => intval($contract_id),
+                        'exception' => $e->getMessage(),
+                    ));
+                }
             }
         }
 
@@ -683,6 +695,12 @@ class ThemisDB_Contract_Manager {
         );
         
         $args = wp_parse_args($args, $defaults);
+
+        $allowed_orderby = array('id', 'contract_number', 'order_id', 'customer_id', 'contract_type', 'status', 'valid_from', 'valid_until', 'created_at', 'updated_at');
+        $orderby = in_array($args['orderby'], $allowed_orderby, true) ? $args['orderby'] : 'created_at';
+        $order = strtoupper((string) $args['order']) === 'ASC' ? 'ASC' : 'DESC';
+        $limit = max(1, absint($args['limit']));
+        $offset = max(0, absint($args['offset']));
         
         $where = "1=1";
         $where_values = array();
@@ -697,9 +715,9 @@ class ThemisDB_Contract_Manager {
             $where_values[] = $args['contract_type'];
         }
         
-        $query = "SELECT * FROM $table_contracts WHERE $where ORDER BY {$args['orderby']} {$args['order']} LIMIT %d OFFSET %d";
-        $where_values[] = $args['limit'];
-        $where_values[] = $args['offset'];
+        $query = "SELECT * FROM $table_contracts WHERE $where ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d";
+        $where_values[] = $limit;
+        $where_values[] = $offset;
         
         $contracts = $wpdb->get_results($wpdb->prepare($query, $where_values), ARRAY_A);
         

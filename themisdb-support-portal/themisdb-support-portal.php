@@ -89,9 +89,54 @@ function themisdb_support_portal_init() {
     new ThemisDB_Support_License_Auth();
     new ThemisDB_Support_Shortcodes();
 
+    if (is_admin()) {
+        themisdb_support_portal_maybe_warn_ticket_manager_conflict();
+    }
+
     load_plugin_textdomain('themisdb-support-portal', false, dirname(plugin_basename(__FILE__)) . '/languages');
 }
 add_action('plugins_loaded', 'themisdb_support_portal_init');
+
+/**
+ * Warn admins when a legacy support ticket manager class is present
+ * from a different file/plugin and could indicate mixed deployments.
+ */
+function themisdb_support_portal_maybe_warn_ticket_manager_conflict() {
+    if (!class_exists('ThemisDB_Support_Ticket_Manager') || !class_exists('ThemisDB_SupportPortal_Ticket_Manager')) {
+        return;
+    }
+
+    // Show warning only for critical legacy state: old class is loaded but
+    // the renamed order-plugin class is missing (likely outdated deployment).
+    if (class_exists('ThemisDB_Order_Support_Ticket_Manager')) {
+        return;
+    }
+
+    try {
+        $legacy_ref = new ReflectionClass('ThemisDB_Support_Ticket_Manager');
+        $portal_ref = new ReflectionClass('ThemisDB_SupportPortal_Ticket_Manager');
+    } catch (ReflectionException $e) {
+        return;
+    }
+
+    $legacy_file = wp_normalize_path((string) $legacy_ref->getFileName());
+    $portal_file = wp_normalize_path((string) $portal_ref->getFileName());
+
+    if ($legacy_file === '' || $portal_file === '' || $legacy_file === $portal_file) {
+        return;
+    }
+
+    add_action('admin_notices', function () use ($legacy_file) {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        echo '<div class="notice notice-warning"><p>'
+            . esc_html__('ThemisDB Support Portal detected an outdated Order plugin ticket class. Please deploy the latest themisdb-order-request version (with ThemisDB_Order_Support_Ticket_Manager) to prevent class conflicts.', 'themisdb-support-portal')
+            . '<br><code>' . esc_html($legacy_file) . '</code>'
+            . '</p></div>';
+    });
+}
 
 /**
  * Activation hook – create DB tables and set defaults.

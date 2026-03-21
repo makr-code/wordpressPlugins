@@ -102,6 +102,12 @@ class ThemisDB_Support_Benefits_Manager {
         $tier_config = self::get_tier_config();
         if (!isset($tier_config[$tier_level])) {
             error_log("Support Benefits: Invalid tier level '$tier_level' for license ID $license_id");
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('error', 'Support benefits creation failed: invalid tier', array(
+                    'license_id' => intval($license_id),
+                    'tier_level' => sanitize_key($tier_level),
+                ));
+            }
             return false;
         }
         
@@ -117,6 +123,12 @@ class ThemisDB_Support_Benefits_Manager {
         
         if ($existing) {
             error_log("Support Benefits: Benefits already exist for license ID $license_id");
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('info', 'Support benefits already exist for license', array(
+                    'license_id' => intval($license_id),
+                    'benefit_id' => intval($existing['id']),
+                ));
+            }
             return $existing['id'];
         }
         
@@ -139,10 +151,23 @@ class ThemisDB_Support_Benefits_Manager {
         if ($result) {
             $benefit_id = $wpdb->insert_id;
             error_log("Support Benefits created for License ID: $license_id, Benefit ID: $benefit_id, Tier: $tier_level");
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('info', 'Support benefits created', array(
+                    'license_id' => intval($license_id),
+                    'benefit_id' => intval($benefit_id),
+                    'tier_level' => sanitize_key($tier_level),
+                ));
+            }
             return $benefit_id;
         }
         
         error_log("Support Benefits: INSERT failed for license ID $license_id. Error: " . $wpdb->last_error);
+        if (class_exists('ThemisDB_Error_Handler')) {
+            ThemisDB_Error_Handler::log('error', 'Support benefits insert failed', array(
+                'license_id' => intval($license_id),
+                'db_error' => (string) $wpdb->last_error,
+            ));
+        }
         return false;
     }
     
@@ -162,6 +187,64 @@ class ThemisDB_Support_Benefits_Manager {
             $wpdb->prepare("SELECT * FROM $table WHERE license_id = %d", $license_id),
             ARRAY_A
         );
+    }
+
+    /**
+     * Update support tier configuration for an existing license.
+     *
+     * @param int    $license_id
+     * @param string $tier_level
+     * @return bool
+     */
+    public static function update_tier_for_license($license_id, $tier_level) {
+        global $wpdb;
+
+        $license_id = intval($license_id);
+        $tier_level = sanitize_key($tier_level);
+
+        $tier_config = self::get_tier_config();
+        if (!isset($tier_config[$tier_level])) {
+            return false;
+        }
+
+        $benefit = self::get_by_license($license_id);
+        if (!$benefit) {
+            $created = self::create_for_license($license_id, $tier_level);
+            return !empty($created);
+        }
+
+        $cfg = $tier_config[$tier_level];
+        $table = $wpdb->prefix . 'themisdb_support_benefits';
+
+        $result = $wpdb->update(
+            $table,
+            array(
+                'tier_level' => $tier_level,
+                'max_open_tickets' => intval($cfg['max_open_tickets']),
+                'max_tickets_per_month' => intval($cfg['max_tickets_per_month']),
+                'response_sla_hours' => intval($cfg['response_sla_hours']),
+                'priority_can_assign' => $cfg['priority_can_assign'] ? 1 : 0,
+                'included_hours_per_month' => intval($cfg['included_hours_per_month']),
+                'updated_at' => current_time('mysql'),
+            ),
+            array('id' => intval($benefit['id'])),
+            array('%s', '%d', '%d', '%d', '%d', '%d', '%s'),
+            array('%d')
+        );
+
+        if (class_exists('ThemisDB_Error_Handler')) {
+            ThemisDB_Error_Handler::log(
+                $result !== false ? 'info' : 'error',
+                $result !== false ? 'Support tier updated for license' : 'Support tier update failed for license',
+                array(
+                    'license_id' => $license_id,
+                    'benefit_id' => intval($benefit['id']),
+                    'tier_level' => $tier_level,
+                )
+            );
+        }
+
+        return $result !== false;
     }
     
     /**
@@ -212,10 +295,21 @@ class ThemisDB_Support_Benefits_Manager {
         
         if ($result !== false) {
             error_log("Support Benefits activated: ID $benefit_id");
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('info', 'Support benefits activated', array(
+                    'benefit_id' => intval($benefit_id),
+                ));
+            }
             return true;
         }
         
         error_log("Support Benefits: UPDATE failed for ID $benefit_id. Error: " . $wpdb->last_error);
+        if (class_exists('ThemisDB_Error_Handler')) {
+            ThemisDB_Error_Handler::log('error', 'Support benefits activate failed', array(
+                'benefit_id' => intval($benefit_id),
+                'db_error' => (string) $wpdb->last_error,
+            ));
+        }
         return false;
     }
     
@@ -247,10 +341,22 @@ class ThemisDB_Support_Benefits_Manager {
         
         if ($result !== false) {
             error_log("Support Benefits suspended: ID $benefit_id. Reason: $reason");
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('info', 'Support benefits suspended', array(
+                    'benefit_id' => intval($benefit_id),
+                    'reason' => sanitize_text_field($reason),
+                ));
+            }
             return true;
         }
         
         error_log("Support Benefits: UPDATE failed for ID $benefit_id. Error: " . $wpdb->last_error);
+        if (class_exists('ThemisDB_Error_Handler')) {
+            ThemisDB_Error_Handler::log('error', 'Support benefits suspend failed', array(
+                'benefit_id' => intval($benefit_id),
+                'db_error' => (string) $wpdb->last_error,
+            ));
+        }
         return false;
     }
     
@@ -282,10 +388,21 @@ class ThemisDB_Support_Benefits_Manager {
         
         if ($result !== false) {
             error_log("Support Benefits deactivated: ID $benefit_id");
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('info', 'Support benefits deactivated', array(
+                    'benefit_id' => intval($benefit_id),
+                ));
+            }
             return true;
         }
         
         error_log("Support Benefits: UPDATE failed for ID $benefit_id. Error: " . $wpdb->last_error);
+        if (class_exists('ThemisDB_Error_Handler')) {
+            ThemisDB_Error_Handler::log('error', 'Support benefits deactivate failed', array(
+                'benefit_id' => intval($benefit_id),
+                'db_error' => (string) $wpdb->last_error,
+            ));
+        }
         return false;
     }
     
@@ -484,6 +601,12 @@ class ThemisDB_Support_Benefits_Manager {
             );
             
             error_log("Support Benefits: Monthly counts reset for multiple benefits. Affected: $result");
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('info', 'Support monthly counters reset', array(
+                    'benefit_id' => null,
+                    'affected_rows' => intval($result),
+                ));
+            }
             return intval($result);
         }
     }
@@ -516,6 +639,11 @@ class ThemisDB_Support_Benefits_Manager {
         
         if ($result > 0) {
             error_log("Support Benefits: Expired $result benefits due to license expiry");
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('info', 'Support benefits expired due to license expiry', array(
+                    'expired_count' => intval($result),
+                ));
+            }
         }
         
         return intval($result);
@@ -547,6 +675,12 @@ class ThemisDB_Support_Benefits_Manager {
         // - Notification Log erstellen
         
         error_log("Support Benefits: Send expiry notification - benefit ID $benefit_id, $days_until_expiry days remaining (TODO: Implement)");
+        if (class_exists('ThemisDB_Error_Handler')) {
+            ThemisDB_Error_Handler::log('info', 'Support expiry notification placeholder invoked', array(
+                'benefit_id' => intval($benefit_id),
+                'days_until_expiry' => intval($days_until_expiry),
+            ));
+        }
         return true;
     }
 }

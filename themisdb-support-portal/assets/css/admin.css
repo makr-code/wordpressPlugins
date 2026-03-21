@@ -15,6 +15,26 @@
     color: #0073aa;
 }
 
+.themisdb-support-ticket-nav-actions {
+    margin-left: 8px;
+}
+
+.themisdb-support-top-tabs {
+    margin: 12px 0 16px;
+}
+
+.themisdb-support-create-ticket {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin-top: 12px;
+}
+
+.themisdb-support-create-ticket h2 {
+    margin-top: 0;
+}
+
 /* --------------------------------------------------------------------------
    Filter bar
    -------------------------------------------------------------------------- */
@@ -37,6 +57,34 @@
     margin-left: auto;
     font-size: 13px;
     color: #666;
+}
+
+.themisdb-support-bulk-form .tablenav.top {
+    margin-bottom: 8px;
+}
+
+.themisdb-support-bulk-preview {
+    margin-left: 12px;
+    padding-top: 4px;
+    font-size: 12px;
+    color: #50575e;
+}
+
+.themisdb-support-selection-tools {
+    margin-left: 12px;
+    padding-top: 4px;
+    font-size: 12px;
+    color: #1d2327;
+}
+
+.themisdb-support-selection-tools label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.themisdb-support-row-hidden-by-selection {
+    display: none;
 }
 
 /* --------------------------------------------------------------------------
@@ -225,7 +273,8 @@
 }
 
 .themisdb-support-form-group textarea,
-.themisdb-support-form-group select {
+.themisdb-support-form-group select,
+.themisdb-support-form-group input {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
@@ -247,6 +296,33 @@
 
 .themisdb-support-admin-reply-messages {
     margin-top: 10px;
+}
+
+.themisdb-support-admin-card-benefits {
+    background: #eef7ff;
+    border-color: #cfe4fb;
+}
+
+.themisdb-support-admin-benefit-empty {
+    margin: 0;
+    color: #35516b;
+}
+
+.themisdb-support-admin-benefit-note {
+    margin: 12px 0 0;
+    font-size: 12px;
+    color: #35516b;
+    word-break: break-all;
+}
+
+.themisdb-support-admin-card-danger {
+    border-color: #f0c8c8;
+    background: #fff7f7;
+}
+
+.themisdb-support-danger-button {
+    color: #a72626;
+    border-color: #dba7a7;
 }
 
 /* --------------------------------------------------------------------------

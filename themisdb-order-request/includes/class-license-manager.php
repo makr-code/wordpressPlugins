@@ -928,6 +928,18 @@ class ThemisDB_License_Manager {
         global $wpdb;
         
         $table_licenses = $wpdb->prefix . 'themisdb_licenses';
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table_licenses)) {
+            return array(
+                'total_licenses' => 0,
+                'active_licenses' => 0,
+                'pending_licenses' => 0,
+                'suspended_licenses' => 0,
+                'expired_licenses' => 0,
+                'cancelled_licenses' => 0,
+            );
+        }
+
+        $table_licenses_sql = '`' . $table_licenses . '`';
         
         $stats = array(
             'total_licenses' => 0,
@@ -942,7 +954,7 @@ class ThemisDB_License_Manager {
             "SELECT 
                 license_status,
                 COUNT(*) as count
-            FROM $table_licenses
+            FROM {$table_licenses_sql}
             GROUP BY license_status",
             ARRAY_A
         );

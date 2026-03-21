@@ -5,6 +5,7 @@ jQuery(document).ready(function($) {
     
     var currentStep = 1;
     var orderData = {};
+    var flowMode = ($('.themisdb-order-flow').data('flow-mode') || 'default').toString();
     
     // Product selection
     $(document).on('click', '.product-card', function() {
@@ -65,7 +66,11 @@ jQuery(document).ready(function($) {
     
     // Next button
     $(document).on('click', '.button-next', function() {
-        var step = $(this).data('step');
+        var step = parseInt($(this).data('step'), 10);
+        var nextStep = parseInt($(this).data('next-step'), 10);
+        if (isNaN(nextStep)) {
+            nextStep = step + 1;
+        }
         var data = collectStepData(step);
         
         if (!validateStep(step, data)) {
@@ -74,20 +79,26 @@ jQuery(document).ready(function($) {
         
         saveOrderStep(step, data, function(response) {
             if (response.success) {
-                loadStep(step + 1);
+                loadStep(nextStep);
             }
         });
     });
     
     // Previous button
     $(document).on('click', '.button-prev', function() {
-        var step = $(this).data('step');
-        loadStep(step - 1);
+        var step = parseInt($(this).data('step'), 10);
+        var prevStep = parseInt($(this).data('prev-step'), 10);
+        if (isNaN(prevStep)) {
+            prevStep = step - 1;
+        }
+        loadStep(prevStep);
     });
     
     // Submit button
     $(document).on('click', '.button-submit', function() {
         var $button = $(this);
+        var paymentMethod = $('input[name="payment_method"]:checked').val() || 'bank_transfer';
+        var defaultLabel = $button.text();
         $button.prop('disabled', true).text(themisdbOrder.strings.loading);
         
         $.ajax({
@@ -95,7 +106,8 @@ jQuery(document).ready(function($) {
             type: 'POST',
             data: {
                 action: 'themisdb_submit_order',
-                nonce: themisdbOrder.nonce
+                nonce: themisdbOrder.nonce,
+                payment_method: paymentMethod
             },
             success: function(response) {
                 if (response.success) {
@@ -110,12 +122,12 @@ jQuery(document).ready(function($) {
                     if (response.data && response.data.field_errors) {
                         showFieldErrors(response.data.field_errors);
                     }
-                    $button.prop('disabled', false).text('Bestellung absenden');
+                    $button.prop('disabled', false).text(defaultLabel);
                 }
             },
             error: function() {
                 showErrorMessage(themisdbOrder.strings.error);
-                $button.prop('disabled', false).text('Bestellung absenden');
+                $button.prop('disabled', false).text(defaultLabel);
             }
         });
     });
@@ -268,7 +280,8 @@ jQuery(document).ready(function($) {
                 action: 'themisdb_save_order_step',
                 nonce: themisdbOrder.nonce,
                 step: step,
-                data: data
+                data: data,
+                flow_mode: flowMode
             },
             success: function(response) {
                 if (!response || !response.success) {
@@ -301,7 +314,8 @@ jQuery(document).ready(function($) {
         
         // Update step indicator
         $('.order-steps .step').each(function(index) {
-            var stepNum = index + 1;
+            var explicitStep = parseInt($(this).attr('data-step-value'), 10);
+            var stepNum = isNaN(explicitStep) ? (index + 1) : explicitStep;
             $(this).removeClass('active completed');
             
             if (stepNum < step) {

@@ -116,7 +116,7 @@ class ThemisDB_Support_Shortcodes {
 
         $company = get_user_meta($user->ID, 'company', true) ?: '';
 
-        $ticket_id = ThemisDB_Support_Ticket_Manager::create_ticket(array(
+        $ticket_id = ThemisDB_SupportPortal_Ticket_Manager::create_ticket(array(
             'subject'          => $subject,
             'message'          => $message,
             'priority'         => $priority,
@@ -128,12 +128,15 @@ class ThemisDB_Support_Shortcodes {
         ));
 
         if (!$ticket_id) {
+            $error_message = ThemisDB_SupportPortal_Ticket_Manager::get_last_error();
             wp_send_json_error(array(
-                'message' => __('Ticket konnte nicht erstellt werden. Bitte versuchen Sie es erneut.', 'themisdb-support-portal'),
+                'message' => !empty($error_message)
+                    ? $error_message
+                    : __('Ticket konnte nicht erstellt werden. Bitte versuchen Sie es erneut.', 'themisdb-support-portal'),
             ));
         }
 
-        $ticket = ThemisDB_Support_Ticket_Manager::get_ticket($ticket_id);
+        $ticket = ThemisDB_SupportPortal_Ticket_Manager::get_ticket($ticket_id);
 
         wp_send_json_success(array(
             'message'       => __('Ihr Support-Ticket wurde erfolgreich erstellt!', 'themisdb-support-portal'),
@@ -163,7 +166,7 @@ class ThemisDB_Support_Shortcodes {
         }
 
         $ticket_id = isset($_POST['ticket_id']) ? intval($_POST['ticket_id']) : 0;
-        $ticket    = ThemisDB_Support_Ticket_Manager::get_ticket($ticket_id);
+        $ticket    = ThemisDB_SupportPortal_Ticket_Manager::get_ticket($ticket_id);
 
         if (!$ticket) {
             wp_send_json_error(array('message' => __('Ticket nicht gefunden', 'themisdb-support-portal')));
@@ -174,9 +177,9 @@ class ThemisDB_Support_Shortcodes {
             wp_send_json_error(array('message' => __('Zugriff verweigert', 'themisdb-support-portal')));
         }
 
-        $messages        = ThemisDB_Support_Ticket_Manager::get_messages($ticket_id);
-        $status_labels   = ThemisDB_Support_Ticket_Manager::get_status_labels();
-        $priority_labels = ThemisDB_Support_Ticket_Manager::get_priority_labels();
+        $messages        = ThemisDB_SupportPortal_Ticket_Manager::get_messages($ticket_id);
+        $status_labels   = ThemisDB_SupportPortal_Ticket_Manager::get_status_labels();
+        $priority_labels = ThemisDB_SupportPortal_Ticket_Manager::get_priority_labels();
 
         ob_start();
         include THEMISDB_SUPPORT_PLUGIN_DIR . 'templates/portal-ticket-detail.php';
@@ -251,13 +254,24 @@ class ThemisDB_Support_Shortcodes {
      */
     private function render_portal() {
         $user    = wp_get_current_user();
-        $tickets = ThemisDB_Support_Ticket_Manager::get_user_tickets($user->ID);
+        $tickets = ThemisDB_SupportPortal_Ticket_Manager::get_user_tickets($user->ID);
 
-        $status_labels   = ThemisDB_Support_Ticket_Manager::get_status_labels();
-        $priority_labels = ThemisDB_Support_Ticket_Manager::get_priority_labels();
+        $status_labels   = ThemisDB_SupportPortal_Ticket_Manager::get_status_labels();
+        $priority_labels = ThemisDB_SupportPortal_Ticket_Manager::get_priority_labels();
 
         // Retrieve license info for display
         $license_info = $this->get_current_user_license_info($user->ID);
+        $support_benefit_info = $this->get_current_user_support_benefit_info($user->ID);
+
+        $new_ticket_allowed = true;
+        $limit_reason = '';
+        if (!empty($support_benefit_info) && !empty($support_benefit_info['benefit_id']) && class_exists('ThemisDB_Support_Benefits_Manager')) {
+            $check = ThemisDB_Support_Benefits_Manager::check_limits(intval($support_benefit_info['benefit_id']), 'normal');
+            if (is_array($check) && isset($check['allowed']) && !$check['allowed']) {
+                $new_ticket_allowed = false;
+                $limit_reason = isset($check['reason']) ? $check['reason'] : '';
+            }
+        }
 
         ob_start();
         ?>
@@ -282,15 +296,49 @@ class ThemisDB_Support_Shortcodes {
                 </div>
             </div>
 
+            <?php if ($support_benefit_info): ?>
+                <div class="themisdb-support-benefit-banner">
+                    <div class="themisdb-support-benefit-grid">
+                        <div>
+                            <strong><?php esc_html_e('Support-Tier', 'themisdb-support-portal'); ?>:</strong>
+                            <?php echo esc_html($support_benefit_info['tier_label']); ?>
+                        </div>
+                        <div>
+                            <strong><?php esc_html_e('Status', 'themisdb-support-portal'); ?>:</strong>
+                            <?php echo esc_html($support_benefit_info['status_label']); ?>
+                        </div>
+                        <div>
+                            <strong><?php esc_html_e('Antwort-SLA', 'themisdb-support-portal'); ?>:</strong>
+                            <?php echo esc_html($support_benefit_info['sla_label']); ?>
+                        </div>
+                        <div>
+                            <strong><?php esc_html_e('Offene Tickets', 'themisdb-support-portal'); ?>:</strong>
+                            <?php echo esc_html($support_benefit_info['open_tickets_label']); ?>
+                        </div>
+                    </div>
+                    <?php if (!empty($support_benefit_info['expires_at_label'])): ?>
+                        <p class="themisdb-support-benefit-meta">
+                            <em><?php echo esc_html($support_benefit_info['expires_at_label']); ?></em>
+                        </p>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
             <!-- New Ticket Form -->
             <div class="themisdb-support-section">
                 <div class="themisdb-support-section-header">
                     <h3><?php esc_html_e('Neues Ticket erstellen', 'themisdb-support-portal'); ?></h3>
-                    <button type="button" id="themisdb-support-toggle-form" class="themisdb-support-btn themisdb-support-btn-primary">
+                    <button type="button" id="themisdb-support-toggle-form" class="themisdb-support-btn themisdb-support-btn-primary" <?php disabled(!$new_ticket_allowed); ?>>
                         <span class="dashicons dashicons-plus"></span>
-                        <?php esc_html_e('Neues Ticket', 'themisdb-support-portal'); ?>
+                        <?php echo esc_html($new_ticket_allowed ? __('Neues Ticket', 'themisdb-support-portal') : __('Limit erreicht', 'themisdb-support-portal')); ?>
                     </button>
                 </div>
+
+                <?php if (!$new_ticket_allowed): ?>
+                    <div class="themisdb-support-limit-warning">
+                        <?php echo esc_html(!empty($limit_reason) ? $limit_reason : __('Sie haben Ihr aktuelles Ticket-Limit erreicht.', 'themisdb-support-portal')); ?>
+                    </div>
+                <?php endif; ?>
 
                 <div id="themisdb-support-new-ticket-form" class="themisdb-support-form-wrap" style="display:none;">
                     <form id="themisdb-new-ticket-form" method="post" novalidate>
@@ -308,7 +356,7 @@ class ThemisDB_Support_Shortcodes {
                                 <label for="themisdb-ticket-priority">
                                     <?php esc_html_e('Priorität', 'themisdb-support-portal'); ?>
                                 </label>
-                                <select id="themisdb-ticket-priority" name="priority">
+                                <select id="themisdb-ticket-priority" name="priority" <?php disabled(!$new_ticket_allowed); ?>>
                                     <?php foreach ($priority_labels as $value => $label): ?>
                                         <option value="<?php echo esc_attr($value); ?>"
                                             <?php selected($value, 'normal'); ?>>
@@ -323,12 +371,12 @@ class ThemisDB_Support_Shortcodes {
                             <label for="themisdb-ticket-message">
                                 <?php esc_html_e('Nachricht', 'themisdb-support-portal'); ?> <span class="themisdb-required">*</span>
                             </label>
-                            <textarea id="themisdb-ticket-message" name="message" rows="6" required
+                            <textarea id="themisdb-ticket-message" name="message" rows="6" required <?php disabled(!$new_ticket_allowed); ?>
                                 placeholder="<?php esc_attr_e('Bitte beschreiben Sie das Problem so detailliert wie möglich…', 'themisdb-support-portal'); ?>"></textarea>
                         </div>
 
                         <div class="themisdb-support-form-actions">
-                            <button type="submit" id="themisdb-submit-ticket" class="themisdb-support-btn themisdb-support-btn-primary">
+                            <button type="submit" id="themisdb-submit-ticket" class="themisdb-support-btn themisdb-support-btn-primary" <?php disabled(!$new_ticket_allowed); ?>>
                                 <?php esc_html_e('Ticket senden', 'themisdb-support-portal'); ?>
                             </button>
                             <button type="button" id="themisdb-cancel-ticket" class="themisdb-support-btn themisdb-support-btn-secondary">
@@ -455,5 +503,62 @@ class ThemisDB_Support_Shortcodes {
         }
 
         return null;
+    }
+
+    /**
+     * Retrieve support benefit summary for portal banner and limit hints.
+     *
+     * @param int $user_id
+     * @return array|null
+     */
+    private function get_current_user_support_benefit_info($user_id) {
+        if (!class_exists('ThemisDB_Support_Benefits_Manager')) {
+            return null;
+        }
+
+        $license_id = get_user_meta($user_id, 'themisdb_license_id', true);
+        if (!$license_id && class_exists('ThemisDB_License_Manager')) {
+            $license_key = get_user_meta($user_id, 'themisdb_support_license_key', true);
+            if ($license_key) {
+                $license = ThemisDB_License_Manager::get_license_by_key($license_key);
+                if (!empty($license['id'])) {
+                    $license_id = intval($license['id']);
+                }
+            }
+        }
+
+        if (!$license_id) {
+            return null;
+        }
+
+        $benefit = ThemisDB_Support_Benefits_Manager::get_by_license(intval($license_id));
+        if (!$benefit) {
+            return null;
+        }
+
+        $open_tickets_label = ($benefit['max_open_tickets'] == -1)
+            ? __('Unbegrenzt', 'themisdb-support-portal')
+            : sprintf(
+                '%d / %d',
+                intval($benefit['tickets_used_this_month']),
+                intval($benefit['max_open_tickets'])
+            );
+
+        $expires_at_label = '';
+        if (!empty($benefit['expires_at'])) {
+            $expires_at_label = sprintf(
+                __('Support aktiv bis: %s', 'themisdb-support-portal'),
+                date_i18n(get_option('date_format'), strtotime($benefit['expires_at']))
+            );
+        }
+
+        return array(
+            'benefit_id' => intval($benefit['id']),
+            'tier_label' => ucfirst(strval($benefit['tier_level'])),
+            'status_label' => ucfirst(strval($benefit['benefit_status'])),
+            'sla_label' => sprintf('%d h', intval($benefit['response_sla_hours'])),
+            'open_tickets_label' => $open_tickets_label,
+            'expires_at_label' => $expires_at_label,
+        );
     }
 }

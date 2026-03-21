@@ -99,6 +99,13 @@ class ThemisDB_Payment_Manager {
                 $status_synced = ThemisDB_Order_Manager::set_order_status($payment['order_id'], $target_order_status);
                 if (!$status_synced) {
                     error_log('ThemisDB Payment Sync Error: Failed to set order status for order ID ' . $payment['order_id'] . ' to ' . $target_order_status);
+                    if (class_exists('ThemisDB_Error_Handler')) {
+                        ThemisDB_Error_Handler::log('error', 'Payment verify sync failed: order status update failed', array(
+                            'payment_id' => intval($payment_id),
+                            'order_id' => intval($payment['order_id']),
+                            'target_status' => $target_order_status,
+                        ));
+                    }
                 }
                 
                 // Activate license if exists
@@ -112,6 +119,13 @@ class ThemisDB_Payment_Manager {
                                 ThemisDB_Email_Handler::send_license_email($license['id']);
                             } catch (Exception $e) {
                                 error_log('ThemisDB License Email Error: ' . $e->getMessage());
+                                if (class_exists('ThemisDB_Error_Handler')) {
+                                    ThemisDB_Error_Handler::log('warning', 'License email send failed after payment verification', array(
+                                        'payment_id' => intval($payment_id),
+                                        'license_id' => intval($license['id']),
+                                        'exception' => $e->getMessage(),
+                                    ));
+                                }
                             }
                         }
                     }
@@ -347,6 +361,12 @@ class ThemisDB_Payment_Manager {
         );
         
         $args = wp_parse_args($args, $defaults);
+
+        $allowed_orderby = array('id', 'payment_number', 'order_id', 'contract_id', 'amount', 'currency', 'payment_method', 'payment_status', 'payment_date', 'created_at', 'updated_at');
+        $orderby = in_array($args['orderby'], $allowed_orderby, true) ? $args['orderby'] : 'created_at';
+        $order = strtoupper((string) $args['order']) === 'ASC' ? 'ASC' : 'DESC';
+        $limit = max(1, absint($args['limit']));
+        $offset = max(0, absint($args['offset']));
         
         $where = "1=1";
         $where_values = array();
@@ -356,9 +376,9 @@ class ThemisDB_Payment_Manager {
             $where_values[] = $args['status'];
         }
         
-        $query = "SELECT * FROM $table_payments WHERE $where ORDER BY {$args['orderby']} {$args['order']} LIMIT %d OFFSET %d";
-        $where_values[] = $args['limit'];
-        $where_values[] = $args['offset'];
+        $query = "SELECT * FROM $table_payments WHERE $where ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d";
+        $where_values[] = $limit;
+        $where_values[] = $offset;
         
         $payments = $wpdb->get_results($wpdb->prepare($query, $where_values), ARRAY_A);
         

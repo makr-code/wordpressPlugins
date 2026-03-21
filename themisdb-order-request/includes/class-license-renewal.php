@@ -46,20 +46,43 @@ if ( ! defined( 'ABSPATH' ) ) {
 class ThemisDB_License_Renewal {
 
     /**
+     * Register renewal hooks.
+     */
+    public static function init() {
+        add_action( 'init', array( __CLASS__, 'handle_one_click_request' ) );
+    }
+
+    /**
      * Check all active licenses and send renewal reminders as needed.
      * Called daily by WP-Cron via the `themisdb_license_renewal_check` action.
      */
     public static function send_renewal_reminders() {
         global $wpdb;
 
-        $reminder_days = (int) get_option( 'themisdb_license_renewal_reminder_days', 30 );
-        if ( $reminder_days < 1 ) {
+        // Reminder milestones required by roadmap phase 5.1.
+        $reminder_days_list = apply_filters(
+            'themisdb_license_renewal_reminder_days_list',
+            array( 30, 7, 1 )
+        );
+        $reminder_days_list = array_values(
+            array_unique(
+                array_filter(
+                    array_map( 'intval', (array) $reminder_days_list ),
+                    function ( $v ) {
+                        return $v > 0;
+                    }
+                )
+            )
+        );
+
+        if ( empty( $reminder_days_list ) ) {
             return;
         }
 
         $table  = $wpdb->prefix . 'themisdb_licenses';
         $today  = gmdate( 'Y-m-d' );
-        $cutoff = gmdate( 'Y-m-d', strtotime( "+{$reminder_days} days" ) );
+        $max_days = max( $reminder_days_list );
+        $cutoff = gmdate( 'Y-m-d', strtotime( "+{$max_days} days" ) );
 
         // Find active licenses expiring within the reminder window
         $licenses = $wpdb->get_results(
@@ -79,18 +102,32 @@ class ThemisDB_License_Renewal {
         );
 
         foreach ( $licenses as $license ) {
-            self::maybe_send_reminder( $license, $today );
+            self::maybe_send_reminder( $license, $today, $reminder_days_list );
+            self::maybe_auto_renew( $license );
         }
     }
 
     /**
      * Send a reminder for a single license if one has not already been sent today.
      *
-     * @param array  $license  License row with joined customer columns.
-     * @param string $today    Today's date (Y-m-d).
+     * @param array  $license            License row with joined customer columns.
+     * @param string $today              Today's date (Y-m-d).
+     * @param array  $reminder_days_list Reminder milestone days.
      */
-    private static function maybe_send_reminder( array $license, string $today ) {
+    private static function maybe_send_reminder( array $license, string $today, array $reminder_days_list ) {
         global $wpdb;
+
+        if ( empty( $license['expiry_date'] ) || $license['expiry_date'] === '9999-12-31' ) {
+            return;
+        }
+
+        $days_left = (int) floor(
+            ( strtotime( $license['expiry_date'] . ' 00:00:00' ) - strtotime( gmdate( 'Y-m-d' ) . ' 00:00:00' ) ) / DAY_IN_SECONDS
+        );
+
+        if ( ! in_array( $days_left, $reminder_days_list, true ) ) {
+            return;
+        }
 
         // Decode usage_data to check last reminder date
         $usage_data = ! empty( $license['usage_data'] )
@@ -101,16 +138,28 @@ class ThemisDB_License_Renewal {
             $usage_data = array();
         }
 
-        $last_sent = $usage_data['renewal_reminder_sent_date'] ?? '';
-        if ( $last_sent === $today ) {
+        $sent_days = isset( $usage_data['renewal_reminder_sent_days'] ) && is_array( $usage_data['renewal_reminder_sent_days'] )
+            ? $usage_data['renewal_reminder_sent_days']
+            : array();
+
+        $today_milestones = isset( $sent_days[ $today ] ) && is_array( $sent_days[ $today ] )
+            ? array_map( 'intval', $sent_days[ $today ] )
+            : array();
+
+        if ( in_array( $days_left, $today_milestones, true ) ) {
             return; // Already sent today
         }
 
-        $sent = self::send_reminder_email( $license );
+        $sent = self::send_reminder_email( $license, $days_left );
 
         if ( $sent ) {
-            // Record the date so we don't send again today
+            // Keep old flag for backward compatibility.
             $usage_data['renewal_reminder_sent_date'] = $today;
+
+            $today_milestones[] = $days_left;
+            $sent_days[ $today ] = array_values( array_unique( $today_milestones ) );
+            $usage_data['renewal_reminder_sent_days'] = $sent_days;
+
             $wpdb->update(
                 $wpdb->prefix . 'themisdb_licenses',
                 array( 'usage_data' => wp_json_encode( $usage_data ) ),
@@ -122,19 +171,181 @@ class ThemisDB_License_Renewal {
     }
 
     /**
+     * Auto-renew active licenses when enabled in usage_data and when due date is reached.
+     *
+     * @param array $license
+     * @return void
+     */
+    private static function maybe_auto_renew( array $license ) {
+        if ( get_option( 'themisdb_license_allow_auto_renewal', '1' ) !== '1' ) {
+            return;
+        }
+
+        if ( empty( $license['expiry_date'] ) || $license['expiry_date'] === '9999-12-31' ) {
+            return;
+        }
+
+        if ( $license['license_status'] !== 'active' ) {
+            return;
+        }
+
+        $usage_data = ! empty( $license['usage_data'] )
+            ? json_decode( $license['usage_data'], true )
+            : array();
+        if ( ! is_array( $usage_data ) ) {
+            $usage_data = array();
+        }
+
+        $auto_renew_enabled = ! empty( $usage_data['auto_renew_enabled'] );
+        if ( ! $auto_renew_enabled ) {
+            return;
+        }
+
+        $today = gmdate( 'Y-m-d' );
+        if ( strtotime( $license['expiry_date'] . ' 00:00:00' ) > strtotime( $today . ' 00:00:00' ) ) {
+            return;
+        }
+
+        self::renew_license_term( intval( $license['id'] ), 'auto_renewal' );
+    }
+
+    /**
+     * Extend a license by configured renewal term and reactivate status.
+     *
+     * @param int    $license_id
+     * @param string $reason
+     * @return bool
+     */
+    public static function renew_license_term( $license_id, $reason = 'manual' ) {
+        global $wpdb;
+
+        $license_id = intval( $license_id );
+        if ( $license_id <= 0 ) {
+            return false;
+        }
+
+        if ( ! class_exists( 'ThemisDB_License_Manager' ) ) {
+            return false;
+        }
+
+        $license = ThemisDB_License_Manager::get_license( $license_id );
+        if ( ! $license || $license['license_status'] === 'cancelled' ) {
+            return false;
+        }
+
+        $term_days = intval( get_option( 'themisdb_license_default_term_days', 365 ) );
+        if ( $term_days < 1 ) {
+            $term_days = 365;
+        }
+
+        $base_date = ! empty( $license['expiry_date'] )
+            ? $license['expiry_date']
+            : gmdate( 'Y-m-d' );
+
+        if ( $base_date < gmdate( 'Y-m-d' ) ) {
+            $base_date = gmdate( 'Y-m-d' );
+        }
+
+        $new_expiry = gmdate( 'Y-m-d', strtotime( $base_date . " +{$term_days} days" ) );
+
+        $usage_data = isset( $license['usage_data'] ) && is_array( $license['usage_data'] )
+            ? $license['usage_data']
+            : array();
+
+        $usage_data['last_renewed_at'] = current_time( 'mysql' );
+        $usage_data['last_renewal_reason'] = sanitize_text_field( $reason );
+        $usage_data['renewal_term_days'] = $term_days;
+
+        $result = $wpdb->update(
+            $wpdb->prefix . 'themisdb_licenses',
+            array(
+                'expiry_date' => $new_expiry,
+                'license_status' => 'active',
+                'usage_data' => wp_json_encode( $usage_data ),
+            ),
+            array( 'id' => $license_id ),
+            array( '%s', '%s', '%s' ),
+            array( '%d' )
+        );
+
+        if ( class_exists( 'ThemisDB_Error_Handler' ) ) {
+            ThemisDB_Error_Handler::log(
+                $result !== false ? 'info' : 'error',
+                $result !== false ? 'License renewed successfully' : 'License renewal failed',
+                array(
+                    'license_id' => $license_id,
+                    'reason' => sanitize_text_field( $reason ),
+                    'new_expiry' => $new_expiry,
+                )
+            );
+        }
+
+        return $result !== false;
+    }
+
+    /**
+     * Create a one-click renewal URL for a license.
+     *
+     * @param int $license_id
+     * @return string
+     */
+    public static function generate_one_click_url( $license_id ) {
+        $license_id = intval( $license_id );
+        if ( $license_id <= 0 ) {
+            return '';
+        }
+
+        $token = wp_generate_password( 32, false, false );
+        set_transient( 'themisdb_renew_token_' . $token, $license_id, DAY_IN_SECONDS * 3 );
+
+        return add_query_arg(
+            array(
+                'themisdb_renew_token' => rawurlencode( $token ),
+            ),
+            home_url( '/' )
+        );
+    }
+
+    /**
+     * Process one-click renewal request from renewal email.
+     */
+    public static function handle_one_click_request() {
+        if ( empty( $_GET['themisdb_renew_token'] ) ) {
+            return;
+        }
+
+        $token = sanitize_text_field( wp_unslash( $_GET['themisdb_renew_token'] ) );
+        $license_id = intval( get_transient( 'themisdb_renew_token_' . $token ) );
+        if ( $license_id <= 0 ) {
+            wp_die( esc_html__( 'Invalid or expired renewal token.', 'themisdb-order-request' ) );
+        }
+
+        $ok = self::renew_license_term( $license_id, 'one_click_renewal' );
+        delete_transient( 'themisdb_renew_token_' . $token );
+
+        $redirect = add_query_arg(
+            array( 'themisdb_renewal' => $ok ? 'success' : 'failed' ),
+            home_url( '/contact/' )
+        );
+        wp_safe_redirect( $redirect );
+        exit;
+    }
+
+    /**
      * Send the renewal reminder e-mail to the customer.
      *
      * @param array $license  License row with joined customer columns.
+     * @param int   $days_left
      * @return bool           True if wp_mail succeeded.
      */
-    private static function send_reminder_email( array $license ) {
+    private static function send_reminder_email( array $license, $days_left ) {
         $to = $license['customer_email'] ?? '';
         if ( empty( $to ) || ! is_email( $to ) ) {
             return false;
         }
 
         $expiry_date  = $license['expiry_date'];
-        $days_left    = (int) floor( ( strtotime( $expiry_date . ' 00:00:00' ) - strtotime( gmdate( 'Y-m-d' ) . ' 00:00:00' ) ) / DAY_IN_SECONDS );
+        $days_left    = intval( $days_left );
         $edition      = strtoupper( $license['product_edition'] ?? 'COMMUNITY' );
         $license_key  = $license['license_key'] ?? '';
         $customer     = $license['customer_name'] ?? $to;
@@ -153,6 +364,8 @@ class ThemisDB_License_Renewal {
             $license
         );
 
+        $one_click_url = self::generate_one_click_url( intval( $license['id'] ) );
+
         $message = self::get_reminder_template( array(
             'customer'    => $customer,
             'company'     => $company,
@@ -161,6 +374,7 @@ class ThemisDB_License_Renewal {
             'expiry_date' => $expiry_date,
             'days_left'   => $days_left,
             'renewal_url' => $renewal_url,
+            'one_click_url' => $one_click_url,
         ) );
 
         $from_email = get_option( 'themisdb_order_email_from', get_option( 'admin_email' ) );
@@ -233,6 +447,15 @@ class ThemisDB_License_Renewal {
             <?php esc_html_e( 'Renew License Now', 'themisdb-order-request' ); ?>
         </a>
     </p>
+
+    <?php if ( ! empty( $data['one_click_url'] ) ) : ?>
+    <p style="margin:0 0 24px;">
+        <a href="<?php echo esc_url( $data['one_click_url'] ); ?>"
+           style="background:#0f766e;color:#fff;padding:12px 24px;text-decoration:none;border-radius:4px;display:inline-block;">
+            <?php esc_html_e( 'One-Click Renewal', 'themisdb-order-request' ); ?>
+        </a>
+    </p>
+    <?php endif; ?>
 
     <p style="color:#777;font-size:12px;">
         <?php printf(

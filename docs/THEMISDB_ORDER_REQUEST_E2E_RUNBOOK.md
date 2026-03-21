@@ -107,9 +107,42 @@ Empfohlene Referenzdaten:
 1. Sichere Fehlerbehandlung
 2. Keine stillen Datenkorruptionen
 
+### E2E-11 Woo Bridge: Order Sync + Lizenzanlage
+- Schritte:
+1. WooCommerce Bestellung auf processing/completed setzen
+2. In `wp_postmeta` auf `_themisdb_order_id` und `_themisdb_license_id` pruefen
+3. ThemisDB Order/License Datensaetze im Admin oeffnen
+- Erwartung:
+1. ThemisDB Order wird genau einmal angelegt (idempotent)
+2. Vertrag/Lizenz werden erstellt und Lizenz ist aktiv
+3. Woo-Bestellnotiz mit ThemisDB IDs vorhanden
+
+### E2E-12 Woo Bridge: Status- und Refund-Mapping
+- Schritte:
+1. Woo-Status wechseln: pending -> processing -> completed
+2. Danach auf on-hold oder failed wechseln
+3. Refund ausloesen (teilweise und vollstaendig)
+- Erwartung:
+1. ThemisDB Order-Status wird korrekt gemappt
+2. Lizenzstatus wird passend aktiviert/suspendiert/storniert
+3. Teilrefund fuehrt nicht zu hartem Lifecycle-Ende, Vollrefund beendet den Lifecycle
+
+### E2E-13 Woo Bridge: Product Catalog Sync
+- Schritte:
+1. Woo-Produkt mit Meta `themisdb_product_edition` = enterprise und `themisdb_item_type` = product anlegen
+2. Meta `themisdb_item_type` = module mit `themisdb_module_code` = MOD-TEST anlegen
+3. Meta `themisdb_item_type` = training mit `themisdb_training_code` = TRAIN-TEST anlegen
+4. Jedes Produkt speichern; `_themisdb_product_id` / `_themisdb_module_id` / `_themisdb_training_id` postmeta pruefen
+5. Produkt in den Papierkorb verschieben; ThemisDB `is_active` pruefen
+- Erwartung:
+1. Produkt landet in `themisdb_products` (edition=enterprise), Module in `themisdb_modules`, Training in `themisdb_training_modules`
+2. Reverse-Mapping postmeta ist gesetzt (`_themisdb_product_id` etc.)
+3. Trash setzt `is_active = 0`, Wiederherstellen setzt `is_active = 1`
+4. Kein doppelter Eintrag bei erneutem Speichern (idempotenter Upsert via product_code)
+
 ## Go/No-Go Kriterien
 Go nur wenn:
-1. Alle E2E-01 bis E2E-10 bestanden
+1. Alle E2E-01 bis E2E-13 bestanden
 2. Keine PHP-Fehler/Warnungen im Debug-Log waehrend Tests
 3. Keine Dateninkonsistenzen in Beziehungen order/contract/payment/license
 4. Release-Artefakte und update-info Versionen konsistent
@@ -124,10 +157,38 @@ No-Go wenn:
 - Tester:
 - Umgebung:
 - Plugin Version:
-- Ergebnis E2E-01 bis E2E-10:
+- Ergebnis E2E-01 bis E2E-13:
 - Offene Defekte:
 - Risikoabschaetzung:
 - Entscheidung: GO oder NO-GO
+
+## Automatisierbarer Smoke-Check (WP-CLI)
+Basis:
+```powershell
+pwsh -File scripts/themisdb-order-request-e2e-smoke.ps1 -WpPath "C:\path\to\wordpress"
+```
+
+Mit Woo-Bridge-Checks:
+```powershell
+pwsh -File scripts/themisdb-order-request-e2e-smoke.ps1 -WpPath "C:\path\to\wordpress" -CheckWooBridge
+```
+
+Vollautomatisches E2E-Fixture (erstellt Testdaten, laeuft alle Assertionen durch):
+```bash
+# Standard (Testdaten bleiben erhalten)
+wp eval-file scripts/create-test-woo-orders.php --path=/path/to/wordpress
+
+# Mit Verbose-Ausgabe
+THEMISDEB_FIXTURE_VERBOSE=1 wp eval-file scripts/create-test-woo-orders.php --path=/path/to/wordpress
+
+# Mit automatischem Cleanup
+THEMISDEB_FIXTURE_CLEANUP=1 wp eval-file scripts/create-test-woo-orders.php --path=/path/to/wordpress
+```
+
+Das Fixture-Skript deckt automatisch ab:
+- E2E-11 (Order Sync + Lizenzanlage)
+- E2E-12 (Status/Refund-Mapping: completed/cancelled/refunded/cheque)
+- E2E-13 (Product Catalog Sync: product/module/training + Trash/Untrash)
 
 ## Verknuepfte Doku
 - docs/WORDPRESS_PLUGIN_OPERATIONS.md

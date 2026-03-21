@@ -395,10 +395,16 @@ class ThemisDB_License_Portal {
     private function get_or_create_trial_order( WP_User $user ) {
         global $wpdb;
         $table = $wpdb->prefix . 'themisdb_orders';
+        
+        // Validate and quote table identifier
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+            return false;
+        }
+        $table_sql = '`' . $table . '`';
 
         // Check for existing trial order
         $existing = $wpdb->get_var( $wpdb->prepare(
-            "SELECT id FROM $table WHERE customer_email = %s AND notes LIKE %s LIMIT 1",
+            "SELECT id FROM {$table_sql} WHERE customer_email = %s AND notes LIKE %s LIMIT 1",
             $user->user_email,
             '%trial%'
         ) );
@@ -428,9 +434,15 @@ class ThemisDB_License_Portal {
     private function get_or_create_trial_contract( $order_id ) {
         global $wpdb;
         $table = $wpdb->prefix . 'themisdb_contracts';
+        
+        // Validate and quote table identifier
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+            return false;
+        }
+        $table_sql = '`' . $table . '`';
 
         $existing = $wpdb->get_var( $wpdb->prepare(
-            "SELECT id FROM $table WHERE order_id = %d LIMIT 1",
+            "SELECT id FROM {$table_sql} WHERE order_id = %d LIMIT 1",
             $order_id
         ) );
         if ( $existing ) {

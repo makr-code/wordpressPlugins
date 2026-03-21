@@ -165,7 +165,13 @@ class ThemisDB_Order_Manager {
         }
 
         $table_orders = $wpdb->prefix . 'themisdb_orders';
-        $columns = $wpdb->get_col("SHOW COLUMNS FROM $table_orders", 0);
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table_orders)) {
+            self::$orders_table_columns = array();
+            return self::$orders_table_columns;
+        }
+
+        $table_orders_sql = '`' . $table_orders . '`';
+        $columns = $wpdb->get_col("SHOW COLUMNS FROM {$table_orders_sql}", 0);
 
         if (!is_array($columns) || empty($columns)) {
             self::$orders_table_columns = array();
@@ -213,6 +219,12 @@ class ThemisDB_Order_Manager {
 
         if (!$order_exists) {
             error_log('ThemisDB Status Update Error: Order ID ' . $order_id . ' does not exist.');
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('error', 'Order status update failed: order does not exist', array(
+                    'order_id' => $order_id,
+                    'requested_status' => $normalized_status,
+                ));
+            }
             return false;
         }
 
@@ -226,6 +238,13 @@ class ThemisDB_Order_Manager {
 
         if ($result === false) {
             error_log('ThemisDB Status Update Error: Database error while updating order ' . $order_id . ': ' . $wpdb->last_error);
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('error', 'Order status update failed: database error', array(
+                    'order_id' => $order_id,
+                    'requested_status' => $normalized_status,
+                    'db_error' => (string) $wpdb->last_error,
+                ));
+            }
             return false;
         }
 
@@ -486,6 +505,12 @@ class ThemisDB_Order_Manager {
         );
         
         $args = wp_parse_args($args, $defaults);
+
+        $allowed_orderby = array('id', 'order_number', 'customer_id', 'customer_email', 'product_type', 'product_edition', 'total_amount', 'currency', 'status', 'step', 'created_at', 'updated_at');
+        $orderby = in_array($args['orderby'], $allowed_orderby, true) ? $args['orderby'] : 'created_at';
+        $order = strtoupper((string) $args['order']) === 'ASC' ? 'ASC' : 'DESC';
+        $limit = max(1, absint($args['limit']));
+        $offset = max(0, absint($args['offset']));
         
         $where = "1=1";
         $where_values = array();
@@ -501,9 +526,9 @@ class ThemisDB_Order_Manager {
             $where .= " AND {$table_contracts}.id IS NULL";
         }
         
-        $query = "SELECT {$table_orders}.* FROM $table_orders $join WHERE $where ORDER BY {$table_orders}.{$args['orderby']} {$args['order']} LIMIT %d OFFSET %d";
-        $where_values[] = $args['limit'];
-        $where_values[] = $args['offset'];
+        $query = "SELECT {$table_orders}.* FROM $table_orders $join WHERE $where ORDER BY {$table_orders}.{$orderby} {$order} LIMIT %d OFFSET %d";
+        $where_values[] = $limit;
+        $where_values[] = $offset;
         
         $orders = $wpdb->get_results($wpdb->prepare($query, $where_values), ARRAY_A);
         
