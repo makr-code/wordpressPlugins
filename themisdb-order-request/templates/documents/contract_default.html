@@ -1,0 +1,28 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.6; margin: 32px; }
+        h1 { margin-bottom: 8px; }
+        .meta { color: #4b5563; margin-bottom: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        td { border-bottom: 1px solid #e5e7eb; padding: 8px; }
+        td:first-child { width: 35%; font-weight: bold; background: #f9fafb; }
+    </style>
+</head>
+<body>
+    <h1>VERTRAG</h1>
+    <div class="meta">Vertragsnummer: {{contract_number}} | Gueltig von {{valid_from}} bis {{valid_until}}</div>
+
+    <table>
+        <tr><td>Kunde</td><td>{{customer_name}}</td></tr>
+        <tr><td>Unternehmen</td><td>{{customer_company}}</td></tr>
+        <tr><td>E-Mail</td><td>{{customer_email}}</td></tr>
+        <tr><td>Bestellung</td><td>{{order_number}}</td></tr>
+        <tr><td>Produkt</td><td>{{product_name}}</td></tr>
+        <tr><td>Betrag</td><td>{{total_amount}} {{currency}}</td></tr>
+    </table>
+
+    <p style="margin-top:20px;">Dieser Vertrag regelt die Nutzung der vereinbarten Leistungen gemaess den gueltigen Bedingungen.</p>
+</body>
+</html>

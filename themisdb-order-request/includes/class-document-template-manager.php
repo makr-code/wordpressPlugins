@@ -117,6 +117,44 @@ class ThemisDB_Document_Template_Manager {
 
         return $templates[$template_id];
     }
+
+    /**
+     * Reload a system template strictly from its template file.
+     * Returns false when no template file exists for the given template ID.
+     */
+    public static function reload_template_from_file($template_id) {
+        $template_id = sanitize_key((string) $template_id);
+        $file_name = self::get_default_template_file_name($template_id);
+        if ($file_name === '') {
+            return false;
+        }
+
+        $file_content = self::load_default_template_file($file_name);
+        if ($file_content === '') {
+            return false;
+        }
+
+        $default = self::get_default_template($template_id);
+        if (empty($default)) {
+            return false;
+        }
+
+        $templates = self::get_templates();
+        $templates[$template_id] = array(
+            'id' => $template_id,
+            'name' => $default['name'] ?? $template_id,
+            'type' => $default['type'] ?? 'letter',
+            'subject' => $default['subject'] ?? '',
+            'content' => $file_content,
+            'updated_at' => date('Y-m-d H:i:s'),
+            'variables' => isset($default['variables']) && is_array($default['variables'])
+                ? $default['variables']
+                : self::extract_variables($file_content),
+        );
+
+        update_option('themisdb_document_templates', $templates);
+        return $templates[$template_id];
+    }
     
     /**
      * Extract {{variable}} names from template content
@@ -230,6 +268,21 @@ class ThemisDB_Document_Template_Manager {
                     'total_amount', 'currency', 'company_name', 'company_email'
                 ),
                 'updated_at' => date('Y-m-d H:i:s')
+            ),
+            'license_default' => array(
+                'id' => 'license_default',
+                'name' => 'Lizenzdokument',
+                'type' => 'license',
+                'subject' => 'Lizenz {{license_key}}',
+                'content' => self::get_default_license_template(),
+                'variables' => array(
+                    'license_key', 'license_type', 'license_status',
+                    'product_edition', 'max_nodes', 'max_cores', 'max_storage_gb',
+                    'created_date', 'activation_date', 'expiry_date',
+                    'customer_name', 'customer_email', 'customer_company',
+                    'order_number', 'company_name', 'company_email'
+                ),
+                'updated_at' => date('Y-m-d H:i:s')
             )
         );
     }
@@ -238,6 +291,11 @@ class ThemisDB_Document_Template_Manager {
      * Default contract template
      */
     private static function get_default_contract_template() {
+        $template = self::load_default_template_file('contract_default.html');
+        if ($template !== '') {
+            return $template;
+        }
+
         return <<<'HTML'
 <html>
 <head>
@@ -329,6 +387,11 @@ HTML;
      * Default invoice template
      */
     private static function get_default_invoice_template() {
+        $template = self::load_default_template_file('invoice_default.html');
+        if ($template !== '') {
+            return $template;
+        }
+
         return <<<'HTML'
 <html>
 <head>
@@ -408,6 +471,11 @@ HTML;
      * Default letter template
      */
     private static function get_default_letter_template() {
+        $template = self::load_default_template_file('letter_default.html');
+        if ($template !== '') {
+            return $template;
+        }
+
         return <<<'HTML'
 <html>
 <head>
@@ -475,6 +543,11 @@ HTML;
      * Default terms and conditions template
      */
     private static function get_default_terms_template() {
+        $template = self::load_default_template_file('terms_default.html');
+        if ($template !== '') {
+            return $template;
+        }
+
         return <<<'HTML'
 <html>
 <head>
@@ -516,6 +589,11 @@ HTML;
      * Default callback confirmation template
      */
     private static function get_default_callback_template() {
+        $template = self::load_default_template_file('callback_default.html');
+        if ($template !== '') {
+            return $template;
+        }
+
         return <<<'HTML'
 <html>
 <head>
@@ -545,6 +623,11 @@ HTML;
      * Default payment request template
      */
     private static function get_default_payment_request_template() {
+        $template = self::load_default_template_file('payment_request_default.html');
+        if ($template !== '') {
+            return $template;
+        }
+
         return <<<'HTML'
 <html>
 <head>
@@ -572,5 +655,94 @@ HTML;
 </body>
 </html>
 HTML;
+    }
+
+    /**
+     * Default license document template
+     */
+    private static function get_default_license_template() {
+        $template = self::load_default_template_file('license_default.html');
+        if ($template !== '') {
+            return $template;
+        }
+
+        return <<<'HTML'
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.6; margin: 40px; }
+        h1 { margin-bottom: 10px; }
+        .meta { margin-bottom: 20px; color: #444; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { border: 1px solid #ddd; padding: 8px; }
+        .info-table td:first-child { font-weight: bold; width: 30%; background: #f8f8f8; }
+    </style>
+</head>
+<body>
+    <h1>LIZENZDOKUMENT</h1>
+    <div class="meta">
+        <p>{{company_name}} | {{company_email}}</p>
+    </div>
+
+    <table class="info-table">
+        <tr><td>Lizenzschluessel</td><td>{{license_key}}</td></tr>
+        <tr><td>Lizenztyp</td><td>{{license_type}}</td></tr>
+        <tr><td>Status</td><td>{{license_status}}</td></tr>
+        <tr><td>Edition</td><td>{{product_edition}}</td></tr>
+        <tr><td>Order</td><td>{{order_number}}</td></tr>
+        <tr><td>Kunde</td><td>{{customer_name}} ({{customer_email}})</td></tr>
+        <tr><td>Unternehmen</td><td>{{customer_company}}</td></tr>
+        <tr><td>Max Nodes</td><td>{{max_nodes}}</td></tr>
+        <tr><td>Max Cores</td><td>{{max_cores}}</td></tr>
+        <tr><td>Max Storage (GB)</td><td>{{max_storage_gb}}</td></tr>
+        <tr><td>Erstellt am</td><td>{{created_date}}</td></tr>
+        <tr><td>Aktiviert am</td><td>{{activation_date}}</td></tr>
+        <tr><td>Gueltig bis</td><td>{{expiry_date}}</td></tr>
+    </table>
+</body>
+</html>
+HTML;
+    }
+
+    /**
+     * Load a default template from templates/documents if present.
+     */
+    private static function load_default_template_file($file_name) {
+        if (!defined('THEMISDB_ORDER_PLUGIN_DIR')) {
+            return '';
+        }
+
+        $file_name = sanitize_file_name((string) $file_name);
+        $path = trailingslashit(THEMISDB_ORDER_PLUGIN_DIR) . 'templates/documents/' . $file_name;
+
+        if (!file_exists($path) || !is_readable($path)) {
+            return '';
+        }
+
+        $content = file_get_contents($path);
+        if (!is_string($content)) {
+            return '';
+        }
+
+        $content = trim($content);
+        return $content !== '' ? $content : '';
+    }
+
+    /**
+     * Map system template IDs to template file names.
+     */
+    private static function get_default_template_file_name($template_id) {
+        $map = array(
+            'contract_default' => 'contract_default.html',
+            'invoice_default' => 'invoice_default.html',
+            'letter_default' => 'letter_default.html',
+            'terms_default' => 'terms_default.html',
+            'callback_default' => 'callback_default.html',
+            'payment_request_default' => 'payment_request_default.html',
+            'license_default' => 'license_default.html',
+        );
+
+        return isset($map[$template_id]) ? $map[$template_id] : '';
     }
 }

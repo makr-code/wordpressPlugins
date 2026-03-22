@@ -1213,6 +1213,11 @@ document.addEventListener("DOMContentLoaded", function() {
                 'filename_prefix' => 'invoice',
                 'label' => __('Rechnung', 'themisdb-order-request'),
             ),
+            'license' => array(
+                'template_id' => 'license_default',
+                'filename_prefix' => 'license',
+                'label' => __('Lizenz', 'themisdb-order-request'),
+            ),
             'terms' => array(
                 'template_id' => 'terms_default',
                 'filename_prefix' => 'terms',
@@ -1249,6 +1254,26 @@ document.addEventListener("DOMContentLoaded", function() {
             if ($pdf_data === false) {
                 $pdf_data = ThemisDB_PDF_Generator::generate_invoice_pdf($order_id);
             }
+        } elseif ($document_type === 'license') {
+            $license = ThemisDB_License_Manager::get_license_by_order($order_id);
+            if (!$license) {
+                $contracts = ThemisDB_Contract_Manager::get_contracts_by_order($order_id);
+                if (!empty($contracts[0]['id'])) {
+                    $license = ThemisDB_License_Manager::get_license_by_contract(intval($contracts[0]['id']));
+                }
+            }
+
+            if (!$license) {
+                $this->abort_with_log(
+                    __('Zu dieser Bestellung wurde keine Lizenz gefunden.', 'themisdb-order-request'),
+                    'License document generation failed: no license found for order',
+                    array('order_id' => intval($order_id)),
+                    'warning'
+                );
+                return;
+            }
+
+            $pdf_data = ThemisDB_Document_Renderer::render_license_pdf($license, $document_cfg['template_id']);
         } else {
             $pdf_data = ThemisDB_Document_Renderer::render_template_pdf(
                 $document_cfg['template_id'],
@@ -1998,6 +2023,9 @@ document.addEventListener("DOMContentLoaded", function() {
                     </a>
                     <a href="<?php echo esc_url($this->get_document_download_url($order_id, 'payment_request')); ?>" class="button">
                         <?php esc_html_e('Zahlungsaufforderung (PDF)', 'themisdb-order-request'); ?>
+                    </a>
+                    <a href="<?php echo esc_url($this->get_document_download_url($order_id, 'license')); ?>" class="button">
+                        <?php esc_html_e('Lizenz (PDF)', 'themisdb-order-request'); ?>
                     </a>
                     <a href="<?php echo esc_url($this->get_document_download_url($order_id, 'terms')); ?>" class="button">
                         <?php esc_html_e('AGB (PDF)', 'themisdb-order-request'); ?>
@@ -8013,13 +8041,118 @@ document.addEventListener("DOMContentLoaded", function() {
             wp_die(__('Keine Berechtigung', 'themisdb-order-request'));
         }
 
-        $system_templates = array('contract_default', 'invoice_default', 'letter_default', 'terms_default', 'callback_default', 'payment_request_default');
+        $system_templates = array('contract_default', 'invoice_default', 'letter_default', 'terms_default', 'callback_default', 'payment_request_default', 'license_default');
         $notice = null;
         $notice_type = 'success';
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $post_action = sanitize_text_field(wp_unslash($_POST['action']));
             $template_id = isset($_POST['template_id']) ? sanitize_key(wp_unslash($_POST['template_id'])) : '';
+
+            if ($post_action === 'preview_document_template') {
+                check_admin_referer('themisdb_preview_document_template');
+
+                $preview_order_id = isset($_POST['preview_order_id']) ? absint($_POST['preview_order_id']) : 0;
+                $preview_format = isset($_POST['preview_format']) ? sanitize_key(wp_unslash($_POST['preview_format'])) : 'html';
+                $preview_template_id = isset($_POST['template_id']) ? sanitize_key(wp_unslash($_POST['template_id'])) : '';
+                $preview_license = false;
+                $preview_template = ThemisDB_Document_Template_Manager::get_template($preview_template_id);
+                $template_type = !empty($preview_template['type']) ? sanitize_key((string) $preview_template['type']) : '';
+
+                if ($preview_order_id <= 0 && isset($_POST['preview_use_latest']) && sanitize_text_field(wp_unslash($_POST['preview_use_latest'])) === '1') {
+                    $latest_orders = ThemisDB_Order_Manager::get_all_orders(array(
+                        'limit' => 1,
+                        'offset' => 0,
+                        'orderby' => 'created_at',
+                        'order' => 'DESC',
+                    ));
+
+                    if (!empty($latest_orders[0]['id'])) {
+                        $preview_order_id = absint($latest_orders[0]['id']);
+                    }
+                }
+
+                if (isset($_POST['preview_use_latest_license']) && sanitize_text_field(wp_unslash($_POST['preview_use_latest_license'])) === '1') {
+                    $latest_licenses = ThemisDB_License_Manager::get_all_licenses(1, 0);
+                    if (!empty($latest_licenses[0]['id'])) {
+                        $preview_license = ThemisDB_License_Manager::get_license(intval($latest_licenses[0]['id']));
+                        if ($preview_license && !empty($preview_license['order_id'])) {
+                            $preview_order_id = absint($preview_license['order_id']);
+                        }
+                    }
+                }
+
+                if ($preview_template_id === '') {
+                    $notice = __('Bitte Vorlage fuer die Vorschau auswaehlen.', 'themisdb-order-request');
+                    $notice_type = 'error';
+                } elseif ($preview_order_id <= 0 && $template_type !== 'license' && !$preview_license) {
+                    $notice = __('Bitte Bestellung fuer die Vorschau auswaehlen.', 'themisdb-order-request');
+                    $notice_type = 'error';
+                } else {
+                    $order = $preview_order_id > 0 ? ThemisDB_Order_Manager::get_order($preview_order_id) : false;
+                    if ($preview_order_id > 0 && empty($order)) {
+                        $notice = __('Bestellung fuer Vorschau nicht gefunden.', 'themisdb-order-request');
+                        $notice_type = 'error';
+                    } else {
+                        if ($template_type === 'license' && !$preview_license && $preview_order_id > 0) {
+                            $preview_license = ThemisDB_License_Manager::get_license_by_order($preview_order_id);
+                            if (!$preview_license) {
+                                $contracts = ThemisDB_Contract_Manager::get_contracts_by_order($preview_order_id);
+                                if (!empty($contracts[0]['id'])) {
+                                    $preview_license = ThemisDB_License_Manager::get_license_by_contract(intval($contracts[0]['id']));
+                                }
+                            }
+                        }
+
+                        if ($preview_format === 'pdf') {
+                            $filename_suffix = $order ? ($order['order_number'] ?? (string) $preview_order_id) : ('license-' . intval($preview_license['id'] ?? 0));
+                            $filename = 'preview-' . sanitize_file_name($preview_template_id . '-' . $filename_suffix);
+                            if ($template_type === 'license') {
+                                $pdf_data = $preview_license ? ThemisDB_Document_Renderer::render_license_pdf($preview_license, $preview_template_id) : false;
+                            } else {
+                                if (!$order) {
+                                    $pdf_data = false;
+                                } else {
+                                $pdf_data = ThemisDB_Document_Renderer::render_template_pdf($preview_template_id, $order, array(), $filename);
+                                }
+                            }
+
+                            if ($pdf_data !== false && $pdf_data !== '') {
+                                nocache_headers();
+                                header('Content-Type: application/pdf');
+                                header('Content-Disposition: inline; filename="' . $filename . '.pdf"');
+                                header('Content-Length: ' . strlen($pdf_data));
+                                echo $pdf_data;
+                                exit;
+                            }
+
+                            $notice = __('PDF-Vorschau konnte nicht erzeugt werden.', 'themisdb-order-request');
+                            $notice_type = 'error';
+                        } else {
+                            if ($template_type === 'license') {
+                                if ($preview_license && !empty($preview_template['content'])) {
+                                    $license_vars = ThemisDB_Document_Renderer::build_license_variables($preview_license, $order);
+                                    $html = ThemisDB_Document_Template_Manager::replace_variables($preview_template['content'], $license_vars);
+                                } else {
+                                    $html = false;
+                                }
+                            } else {
+                                $html = $order ? ThemisDB_Document_Renderer::render_template_html($preview_template_id, $order) : false;
+                            }
+
+                            if ($html !== false && $html !== '') {
+                                nocache_headers();
+                                header('Content-Type: text/html; charset=' . get_bloginfo('charset'));
+                                echo $html;
+                                exit;
+                            }
+
+                            $notice = __('HTML-Vorschau konnte nicht erzeugt werden.', 'themisdb-order-request');
+                            $notice_type = 'error';
+                        }
+                    }
+                }
+            }
 
             if ($post_action === 'save_document_template') {
                 check_admin_referer('themisdb_save_document_template');
@@ -8053,6 +8186,21 @@ document.addEventListener("DOMContentLoaded", function() {
                         $notice = __('Vorlage wurde auf Standard zurueckgesetzt.', 'themisdb-order-request');
                     }
                 }
+            } elseif ($post_action === 'reload_document_template_file') {
+                check_admin_referer('themisdb_reload_document_template_file');
+
+                if (!in_array($template_id, $system_templates, true)) {
+                    $notice = __('Nur Standardvorlagen koennen aus Dateien neu geladen werden.', 'themisdb-order-request');
+                    $notice_type = 'error';
+                } else {
+                    $result = ThemisDB_Document_Template_Manager::reload_template_from_file($template_id);
+                    if ($result === false) {
+                        $notice = __('Datei-Reload fehlgeschlagen. Pruefen Sie templates/documents/*.html.', 'themisdb-order-request');
+                        $notice_type = 'error';
+                    } else {
+                        $notice = __('Vorlage wurde aus Datei neu geladen.', 'themisdb-order-request');
+                    }
+                }
             } elseif ($post_action === 'delete_document_template') {
                 check_admin_referer('themisdb_delete_document_template');
 
@@ -8073,6 +8221,23 @@ document.addEventListener("DOMContentLoaded", function() {
             $active_template_id = !empty($keys) ? $keys[0] : '';
         }
         $active_template = $active_template_id !== '' ? $templates[$active_template_id] : null;
+        $preview_orders = ThemisDB_Order_Manager::get_all_orders(array(
+            'limit' => 50,
+            'offset' => 0,
+            'orderby' => 'created_at',
+            'order' => 'DESC',
+        ));
+        $latest_order_for_preview = !empty($preview_orders[0]) ? $preview_orders[0] : null;
+        $latest_license_rows_for_preview = ThemisDB_License_Manager::get_all_licenses(1, 0);
+        $latest_license_for_preview = !empty($latest_license_rows_for_preview[0]) ? $latest_license_rows_for_preview[0] : null;
+        $latest_license_order_number = '';
+        if (!empty($latest_license_for_preview['order_id'])) {
+            $latest_license_order = ThemisDB_Order_Manager::get_order(intval($latest_license_for_preview['order_id']));
+            if (!empty($latest_license_order['order_number'])) {
+                $latest_license_order_number = (string) $latest_license_order['order_number'];
+            }
+        }
+        $preview_selected_order = isset($_GET['preview_order_id']) ? absint($_GET['preview_order_id']) : 0;
 
         ?>
         <div class="wrap">
@@ -8176,6 +8341,12 @@ document.addEventListener("DOMContentLoaded", function() {
                                     <input type="hidden" name="template_id" value="<?php echo esc_attr($active_template['id']); ?>">
                                     <button type="submit" class="button"><?php esc_html_e('Auf Standard zuruecksetzen', 'themisdb-order-request'); ?></button>
                                 </form>
+                                <form method="post" action="" onsubmit="return confirm('<?php echo esc_js(__('Vorlage wirklich direkt aus Datei neu laden?', 'themisdb-order-request')); ?>');">
+                                    <?php wp_nonce_field('themisdb_reload_document_template_file'); ?>
+                                    <input type="hidden" name="action" value="reload_document_template_file">
+                                    <input type="hidden" name="template_id" value="<?php echo esc_attr($active_template['id']); ?>">
+                                    <button type="submit" class="button"><?php esc_html_e('Aus Datei neu laden', 'themisdb-order-request'); ?></button>
+                                </form>
                             <?php else: ?>
                                 <form method="post" action="" onsubmit="return confirm('<?php echo esc_js(__('Vorlage wirklich loeschen?', 'themisdb-order-request')); ?>');">
                                     <?php wp_nonce_field('themisdb_delete_document_template'); ?>
@@ -8185,6 +8356,63 @@ document.addEventListener("DOMContentLoaded", function() {
                                 </form>
                             <?php endif; ?>
                         </div>
+
+                        <hr>
+                        <h3><?php esc_html_e('Vorschau', 'themisdb-order-request'); ?></h3>
+                        <p class="description"><?php esc_html_e('Template mit echten Bestelldaten in neuem Tab testen.', 'themisdb-order-request'); ?></p>
+                        <form method="post" action="" target="_blank" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+                            <?php wp_nonce_field('themisdb_preview_document_template'); ?>
+                            <input type="hidden" name="action" value="preview_document_template">
+                            <input type="hidden" name="template_id" value="<?php echo esc_attr($active_template['id']); ?>">
+                            <p>
+                                <label for="preview_order_id"><strong><?php esc_html_e('Bestellung', 'themisdb-order-request'); ?></strong></label><br>
+                                <select id="preview_order_id" name="preview_order_id">
+                                    <option value=""><?php esc_html_e('Bitte waehlen', 'themisdb-order-request'); ?></option>
+                                    <?php foreach ($preview_orders as $preview_order): ?>
+                                        <option value="<?php echo absint($preview_order['id']); ?>" <?php selected($preview_selected_order, absint($preview_order['id'])); ?>>
+                                            <?php echo esc_html(($preview_order['order_number'] ?? '—') . ' | ' . ($preview_order['customer_name'] ?? '—')); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </p>
+                            <p>
+                                <label for="preview_format"><strong><?php esc_html_e('Format', 'themisdb-order-request'); ?></strong></label><br>
+                                <select id="preview_format" name="preview_format">
+                                    <option value="html"><?php esc_html_e('HTML Vorschau', 'themisdb-order-request'); ?></option>
+                                    <option value="pdf"><?php esc_html_e('PDF Vorschau', 'themisdb-order-request'); ?></option>
+                                </select>
+                            </p>
+                            <p>
+                                <button type="submit" class="button button-primary"><?php esc_html_e('Vorschau oeffnen', 'themisdb-order-request'); ?></button>
+                            </p>
+                            <p>
+                                <button type="submit" name="preview_use_latest" value="1" class="button" formnovalidate><?php esc_html_e('Schnelltest letzte Bestellung', 'themisdb-order-request'); ?></button>
+                            </p>
+                            <p>
+                                <button type="submit" name="preview_use_latest_license" value="1" class="button" formnovalidate><?php esc_html_e('Schnelltest letzte Lizenz', 'themisdb-order-request'); ?></button>
+                            </p>
+                        </form>
+
+                        <p class="description" style="margin-top:8px;">
+                            <?php if (!empty($latest_order_for_preview['order_number'])): ?>
+                                <?php echo esc_html(sprintf(__('Letzte Bestellung fuer Schnelltest: %s (%s)', 'themisdb-order-request'), (string) $latest_order_for_preview['order_number'], (string) ($latest_order_for_preview['customer_name'] ?? '—'))); ?><br>
+                            <?php else: ?>
+                                <?php esc_html_e('Keine Bestellung fuer Schnelltest verfuegbar.', 'themisdb-order-request'); ?><br>
+                            <?php endif; ?>
+
+                            <?php if (!empty($latest_license_for_preview['license_key'])): ?>
+                                <?php
+                                $license_info = sprintf(
+                                    __('Letzte Lizenz fuer Schnelltest: %s%s', 'themisdb-order-request'),
+                                    (string) $latest_license_for_preview['license_key'],
+                                    $latest_license_order_number !== '' ? ' | Order ' . $latest_license_order_number : ''
+                                );
+                                echo esc_html($license_info);
+                                ?>
+                            <?php else: ?>
+                                <?php esc_html_e('Keine Lizenz fuer Schnelltest verfuegbar.', 'themisdb-order-request'); ?>
+                            <?php endif; ?>
+                        </p>
                     <?php endif; ?>
                 </div>
             </div>

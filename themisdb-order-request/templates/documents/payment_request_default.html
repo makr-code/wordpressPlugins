@@ -1,0 +1,33 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.6; margin: 32px; }
+        h1 { margin-bottom: 8px; }
+        .alert { border: 1px solid #f59e0b; background: #fffbeb; padding: 12px; border-radius: 6px; margin: 16px 0; }
+        .amount { font-size: 18pt; font-weight: bold; margin: 12px 0; }
+        .meta { color: #4b5563; }
+    </style>
+</head>
+<body>
+    <h1>Zahlungsaufforderung</h1>
+    <p>Sehr geehrte/r {{customer_name}},</p>
+    <p>bitte begleichen Sie die offene Rechnung.</p>
+
+    <div class="amount">Offener Betrag: {{total_amount}} {{currency}}</div>
+
+    <div class="meta">
+        <div>Rechnung: {{invoice_number}}</div>
+        <div>Rechnungsdatum: {{invoice_date}}</div>
+        <div>Faelligkeit: {{due_date}}</div>
+        <div>Bestellung: {{order_number}}</div>
+    </div>
+
+    <div class="alert">
+        Bitte bei der Zahlung die Rechnungsnummer angeben.
+    </div>
+
+    <p>Rueckfragen bitte an {{company_email}}.</p>
+    <p>Freundliche Gruesse<br>{{company_name}}</p>
+</body>
+</html>

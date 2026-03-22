@@ -20,6 +20,7 @@ if (!defined('ABSPATH')) {
  *
  * Supported use cases:
  * - invoices (Rechnung)
+ * - licenses (Lizenzdokument)
  * - terms/AGB attachments
  * - callback letters (Rueckruf)
  * - payment requests (Zahlungsaufforderung)
@@ -90,6 +91,35 @@ class ThemisDB_Document_Renderer {
 
         $vars = array_merge($invoice_vars, $extra_data);
         return self::render_template_pdf($template_id, $order_row, $vars, $filename);
+    }
+
+    /**
+     * Render license PDF from license/order data and license template.
+     *
+     * @param int|array $license License ID or full license row.
+     * @param string    $template_id Optional template key.
+     * @param array     $extra_data Optional variable overrides.
+     * @return string|false
+     */
+    public static function render_license_pdf($license, $template_id = 'license_default', $extra_data = array()) {
+        $license_row = self::normalize_license($license);
+        if (!$license_row) {
+            return false;
+        }
+
+        $order_row = !empty($license_row['order_id']) ? ThemisDB_Order_Manager::get_order(intval($license_row['order_id'])) : false;
+        $variables = self::build_license_variables($license_row, $order_row, $extra_data);
+
+        $license_key = !empty($license_row['license_key']) ? sanitize_file_name((string) $license_row['license_key']) : ('license-' . intval($license_row['id']));
+        $filename = 'license-' . $license_key;
+
+        $template = ThemisDB_Document_Template_Manager::get_template($template_id);
+        if (empty($template) || empty($template['content'])) {
+            return false;
+        }
+
+        $html = ThemisDB_Document_Template_Manager::replace_variables($template['content'], $variables);
+        return ThemisDB_PDF_Generator::generate_pdf_from_html($html, $filename);
     }
 
     /**
@@ -178,6 +208,63 @@ class ThemisDB_Document_Renderer {
     }
 
     /**
+     * Build template variables for license documents.
+     *
+     * @param array      $license_row Resolved license row.
+     * @param array|bool $order_row Optional linked order row.
+     * @param array      $extra_data Additional variable overrides.
+     * @return array
+     */
+    public static function build_license_variables($license_row, $order_row = false, $extra_data = array()) {
+        $created_at = !empty($license_row['created_at']) ? strtotime($license_row['created_at']) : time();
+        $activation_date = !empty($license_row['activation_date']) ? strtotime($license_row['activation_date']) : null;
+        $expiry_date = !empty($license_row['expiry_date']) ? strtotime($license_row['expiry_date']) : null;
+
+        $customer_name = '';
+        $customer_email = '';
+        $customer_company = '';
+        $order_number = '';
+        if ($order_row) {
+            $customer_name = (string) ($order_row['customer_name'] ?? '');
+            $customer_email = (string) ($order_row['customer_email'] ?? '');
+            $customer_company = (string) ($order_row['customer_company'] ?? '');
+            $order_number = (string) ($order_row['order_number'] ?? '');
+        }
+
+        $base = array(
+            'company_name' => esc_html(get_option('blogname', 'ThemisDB')),
+            'company_address' => esc_html((string) get_option('themisdb_order_company_address', '')),
+            'company_email' => esc_html(get_option('admin_email', '')),
+            'license_id' => esc_html((string) intval($license_row['id'] ?? 0)),
+            'license_key' => esc_html((string) ($license_row['license_key'] ?? '')),
+            'license_type' => esc_html((string) ($license_row['license_type'] ?? 'standard')),
+            'license_status' => esc_html((string) ($license_row['license_status'] ?? 'pending')),
+            'product_edition' => esc_html((string) ($license_row['product_edition'] ?? '')),
+            'max_nodes' => esc_html((string) intval($license_row['max_nodes'] ?? 0)),
+            'max_cores' => esc_html((string) intval($license_row['max_cores'] ?? 0)),
+            'max_storage_gb' => esc_html((string) intval($license_row['max_storage_gb'] ?? 0)),
+            'created_date' => esc_html(date_i18n('d.m.Y', $created_at)),
+            'activation_date' => esc_html($activation_date ? date_i18n('d.m.Y', $activation_date) : ''),
+            'expiry_date' => esc_html($expiry_date ? date_i18n('d.m.Y', $expiry_date) : ''),
+            'customer_name' => esc_html($customer_name),
+            'customer_email' => esc_html($customer_email),
+            'customer_company' => esc_html($customer_company),
+            'order_number' => esc_html($order_number),
+        );
+
+        $merged = array_merge($base, $extra_data);
+        foreach ($merged as $key => $value) {
+            if (!is_scalar($value)) {
+                $merged[$key] = '';
+                continue;
+            }
+            $merged[$key] = esc_html((string) $value);
+        }
+
+        return $merged;
+    }
+
+    /**
      * Resolve order input to a full order row.
      *
      * @param int|array $order Order ID or row.
@@ -192,6 +279,27 @@ class ThemisDB_Document_Renderer {
             $order_id = intval($order);
             if ($order_id > 0) {
                 return ThemisDB_Order_Manager::get_order($order_id);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Resolve license input to a full license row.
+     *
+     * @param int|array $license License ID or row.
+     * @return array|false
+     */
+    private static function normalize_license($license) {
+        if (is_array($license) && !empty($license['id'])) {
+            return $license;
+        }
+
+        if (is_numeric($license)) {
+            $license_id = intval($license);
+            if ($license_id > 0) {
+                return ThemisDB_License_Manager::get_license($license_id);
             }
         }
 

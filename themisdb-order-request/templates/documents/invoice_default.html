@@ -1,0 +1,69 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.5; margin: 32px; color: #1f2937; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+        .brand h1 { margin: 0; font-size: 24pt; letter-spacing: 1px; }
+        .muted { color: #6b7280; font-size: 10pt; }
+        .box { border: 1px solid #d1d5db; padding: 12px; border-radius: 6px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+        h2 { font-size: 14pt; margin: 16px 0 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border-bottom: 1px solid #e5e7eb; padding: 8px; }
+        th { text-align: left; background: #f9fafb; }
+        .right { text-align: right; }
+        .total { font-size: 14pt; font-weight: bold; }
+        .footer { margin-top: 30px; font-size: 10pt; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="brand">
+            <h1>RECHNUNG</h1>
+            <div class="muted">{{company_name}}</div>
+            <div class="muted">{{company_address}}</div>
+            <div class="muted">{{company_email}}</div>
+        </div>
+        <div class="box">
+            <div><strong>Rechnungsnr:</strong> {{invoice_number}}</div>
+            <div><strong>Rechnungsdatum:</strong> {{invoice_date}}</div>
+            <div><strong>Faellig bis:</strong> {{due_date}}</div>
+            <div><strong>Bestellung:</strong> {{order_number}}</div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="box">
+            <strong>Rechnungsempfaenger</strong><br>
+            {{customer_name}}<br>
+            {{customer_company}}<br>
+            {{customer_address}}<br>
+            {{customer_email}}
+        </div>
+        <div class="box">
+            <strong>Leistung</strong><br>
+            {{product_name}}<br>
+            {{line_items_text}}
+        </div>
+    </div>
+
+    <h2>Positionen</h2>
+    {{line_items_table}}
+
+    <table style="margin-top:14px;">
+        <tr>
+            <td class="right"><strong>Zwischensumme</strong></td>
+            <td class="right">{{total_amount}} {{currency}}</td>
+        </tr>
+        <tr>
+            <td class="right total">Gesamtbetrag</td>
+            <td class="right total">{{total_amount}} {{currency}}</td>
+        </tr>
+    </table>
+
+    <div class="footer">
+        Zahlungsziel gemaess Vereinbarung. Bitte Rechnungsnummer bei Ueberweisung angeben.
+    </div>
+</body>
+</html>

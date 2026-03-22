@@ -1,0 +1,22 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.6; margin: 32px; }
+        .meta { margin: 12px 0; color: #4b5563; }
+    </style>
+</head>
+<body>
+    <h1>Rueckrufbestaetigung</h1>
+    <p>Sehr geehrte/r {{customer_name}},</p>
+    <p>wir bestaetigen Ihren Rueckrufwunsch zur Bestellung {{order_number}} vom {{order_date}}.</p>
+
+    <div class="meta">
+        Unternehmen: {{customer_company}}<br>
+        E-Mail: {{customer_email}}
+    </div>
+
+    <p>Unser Team meldet sich schnellstmoeglich bei Ihnen.</p>
+    <p>Freundliche Gruesse<br>{{company_name}}<br>{{company_email}}</p>
+</body>
+</html>

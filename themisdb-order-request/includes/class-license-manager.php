@@ -712,6 +712,30 @@ class ThemisDB_License_Manager {
         
         return $license;
     }
+
+    /**
+     * Get one license by order ID (latest by creation date).
+     */
+    public static function get_license_by_order($order_id) {
+        global $wpdb;
+
+        $table_licenses = $wpdb->prefix . 'themisdb_licenses';
+
+        $license = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_licenses WHERE order_id = %d ORDER BY created_at DESC LIMIT 1",
+            $order_id
+        ), ARRAY_A);
+
+        if ($license && $license['usage_data']) {
+            $license['usage_data'] = json_decode($license['usage_data'], true);
+        }
+
+        if ($license && $license['license_file_data']) {
+            $license['license_file_data'] = json_decode($license['license_file_data'], true);
+        }
+
+        return $license;
+    }
     
     /**
      * Get licenses by customer

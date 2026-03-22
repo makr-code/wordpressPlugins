@@ -1,0 +1,43 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.5; margin: 32px; color: #111827; }
+        h1 { margin: 0 0 10px; font-size: 22pt; }
+        .meta { margin-bottom: 16px; color: #6b7280; font-size: 10pt; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #e5f3ff; color: #0b4a6f; font-size: 10pt; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        td { border-bottom: 1px solid #e5e7eb; padding: 8px; }
+        td:first-child { width: 35%; font-weight: bold; background: #f9fafb; }
+        .key { font-family: Consolas, monospace; font-size: 11pt; word-break: break-all; }
+        .footer { margin-top: 24px; font-size: 10pt; color: #6b7280; }
+    </style>
+</head>
+<body>
+    <h1>LIZENZDOKUMENT</h1>
+    <div class="meta">
+        <div>{{company_name}} | {{company_email}}</div>
+        <div>Order: {{order_number}} | Kunde: {{customer_name}}</div>
+    </div>
+
+    <div class="badge">Status: {{license_status}}</div>
+
+    <table>
+        <tr><td>Lizenzschluessel</td><td class="key">{{license_key}}</td></tr>
+        <tr><td>Lizenztyp</td><td>{{license_type}}</td></tr>
+        <tr><td>Edition</td><td>{{product_edition}}</td></tr>
+        <tr><td>Kunde</td><td>{{customer_name}} ({{customer_email}})</td></tr>
+        <tr><td>Unternehmen</td><td>{{customer_company}}</td></tr>
+        <tr><td>Max Nodes</td><td>{{max_nodes}}</td></tr>
+        <tr><td>Max Cores</td><td>{{max_cores}}</td></tr>
+        <tr><td>Max Storage (GB)</td><td>{{max_storage_gb}}</td></tr>
+        <tr><td>Erstellt am</td><td>{{created_date}}</td></tr>
+        <tr><td>Aktiviert am</td><td>{{activation_date}}</td></tr>
+        <tr><td>Gueltig bis</td><td>{{expiry_date}}</td></tr>
+    </table>
+
+    <div class="footer">
+        Dieses Dokument dient als Lizenznachweis fuer die oben genannte Bereitstellung.
+    </div>
+</body>
+</html>
