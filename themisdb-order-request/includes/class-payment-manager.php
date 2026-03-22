@@ -139,8 +139,17 @@ class ThemisDB_Payment_Manager {
             $payment = self::get_payment($payment_id);
             
             if ($payment) {
+                $order = ThemisDB_Order_Manager::get_order($payment['order_id']);
+                $is_consumer = $order && (($order['customer_type'] ?? 'consumer') === 'consumer');
+                $has_withdrawal_waiver = $order && !empty($order['legal_withdrawal_waiver']);
+
                 // Keep order status aligned with the lifecycle used in admin workflows.
                 $target_order_status = !empty($payment['contract_id']) ? 'active' : 'confirmed';
+                if (!empty($payment['contract_id']) && $is_consumer && !$has_withdrawal_waiver) {
+                    // For consumer digital contracts, stay in confirmed until explicit waiver exists.
+                    $target_order_status = 'confirmed';
+                }
+
                 $status_synced = ThemisDB_Order_Manager::set_order_status($payment['order_id'], $target_order_status);
                 if (!$status_synced) {
                     error_log('ThemisDB Payment Sync Error: Failed to set order status for order ID ' . $payment['order_id'] . ' to ' . $target_order_status);
@@ -157,7 +166,19 @@ class ThemisDB_Payment_Manager {
                 if ($payment['contract_id']) {
                     $license = ThemisDB_License_Manager::get_license_by_contract($payment['contract_id']);
                     if ($license) {
-                        $activated = ThemisDB_License_Manager::activate_license($license['id']);
+                        $allow_license_activation = true;
+                        if ($is_consumer && !$has_withdrawal_waiver) {
+                            $allow_license_activation = false;
+                            if (class_exists('ThemisDB_Error_Handler')) {
+                                ThemisDB_Error_Handler::log('warning', 'License activation deferred: missing withdrawal waiver for consumer order', array(
+                                    'payment_id' => intval($payment_id),
+                                    'order_id' => intval($payment['order_id']),
+                                    'license_id' => intval($license['id']),
+                                ));
+                            }
+                        }
+
+                        $activated = $allow_license_activation ? ThemisDB_License_Manager::activate_license($license['id']) : false;
 
                         if ($activated) {
                             try {

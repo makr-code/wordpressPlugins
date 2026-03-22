@@ -964,7 +964,7 @@ class ThemisDB_Order_Shortcodes {
                     ← <?php esc_html_e('Zurück', 'themisdb-order-request'); ?>
                 </button>
                 <button type="button" class="button button-primary button-submit">
-                    <?php esc_html_e('Bestellung absenden', 'themisdb-order-request'); ?>
+                    <?php esc_html_e('Zahlungspflichtig bestellen', 'themisdb-order-request'); ?>
                 </button>
             </div>
         </div>
@@ -1320,6 +1320,29 @@ class ThemisDB_Order_Shortcodes {
         if (($order['payment_method'] ?? '') !== $payment_method) {
             ThemisDB_Order_Manager::update_order($order_id, array('payment_method' => $payment_method));
             $order = ThemisDB_Order_Manager::get_order($order_id);
+        }
+
+        $is_consumer_order = (($order['customer_type'] ?? 'consumer') === 'consumer');
+        $has_withdrawal_waiver = !empty($order['legal_withdrawal_waiver']);
+
+        if (class_exists('ThemisDB_Error_Handler')) {
+            ThemisDB_Error_Handler::log('info', 'Checkout legal acceptance snapshot', array(
+                'order_id' => intval($order_id),
+                'customer_type' => sanitize_text_field($order['customer_type'] ?? 'consumer'),
+                'payment_method' => sanitize_text_field($payment_method),
+                'legal_acceptance_version' => sanitize_text_field($order['legal_acceptance_version'] ?? ''),
+                'legal_accepted_at' => sanitize_text_field($order['legal_accepted_at'] ?? ''),
+                'legal_withdrawal_acknowledged' => !empty($order['legal_withdrawal_acknowledged']) ? 1 : 0,
+                'legal_withdrawal_waiver' => $has_withdrawal_waiver ? 1 : 0,
+                'legal_accepted_ip' => sanitize_text_field($order['legal_accepted_ip'] ?? ''),
+            ));
+
+            if ($is_consumer_order && in_array($payment_method, array('stripe', 'paypal'), true) && !$has_withdrawal_waiver) {
+                ThemisDB_Error_Handler::log('warning', 'Consumer instant payment without withdrawal waiver: activation will be deferred', array(
+                    'order_id' => intval($order_id),
+                    'payment_method' => sanitize_text_field($payment_method),
+                ));
+            }
         }
 
         // Apply B2B department custom pricing before status/payment processing.

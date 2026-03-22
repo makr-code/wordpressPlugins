@@ -106,6 +106,16 @@ class ThemisDB_Order_Manager {
             'step' => 1
         );
 
+        if (!self::can_transition_to_status($order_data, $initial_status)) {
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('warning', 'Order creation status downgraded to pending due to missing compliance evidence', array(
+                    'requested_status' => sanitize_text_field($initial_status),
+                    'customer_type' => sanitize_text_field($order_data['customer_type'] ?? 'consumer'),
+                ));
+            }
+            $order_data['status'] = 'pending';
+        }
+
         $order_data = self::filter_order_data_for_schema($order_data);
         
         $result = $wpdb->insert($table_orders, $order_data);
@@ -151,6 +161,90 @@ class ThemisDB_Order_Manager {
         }
 
         return $normalized;
+    }
+
+    /**
+     * Validate legal compliance completeness for one order payload.
+     *
+     * @param array $order
+     * @return bool
+     */
+    private static function is_order_compliance_complete($order) {
+        $customer_type = isset($order['customer_type']) ? sanitize_text_field($order['customer_type']) : 'consumer';
+        $terms = !empty($order['legal_terms_accepted']);
+        $privacy = !empty($order['legal_privacy_accepted']);
+        $withdrawal = !empty($order['legal_withdrawal_acknowledged']);
+
+        if (!$terms || !$privacy) {
+            return false;
+        }
+
+        if ($customer_type === 'consumer' && !$withdrawal) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate regulatory billing data for compliance-sensitive status transitions.
+     *
+     * @param array $order
+     * @return array
+     */
+    private static function validate_order_regulatory_fields($order) {
+        $errors = array();
+        $billing_country = strtoupper(sanitize_text_field($order['billing_country'] ?? 'DE'));
+        $shipping_country = strtoupper(sanitize_text_field($order['shipping_country'] ?? 'DE'));
+        $billing_postal_code = trim((string) ($order['billing_postal_code'] ?? ''));
+        $shipping_postal_code = trim((string) ($order['shipping_postal_code'] ?? ''));
+        $customer_type = sanitize_text_field($order['customer_type'] ?? 'consumer');
+        $vat_id = strtoupper(trim((string) ($order['vat_id'] ?? '')));
+
+        if (!preg_match('/^[A-Z]{2}$/', $billing_country)) {
+            $errors[] = 'billing_country_invalid';
+        }
+
+        if ($billing_country === 'DE' && !preg_match('/^\d{5}$/', $billing_postal_code)) {
+            $errors[] = 'billing_postal_code_invalid';
+        }
+
+        if (!preg_match('/^[A-Z]{2}$/', $shipping_country)) {
+            $errors[] = 'shipping_country_invalid';
+        }
+
+        if ($shipping_postal_code !== '' && $shipping_country === 'DE' && !preg_match('/^\d{5}$/', $shipping_postal_code)) {
+            $errors[] = 'shipping_postal_code_invalid';
+        }
+
+        if ($customer_type === 'business' && trim((string) ($order['customer_company'] ?? '')) === '') {
+            $errors[] = 'customer_company_missing';
+        }
+
+        if ($vat_id !== '' && !preg_match('/^[A-Z]{2}[A-Z0-9]{2,12}$/', $vat_id)) {
+            $errors[] = 'vat_id_invalid';
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Determine whether transition to the target status is legally allowed.
+     *
+     * @param array $order
+     * @param string $normalized_status
+     * @return bool
+     */
+    private static function can_transition_to_status($order, $normalized_status) {
+        if (!in_array($normalized_status, array('confirmed', 'signed', 'active'), true)) {
+            return true;
+        }
+
+        if (!self::is_order_compliance_complete($order)) {
+            return false;
+        }
+
+        return empty(self::validate_order_regulatory_fields($order));
     }
 
     /**
@@ -223,6 +317,23 @@ class ThemisDB_Order_Manager {
             error_log('ThemisDB Status Update Error: Order ID ' . $order_id . ' does not exist.');
             if (class_exists('ThemisDB_Error_Handler')) {
                 ThemisDB_Error_Handler::log('error', 'Order status update failed: order does not exist', array(
+                    'order_id' => $order_id,
+                    'requested_status' => $normalized_status,
+                ));
+            }
+            return false;
+        }
+
+        // Enforce compliance checks centrally so all workflow paths stay consistent.
+        $order = self::get_order($order_id);
+        if (!$order) {
+            return false;
+        }
+
+        if (!self::can_transition_to_status($order, $normalized_status)) {
+            error_log('ThemisDB Status Update Blocked: Compliance requirements not met for order ' . $order_id . ' and target status ' . $normalized_status);
+            if (class_exists('ThemisDB_Error_Handler')) {
+                ThemisDB_Error_Handler::log('warning', 'Order status update blocked by compliance checks', array(
                     'order_id' => $order_id,
                     'requested_status' => $normalized_status,
                 ));

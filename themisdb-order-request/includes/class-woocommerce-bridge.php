@@ -128,7 +128,17 @@ class ThemisDB_WooCommerce_Bridge {
 
         $mapping = $this->map_woo_order_to_themisdb($woo_order);
         $mapped_data = $mapping['order_data'];
-        $mapped_data['status'] = $target_status;
+        $mapped_status = sanitize_key((string) ($mapped_data['status'] ?? 'pending'));
+        if ($mapped_status === '') {
+            $mapped_status = 'pending';
+        }
+
+        if (in_array($target_status, array('confirmed', 'signed', 'active'), true) && $mapped_status !== 'confirmed') {
+            // Keep imported orders in a safe pending state when legal evidence is incomplete.
+            $mapped_data['status'] = $mapped_status;
+        } else {
+            $mapped_data['status'] = $target_status;
+        }
 
         $themis_order_id = ThemisDB_Order_Manager::create_order($mapped_data);
         if (!$themis_order_id) {
@@ -509,13 +519,21 @@ class ThemisDB_WooCommerce_Bridge {
 
         $line_item_map = $this->analyze_line_items($woo_order);
         $product_edition = $line_item_map['product_edition'];
+        $customer_company = (string) $woo_order->get_billing_company();
+        $customer_type = $this->infer_customer_type($woo_order, $customer_company);
+        $consents = $this->map_legal_consents_from_woo($woo_order, $customer_type);
+
+        $is_legal_complete = $consents['legal_terms_accepted'] && $consents['legal_privacy_accepted'];
+        if ($customer_type === 'consumer' && !$consents['legal_withdrawal_acknowledged']) {
+            $is_legal_complete = false;
+        }
 
         $order_data = array(
             'customer_id' => intval($woo_order->get_customer_id()),
             'customer_email' => (string) $woo_order->get_billing_email(),
             'customer_name' => $customer_name,
-            'customer_company' => (string) $woo_order->get_billing_company(),
-            'customer_type' => 'business',
+            'customer_company' => $customer_company,
+            'customer_type' => $customer_type,
             'vat_id' => (string) $woo_order->get_meta('_billing_vat', true),
             'billing_name' => $customer_name,
             'billing_address_line1' => (string) $woo_order->get_billing_address_1(),
@@ -535,21 +553,104 @@ class ThemisDB_WooCommerce_Bridge {
             'product_edition' => $product_edition,
             'modules' => $line_item_map['modules'],
             'training_modules' => $line_item_map['training_modules'],
-            // Orders imported from Woo checkout are implicitly consented there.
-            'legal_terms_accepted' => 1,
-            'legal_privacy_accepted' => 1,
-            'legal_withdrawal_acknowledged' => 1,
-            'legal_withdrawal_waiver' => 0,
-            'legal_acceptance_version' => 'woo-import-v1',
-            'legal_accepted_at' => current_time('mysql'),
+            'legal_terms_accepted' => $consents['legal_terms_accepted'],
+            'legal_privacy_accepted' => $consents['legal_privacy_accepted'],
+            'legal_withdrawal_acknowledged' => $consents['legal_withdrawal_acknowledged'],
+            'legal_withdrawal_waiver' => $consents['legal_withdrawal_waiver'],
+            'legal_acceptance_version' => $consents['legal_acceptance_version'],
+            'legal_accepted_at' => $consents['legal_accepted_at'],
             'total_amount' => floatval($woo_order->get_total()),
             'currency' => (string) $woo_order->get_currency(),
-            'status' => 'confirmed',
+            'status' => $is_legal_complete ? 'confirmed' : 'pending',
         );
 
         return array(
             'order_data' => $order_data,
             'line_items' => $line_item_map['order_items'],
+        );
+    }
+
+    /**
+     * Read Woo order meta key and interpret common truthy values.
+     *
+     * @param WC_Order $woo_order
+     * @param array $keys
+     * @return bool
+     */
+    private function get_meta_truthy($woo_order, $keys) {
+        foreach ((array) $keys as $key) {
+            $raw = $woo_order->get_meta($key, true);
+            if ($raw === '' || $raw === null) {
+                continue;
+            }
+
+            if (is_bool($raw)) {
+                return $raw;
+            }
+
+            $value = strtolower(trim((string) $raw));
+            if (in_array($value, array('1', 'yes', 'true', 'on', 'accepted', 'checked'), true)) {
+                return true;
+            }
+            if (in_array($value, array('0', 'no', 'false', 'off', 'declined', 'unchecked'), true)) {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Infer B2B/B2C from explicit meta with a company-name fallback.
+     *
+     * @param WC_Order $woo_order
+     * @param string $customer_company
+     * @return string
+     */
+    private function infer_customer_type($woo_order, $customer_company = '') {
+        $raw = strtolower(trim((string) $woo_order->get_meta('_themisdb_customer_type', true)));
+        if (in_array($raw, array('consumer', 'business'), true)) {
+            return $raw;
+        }
+
+        return trim((string) $customer_company) !== '' ? 'business' : 'consumer';
+    }
+
+    /**
+     * Map legal consent evidence from WooCommerce order metadata.
+     *
+     * @param WC_Order $woo_order
+     * @param string $customer_type
+     * @return array
+     */
+    private function map_legal_consents_from_woo($woo_order, $customer_type) {
+        $terms = $this->get_meta_truthy($woo_order, array('_terms_accepted', '_wc_terms_accepted', '_themisdb_terms_accepted'));
+        $privacy = $this->get_meta_truthy($woo_order, array('_privacy_accepted', '_wc_privacy_accepted', '_themisdb_privacy_accepted'));
+        $withdrawal_ack = $this->get_meta_truthy($woo_order, array('_themisdb_withdrawal_acknowledged', '_withdrawal_acknowledged'));
+        $withdrawal_waiver = $this->get_meta_truthy($woo_order, array('_themisdb_withdrawal_waiver', '_withdrawal_waiver'));
+
+        $version = sanitize_text_field((string) $woo_order->get_meta('_themisdb_legal_version', true));
+        if ($version === '') {
+            $version = 'woo-import-mapped-v1';
+        }
+
+        $accepted_at = sanitize_text_field((string) $woo_order->get_meta('_themisdb_legal_accepted_at', true));
+        if ($accepted_at === '' && ($terms || $privacy || $withdrawal_ack || $withdrawal_waiver)) {
+            $accepted_at = current_time('mysql');
+        }
+
+        if ($customer_type === 'business' && !$withdrawal_ack) {
+            // Not mandatory for B2B; keep as-is if available.
+            $withdrawal_ack = 0;
+        }
+
+        return array(
+            'legal_terms_accepted' => $terms ? 1 : 0,
+            'legal_privacy_accepted' => $privacy ? 1 : 0,
+            'legal_withdrawal_acknowledged' => $withdrawal_ack ? 1 : 0,
+            'legal_withdrawal_waiver' => $withdrawal_waiver ? 1 : 0,
+            'legal_acceptance_version' => $version,
+            'legal_accepted_at' => $accepted_at !== '' ? $accepted_at : null,
         );
     }
 

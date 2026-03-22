@@ -40,6 +40,93 @@ if ( ! defined( 'ABSPATH' ) ) {
 class ThemisDB_Privacy {
 
     /**
+     * Build a complete order export payload for DSAR requests.
+     *
+     * @param array $order
+     * @return array
+     */
+    private static function build_order_export_data( $order ) {
+        return array(
+            array(
+                'name'  => __( 'Order Number', 'themisdb-order-request' ),
+                'value' => $order['order_number'] ?? '',
+            ),
+            array(
+                'name'  => __( 'Order Date', 'themisdb-order-request' ),
+                'value' => $order['created_at'] ?? '',
+            ),
+            array(
+                'name'  => __( 'Edition', 'themisdb-order-request' ),
+                'value' => $order['product_edition'] ?? '',
+            ),
+            array(
+                'name'  => __( 'Status', 'themisdb-order-request' ),
+                'value' => $order['status'] ?? '',
+            ),
+            array(
+                'name'  => __( 'Customer Email', 'themisdb-order-request' ),
+                'value' => $order['customer_email'] ?? '',
+            ),
+            array(
+                'name'  => __( 'Customer Name', 'themisdb-order-request' ),
+                'value' => $order['customer_name'] ?? '',
+            ),
+            array(
+                'name'  => __( 'Customer Company', 'themisdb-order-request' ),
+                'value' => $order['customer_company'] ?? '',
+            ),
+            array(
+                'name'  => __( 'Customer Type', 'themisdb-order-request' ),
+                'value' => $order['customer_type'] ?? '',
+            ),
+            array(
+                'name'  => __( 'VAT ID', 'themisdb-order-request' ),
+                'value' => $order['vat_id'] ?? '',
+            ),
+            array(
+                'name'  => __( 'Billing Address', 'themisdb-order-request' ),
+                'value' => trim((string) (($order['billing_name'] ?? '') . ', ' . ($order['billing_address_line1'] ?? '') . ' ' . ($order['billing_address_line2'] ?? '') . ', ' . ($order['billing_postal_code'] ?? '') . ' ' . ($order['billing_city'] ?? '') . ', ' . ($order['billing_country'] ?? ''))),
+            ),
+            array(
+                'name'  => __( 'Shipping Address', 'themisdb-order-request' ),
+                'value' => trim((string) (($order['shipping_name'] ?? '') . ', ' . ($order['shipping_address_line1'] ?? '') . ' ' . ($order['shipping_address_line2'] ?? '') . ', ' . ($order['shipping_postal_code'] ?? '') . ' ' . ($order['shipping_city'] ?? '') . ', ' . ($order['shipping_country'] ?? ''))),
+            ),
+            array(
+                'name'  => __( 'Legal Terms Accepted', 'themisdb-order-request' ),
+                'value' => !empty($order['legal_terms_accepted']) ? '1' : '0',
+            ),
+            array(
+                'name'  => __( 'Privacy Accepted', 'themisdb-order-request' ),
+                'value' => !empty($order['legal_privacy_accepted']) ? '1' : '0',
+            ),
+            array(
+                'name'  => __( 'Withdrawal Acknowledged', 'themisdb-order-request' ),
+                'value' => !empty($order['legal_withdrawal_acknowledged']) ? '1' : '0',
+            ),
+            array(
+                'name'  => __( 'Withdrawal Waiver', 'themisdb-order-request' ),
+                'value' => !empty($order['legal_withdrawal_waiver']) ? '1' : '0',
+            ),
+            array(
+                'name'  => __( 'Legal Acceptance Version', 'themisdb-order-request' ),
+                'value' => $order['legal_acceptance_version'] ?? '',
+            ),
+            array(
+                'name'  => __( 'Legal Accepted At', 'themisdb-order-request' ),
+                'value' => $order['legal_accepted_at'] ?? '',
+            ),
+            array(
+                'name'  => __( 'Legal Accepted IP', 'themisdb-order-request' ),
+                'value' => $order['legal_accepted_ip'] ?? '',
+            ),
+            array(
+                'name'  => __( 'Legal Accepted User Agent', 'themisdb-order-request' ),
+                'value' => $order['legal_accepted_user_agent'] ?? '',
+            ),
+        );
+    }
+
+    /**
      * Initialize privacy hooks
      * 
      * Called during plugin activation/bootstrap
@@ -132,24 +219,7 @@ class ThemisDB_Privacy {
                     'group_id'    => 'themisdb-orders',
                     'group_label' => __( 'ThemisDB Orders', 'themisdb-order-request' ),
                     'item_id'     => 'order-' . $order['id'],
-                    'data'        => array(
-                        array(
-                            'name'  => __( 'Order Number', 'themisdb-order-request' ),
-                            'value' => $order['order_number'] ?? '',
-                        ),
-                        array(
-                            'name'  => __( 'Order Date', 'themisdb-order-request' ),
-                            'value' => $order['created_at'] ?? '',
-                        ),
-                        array(
-                            'name'  => __( 'Edition', 'themisdb-order-request' ),
-                            'value' => $order['product_edition'] ?? '',
-                        ),
-                        array(
-                            'name'  => __( 'Status', 'themisdb-order-request' ),
-                            'value' => $order['status'] ?? '',
-                        ),
-                    ),
+                    'data'        => self::build_order_export_data( $order ),
                 );
             }
         } else {
@@ -170,24 +240,7 @@ class ThemisDB_Privacy {
                     'group_id'    => 'themisdb-orders',
                     'group_label' => __( 'ThemisDB Orders', 'themisdb-order-request' ),
                     'item_id'     => 'order-' . $order['id'],
-                    'data'        => array(
-                        array(
-                            'name'  => __( 'Order Number', 'themisdb-order-request' ),
-                            'value' => $order['order_number'] ?? '',
-                        ),
-                        array(
-                            'name'  => __( 'Order Date', 'themisdb-order-request' ),
-                            'value' => $order['created_at'] ?? '',
-                        ),
-                        array(
-                            'name'  => __( 'Edition', 'themisdb-order-request' ),
-                            'value' => $order['product_edition'] ?? '',
-                        ),
-                        array(
-                            'name'  => __( 'Status', 'themisdb-order-request' ),
-                            'value' => $order['status'] ?? '',
-                        ),
-                    ),
+                    'data'        => self::build_order_export_data( $order ),
                 );
             }
         }
@@ -419,13 +472,26 @@ class ThemisDB_Privacy {
             $result = $wpdb->update(
                 $table,
                 array(
+                    'customer_id'      => 0,
                     'customer_name'    => 'GDPR Deleted User',
                     'customer_email'   => md5( $email_address ) . '@deleted.local',
                     'customer_company' => 'GDPR Deleted',
-                    'notes'            => 'Customer data deleted per GDPR request',
+                    'vat_id'           => '',
+                    'billing_name' => '',
+                    'billing_address_line1' => '',
+                    'billing_address_line2' => '',
+                    'billing_postal_code' => '',
+                    'billing_city' => '',
+                    'shipping_name' => '',
+                    'shipping_address_line1' => '',
+                    'shipping_address_line2' => '',
+                    'shipping_postal_code' => '',
+                    'shipping_city' => '',
+                    'legal_accepted_ip' => '',
+                    'legal_accepted_user_agent' => '',
                 ),
                 array( 'id' => $order['id'] ),
-                array( '%s', '%s', '%s', '%s' ),
+                array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ),
                 array( '%d' )
             );
             

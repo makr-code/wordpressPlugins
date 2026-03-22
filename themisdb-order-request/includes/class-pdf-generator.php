@@ -634,11 +634,13 @@ class ThemisDB_PDF_Generator {
     private static function html_to_pdf($html, $filename) {
         // Try to use wkhtmltopdf if available (most reliable)
         if (self::is_wkhtmltopdf_available()) {
-            return self::wkhtmltopdf_convert($html, $filename);
+            $pdf_data = self::wkhtmltopdf_convert($html, $filename);
+            if ($pdf_data !== false && $pdf_data !== '') {
+                return $pdf_data;
+            }
         }
-        
-        // Fallback: Return HTML with instructions to install PDF library
-        // In production, you would use a library like TCPDF, FPDF, or Dompdf
+
+        // Fallback: Generate a basic but valid PDF from the text content.
         return self::fallback_pdf($html, $filename);
     }
     
@@ -646,18 +648,40 @@ class ThemisDB_PDF_Generator {
      * Check if wkhtmltopdf is available
      */
     private static function is_wkhtmltopdf_available() {
-        $output = array();
-        $return_var = 0;
-        exec('which wkhtmltopdf 2>/dev/null', $output, $return_var);
-        return $return_var === 0;
+        if (!self::can_execute_shell_commands()) {
+            return false;
+        }
+
+        $commands = array(
+            'command -v wkhtmltopdf 2>/dev/null',
+            'which wkhtmltopdf 2>/dev/null',
+            'where wkhtmltopdf 2>nul',
+        );
+
+        foreach ($commands as $command) {
+            $result = self::run_shell_command($command);
+            if ($result['ok'] && !empty($result['output'])) {
+                return true;
+            }
+        }
+
+        return false;
     }
     
     /**
      * Convert using wkhtmltopdf
      */
     private static function wkhtmltopdf_convert($html, $filename) {
+        if (!self::can_execute_shell_commands()) {
+            return false;
+        }
+
         $temp_html = tempnam(sys_get_temp_dir(), 'html');
         $temp_pdf = tempnam(sys_get_temp_dir(), 'pdf');
+
+        if ($temp_html === false || $temp_pdf === false) {
+            return false;
+        }
         
         file_put_contents($temp_html, $html);
         
@@ -666,10 +690,10 @@ class ThemisDB_PDF_Generator {
             escapeshellarg($temp_html),
             escapeshellarg($temp_pdf)
         );
+
+        $result = self::run_shell_command($command);
         
-        exec($command, $output, $return_var);
-        
-        if ($return_var === 0 && file_exists($temp_pdf)) {
+        if ($result['ok'] && file_exists($temp_pdf)) {
             $pdf_data = file_get_contents($temp_pdf);
             unlink($temp_html);
             unlink($temp_pdf);
@@ -685,12 +709,163 @@ class ThemisDB_PDF_Generator {
     }
     
     /**
-     * Fallback: Return HTML as "PDF" with instructions
+     * Fallback: Build a valid minimal PDF from stripped HTML text.
      */
     private static function fallback_pdf($html, $filename) {
-        // In a real implementation, this would use TCPDF, FPDF, or similar
-        // For now, we'll return a base64 encoded HTML as a placeholder
-        return base64_encode($html);
+        $plain_text = self::prepare_pdf_text($html);
+        if ($plain_text === '') {
+            return false;
+        }
+
+        $lines = self::wrap_pdf_lines($plain_text, 95);
+        $content_lines = array(
+            'BT',
+            '/F1 10 Tf',
+            '40 800 Td',
+        );
+
+        foreach ($lines as $index => $line) {
+            $escaped = self::escape_pdf_text($line);
+            if ($index === 0) {
+                $content_lines[] = '(' . $escaped . ') Tj';
+            } else {
+                $content_lines[] = '0 -14 Td';
+                $content_lines[] = '(' . $escaped . ') Tj';
+            }
+        }
+
+        $content_lines[] = 'ET';
+        $stream = implode("\n", $content_lines) . "\n";
+
+        return self::build_minimal_pdf($stream);
+    }
+
+    /**
+     * Determine whether shell execution is permitted.
+     */
+    private static function can_execute_shell_commands() {
+        if (!function_exists('exec')) {
+            return false;
+        }
+
+        $disabled = (string) ini_get('disable_functions');
+        if ($disabled === '') {
+            return true;
+        }
+
+        $functions = array_map('trim', explode(',', $disabled));
+        return !in_array('exec', $functions, true);
+    }
+
+    /**
+     * Run shell command and return status/output.
+     */
+    private static function run_shell_command($command) {
+        $output = array();
+        $return_var = 1;
+        @exec($command, $output, $return_var);
+
+        return array(
+            'ok' => ($return_var === 0),
+            'output' => $output,
+        );
+    }
+
+    /**
+     * Convert HTML input to printable plain text for PDF fallback.
+     */
+    private static function prepare_pdf_text($html) {
+        $text = html_entity_decode(wp_strip_all_tags((string) $html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\r\n?|\n/', "\n", $text);
+        $text = preg_replace('/[\t ]+/', ' ', $text);
+        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+        $text = trim((string) $text);
+
+        if ($text === '') {
+            return '';
+        }
+
+        if (function_exists('iconv')) {
+            $converted = @iconv('UTF-8', 'Windows-1252//TRANSLIT//IGNORE', $text);
+            if ($converted !== false) {
+                $text = $converted;
+            }
+        }
+
+        return $text;
+    }
+
+    /**
+     * Wrap plain text into fixed-width lines.
+     */
+    private static function wrap_pdf_lines($text, $line_width = 95) {
+        $paragraphs = explode("\n", (string) $text);
+        $lines = array();
+
+        foreach ($paragraphs as $paragraph) {
+            $paragraph = trim($paragraph);
+            if ($paragraph === '') {
+                $lines[] = ' ';
+                continue;
+            }
+
+            $wrapped = wordwrap($paragraph, intval($line_width), "\n", true);
+            $lines = array_merge($lines, explode("\n", $wrapped));
+        }
+
+        if (empty($lines)) {
+            $lines[] = ' ';
+        }
+
+        // Keep single-page fallback simple and bounded.
+        return array_slice($lines, 0, 52);
+    }
+
+    /**
+     * Escape text for PDF content stream string literals.
+     */
+    private static function escape_pdf_text($text) {
+        return str_replace(
+            array('\\', '(', ')'),
+            array('\\\\', '\\(', '\\)'),
+            (string) $text
+        );
+    }
+
+    /**
+     * Build a minimal valid PDF document from a content stream.
+     */
+    private static function build_minimal_pdf($stream) {
+        $objects = array();
+        $objects[] = '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj';
+        $objects[] = '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj';
+        $objects[] = '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj';
+        $objects[] = '4 0 obj << /Length ' . strlen($stream) . " >>\nstream\n" . $stream . "endstream\nendobj";
+        $objects[] = '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj';
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = array(0);
+
+        foreach ($objects as $object) {
+            $offsets[] = strlen($pdf);
+            $pdf .= $object . "\n";
+        }
+
+        $xref_offset = strlen($pdf);
+        $pdf .= 'xref' . "\n";
+        $pdf .= '0 ' . (count($objects) + 1) . "\n";
+        $pdf .= "0000000000 65535 f \n";
+
+        for ($i = 1; $i <= count($objects); $i++) {
+            $pdf .= sprintf("%010d 00000 n \n", $offsets[$i]);
+        }
+
+        $pdf .= 'trailer << /Size ' . (count($objects) + 1) . ' /Root 1 0 R >>' . "\n";
+        $pdf .= 'startxref' . "\n";
+        $pdf .= $xref_offset . "\n";
+        $pdf .= "%%EOF";
+
+        return $pdf;
     }
     
     /**

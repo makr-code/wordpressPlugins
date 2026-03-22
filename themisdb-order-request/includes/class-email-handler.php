@@ -260,6 +260,11 @@ class ThemisDB_Email_Handler {
      * Get order confirmation email template
      */
     private static function get_order_confirmation_template($order) {
+        $agb_url = get_option('themisdb_order_legal_agb_url', home_url('/agb'));
+        $privacy_url = get_option('themisdb_order_legal_privacy_url', home_url('/datenschutz'));
+        $withdrawal_url = get_option('themisdb_order_legal_withdrawal_url', home_url('/widerruf'));
+        $is_consumer = (($order['customer_type'] ?? 'consumer') === 'consumer');
+
         ob_start();
         ?>
         <!DOCTYPE html>
@@ -380,6 +385,26 @@ class ThemisDB_Email_Handler {
                     </div>
                     
                     <p>Eine detaillierte Bestellbestätigung finden Sie im Anhang dieser E-Mail.</p>
+
+                    <div class="order-details">
+                        <h2>Rechtliche Informationen</h2>
+                        <ul>
+                            <li><a href="<?php echo esc_url($agb_url); ?>" target="_blank" rel="noopener noreferrer">AGB</a></li>
+                            <li><a href="<?php echo esc_url($privacy_url); ?>" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a></li>
+                            <li><a href="<?php echo esc_url($withdrawal_url); ?>" target="_blank" rel="noopener noreferrer">Widerrufsbelehrung</a></li>
+                        </ul>
+                        <p style="margin-top:.75rem; font-size:.95em;">
+                            Erfasste Zustimmungsversion: <strong><?php echo esc_html($order['legal_acceptance_version'] ?? 'de-v1'); ?></strong>
+                            <?php if (!empty($order['legal_accepted_at'])): ?>
+                                (<?php echo esc_html(date('d.m.Y H:i', strtotime($order['legal_accepted_at']))); ?> Uhr)
+                            <?php endif; ?>
+                        </p>
+                        <?php if ($is_consumer && empty($order['legal_withdrawal_waiver'])): ?>
+                            <p style="margin-top:.5rem; color:#6b7280; font-size:.92em;">
+                                Für Verbraucher beginnt die Bereitstellung digitaler Leistungen erst nach zusätzlicher ausdrücklicher Zustimmung zum vorzeitigen Leistungsbeginn.
+                            </p>
+                        <?php endif; ?>
+                    </div>
                     
                     <p>Bei Fragen zu Ihrer Bestellung stehen wir Ihnen gerne zur Verfügung.</p>
                     
