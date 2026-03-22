@@ -93,7 +93,16 @@ class ThemisDB_Affiliate_Program {
     public static function create_referral_link($referral_code, $target_url = '') {
         $code = sanitize_text_field($referral_code);
         if ($target_url === '') {
-            $target_url = get_option('themisdb_order_page_url', home_url('/bestellung'));
+            $configured_target = get_option('themisdb_order_page_url', '');
+            if (is_numeric($configured_target) && intval($configured_target) > 0) {
+                $target_url = get_permalink(intval($configured_target));
+            } else {
+                $target_url = esc_url_raw((string) $configured_target);
+            }
+
+            if (!is_string($target_url) || $target_url === '') {
+                $target_url = home_url('/bestellung');
+            }
         }
         return add_query_arg(array(self::QUERY_REFERRAL_CODE => rawurlencode($code)), $target_url);
     }

@@ -531,10 +531,11 @@ class ThemisDB_Order_Database {
             included_hours_per_month int(11) NOT NULL DEFAULT 0,
             benefit_status varchar(50) NOT NULL DEFAULT 'pending',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             activated_at datetime DEFAULT NULL,
             expires_at datetime DEFAULT NULL,
             tickets_used_this_month int(11) NOT NULL DEFAULT 0,
-            hours_used_this_month int(11) NOT NULL DEFAULT 0,
+            hours_used_this_month decimal(10,2) NOT NULL DEFAULT 0.00,
             last_reset datetime DEFAULT NULL,
             PRIMARY KEY  (id),
             UNIQUE KEY unique_license_benefit (license_id),
@@ -784,6 +785,245 @@ class ThemisDB_Order_Database {
      */
     private static function run_post_schema_migrations() {
         self::ensure_inventory_product_foreign_key();
+        self::ensure_support_benefits_columns();
+        self::ensure_order_items_order_foreign_key();
+        self::ensure_support_tickets_foreign_keys();
+        self::ensure_payments_contract_foreign_key();
+    }
+
+    /**
+     * Ensure support benefits table has expected mutable columns.
+     */
+    private static function ensure_support_benefits_columns() {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'themisdb_support_benefits';
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) !== $table) {
+            return;
+        }
+
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+            return;
+        }
+
+        $table_sql = '`' . $table . '`';
+
+        $has_updated_at = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table_sql} LIKE %s", 'updated_at'));
+        if (empty($has_updated_at)) {
+            $wpdb->query("ALTER TABLE {$table_sql} ADD COLUMN updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at");
+        }
+
+        $hours_col = $wpdb->get_row($wpdb->prepare("SHOW COLUMNS FROM {$table_sql} LIKE %s", 'hours_used_this_month'), ARRAY_A);
+        if (!empty($hours_col) && stripos((string) ($hours_col['Type'] ?? ''), 'decimal') === false) {
+            $wpdb->query("ALTER TABLE {$table_sql} MODIFY hours_used_this_month decimal(10,2) NOT NULL DEFAULT 0.00");
+        }
+    }
+
+    /**
+     * Add FK order_items.order_id -> orders.id (cascade) with orphan cleanup.
+     */
+    private static function ensure_order_items_order_foreign_key() {
+        global $wpdb;
+
+        $table_items = $wpdb->prefix . 'themisdb_order_items';
+        $table_orders = $wpdb->prefix . 'themisdb_orders';
+        $constraint_name = 'fk_themisdb_order_items_order';
+
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table_items)) !== $table_items) {
+            return;
+        }
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table_orders)) !== $table_orders) {
+            return;
+        }
+
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table_items) || !preg_match('/^[A-Za-z0-9_]+$/', $table_orders)) {
+            return;
+        }
+
+        $fk_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+             WHERE CONSTRAINT_SCHEMA = DATABASE()
+               AND TABLE_NAME = %s
+               AND CONSTRAINT_NAME = %s
+               AND CONSTRAINT_TYPE = 'FOREIGN KEY'",
+            $table_items,
+            $constraint_name
+        ));
+        if (intval($fk_exists) > 0) {
+            return;
+        }
+
+        $items_sql = '`' . $table_items . '`';
+        $orders_sql = '`' . $table_orders . '`';
+
+        // Remove orphan line items before FK creation.
+        $wpdb->query(
+            "DELETE i
+             FROM {$items_sql} i
+             LEFT JOIN {$orders_sql} o ON o.id = i.order_id
+             WHERE o.id IS NULL"
+        );
+
+        $wpdb->query(
+            "ALTER TABLE {$items_sql}
+             ADD CONSTRAINT {$constraint_name}
+             FOREIGN KEY (order_id)
+             REFERENCES {$orders_sql}(id)
+             ON DELETE CASCADE
+             ON UPDATE CASCADE"
+        );
+    }
+
+    /**
+     * Add support tickets foreign keys for benefit/license/order references.
+     */
+    private static function ensure_support_tickets_foreign_keys() {
+        global $wpdb;
+
+        $tickets = $wpdb->prefix . 'themisdb_support_tickets';
+        $benefits = $wpdb->prefix . 'themisdb_support_benefits';
+        $licenses = $wpdb->prefix . 'themisdb_licenses';
+        $orders = $wpdb->prefix . 'themisdb_orders';
+
+        $targets = array(
+            array('column' => 'benefit_id', 'ref_table' => $benefits, 'constraint' => 'fk_themisdb_ticket_benefit'),
+            array('column' => 'license_id', 'ref_table' => $licenses, 'constraint' => 'fk_themisdb_ticket_license'),
+            array('column' => 'order_id', 'ref_table' => $orders, 'constraint' => 'fk_themisdb_ticket_order'),
+        );
+
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $tickets)) !== $tickets) {
+            return;
+        }
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $tickets)) {
+            return;
+        }
+
+        $tickets_sql = '`' . $tickets . '`';
+
+        foreach ($targets as $target) {
+            $ref_table = $target['ref_table'];
+            if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $ref_table)) !== $ref_table) {
+                continue;
+            }
+            if (!preg_match('/^[A-Za-z0-9_]+$/', $ref_table)) {
+                continue;
+            }
+
+            $constraint_name = $target['constraint'];
+            $fk_exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+                 WHERE CONSTRAINT_SCHEMA = DATABASE()
+                   AND TABLE_NAME = %s
+                   AND CONSTRAINT_NAME = %s
+                   AND CONSTRAINT_TYPE = 'FOREIGN KEY'",
+                $tickets,
+                $constraint_name
+            ));
+            if (intval($fk_exists) > 0) {
+                continue;
+            }
+
+            $column = $target['column'];
+            $ref_sql = '`' . $ref_table . '`';
+
+            // Ensure the column exists in the table before touching rows or adding FK.
+            // This handles tables created before the column was added to the schema.
+            $col_exists = $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = %s
+                   AND COLUMN_NAME = %s",
+                $tickets,
+                $column
+            ) );
+            if ( ! intval( $col_exists ) ) {
+                $wpdb->query( "ALTER TABLE {$tickets_sql} ADD COLUMN `{$column}` bigint(20) DEFAULT NULL" );
+                // Add index for the new column if not already present.
+                $idx_exists = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT COUNT(*) FROM information_schema.STATISTICS
+                     WHERE TABLE_SCHEMA = DATABASE()
+                       AND TABLE_NAME = %s
+                       AND INDEX_NAME = %s",
+                    $tickets,
+                    $column
+                ) );
+                if ( ! intval( $idx_exists ) ) {
+                    $wpdb->query( "ALTER TABLE {$tickets_sql} ADD KEY `{$column}` (`{$column}`)" );
+                }
+            }
+
+            // Tickets use nullable refs; orphan links are neutralized before adding FK.
+            $wpdb->query(
+                "UPDATE {$tickets_sql} t
+                 LEFT JOIN {$ref_sql} r ON r.id = t.{$column}
+                 SET t.{$column} = NULL
+                 WHERE t.{$column} IS NOT NULL
+                   AND r.id IS NULL"
+            );
+
+            $wpdb->query(
+                "ALTER TABLE {$tickets_sql}
+                 ADD CONSTRAINT {$constraint_name}
+                 FOREIGN KEY ({$column})
+                 REFERENCES {$ref_sql}(id)
+                 ON DELETE SET NULL
+                 ON UPDATE CASCADE"
+            );
+        }
+    }
+
+    /**
+     * Add FK payments.contract_id -> contracts.id with orphan cleanup.
+     */
+    private static function ensure_payments_contract_foreign_key() {
+        global $wpdb;
+
+        $payments = $wpdb->prefix . 'themisdb_payments';
+        $contracts = $wpdb->prefix . 'themisdb_contracts';
+        $constraint_name = 'fk_themisdb_payment_contract';
+
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $payments)) !== $payments) {
+            return;
+        }
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $contracts)) !== $contracts) {
+            return;
+        }
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $payments) || !preg_match('/^[A-Za-z0-9_]+$/', $contracts)) {
+            return;
+        }
+
+        $fk_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+             WHERE CONSTRAINT_SCHEMA = DATABASE()
+               AND TABLE_NAME = %s
+               AND CONSTRAINT_NAME = %s
+               AND CONSTRAINT_TYPE = 'FOREIGN KEY'",
+            $payments,
+            $constraint_name
+        ));
+        if (intval($fk_exists) > 0) {
+            return;
+        }
+
+        $payments_sql = '`' . $payments . '`';
+        $contracts_sql = '`' . $contracts . '`';
+
+        $wpdb->query(
+            "UPDATE {$payments_sql} p
+             LEFT JOIN {$contracts_sql} c ON c.id = p.contract_id
+             SET p.contract_id = NULL
+             WHERE p.contract_id IS NOT NULL
+               AND c.id IS NULL"
+        );
+
+        $wpdb->query(
+            "ALTER TABLE {$payments_sql}
+             ADD CONSTRAINT {$constraint_name}
+             FOREIGN KEY (contract_id)
+             REFERENCES {$contracts_sql}(id)
+             ON DELETE SET NULL
+             ON UPDATE CASCADE"
+        );
     }
 
     /**

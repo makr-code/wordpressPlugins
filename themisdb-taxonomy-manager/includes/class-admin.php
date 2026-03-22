@@ -229,18 +229,77 @@ class ThemisDB_Taxonomy_Admin {
      * Admin page
      */
     public function admin_page() {
+        $page_slug = 'themisdb-taxonomy-manager';
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
+        $allowed_tabs = array('settings', 'optimization', 'hierarchy');
+
+        if (!in_array($active_tab, $allowed_tabs, true)) {
+            $active_tab = 'settings';
+        }
+
+        $tab_url = static function ($tab) use ($page_slug) {
+            return admin_url('options-general.php?page=' . $page_slug . '&tab=' . $tab);
+        };
+
+        $auto_extract = get_option('themisdb_taxonomy_auto_extract', 1);
+        $auto_categories = get_option('themisdb_taxonomy_auto_categories', 1);
+        $auto_tags = get_option('themisdb_taxonomy_auto_tags', 1);
+        $max_categories = get_option('themisdb_taxonomy_max_categories', 5);
+        $max_tags = get_option('themisdb_taxonomy_max_tags', 10);
         ?>
         <div class="wrap">
-            <h1><?php _e('ThemisDB Taxonomy Manager', 'themisdb-taxonomy-manager'); ?></h1>
-            
-            <h2 class="nav-tab-wrapper">
-                <a href="#settings" class="nav-tab nav-tab-active"><?php _e('Settings', 'themisdb-taxonomy-manager'); ?></a>
-                <a href="#optimization" class="nav-tab"><?php _e('Optimization', 'themisdb-taxonomy-manager'); ?></a>
-                <a href="#hierarchy" class="nav-tab"><?php _e('Category Hierarchy', 'themisdb-taxonomy-manager'); ?></a>
-            </h2>
-            
-            <!-- Settings Tab -->
-            <div id="settings" class="tab-content active">
+            <style>
+                .themisdb-tab-content { background: #fff; border: 1px solid #c3c4c7; border-top: none; padding: 20px 24px; }
+                .themisdb-tab-content > :first-child,
+                .themisdb-tab-content .themisdb-admin-modules:first-child,
+                .themisdb-tab-content .card:first-child,
+                .themisdb-tab-content form:first-child { margin-top: 0; }
+                .themisdb-admin-modules { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin: 0 0 24px; }
+                .themisdb-admin-modules .card,
+                .themisdb-tab-content .card { margin: 0; max-width: none; padding: 20px 24px; }
+                .themisdb-tab-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+                .category-tree { margin-left: 20px; }
+                .category-tree li { list-style: none; margin: 5px 0; }
+                .category-tree .parent { font-weight: bold; }
+                .category-tree .child { margin-left: 30px; color: #666; }
+                #optimization-results { background: #f5f5f5; padding: 15px; border-radius: 4px; }
+            </style>
+
+            <h1 class="wp-heading-inline"><?php _e('ThemisDB Taxonomy Manager', 'themisdb-taxonomy-manager'); ?></h1>
+            <a href="<?php echo esc_url($tab_url('settings')); ?>" class="page-title-action"><?php _e('Einstellungen', 'themisdb-taxonomy-manager'); ?></a>
+            <a href="<?php echo esc_url($tab_url('optimization')); ?>" class="page-title-action"><?php _e('Optimierung', 'themisdb-taxonomy-manager'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-analytics')); ?>" class="page-title-action"><?php _e('Analytics', 'themisdb-taxonomy-manager'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-cleanup')); ?>" class="page-title-action"><?php _e('Cleanup', 'themisdb-taxonomy-manager'); ?></a>
+            <hr class="wp-header-end">
+
+            <nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e('Taxonomy Manager Einstellungen', 'themisdb-taxonomy-manager'); ?>">
+                <a href="<?php echo esc_url($tab_url('settings')); ?>" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>"><?php _e('Settings', 'themisdb-taxonomy-manager'); ?></a>
+                <a href="<?php echo esc_url($tab_url('optimization')); ?>" class="nav-tab <?php echo $active_tab === 'optimization' ? 'nav-tab-active' : ''; ?>"><?php _e('Optimization', 'themisdb-taxonomy-manager'); ?></a>
+                <a href="<?php echo esc_url($tab_url('hierarchy')); ?>" class="nav-tab <?php echo $active_tab === 'hierarchy' ? 'nav-tab-active' : ''; ?>"><?php _e('Category Hierarchy', 'themisdb-taxonomy-manager'); ?></a>
+            </nav>
+
+            <div class="themisdb-tab-content">
+            <?php if ($active_tab === 'settings') : ?>
+                <div class="themisdb-admin-modules">
+                    <div class="card">
+                        <h2><?php _e('Schnellaktionen', 'themisdb-taxonomy-manager'); ?></h2>
+                        <div class="themisdb-tab-toolbar">
+                            <a href="<?php echo esc_url($tab_url('optimization')); ?>" class="button button-primary"><?php _e('Optimierung öffnen', 'themisdb-taxonomy-manager'); ?></a>
+                            <a href="<?php echo esc_url($tab_url('hierarchy')); ?>" class="button"><?php _e('Hierarchie prüfen', 'themisdb-taxonomy-manager'); ?></a>
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-cleanup')); ?>" class="button"><?php _e('Cleanup Tool', 'themisdb-taxonomy-manager'); ?></a>
+                        </div>
+                        <p><?php _e('Konfiguriert automatische Extraktion, Limits und SEO-/REST-Verhalten für die ThemisDB-Taxonomien.', 'themisdb-taxonomy-manager'); ?></p>
+                    </div>
+                    <div class="card">
+                        <h2><?php _e('Aktive Defaults', 'themisdb-taxonomy-manager'); ?></h2>
+                        <table class="widefat striped"><tbody>
+                            <tr><th><?php _e('Auto-Extract', 'themisdb-taxonomy-manager'); ?></th><td><?php echo esc_html($auto_extract ? 'Aktiv' : 'Inaktiv'); ?></td></tr>
+                            <tr><th><?php _e('Kategorien / Tags', 'themisdb-taxonomy-manager'); ?></th><td><?php echo esc_html(($auto_categories ? 'Aktiv' : 'Inaktiv') . ' / ' . ($auto_tags ? 'Aktiv' : 'Inaktiv')); ?></td></tr>
+                            <tr><th><?php _e('Max. Kategorien / Tags', 'themisdb-taxonomy-manager'); ?></th><td><?php echo esc_html((string) $max_categories . ' / ' . (string) $max_tags); ?></td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+
                 <form method="post" action="options.php">
                     <?php settings_fields('themisdb_taxonomy_settings'); ?>
                     
@@ -548,56 +607,50 @@ class ThemisDB_Taxonomy_Admin {
                     
                     <?php submit_button(); ?>
                 </form>
-            </div>
-            
-            <!-- Optimization Tab -->
-            <div id="optimization" class="tab-content" style="display:none;">
+            <?php elseif ($active_tab === 'optimization') : ?>
                 <h2><?php _e('Category Optimization', 'themisdb-taxonomy-manager'); ?></h2>
                 <p><?php _e('Consolidate similar categories and optimize the category structure.', 'themisdb-taxonomy-manager'); ?></p>
-                
-                <button type="button" class="button button-primary" id="btn-consolidate">
-                    <?php _e('Run Consolidation', 'themisdb-taxonomy-manager'); ?>
-                </button>
-                
-                <button type="button" class="button" id="btn-get-recommendations">
-                    <?php _e('Get Recommendations', 'themisdb-taxonomy-manager'); ?>
-                </button>
-                
+
+                <div class="themisdb-admin-modules">
+                    <div class="card">
+                        <h2><?php _e('Optimierungsaktionen', 'themisdb-taxonomy-manager'); ?></h2>
+                        <div class="themisdb-tab-toolbar">
+                            <button type="button" class="button button-primary" id="btn-consolidate"><?php _e('Run Consolidation', 'themisdb-taxonomy-manager'); ?></button>
+                            <button type="button" class="button" id="btn-get-recommendations"><?php _e('Get Recommendations', 'themisdb-taxonomy-manager'); ?></button>
+                        </div>
+                        <p><?php _e('Startet Zusammenführungen ähnlicher Kategorien oder lädt Vorschläge vorab als Review.', 'themisdb-taxonomy-manager'); ?></p>
+                    </div>
+                    <div class="card">
+                        <h2><?php _e('Weitere Bereiche', 'themisdb-taxonomy-manager'); ?></h2>
+                        <div class="themisdb-tab-toolbar">
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-analytics')); ?>" class="button"><?php _e('Analytics', 'themisdb-taxonomy-manager'); ?></a>
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-cleanup')); ?>" class="button"><?php _e('Cleanup Tool', 'themisdb-taxonomy-manager'); ?></a>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="optimization-results" style="margin-top: 20px;"></div>
-            </div>
-            
-            <!-- Hierarchy Tab -->
-            <div id="hierarchy" class="tab-content" style="display:none;">
+            <?php else : ?>
                 <h2><?php _e('Category Hierarchy', 'themisdb-taxonomy-manager'); ?></h2>
                 <p><?php _e('Current category structure with parent-child relationships:', 'themisdb-taxonomy-manager'); ?></p>
-                
+
+                <div class="themisdb-admin-modules">
+                    <div class="card">
+                        <h2><?php _e('Schnellaktionen', 'themisdb-taxonomy-manager'); ?></h2>
+                        <div class="themisdb-tab-toolbar">
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-tree')); ?>" class="button button-primary"><?php _e('Tree View öffnen', 'themisdb-taxonomy-manager'); ?></a>
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-analytics')); ?>" class="button"><?php _e('Analytics', 'themisdb-taxonomy-manager'); ?></a>
+                        </div>
+                    </div>
+                </div>
+
                 <?php $this->display_category_hierarchy(); ?>
+            <?php endif; ?>
             </div>
         </div>
         
-        <style>
-            .tab-content { padding: 20px 0; }
-            .category-tree { margin-left: 20px; }
-            .category-tree li { list-style: none; margin: 5px 0; }
-            .category-tree .parent { font-weight: bold; }
-            .category-tree .child { margin-left: 30px; color: #666; }
-            #optimization-results { background: #f5f5f5; padding: 15px; border-radius: 4px; }
-        </style>
-        
         <script>
         jQuery(document).ready(function($) {
-            // Tab switching
-            $('.nav-tab').on('click', function(e) {
-                e.preventDefault();
-                var target = $(this).attr('href');
-                
-                $('.nav-tab').removeClass('nav-tab-active');
-                $(this).addClass('nav-tab-active');
-                
-                $('.tab-content').hide();
-                $(target).show();
-            });
-            
             // Consolidation
             $('#btn-consolidate').on('click', function() {
                 var $btn = $(this);
@@ -799,18 +852,30 @@ class ThemisDB_Taxonomy_Admin {
     public function cleanup_page() {
         ?>
         <div class="wrap">
-            <h1><?php _e('Taxonomy Cleanup Tool', 'themisdb-taxonomy-manager'); ?></h1>
-            <p class="description">
-                <?php _e('Systematically detect and remove nonsensical categories and tags (dates, numbers, generic words) and consolidate near-duplicate terms.', 'themisdb-taxonomy-manager'); ?>
-            </p>
+            <style>
+                .themisdb-admin-modules { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin: 0 0 24px; }
+                .themisdb-admin-modules .card { margin: 0; max-width: none; padding: 20px 24px; }
+            </style>
+
+            <h1 class="wp-heading-inline"><?php _e('Taxonomy Cleanup Tool', 'themisdb-taxonomy-manager'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('options-general.php?page=themisdb-taxonomy-manager&tab=optimization')); ?>" class="page-title-action"><?php _e('Optimierung', 'themisdb-taxonomy-manager'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-analytics')); ?>" class="page-title-action"><?php _e('Analytics', 'themisdb-taxonomy-manager'); ?></a>
+            <hr class="wp-header-end">
+
+            <div class="themisdb-admin-modules">
+                <div class="card">
+                    <h2><?php _e('Zweck', 'themisdb-taxonomy-manager'); ?></h2>
+                    <p><?php _e('Systematisch unsinnige Kategorien und Tags erkennen, entfernen und fast identische Begriffe konsolidieren.', 'themisdb-taxonomy-manager'); ?></p>
+                </div>
+                <div class="card">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-taxonomy-manager'); ?></h2>
+                    <p>
+                        <button type="button" id="btn-preview" class="button button-primary"><?php _e('Refresh Preview', 'themisdb-taxonomy-manager'); ?></button>
+                    </p>
+                </div>
+            </div>
             
             <div id="cleaner-notice" class="notice"></div>
-            
-            <p>
-                <button type="button" id="btn-preview" class="button button-primary">
-                    <?php _e('Refresh Preview', 'themisdb-taxonomy-manager'); ?>
-                </button>
-            </p>
             
             <div id="preview-area">
                 <p><?php _e('Loading…', 'themisdb-taxonomy-manager'); ?></p>
@@ -940,7 +1005,10 @@ class ThemisDB_Taxonomy_Admin {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('ThemisDB Taxonomy Analytics', 'themisdb-taxonomy-manager'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('ThemisDB Taxonomy Analytics', 'themisdb-taxonomy-manager'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('options-general.php?page=themisdb-taxonomy-manager&tab=hierarchy')); ?>" class="page-title-action"><?php _e('Hierarchie', 'themisdb-taxonomy-manager'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-cleanup')); ?>" class="page-title-action"><?php _e('Cleanup Tool', 'themisdb-taxonomy-manager'); ?></a>
+            <hr class="wp-header-end">
             
             <div class="taxonomy-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
                 <div class="stat-box" style="background: #fff; padding: 20px; border-left: 4px solid #2271b1; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">

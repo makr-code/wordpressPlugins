@@ -6,6 +6,9 @@ jQuery(document).ready(function($) {
     var currentStep = 1;
     var orderData = {};
     var flowMode = ($('.themisdb-order-flow').data('flow-mode') || 'default').toString();
+
+    // Legacy deep links like #modules/#training should still open the correct step.
+    applyLegacyHashRouting();
     
     // Product selection
     $(document).on('click', '.product-card', function() {
@@ -331,6 +334,42 @@ jQuery(document).ready(function($) {
         $('html, body').animate({
             scrollTop: $('.themisdb-order-flow').offset().top - 100
         }, 500);
+    }
+
+    function applyLegacyHashRouting() {
+        var hashStep = resolveHashStep(window.location.hash);
+        if (hashStep === null) {
+            return;
+        }
+
+        if ($('.order-step-content[data-step="' + hashStep + '"]').length === 0) {
+            return;
+        }
+
+        loadStep(hashStep);
+
+        if (window.history && typeof window.history.replaceState === 'function') {
+            var cleanUrl = window.location.pathname + window.location.search;
+            window.history.replaceState(null, document.title, cleanUrl);
+        }
+    }
+
+    function resolveHashStep(hashValue) {
+        var hash = (hashValue || '').toLowerCase();
+
+        if (hash === '#modules') {
+            return flowMode === 'express' ? 4 : 2;
+        }
+
+        if (hash === '#training') {
+            return flowMode === 'express' ? 4 : 3;
+        }
+
+        if (hash === '#checkout') {
+            return 4;
+        }
+
+        return null;
     }
     
     /**

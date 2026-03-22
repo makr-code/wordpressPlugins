@@ -22,6 +22,72 @@ Dieses Dokument beschreibt spezialisierte WordPress-Plugins für die ThemisDB-We
 
 ---
 
+## Shop-Integration mit themisdb-order-request
+
+### Dynamischer Shop-Shortcode
+**Status:** ✅ Im Workspace umgesetzt  
+**Quelle:** ThemisDB Order Plugin (`themisdb-order-request`)  
+**Ziel:** WordPress-Shopseite direkt aus Produkt-, Modul-, Schulungs-, Lizenzpreis- und Feature-Daten rendern
+
+**Shortcode-Beispiele:**
+```php
+// Standard-Shop
+[themisdb_shop]
+
+// Shop mit fester Empfehlung fuer CTA und Deep Links
+[themisdb_shop preferred_edition="enterprise"]
+
+// Shop ohne Featurelisten
+[themisdb_shop show_features="no"]
+
+// Shop mit angepassten Kontaktadressen
+[themisdb_shop sales_email="sales@themisdb.org" training_email="training@themisdb.org" enterprise_email="enterprise@themisdb.org"]
+```
+
+**Unterstuetzte Attribute:**
+- `preferred_edition`: Ueberschreibt die automatische Empfehlungslogik fuer CTA, Modul- und Schulungs-Deep-Links
+- `currency`: Waehlt die Lizenzpreis-Waehrung fuer die Shop-Karten
+- `show_features`: Steuert, ob aktive Lizenz-Features pro Edition eingeblendet werden
+- `order_url`: Zielseite fuer den Bestellfluss
+- `product_url`: Zielseite fuer den Produktkonfigurator
+- `sales_email`, `training_email`, `enterprise_email`: Kontaktziele fuer die Kontaktkarten
+
+**Deep-Link-Verhalten:**
+- Produktkarten koennen eine Edition direkt in Order-Flow oder Konfigurator uebergeben
+- Module und Schulungen koennen vorausgewaehlt in den Konfigurator springen
+- Modul- und Schulungslinks koennen direkt mit `checkout=1` in den Checkout-Draft fuehren
+- Preis- und Featurekarten kommen aus den aktiven Lizenztabellen des Order-Plugins
+
+**Entwickler-Hooks:**
+```php
+// Reihenfolge der bevorzugten Editionen beeinflussen
+add_filter('themisdb_shop_recommended_edition_preferences', function ($preferences, $context, $detail) {
+  if ($context === 'module' && $detail === 'scaling') {
+    return array('hyperscaler', 'enterprise', 'community');
+  }
+
+  return $preferences;
+}, 10, 3);
+
+// Finale Edition direkt ueberschreiben
+add_filter('themisdb_shop_recommended_edition', function ($edition, $context) {
+  if ($context === 'training') {
+    return 'enterprise';
+  }
+
+  return $edition;
+}, 10, 2);
+```
+
+**Empfohlene Redaktionsvorgabe:**
+- Auf der produktiven Shop-Seite `[themisdb_shop preferred_edition="enterprise"]` einsetzen
+- Nur dann von `preferred_edition` abweichen, wenn eine Kampagnenseite gezielt auf `community`, `hyperscaler` oder `reseller` fuehren soll
+
+**Praxisanleitung fuer Hook-Overrides:**
+- docs/WORDPRESS_SHOP_HOOK_OVERRIDES.md
+
+---
+
 ## 1. Bereits existierender Plugin: TCO Calculator ✅
 
 ### ThemisDB TCO Calculator

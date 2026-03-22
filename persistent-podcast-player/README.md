@@ -53,10 +53,15 @@ A **state-of-the-art** WordPress plugin that provides a modern, feature-rich pod
 
 ### 🔗 WordPress Integration
 - **Custom post type** - `pod_episode` for managing episodes
+- **Native Media Library audio (strict)** - Select/upload audio directly via WordPress media picker
+- **Validation notice** - Admin receives a clear error notice if a non-audio attachment is selected
+- **Allowed formats** - Strictly validated to `mp3`, `m4a`, `wav`, `ogg`
+- **Publish guard** - Publishing is blocked if no valid audio attachment is set; the episode is saved as draft
+- **Editor guard** - Publish buttons are disabled in the editor until a valid audio attachment is selected
 - **Featured images** - Full thumbnail support
 - **REST API** - `/wp-json/persistent-player/v1/episodes` endpoint
 - **Related posts** - Link episodes to blog posts with excerpts
-- **Meta fields** - `audio_url` and `related_post_id` custom fields
+- **Meta fields** - `audio_attachment_id` (primary), `audio_url` (legacy read-only fallback), and `related_post_id`
 
 ## Installation
 
@@ -72,14 +77,14 @@ A **state-of-the-art** WordPress plugin that provides a modern, feature-rich pod
 2. Click "Add New Episode"
 3. Enter the episode title and description
 4. Set a **featured image** (this will be used as the episode thumbnail)
-5. Add custom fields:
-   - `audio_url`: URL to the audio file (MP3, etc.)
-   - `related_post_id`: ID of the related WordPress post (optional)
+5. In the **Audio File** box, click **Select Audio File** and choose/upload your file from the WordPress Media Library
+6. Optional: add `related_post_id` as ID of the related WordPress post
 6. Publish the episode
 
 ### Custom Fields
 
-- **audio_url**: The URL to the audio file for this episode
+- **audio_attachment_id**: WordPress media attachment ID for the selected audio file (primary source)
+- **audio_url**: Legacy fallback, wird weiterhin gelesen fuer Altbestaende, aber im Admin nicht mehr aktiv bearbeitet
 - **related_post_id**: The ID of a WordPress post that is related to this episode. If provided, the player will show the post's excerpt and a link to the post.
 
 ### Featured Images
@@ -93,6 +98,8 @@ The plugin provides a REST endpoint at `/wp-json/persistent-player/v1/episodes` 
 - `id`: Episode ID
 - `title`: Episode title
 - `audio`: Audio file URL
+- `audio_attachment_id`: Resolved WordPress attachment ID (`0` when none)
+- `audio_source`: `media_library`, `manual_url`, or `none`
 - `desc`: Episode description (stripped HTML)
 - `excerpt`: Excerpt from related post (if available)
 - `permalink`: Link to related post (if available)

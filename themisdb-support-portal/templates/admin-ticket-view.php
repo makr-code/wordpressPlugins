@@ -22,6 +22,12 @@ if (!defined('ABSPATH')) {
     <a href="<?php echo esc_url($back_to_list_url); ?>" class="page-title-action">
         &larr; <?php esc_html_e('Zurück zur Übersicht', 'themisdb-support-portal'); ?>
     </a>
+    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support&tab=create')); ?>" class="page-title-action">
+        <?php esc_html_e('Neues Ticket', 'themisdb-support-portal'); ?>
+    </a>
+    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support-settings')); ?>" class="page-title-action">
+        <?php esc_html_e('Einstellungen', 'themisdb-support-portal'); ?>
+    </a>
 
     <?php
     $has_previous_ticket = !empty($ticket_navigation['previous']);
@@ -55,6 +61,86 @@ if (!defined('ABSPATH')) {
             <p><?php echo esc_html($notice_message); ?></p>
         </div>
     <?php endif; ?>
+
+    <div class="themisdb-admin-modules">
+        <div class="card">
+            <h2><?php esc_html_e('Schnellaktionen', 'themisdb-support-portal'); ?></h2>
+            <p>
+                <a href="<?php echo esc_url($back_to_list_url); ?>" class="button button-primary"><?php esc_html_e('Zur Ticket-Uebersicht', 'themisdb-support-portal'); ?></a>
+                <a href="#themisdb-support-admin-reply-wrap" class="button"><?php esc_html_e('Zur Antwort', 'themisdb-support-portal'); ?></a>
+                <a href="#themisdb-edit-subject" class="button"><?php esc_html_e('Ticket bearbeiten', 'themisdb-support-portal'); ?></a>
+            </p>
+            <p><?php esc_html_e('Wechsle direkt zwischen Verlauf, Antwort und Pflege des Tickets, ohne die aktuelle Detailansicht zu verlassen.', 'themisdb-support-portal'); ?></p>
+        </div>
+
+        <div class="card">
+            <h2><?php esc_html_e('Ticket-Status', 'themisdb-support-portal'); ?></h2>
+            <table class="widefat striped">
+                <tbody>
+                    <tr>
+                        <th><?php esc_html_e('Status', 'themisdb-support-portal'); ?></th>
+                        <td><?php echo esc_html(isset($status_labels[$ticket['status']]) ? $status_labels[$ticket['status']] : $ticket['status']); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php esc_html_e('Priorität', 'themisdb-support-portal'); ?></th>
+                        <td><?php echo esc_html(isset($priority_labels[$ticket['priority']]) ? $priority_labels[$ticket['priority']] : $ticket['priority']); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php esc_html_e('Kunde', 'themisdb-support-portal'); ?></th>
+                        <td><?php echo esc_html($ticket['customer_name']); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php esc_html_e('Letzte Aktualisierung', 'themisdb-support-portal'); ?></th>
+                        <td><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($ticket['updated_at']))); ?></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2><?php esc_html_e('Support-Kontext', 'themisdb-support-portal'); ?></h2>
+            <table class="widefat striped">
+                <tbody>
+                    <tr>
+                        <th><?php esc_html_e('Lizenzbezug', 'themisdb-support-portal'); ?></th>
+                        <td>
+                            <?php
+                            if (!empty($ticket['license_key'])) {
+                                echo esc_html(substr($ticket['license_key'], 0, 16) . '...');
+                            } else {
+                                esc_html_e('Kein Lizenzschlüssel hinterlegt', 'themisdb-support-portal');
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php esc_html_e('Support Benefits', 'themisdb-support-portal'); ?></th>
+                        <td>
+                            <?php
+                            if (!empty($support_benefit['tier_level'])) {
+                                echo esc_html(ucfirst($support_benefit['tier_level']));
+                            } else {
+                                esc_html_e('Keine Benefits gefunden', 'themisdb-support-portal');
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php esc_html_e('Antwort-SLA', 'themisdb-support-portal'); ?></th>
+                        <td>
+                            <?php
+                            if (!empty($support_benefit['response_sla_hours'])) {
+                                echo esc_html(intval($support_benefit['response_sla_hours']) . ' h');
+                            } else {
+                                esc_html_e('Nicht definiert', 'themisdb-support-portal');
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <div class="themisdb-support-admin-ticket-layout">
 

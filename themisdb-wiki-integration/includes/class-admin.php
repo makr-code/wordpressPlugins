@@ -120,9 +120,42 @@ class ThemisDB_Wiki_Admin {
     public function render_settings_page() {
         ?>
         <div class="wrap">
-            <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-            
-            <h2 class="nav-tab-wrapper">
+            <h1 class="wp-heading-inline"><?php echo esc_html(get_admin_page_title()); ?></h1>
+            <a href="#sync" class="page-title-action"><?php _e('Sync', 'themisdb-wiki'); ?></a>
+            <a href="#about" class="page-title-action"><?php _e('About', 'themisdb-wiki'); ?></a>
+            <hr class="wp-header-end">
+
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin:20px 0;">
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-wiki'); ?></h2>
+                    <p><?php _e('Springen Sie direkt zur Synchronisation oder zum Info-Bereich der Wiki-Integration.', 'themisdb-wiki'); ?></p>
+                    <p>
+                        <a href="#sync" class="button button-primary"><?php _e('GitHub Sync', 'themisdb-wiki'); ?></a>
+                        <a href="#about" class="button"><?php _e('About', 'themisdb-wiki'); ?></a>
+                    </p>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Status', 'themisdb-wiki'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Version', 'themisdb-wiki'); ?></td>
+                                <td><strong><?php echo esc_html(THEMISDB_WIKI_VERSION); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Auto-Sync', 'themisdb-wiki'); ?></td>
+                                <td><?php echo get_option('themisdb_wiki_auto_sync', 'yes') === 'yes' ? esc_html__('Aktiv', 'themisdb-wiki') : esc_html__('Deaktiviert', 'themisdb-wiki'); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Sync Direction', 'themisdb-wiki'); ?></td>
+                                <td><?php echo esc_html(get_option('themisdb_wiki_sync_direction', 'bidirectional')); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h2 class="nav-tab-wrapper wp-clearfix">
                 <a href="#settings" class="nav-tab nav-tab-active"><?php _e('Settings', 'themisdb-wiki'); ?></a>
                 <a href="#sync" class="nav-tab"><?php _e('Sync', 'themisdb-wiki'); ?></a>
                 <a href="#about" class="nav-tab"><?php _e('About', 'themisdb-wiki'); ?></a>

@@ -73,6 +73,10 @@ class ThemisDB_License_Manager {
         
         $edition = strtolower($data['product_edition']);
         $limits = isset($tier_limits[$edition]) ? $tier_limits[$edition] : $tier_limits['community'];
+
+        $default_storage_gb = intval($limits['max_storage_tb']) === -1
+            ? -1
+            : intval($limits['max_storage_tb']) * 1024;
         
         $license_data = array(
             'license_key' => $license_key,
@@ -83,7 +87,7 @@ class ThemisDB_License_Manager {
             'license_type' => isset($data['license_type']) ? sanitize_text_field($data['license_type']) : 'standard',
             'max_nodes' => isset($data['max_nodes']) ? intval($data['max_nodes']) : $limits['max_nodes'],
             'max_cores' => isset($data['max_cores']) ? intval($data['max_cores']) : $limits['max_cores'],
-            'max_storage_gb' => isset($data['max_storage_gb']) ? intval($data['max_storage_gb']) : ($limits['max_storage_tb'] * 1024),  // Convert TB to GB
+            'max_storage_gb' => isset($data['max_storage_gb']) ? intval($data['max_storage_gb']) : $default_storage_gb,
             'license_status' => 'pending',
             'expiry_date' => isset($data['expiry_date']) ? $data['expiry_date'] : null,
             'epserver_subscription_id' => isset($data['epserver_subscription_id']) ? sanitize_text_field($data['epserver_subscription_id']) : null
@@ -338,7 +342,7 @@ class ThemisDB_License_Manager {
         $limits = array(
             'max_nodes' => $license['max_nodes'] ? intval($license['max_nodes']) : -1,
             'max_cores' => $license['max_cores'] ? intval($license['max_cores']) : -1,
-            'max_storage_tb' => $license['max_storage_gb'] ? floatval($license['max_storage_gb']) / 1024 : -1
+            'max_storage_tb' => intval($license['max_storage_gb']) === -1 ? -1 : (floatval($license['max_storage_gb']) / 1024)
         );
         
         // Calculate days remaining

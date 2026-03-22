@@ -112,7 +112,28 @@ class ThemisDB_Tree_View {
         $current_taxonomy = isset($_GET['taxonomy']) ? sanitize_text_field($_GET['taxonomy']) : 'themisdb_feature';
         ?>
         <div class="wrap themisdb-tree-admin">
-            <h1><?php _e('ThemisDB Taxonomy Tree', 'themisdb-taxonomy'); ?></h1>
+            <style>
+                .themisdb-admin-modules { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin: 0 0 24px; }
+                .themisdb-admin-modules .card { margin: 0; max-width: none; padding: 20px 24px; }
+                .themisdb-tab-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+            </style>
+
+            <h1 class="wp-heading-inline"><?php _e('ThemisDB Taxonomy Tree', 'themisdb-taxonomy'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('options-general.php?page=themisdb-taxonomy-manager&tab=hierarchy')); ?>" class="page-title-action"><?php _e('Hierarchie', 'themisdb-taxonomy'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-analytics')); ?>" class="page-title-action"><?php _e('Analytics', 'themisdb-taxonomy'); ?></a>
+            <hr class="wp-header-end">
+
+            <div class="themisdb-admin-modules">
+                <div class="card">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-taxonomy'); ?></h2>
+                    <div class="themisdb-tab-toolbar">
+                        <button type="button" class="button" id="expand-all"><?php _e('Expand All', 'themisdb-taxonomy'); ?></button>
+                        <button type="button" class="button" id="collapse-all"><?php _e('Collapse All', 'themisdb-taxonomy'); ?></button>
+                        <button type="button" class="button button-primary" id="export-tree"><?php _e('Export JSON', 'themisdb-taxonomy'); ?></button>
+                    </div>
+                    <p><?php _e('Visualisiert und verwaltet hierarchische Taxonomien mit Drag & Drop und Export.', 'themisdb-taxonomy'); ?></p>
+                </div>
+            </div>
             
             <div class="tree-controls">
                 <label for="taxonomy-selector">
@@ -140,17 +161,6 @@ class ThemisDB_Tree_View {
                        placeholder="<?php esc_attr_e('Search terms...', 'themisdb-taxonomy'); ?>"
                        aria-label="<?php esc_attr_e('Search taxonomy terms', 'themisdb-taxonomy'); ?>">
                 
-                <button type="button" class="button" id="expand-all">
-                    <?php _e('Expand All', 'themisdb-taxonomy'); ?>
-                </button>
-                
-                <button type="button" class="button" id="collapse-all">
-                    <?php _e('Collapse All', 'themisdb-taxonomy'); ?>
-                </button>
-                
-                <button type="button" class="button button-primary" id="export-tree">
-                    <?php _e('Export JSON', 'themisdb-taxonomy'); ?>
-                </button>
             </div>
             
             <div class="taxonomy-tree-container">

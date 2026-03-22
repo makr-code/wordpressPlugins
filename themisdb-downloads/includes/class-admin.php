@@ -151,14 +151,42 @@ class ThemisDB_Downloads_Admin {
         $api = new ThemisDB_Downloads_GitHub_API();
         $latest = $api->get_latest_release();
         $api_status = is_wp_error($latest) ? 'error' : 'success';
+        $page_slug = 'themisdb-downloads';
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
+        $allowed_tabs = array('settings', 'shortcodes', 'status');
+
+        if (!in_array($active_tab, $allowed_tabs, true)) {
+            $active_tab = 'settings';
+        }
+
+        $tab_url = static function ($tab) use ($page_slug) {
+            return admin_url('options-general.php?page=' . $page_slug . '&tab=' . $tab);
+        };
         
         ?>
         <div class="wrap">
-            <h1>ThemisDB Downloads Einstellungen</h1>
-            
-            <div class="themisdb-admin-header">
-                <p>Konfigurieren Sie die Einstellungen für das automatische Abrufen von ThemisDB Releases von GitHub.</p>
-            </div>
+            <style>
+                .themisdb-tab-content { background: #fff; border: 1px solid #c3c4c7; border-top: none; padding: 20px 24px; }
+                .themisdb-tab-content > :first-child,
+                .themisdb-tab-content .themisdb-admin-modules:first-child,
+                .themisdb-tab-content .card:first-child,
+                .themisdb-tab-content form:first-child { margin-top: 0; }
+                .themisdb-admin-modules { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin: 0 0 24px; }
+                .themisdb-admin-modules .card, .themisdb-tab-content .card { margin: 0; max-width: none; padding: 20px 24px; }
+                .themisdb-tab-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+            </style>
+
+            <h1 class="wp-heading-inline">ThemisDB Downloads Einstellungen</h1>
+            <a href="<?php echo esc_url($tab_url('settings')); ?>" class="page-title-action">Einstellungen bearbeiten</a>
+            <a href="<?php echo esc_url($tab_url('status')); ?>" class="page-title-action">API Status</a>
+            <a href="<?php echo esc_url($tab_url('shortcodes')); ?>" class="page-title-action">Shortcodes anzeigen</a>
+            <hr class="wp-header-end">
+
+            <nav class="nav-tab-wrapper wp-clearfix" aria-label="Downloads Einstellungen">
+                <a href="<?php echo esc_url($tab_url('settings')); ?>" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">Einstellungen</a>
+                <a href="<?php echo esc_url($tab_url('status')); ?>" class="nav-tab <?php echo $active_tab === 'status' ? 'nav-tab-active' : ''; ?>">API & Status</a>
+                <a href="<?php echo esc_url($tab_url('shortcodes')); ?>" class="nav-tab <?php echo $active_tab === 'shortcodes' ? 'nav-tab-active' : ''; ?>">Shortcodes</a>
+            </nav>
             
             <?php if ($api_status === 'error'): ?>
                 <div class="notice notice-error">
@@ -169,11 +197,31 @@ class ThemisDB_Downloads_Admin {
                     <p><strong>API Verbindung erfolgreich!</strong> Neueste Version: <?php echo esc_html($latest['version']); ?></p>
                 </div>
             <?php endif; ?>
-            
-            <form method="post" action="">
-                <?php wp_nonce_field('themisdb_downloads_settings'); ?>
-                
-                <table class="form-table">
+            <div class="themisdb-tab-content">
+            <?php if ($active_tab === 'settings') : ?>
+                <div class="themisdb-admin-modules">
+                    <div class="card">
+                        <h2>Schnellaktionen</h2>
+                        <div class="themisdb-tab-toolbar">
+                            <a href="#themisdb-downloads-settings-form" class="button button-primary">Zur Konfiguration</a>
+                            <button type="button" id="themisdb_clear_cache" class="button button-secondary">Cache leeren</button>
+                        </div>
+                        <p>Konfiguriert GitHub-Release-Abruf, Sichtbarkeit von Pre-Releases und automatische Taxonomie-Ableitung.</p>
+                    </div>
+                    <div class="card">
+                        <h2>Aktive Defaults</h2>
+                        <table class="widefat striped"><tbody>
+                            <tr><th>Repository</th><td><?php echo esc_html($repo); ?></td></tr>
+                            <tr><th>Cache-Dauer</th><td><?php echo esc_html((string) $cache_duration); ?></td></tr>
+                            <tr><th>Releases</th><td><?php echo esc_html((string) $releases_count); ?></td></tr>
+                            <tr><th>Pre-Releases</th><td><?php echo esc_html($show_prerelease ? 'Aktiv' : 'Inaktiv'); ?></td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+
+                <form id="themisdb-downloads-settings-form" method="post" action="">
+                    <?php wp_nonce_field('themisdb_downloads_settings'); ?>
+                    <table class="form-table">
                     <tr>
                         <th scope="row">
                             <label for="themisdb_github_repo">GitHub Repository</label>
@@ -322,12 +370,9 @@ class ThemisDB_Downloads_Admin {
                         Cache leeren
                     </button>
                 </p>
-            </form>
-            
-            <hr>
-            
-            <h2>Verwendung</h2>
-            <div class="themisdb-usage-instructions">
+                </form>
+            <?php elseif ($active_tab === 'shortcodes') : ?>
+            <div class="card themisdb-usage-instructions">
                 <h3>Shortcodes</h3>
                 <p>Verwenden Sie diese Shortcodes, um Downloads auf Ihren Seiten anzuzeigen:</p>
                 
@@ -353,12 +398,17 @@ class ThemisDB_Downloads_Admin {
                 <code>[themisdb_changelog]</code>
                 <code>[themisdb_changelog version="v1.3.4"]</code>
             </div>
-            
-            <hr>
-            
-            <h2>Aktuelle Release Informationen</h2>
+            <?php else : ?>
+            <div class="themisdb-admin-modules">
+                <div class="card">
+                    <h2>API Status</h2>
+                    <p><?php echo esc_html($api_status === 'success' ? 'GitHub-API erreichbar.' : 'GitHub-API liefert aktuell einen Fehler.'); ?></p>
+                </div>
+            </div>
             <?php if ($api_status === 'success'): ?>
-                <table class="widefat">
+                <div class="card">
+                <h2>Aktuelle Release Informationen</h2>
+                <table class="widefat striped">
                     <tr>
                         <th>Version</th>
                         <td><?php echo esc_html($latest['version']); ?></td>
@@ -376,7 +426,10 @@ class ThemisDB_Downloads_Admin {
                         <td><?php echo count($latest['sha256sums']); ?> Dateien</td>
                     </tr>
                 </table>
+                </div>
             <?php endif; ?>
+            <?php endif; ?>
+            </div>
         </div>
         <?php
     }

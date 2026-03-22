@@ -33,6 +33,51 @@ if (!defined('ABSPATH')) {
 }
 
 class ThemisDB_Payment_Manager {
+
+    /**
+     * Normalize external/internal status values to canonical payment statuses.
+     */
+    private static function normalize_payment_status($status) {
+        $status = sanitize_key((string) $status);
+
+        $map = array(
+            'completed' => 'verified',
+            'paid' => 'verified',
+            'processing' => 'pending',
+        );
+
+        if (isset($map[$status])) {
+            $status = $map[$status];
+        }
+
+        $allowed = array('pending', 'overdue', 'verified', 'failed');
+        return in_array($status, $allowed, true) ? $status : null;
+    }
+
+    /**
+     * Validate payment status transition.
+     */
+    private static function can_transition_payment_status($current_status, $new_status) {
+        $current_status = self::normalize_payment_status($current_status);
+        $new_status = self::normalize_payment_status($new_status);
+
+        if ($current_status === null || $new_status === null) {
+            return false;
+        }
+
+        if ($current_status === $new_status) {
+            return true;
+        }
+
+        $allowed = array(
+            'pending' => array('overdue', 'verified', 'failed'),
+            'overdue' => array('verified', 'failed'),
+            'verified' => array(),
+            'failed' => array(),
+        );
+
+        return in_array($new_status, $allowed[$current_status], true);
+    }
     
     /**
      * Create a new payment record
@@ -203,7 +248,18 @@ class ThemisDB_Payment_Manager {
         $update_data = array();
 
         if (isset($data['payment_status'])) {
-            $update_data['payment_status'] = sanitize_text_field($data['payment_status']);
+            $next_status = self::normalize_payment_status($data['payment_status']);
+            if ($next_status === null) {
+                return false;
+            }
+            if (!self::can_transition_payment_status($payment['payment_status'], $next_status)) {
+                return false;
+            }
+
+            $update_data['payment_status'] = $next_status;
+            if ($next_status === 'verified' && empty($payment['verified_at'])) {
+                $update_data['verified_at'] = current_time('mysql');
+            }
         }
         if (isset($data['order_id'])) {
             $update_data['order_id'] = intval($data['order_id']);
@@ -408,13 +464,17 @@ class ThemisDB_Payment_Manager {
             // Update payment status based on epServer response
             global $wpdb;
             $table_payments = $wpdb->prefix . 'themisdb_payments';
-            
+
+            $next_status = self::normalize_payment_status($response['status']);
+            if ($next_status === null || !self::can_transition_payment_status($payment['payment_status'], $next_status)) {
+                return $response;
+            }
+
             $update_data = array(
-                'payment_status' => $response['status']
+                'payment_status' => $next_status
             );
-            
-            if ($response['status'] === 'completed' || $response['status'] === 'verified') {
-                $update_data['payment_status'] = 'verified';
+
+            if ($next_status === 'verified') {
                 $update_data['verified_at'] = current_time('mysql');
                 $update_data['payment_date'] = isset($response['payment_date']) ? $response['payment_date'] : current_time('mysql');
             }

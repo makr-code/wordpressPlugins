@@ -44,7 +44,56 @@ class ThemisDB_Advanced_Reporting {
         $mix = self::get_product_mix_analysis(12);
 
         echo '<div class="wrap">';
-        echo '<h1>' . esc_html__('Advanced Reporting', 'themisdb-order-request') . '</h1>';
+        echo '<style>
+            .themisdb-admin-modules { display:grid; gap:20px; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); margin:0 0 24px; }
+            .themisdb-admin-modules .card, .themisdb-reporting-card { margin:0; max-width:none; padding:20px 24px; background:#fff; border:1px solid #c3c4c7; }
+            .themisdb-reporting-grid { display:grid; gap:20px; }
+            .themisdb-tab-toolbar { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 16px; }
+        </style>';
+        echo '<h1 class="wp-heading-inline">' . esc_html__('Advanced Reporting', 'themisdb-order-request') . '</h1>';
+        echo '<a href="' . esc_url(admin_url('admin.php?page=themisdb-order-dashboard')) . '" class="page-title-action">' . esc_html__('Dashboard', 'themisdb-order-request') . '</a>';
+        echo '<a href="' . esc_url(admin_url('admin.php?page=themisdb-orders')) . '" class="page-title-action">' . esc_html__('Bestellungen', 'themisdb-order-request') . '</a>';
+        echo '<hr class="wp-header-end">';
+
+        echo '<div class="themisdb-admin-modules">';
+        echo '<div class="card">';
+        echo '<h2>' . esc_html__('Schnellaktionen', 'themisdb-order-request') . '</h2>';
+        echo '<div class="themisdb-tab-toolbar">';
+        echo '<a href="#themisdb-report-cohort" class="button button-primary">' . esc_html__('Cohorts', 'themisdb-order-request') . '</a>';
+        echo '<a href="#themisdb-report-ltv" class="button">' . esc_html__('LTV & CAC', 'themisdb-order-request') . '</a>';
+        echo '<a href="#themisdb-report-churn" class="button">' . esc_html__('Churn', 'themisdb-order-request') . '</a>';
+        echo '</div>';
+        echo '<p>' . esc_html__('Verdichtet Kundenbindung, Akquisekosten, Kündigungsraten und Produktmix in einer einzigen Reporting-Ansicht.', 'themisdb-order-request') . '</p>';
+        echo '</div>';
+        echo '<div class="card">';
+        echo '<h2>' . esc_html__('Kennzahlen', 'themisdb-order-request') . '</h2>';
+        echo '<table class="widefat striped"><tbody>';
+        echo '<tr><th>' . esc_html__('Cohorts', 'themisdb-order-request') . '</th><td>' . esc_html((string) count($cohort)) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('LTV/CAC Monate', 'themisdb-order-request') . '</th><td>' . esc_html((string) count($ltv_cac)) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('Churn Monate', 'themisdb-order-request') . '</th><td>' . esc_html((string) count($churn)) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('Editionen im Mix', 'themisdb-order-request') . '</th><td>' . esc_html((string) count($mix)) . '</td></tr>';
+        echo '</tbody></table>';
+        echo '</div>';
+        echo '</div>';
+
+        self::render_reports_content($cohort, $ltv_cac, $churn, $mix, true);
+
+        echo '</div>';
+    }
+
+    public static function shortcode($atts) {
+        ob_start();
+        $cohort = self::get_cohort_analysis(12);
+        $ltv_cac = self::get_ltv_cac_tracking(12);
+        $churn = self::get_churn_analysis(6);
+        $mix = self::get_product_mix_analysis(12);
+        self::render_reports_content($cohort, $ltv_cac, $churn, $mix, false);
+        return ob_get_clean();
+    }
+
+    private static function render_reports_content($cohort, $ltv_cac, $churn, $mix, $is_admin = true) {
+        $container_class = $is_admin ? 'themisdb-reporting-grid' : 'themisdb-reporting-grid themisdb-reporting-grid-frontend';
+        echo '<div class="' . esc_attr($container_class) . '">';
 
         self::render_table(__('Cohort Analysis (12 months)', 'themisdb-order-request'), $cohort, array(
             'cohort_month' => 'Cohort',
@@ -52,7 +101,7 @@ class ThemisDB_Advanced_Reporting {
             'retained_m1' => 'Retained M+1',
             'retained_m3' => 'Retained M+3',
             'retained_m6' => 'Retained M+6',
-        ));
+        ), 'themisdb-report-cohort');
 
         self::render_table(__('LTV & CAC Tracking', 'themisdb-order-request'), $ltv_cac, array(
             'acquisition_month' => 'Month',
@@ -60,14 +109,14 @@ class ThemisDB_Advanced_Reporting {
             'avg_ltv' => 'Avg LTV',
             'marketing_spend' => 'Marketing Spend',
             'cac' => 'CAC',
-        ));
+        ), 'themisdb-report-ltv');
 
         self::render_table(__('Churn Analysis', 'themisdb-order-request'), $churn, array(
             'month' => 'Month',
             'active_start' => 'Active @ Start',
             'churned' => 'Churned',
             'churn_rate' => 'Churn Rate %',
-        ));
+        ), 'themisdb-report-churn');
 
         self::render_table(__('Product Mix Analysis', 'themisdb-order-request'), $mix, array(
             'product_edition' => 'Edition',
@@ -75,22 +124,18 @@ class ThemisDB_Advanced_Reporting {
             'revenue' => 'Revenue',
             'share_orders' => 'Order Share %',
             'share_revenue' => 'Revenue Share %',
-        ));
+        ), 'themisdb-report-mix');
 
         echo '</div>';
     }
 
-    public static function shortcode($atts) {
-        ob_start();
-        self::render_admin_page();
-        return ob_get_clean();
-    }
-
-    private static function render_table($title, $rows, $columns) {
-        echo '<h2 style="margin-top:24px;">' . esc_html($title) . '</h2>';
+    private static function render_table($title, $rows, $columns, $section_id = '') {
+        echo '<section class="themisdb-reporting-card"' . ($section_id !== '' ? ' id="' . esc_attr($section_id) . '"' : '') . '>';
+        echo '<h2 style="margin-top:0;">' . esc_html($title) . '</h2>';
 
         if (empty($rows)) {
             echo '<p>' . esc_html__('No data available.', 'themisdb-order-request') . '</p>';
+            echo '</section>';
             return;
         }
 
@@ -110,6 +155,7 @@ class ThemisDB_Advanced_Reporting {
         }
 
         echo '</tbody></table>';
+        echo '</section>';
     }
 
     public static function get_cohort_analysis($months = 12) {

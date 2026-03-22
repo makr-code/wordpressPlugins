@@ -140,9 +140,34 @@ Empfohlene Referenzdaten:
 3. Trash setzt `is_active = 0`, Wiederherstellen setzt `is_active = 1`
 4. Kein doppelter Eintrag bei erneutem Speichern (idempotenter Upsert via product_code)
 
+### E2E-14 Inline-Hilfe und Kontextstabilitaet
+- Schritte:
+1. Admin-Listen oeffnen: Bestellungen, Vertraege, Produkte, Inventar, Zahlungen, Lizenzen
+2. Je Seite Inline-Hilfe pruefen (sichtbar, einklappbar, wieder aufklappbar)
+3. In Produkte/Inventar zwischen `items` und `categories` wechseln und auf den Hilfe-Text achten
+4. In Produkte/Inventar Suche/Filter/Sortierung setzen, danach Speichern/Bulk/Toggle ausfuehren
+- Erwartung:
+1. Inline-Hilfe ist pro Seite vorhanden und standardmaessig geoeffnet
+2. Ein-/Ausklappen beeinflusst keine Listenfunktion und keine Formulare
+3. Hilfe-Inhalt passt zum aktiven Tab (`items` vs `categories`)
+4. Nach Aktionen bleibt der Listenkontext erhalten (Tab, Suche, Sortierung, per_page, Seite)
+
+### E2E-15 Shop Deep Links und Checkout-Presets
+- Schritte:
+1. WordPress-Seite mit [themisdb_shop] aufrufen
+2. Produktkarte anklicken und pruefen, dass Edition im Bestellfluss oder Konfigurator vorausgewaehlt ist
+3. In Modul-Sektion `Im Konfigurator öffnen` anklicken und pruefen, dass Edition + Modul vorausgewaehlt sind
+4. In Modul-Sektion `Direkt zum Checkout` anklicken und pruefen, dass Edition + Modul im Checkout-Draft vorhanden sind
+5. In Schulungs-Sektion dieselben Pruefungen fuer Schulungen wiederholen
+- Erwartung:
+1. Shop rendert aktive Produkte, Lizenzpreise und Feature-Listen ohne PHP-Fehler
+2. Deep Links uebernehmen `edition`, `modules` und `training` konsistent in Konfigurator und Order-Flow
+3. `checkout=1` fuehrt mit vorkonfiguriertem Draft direkt in Schritt 4 des Flows
+4. Gesamtpreis im Checkout spiegelt vorausgewaehlte Edition, Module und Schulungen korrekt wider
+
 ## Go/No-Go Kriterien
 Go nur wenn:
-1. Alle E2E-01 bis E2E-13 bestanden
+1. Alle E2E-01 bis E2E-15 bestanden
 2. Keine PHP-Fehler/Warnungen im Debug-Log waehrend Tests
 3. Keine Dateninkonsistenzen in Beziehungen order/contract/payment/license
 4. Release-Artefakte und update-info Versionen konsistent
@@ -157,7 +182,7 @@ No-Go wenn:
 - Tester:
 - Umgebung:
 - Plugin Version:
-- Ergebnis E2E-01 bis E2E-13:
+- Ergebnis E2E-01 bis E2E-15:
 - Offene Defekte:
 - Risikoabschaetzung:
 - Entscheidung: GO oder NO-GO
@@ -189,6 +214,12 @@ Das Fixture-Skript deckt automatisch ab:
 - E2E-11 (Order Sync + Lizenzanlage)
 - E2E-12 (Status/Refund-Mapping: completed/cancelled/refunded/cheque)
 - E2E-13 (Product Catalog Sync: product/module/training + Trash/Untrash)
+
+Das Smoke-Skript deckt zusaetzlich in Grundform ab:
+- Shop-Shortcode registriert sich korrekt
+- Shop-Shortcode rendert Basis-Markup fuer E2E-15
+- Shop-Shortcode propagiert `preferred_edition` in Order-/Konfigurator-Links
+- Keine unmittelbaren Fatal Errors im Shop-Renderpfad
 
 ## Verknuepfte Doku
 - docs/WORDPRESS_PLUGIN_OPERATIONS.md

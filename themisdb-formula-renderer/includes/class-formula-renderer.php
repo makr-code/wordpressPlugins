@@ -234,14 +234,68 @@ class ThemisDB_Formula_Renderer {
         }
         
         settings_errors('themisdb_formula_messages');
+        $page_slug = 'themisdb-formula-renderer';
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
+        $allowed_tabs = array('settings', 'examples', 'resources');
+
+        if (!in_array($active_tab, $allowed_tabs, true)) {
+            $active_tab = 'settings';
+        }
+
+        $tab_url = static function ($tab) use ($page_slug) {
+            return admin_url('options-general.php?page=' . $page_slug . '&tab=' . $tab);
+        };
+
+        $auto_render = get_option('themisdb_formula_auto_render', 1);
+        $inline_delimiter = get_option('themisdb_formula_inline_delimiter', '$');
+        $block_delimiter = get_option('themisdb_formula_block_delimiter', '$$');
         ?>
         <div class="wrap">
-            <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-            
-            <div class="themisdb-formula-admin-header">
-                <p><?php _e('Dieses Plugin rendert mathematische Formeln in LaTeX-Notation automatisch mit KaTeX.', 'themisdb-formula-renderer'); ?></p>
+            <style>
+                .themisdb-tab-content { background: #fff; border: 1px solid #c3c4c7; border-top: none; padding: 20px 24px; }
+                .themisdb-tab-content > :first-child,
+                .themisdb-tab-content .themisdb-admin-modules:first-child,
+                .themisdb-tab-content .card:first-child,
+                .themisdb-tab-content form:first-child { margin-top: 0; }
+                .themisdb-admin-modules { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin: 0 0 24px; }
+                .themisdb-admin-modules .card,
+                .themisdb-tab-content .card { margin: 0; max-width: none; padding: 20px 24px; }
+                .themisdb-tab-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+            </style>
+
+            <h1 class="wp-heading-inline"><?php echo esc_html(get_admin_page_title()); ?></h1>
+            <a href="<?php echo esc_url($tab_url('settings')); ?>" class="page-title-action"><?php _e('Einstellungen', 'themisdb-formula-renderer'); ?></a>
+            <a href="<?php echo esc_url($tab_url('examples')); ?>" class="page-title-action"><?php _e('Beispiele', 'themisdb-formula-renderer'); ?></a>
+            <a href="<?php echo esc_url($tab_url('resources')); ?>" class="page-title-action"><?php _e('Ressourcen', 'themisdb-formula-renderer'); ?></a>
+            <hr class="wp-header-end">
+
+            <nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e('Formula Renderer Einstellungen', 'themisdb-formula-renderer'); ?>">
+                <a href="<?php echo esc_url($tab_url('settings')); ?>" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>"><?php _e('Einstellungen', 'themisdb-formula-renderer'); ?></a>
+                <a href="<?php echo esc_url($tab_url('examples')); ?>" class="nav-tab <?php echo $active_tab === 'examples' ? 'nav-tab-active' : ''; ?>"><?php _e('Beispiele', 'themisdb-formula-renderer'); ?></a>
+                <a href="<?php echo esc_url($tab_url('resources')); ?>" class="nav-tab <?php echo $active_tab === 'resources' ? 'nav-tab-active' : ''; ?>"><?php _e('Ressourcen', 'themisdb-formula-renderer'); ?></a>
+            </nav>
+
+            <div class="themisdb-tab-content">
+            <?php if ($active_tab === 'settings') : ?>
+            <div class="themisdb-admin-modules">
+                <div class="card">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-formula-renderer'); ?></h2>
+                    <div class="themisdb-tab-toolbar">
+                        <a href="<?php echo esc_url($tab_url('examples')); ?>" class="button button-primary"><?php _e('Beispiele ansehen', 'themisdb-formula-renderer'); ?></a>
+                        <a href="<?php echo esc_url($tab_url('resources')); ?>" class="button"><?php _e('Ressourcen', 'themisdb-formula-renderer'); ?></a>
+                    </div>
+                    <p><?php _e('Dieses Plugin rendert mathematische Formeln in LaTeX-Notation automatisch mit KaTeX.', 'themisdb-formula-renderer'); ?></p>
+                </div>
+                <div class="card">
+                    <h2><?php _e('Aktive Defaults', 'themisdb-formula-renderer'); ?></h2>
+                    <table class="widefat striped"><tbody>
+                        <tr><th><?php _e('Auto-Render', 'themisdb-formula-renderer'); ?></th><td><?php echo esc_html($auto_render ? 'Aktiv' : 'Inaktiv'); ?></td></tr>
+                        <tr><th><?php _e('Inline-Delimiter', 'themisdb-formula-renderer'); ?></th><td><code><?php echo esc_html($inline_delimiter); ?></code></td></tr>
+                        <tr><th><?php _e('Block-Delimiter', 'themisdb-formula-renderer'); ?></th><td><code><?php echo esc_html($block_delimiter); ?></code></td></tr>
+                    </tbody></table>
+                </div>
             </div>
-            
+
             <form action="options.php" method="post">
                 <?php
                 settings_fields('themisdb_formula_settings');
@@ -249,7 +303,7 @@ class ThemisDB_Formula_Renderer {
                 submit_button(__('Einstellungen speichern', 'themisdb-formula-renderer'));
                 ?>
             </form>
-            
+            <?php elseif ($active_tab === 'examples') : ?>
             <div class="themisdb-formula-examples">
                 <h2><?php _e('Beispiele', 'themisdb-formula-renderer'); ?></h2>
                 
@@ -281,7 +335,7 @@ class ThemisDB_Formula_Renderer {
                 
                 <p><strong><?php _e('Hinweis:', 'themisdb-formula-renderer'); ?></strong> <?php _e('Sie können auch den Shortcode [themisdb_formula]...[/themisdb_formula] verwenden.', 'themisdb-formula-renderer'); ?></p>
             </div>
-            
+            <?php else : ?>
             <div class="themisdb-formula-resources">
                 <h2><?php _e('Ressourcen', 'themisdb-formula-renderer'); ?></h2>
                 <ul>
@@ -289,6 +343,8 @@ class ThemisDB_Formula_Renderer {
                     <li><a href="https://katex.org/docs/supported.html" target="_blank">Unterstützte LaTeX-Befehle</a></li>
                     <li><a href="https://en.wikibooks.org/wiki/LaTeX/Mathematics" target="_blank">LaTeX Mathematik Guide</a></li>
                 </ul>
+            </div>
+            <?php endif; ?>
             </div>
         </div>
         

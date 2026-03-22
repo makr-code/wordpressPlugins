@@ -265,35 +265,178 @@ class ThemisDB_Feature_Matrix_Admin {
         }
         
         settings_errors('themisdb_fm_messages');
+        $page_slug = 'themisdb-feature-matrix';
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
+        $allowed_tabs = array('settings', 'shortcodes');
+
+        if (!in_array($active_tab, $allowed_tabs, true)) {
+            $active_tab = 'settings';
+        }
+
+        $tab_url = static function ($tab) use ($page_slug) {
+            return admin_url('options-general.php?page=' . $page_slug . '&tab=' . $tab);
+        };
+
+        $default_view = get_option('themisdb_fm_default_view', 'all');
+        $default_style = get_option('themisdb_fm_default_style', 'modern');
+        $filters_enabled = get_option('themisdb_fm_enable_filters', 'yes');
+        $csv_enabled = get_option('themisdb_fm_enable_csv_export', 'yes');
+        $sticky_header = get_option('themisdb_fm_sticky_header', 'yes');
+        $tooltips_enabled = get_option('themisdb_fm_enable_tooltips', 'yes');
         ?>
         <div class="wrap">
-            <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-            
-            <div class="card">
-                <h2><?php _e('Shortcode Usage', 'themisdb-feature-matrix'); ?></h2>
-                <p><?php _e('Use this shortcode in your posts or pages:', 'themisdb-feature-matrix'); ?></p>
-                <code>[themisdb_feature_matrix]</code>
-                
-                <h3><?php _e('Shortcode Parameters', 'themisdb-feature-matrix'); ?></h3>
-                <ul>
-                    <li><code>category</code> - Filter by category: all, data_models, ai_ml, performance, compatibility, licensing</li>
-                    <li><code>style</code> - Visual style: modern, compact, minimal</li>
-                    <li><code>highlight_themis</code> - Highlight ThemisDB column: yes, no</li>
-                    <li><code>sticky_header</code> - Enable sticky header: yes, no</li>
-                    <li><code>filterable</code> - Show category filters: yes, no</li>
-                </ul>
-                
-                <h3><?php _e('Example', 'themisdb-feature-matrix'); ?></h3>
-                <code>[themisdb_feature_matrix category="ai_ml" style="modern" highlight_themis="yes"]</code>
+            <style>
+                .themisdb-tab-content {
+                    background: #fff;
+                    border: 1px solid #c3c4c7;
+                    border-top: none;
+                    padding: 20px 24px;
+                }
+
+                .themisdb-tab-content > :first-child,
+                .themisdb-tab-content .themisdb-admin-modules:first-child,
+                .themisdb-tab-content .card:first-child,
+                .themisdb-tab-content form:first-child {
+                    margin-top: 0;
+                }
+
+                .themisdb-admin-modules {
+                    display: grid;
+                    gap: 20px;
+                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                    margin: 0 0 24px;
+                }
+
+                .themisdb-admin-modules .card,
+                .themisdb-tab-content .card {
+                    margin: 0;
+                    max-width: none;
+                    padding: 20px 24px;
+                }
+
+                .themisdb-tab-toolbar {
+                    display: flex;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                    margin: 0 0 16px;
+                }
+
+                .themisdb-tab-content .widefat thead th {
+                    font-weight: 600;
+                }
+            </style>
+
+            <h1 class="wp-heading-inline"><?php echo esc_html(get_admin_page_title()); ?></h1>
+            <a href="<?php echo esc_url($tab_url('settings')); ?>" class="page-title-action"><?php esc_html_e('Einstellungen bearbeiten', 'themisdb-feature-matrix'); ?></a>
+            <a href="<?php echo esc_url($tab_url('shortcodes')); ?>" class="page-title-action"><?php esc_html_e('Shortcodes anzeigen', 'themisdb-feature-matrix'); ?></a>
+            <hr class="wp-header-end">
+
+            <nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e('Feature Matrix Einstellungen', 'themisdb-feature-matrix'); ?>">
+                <a href="<?php echo esc_url($tab_url('settings')); ?>" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e('Einstellungen', 'themisdb-feature-matrix'); ?>
+                </a>
+                <a href="<?php echo esc_url($tab_url('shortcodes')); ?>" class="nav-tab <?php echo $active_tab === 'shortcodes' ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e('Shortcodes', 'themisdb-feature-matrix'); ?>
+                </a>
+            </nav>
+
+            <div class="themisdb-tab-content">
+                <?php if ($active_tab === 'settings') : ?>
+                    <div class="themisdb-admin-modules">
+                        <div class="card">
+                            <h2><?php esc_html_e('Schnellaktionen', 'themisdb-feature-matrix'); ?></h2>
+                            <div class="themisdb-tab-toolbar">
+                                <a href="#themisdb-feature-matrix-form" class="button button-primary"><?php esc_html_e('Zur Konfiguration', 'themisdb-feature-matrix'); ?></a>
+                                <a href="<?php echo esc_url($tab_url('shortcodes')); ?>" class="button"><?php esc_html_e('Shortcode-Referenz', 'themisdb-feature-matrix'); ?></a>
+                            </div>
+                            <p><?php esc_html_e('Konfiguriere Standardansicht, Export und Interaktionen zentral für alle Feature-Matrix-Ausgaben.', 'themisdb-feature-matrix'); ?></p>
+                        </div>
+
+                        <div class="card">
+                            <h2><?php esc_html_e('Aktive Defaults', 'themisdb-feature-matrix'); ?></h2>
+                            <table class="widefat striped">
+                                <tbody>
+                                    <tr>
+                                        <th><?php esc_html_e('Standard-Kategorie', 'themisdb-feature-matrix'); ?></th>
+                                        <td><?php echo esc_html($default_view); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <th><?php esc_html_e('Standard-Stil', 'themisdb-feature-matrix'); ?></th>
+                                        <td><?php echo esc_html($default_style); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <th><?php esc_html_e('Filter / CSV / Sticky Header', 'themisdb-feature-matrix'); ?></th>
+                                        <td><?php echo esc_html(($filters_enabled === 'yes' ? 'On' : 'Off') . ' / ' . ($csv_enabled === 'yes' ? 'On' : 'Off') . ' / ' . ($sticky_header === 'yes' ? 'On' : 'Off')); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <th><?php esc_html_e('Tooltips', 'themisdb-feature-matrix'); ?></th>
+                                        <td><?php echo esc_html($tooltips_enabled === 'yes' ? 'On' : 'Off'); ?></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <form id="themisdb-feature-matrix-form" action="options.php" method="post">
+                        <?php
+                        settings_fields('themisdb_fm_settings');
+                        do_settings_sections('themisdb-feature-matrix');
+                        submit_button(__('Save Settings', 'themisdb-feature-matrix'));
+                        ?>
+                    </form>
+                <?php else : ?>
+                    <div class="themisdb-admin-modules">
+                        <div class="card">
+                            <h2><?php esc_html_e('Schnellaktionen', 'themisdb-feature-matrix'); ?></h2>
+                            <div class="themisdb-tab-toolbar">
+                                <a href="<?php echo esc_url($tab_url('settings')); ?>" class="button button-primary"><?php esc_html_e('Einstellungen öffnen', 'themisdb-feature-matrix'); ?></a>
+                            </div>
+                            <p><?php esc_html_e('Verwende die Shortcodes, um Vergleichstabellen mit Standardwerten oder gezielten Overrides in Seiten und Beiträgen einzubinden.', 'themisdb-feature-matrix'); ?></p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2><?php _e('Shortcode Usage', 'themisdb-feature-matrix'); ?></h2>
+                        <p><?php _e('Use this shortcode in your posts or pages:', 'themisdb-feature-matrix'); ?></p>
+                        <p><code>[themisdb_feature_matrix]</code></p>
+
+                        <h3><?php _e('Shortcode Parameters', 'themisdb-feature-matrix'); ?></h3>
+                        <table class="widefat striped">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e('Parameter', 'themisdb-feature-matrix'); ?></th>
+                                    <th><?php esc_html_e('Beschreibung', 'themisdb-feature-matrix'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>category</code></td>
+                                    <td><?php esc_html_e('Filter by category: all, data_models, ai_ml, performance, compatibility, licensing', 'themisdb-feature-matrix'); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><code>style</code></td>
+                                    <td><?php esc_html_e('Visual style: modern, compact, minimal', 'themisdb-feature-matrix'); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><code>highlight_themis</code></td>
+                                    <td><?php esc_html_e('Highlight ThemisDB column: yes, no', 'themisdb-feature-matrix'); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><code>sticky_header</code></td>
+                                    <td><?php esc_html_e('Enable sticky header: yes, no', 'themisdb-feature-matrix'); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><code>filterable</code></td>
+                                    <td><?php esc_html_e('Show category filters: yes, no', 'themisdb-feature-matrix'); ?></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h3><?php _e('Example', 'themisdb-feature-matrix'); ?></h3>
+                        <p><code>[themisdb_feature_matrix category="ai_ml" style="modern" highlight_themis="yes"]</code></p>
+                    </div>
+                <?php endif; ?>
             </div>
-            
-            <form action="options.php" method="post">
-                <?php
-                settings_fields('themisdb_fm_settings');
-                do_settings_sections('themisdb-feature-matrix');
-                submit_button(__('Save Settings', 'themisdb-feature-matrix'));
-                ?>
-            </form>
         </div>
         <?php
     }

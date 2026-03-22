@@ -452,7 +452,9 @@ add_action('admin_menu', function() {
                 $json_file = isset($_POST['json_file']) ? sanitize_text_field($_POST['json_file']) : 'wordpress_categories.json';
                 
                 echo '<div class="wrap">';
-                echo '<h1>ThemisDB Documentation Import</h1>';
+                echo '<h1 class="wp-heading-inline">ThemisDB Documentation Import</h1>';
+                echo '<a href="' . esc_url(admin_url('tools.php?page=themisdb-doc-import')) . '" class="page-title-action">' . esc_html__('Import-Formular', 'themisdb-wiki') . '</a>';
+                echo '<hr class="wp-header-end">';
                 echo '<pre>';
                 
                 $importer = new ThemisDB_Doc_Importer($json_file);
@@ -465,7 +467,9 @@ add_action('admin_menu', function() {
             
             ?>
             <div class="wrap">
-                <h1>ThemisDB Documentation Import</h1>
+                <h1 class="wp-heading-inline">ThemisDB Documentation Import</h1>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=themisdb-wiki-integration')); ?>" class="page-title-action"><?php esc_html_e('Wiki Integration', 'themisdb-wiki'); ?></a>
+                <hr class="wp-header-end">
                 <form method="post" action="">
                     <?php wp_nonce_field('themisdb_import'); ?>
                     <table class="form-table">

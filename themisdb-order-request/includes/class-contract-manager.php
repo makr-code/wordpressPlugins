@@ -552,7 +552,17 @@ class ThemisDB_Contract_Manager {
             );
         }
         if (isset($data['status'])) {
-            $update_data['status'] = sanitize_text_field($data['status']);
+            $new_status = sanitize_text_field($data['status']);
+            $current_status = isset($current_contract['status']) ? sanitize_text_field($current_contract['status']) : 'draft';
+
+            if ($new_status !== $current_status) {
+                $allowed = self::get_allowed_status_transitions($current_status);
+                if (!in_array($new_status, $allowed, true)) {
+                    return false;
+                }
+            }
+
+            $update_data['status'] = $new_status;
         }
         if (isset($data['signed_at'])) {
             $update_data['signed_at'] = $data['signed_at'];

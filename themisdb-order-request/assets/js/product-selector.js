@@ -13,6 +13,8 @@ jQuery(function ($) {
     var products   = cfg.products   || {};   // { edition: { price, name } }
     var modules    = cfg.modules    || {};   // { module_code: { price, name, category } }
     var trainings  = cfg.trainings  || {};   // { training_code: { price, name, type } }
+    var defaultModules  = Array.isArray(cfg.defaultModules) ? cfg.defaultModules : [];
+    var defaultTraining = Array.isArray(cfg.defaultTraining) ? cfg.defaultTraining : [];
     var orderUrl   = cfg.orderUrl   || '';
     var currency   = cfg.currency   || '€';
     var i18n       = cfg.i18n       || {};
@@ -128,10 +130,39 @@ jQuery(function ($) {
                 params.push('training=' + encodeURIComponent(state.selectedTraining.join(',')));
             }
             if (params.length) {
+                params.push('checkout=1');
                 url += (url.indexOf('?') === -1 ? '?' : '&') + params.join('&');
             }
             $orderBtn.attr('href', url);
             $orderBtn.toggleClass('tpd-order-btn--ready', !!state.edition);
+        }
+    }
+
+    function applyPresetSelections() {
+        if (defaultModules.length) {
+            $moduleChecks.each(function () {
+                var code = $(this).val();
+                if (defaultModules.includes(code)) {
+                    $(this).prop('checked', true);
+                    $(this).closest('.tpd-module-item').addClass('tpd-module-item--selected');
+                    if (!state.selectedModules.includes(code)) {
+                        state.selectedModules.push(code);
+                    }
+                }
+            });
+        }
+
+        if (defaultTraining.length) {
+            $trainingChecks.each(function () {
+                var code = $(this).val();
+                if (defaultTraining.includes(code)) {
+                    $(this).prop('checked', true);
+                    $(this).closest('.tpd-training-item').addClass('tpd-training-item--selected');
+                    if (!state.selectedTraining.includes(code)) {
+                        state.selectedTraining.push(code);
+                    }
+                }
+            });
         }
     }
 
@@ -221,4 +252,7 @@ jQuery(function ($) {
     } else if ($editionCards.length) {
         $editionCards.first().trigger('click');
     }
+
+    applyPresetSelections();
+    recalculate();
 });

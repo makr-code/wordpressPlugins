@@ -136,6 +136,14 @@ class ThemisDB_SupportPortal_Ticket_Manager {
         // Send admin notification
         self::notify_admin_new_ticket($ticket_id, $ticket_data);
 
+        /**
+         * Fires after a support ticket is created in support portal.
+         *
+         * @param int   $ticket_id   New ticket ID.
+         * @param array $ticket_data Persisted ticket fields.
+         */
+        do_action('themisdb_support_portal_ticket_created', $ticket_id, $ticket_data, $data);
+
         return $ticket_id;
     }
 

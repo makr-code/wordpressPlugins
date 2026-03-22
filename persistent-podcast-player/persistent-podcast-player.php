@@ -103,6 +103,8 @@ class Persistent_Podcast_Player {
         add_action('add_meta_boxes', array($this, 'add_audio_meta_box'));
         add_action('save_post_pod_episode', array($this, 'save_audio_meta'), 10, 2);
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
+        add_filter('redirect_post_location', array($this, 'add_audio_notice_redirect_arg'), 10, 2);
+        add_action('admin_notices', array($this, 'render_audio_admin_notice'));
     }
     
     /**
@@ -201,17 +203,8 @@ class Persistent_Podcast_Player {
                 $post_id = get_the_ID();
                 
                 // Get custom fields
-                $audio_url = get_post_meta($post_id, 'audio_url', true);
-                $audio_attachment_id = (int) get_post_meta($post_id, 'audio_attachment_id', true);
+                $audio_data = $this->resolve_episode_audio($post_id);
                 $related_post_id = get_post_meta($post_id, 'related_post_id', true);
-                
-                // Prefer attachment from media library; fall back to manual URL
-                if ($audio_attachment_id) {
-                    $resolved_audio_url = wp_get_attachment_url($audio_attachment_id);
-                    if ($resolved_audio_url) {
-                        $audio_url = $resolved_audio_url;
-                    }
-                }
                 
                 // Get excerpt and permalink from related post
                 $excerpt = '';
@@ -244,7 +237,9 @@ class Persistent_Podcast_Player {
                 $episodes[] = array(
                     'id' => $post_id,
                     'title' => get_the_title(),
-                    'audio' => $audio_url ? $audio_url : '',
+                    'audio' => $audio_data['url'],
+                    'audio_attachment_id' => $audio_data['attachment_id'],
+                    'audio_source' => $audio_data['source'],
                     'desc' => strip_tags(get_the_content()),
                     'excerpt' => $excerpt,
                     'permalink' => $permalink,
@@ -263,7 +258,7 @@ class Persistent_Podcast_Player {
     public function add_audio_meta_box() {
         add_meta_box(
             'ppp-audio-meta-box',
-            __('Audio File', 'persistent-podcast-player'),
+            __('Audio-Datei', 'persistent-podcast-player'),
             array($this, 'render_audio_meta_box'),
             'pod_episode',
             'normal',
@@ -287,7 +282,7 @@ class Persistent_Podcast_Player {
         }
         ?>
         <p>
-            <strong><?php esc_html_e('Select audio from Media Library (recommended):', 'persistent-podcast-player'); ?></strong>
+            <strong><?php esc_html_e('Audio-Datei aus der Mediathek auswählen:', 'persistent-podcast-player'); ?></strong>
         </p>
         <div class="ppp-media-selector">
             <input type="hidden"
@@ -299,30 +294,25 @@ class Persistent_Podcast_Player {
                    class="large-text"
                    readonly
                    value="<?php echo esc_attr($attachment_url); ?>"
-                   placeholder="<?php esc_attr_e('No file selected', 'persistent-podcast-player'); ?>">
+                   placeholder="<?php esc_attr_e('Keine Datei ausgewählt', 'persistent-podcast-player'); ?>">
             <button type="button" id="ppp_select_audio_btn" class="button button-secondary">
-                <?php esc_html_e('Select Audio File', 'persistent-podcast-player'); ?>
+                <?php esc_html_e('Audio-Datei auswählen', 'persistent-podcast-player'); ?>
             </button>
             <button type="button" id="ppp_remove_audio_btn" class="button button-link-delete" style="<?php echo $attachment_url ? '' : 'display:none;'; ?>">
-                <?php esc_html_e('Remove', 'persistent-podcast-player'); ?>
+                <?php esc_html_e('Entfernen', 'persistent-podcast-player'); ?>
             </button>
         </div>
         <p class="description">
-            <?php esc_html_e('Choose an audio file from the WordPress Media Library. This takes priority over the manual URL below.', 'persistent-podcast-player'); ?>
+            <?php esc_html_e('Audio-Datei aus der WordPress-Mediathek auswählen oder hochladen. Nur Audio-Anhänge (mp3, m4a, wav, ogg) werden akzeptiert.', 'persistent-podcast-player'); ?>
         </p>
-        
-        <p>
-            <strong><?php esc_html_e('Or enter audio URL manually (legacy):', 'persistent-podcast-player'); ?></strong>
+        <p id="ppp_publish_guard_message" class="description" style="color:#b91c1c; display:none;">
+            <?php esc_html_e('Veröffentlichen ist erst möglich, wenn eine gültige Audio-Datei aus der Mediathek ausgewählt wurde.', 'persistent-podcast-player'); ?>
         </p>
-        <input type="url"
-               id="ppp_audio_url"
-               name="ppp_audio_url"
-               class="large-text"
-               value="<?php echo esc_attr($audio_url); ?>"
-               placeholder="https://example.com/audio.mp3">
-        <p class="description">
-            <?php esc_html_e('Direct URL to the audio file. Ignored when a Media Library file is selected above.', 'persistent-podcast-player'); ?>
-        </p>
+        <?php if (!empty($audio_url) && empty($attachment_url)) : ?>
+            <p class="description" style="color:#a16207;">
+                <?php esc_html_e('Legacy audio_url gefunden. Bitte Datei in die Mediathek übernehmen und neu auswählen, um strikt mediathekbasiert zu arbeiten.', 'persistent-podcast-player'); ?>
+            </p>
+        <?php endif; ?>
         <?php
     }
     
@@ -335,31 +325,224 @@ class Persistent_Podcast_Player {
             !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['ppp_audio_meta_box_nonce'])), 'ppp_audio_meta_box')) {
             return;
         }
+
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
+
+        if (wp_is_post_revision($post_id)) {
+            return;
+        }
         
         // Check permissions
         if (!current_user_can('edit_post', $post_id)) {
             return;
         }
         
-        // Save attachment ID
+        $attachment_saved = false;
+
+        // Save attachment ID (media-library only)
         if (isset($_POST['ppp_audio_attachment_id'])) {
             $attachment_id = absint($_POST['ppp_audio_attachment_id']);
-            if ($attachment_id > 0) {
+            if ($attachment_id > 0 && $this->is_audio_attachment($attachment_id)) {
                 update_post_meta($post_id, 'audio_attachment_id', $attachment_id);
+                $attachment_url = wp_get_attachment_url($attachment_id);
+                if ($attachment_url) {
+                    update_post_meta($post_id, 'audio_url', esc_url_raw($attachment_url));
+                }
+                delete_post_meta($post_id, '_ppp_audio_notice');
+                delete_post_meta($post_id, '_ppp_audio_notice_mime');
+                $attachment_saved = true;
             } else {
                 delete_post_meta($post_id, 'audio_attachment_id');
+
+                // Keep UX transparent in strict mode.
+                if ($attachment_id > 0) {
+                    update_post_meta($post_id, '_ppp_audio_notice', 'invalid_attachment');
+                    $invalid_mime = (string) get_post_mime_type($attachment_id);
+                    if ($invalid_mime !== '') {
+                        update_post_meta($post_id, '_ppp_audio_notice_mime', sanitize_text_field($invalid_mime));
+                    } else {
+                        delete_post_meta($post_id, '_ppp_audio_notice_mime');
+                    }
+                }
             }
         }
-        
-        // Save manual URL (legacy)
-        if (isset($_POST['ppp_audio_url'])) {
-            $audio_url = esc_url_raw(wp_unslash($_POST['ppp_audio_url']));
-            if ($audio_url) {
-                update_post_meta($post_id, 'audio_url', $audio_url);
-            } else {
-                delete_post_meta($post_id, 'audio_url');
+
+        // Strict mode: no manual URL writes from admin UI.
+        if ($attachment_saved) {
+            return;
+        }
+
+        $existing_attachment_id = (int) get_post_meta($post_id, 'audio_attachment_id', true);
+        if ($existing_attachment_id > 0) {
+            $resolved_audio_url = wp_get_attachment_url($existing_attachment_id);
+            if ($resolved_audio_url) {
+                update_post_meta($post_id, 'audio_url', esc_url_raw($resolved_audio_url));
             }
         }
+
+        // Hard block: publishing requires a valid media-library audio file.
+        if ($post instanceof WP_Post && $post->post_status === 'publish') {
+            $current_notice = (string) get_post_meta($post_id, '_ppp_audio_notice', true);
+            if ($existing_attachment_id <= 0 && $current_notice === '') {
+                update_post_meta($post_id, '_ppp_audio_notice', 'publish_blocked_missing_audio');
+
+                remove_action('save_post_pod_episode', array($this, 'save_audio_meta'), 10);
+                wp_update_post(array(
+                    'ID' => $post_id,
+                    'post_status' => 'draft',
+                ));
+                add_action('save_post_pod_episode', array($this, 'save_audio_meta'), 10, 2);
+            }
+        }
+    }
+
+    /**
+     * Add admin notice state to post-save redirect.
+     */
+    public function add_audio_notice_redirect_arg($location, $post_id) {
+        if (get_post_type($post_id) !== 'pod_episode') {
+            return $location;
+        }
+
+        $notice = get_post_meta($post_id, '_ppp_audio_notice', true);
+        if (!$notice) {
+            return $location;
+        }
+
+        $notice_mime = (string) get_post_meta($post_id, '_ppp_audio_notice_mime', true);
+
+        delete_post_meta($post_id, '_ppp_audio_notice');
+        delete_post_meta($post_id, '_ppp_audio_notice_mime');
+
+        $query_args = array(
+            'ppp_audio_notice' => sanitize_key((string) $notice),
+        );
+        if ($notice_mime !== '') {
+            $query_args['ppp_audio_notice_mime'] = sanitize_text_field($notice_mime);
+        }
+
+        return add_query_arg($query_args, $location);
+    }
+
+    /**
+     * Render admin notice for audio validation issues.
+     */
+    public function render_audio_admin_notice() {
+        if (!is_admin()) {
+            return;
+        }
+
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        if (!$screen || $screen->post_type !== 'pod_episode') {
+            return;
+        }
+
+        $notice = isset($_GET['ppp_audio_notice']) ? sanitize_key(wp_unslash($_GET['ppp_audio_notice'])) : '';
+        if ($notice !== 'invalid_attachment' && $notice !== 'missing_audio' && $notice !== 'publish_blocked_missing_audio') {
+            return;
+        }
+
+        $invalid_mime = isset($_GET['ppp_audio_notice_mime']) ? sanitize_text_field(wp_unslash($_GET['ppp_audio_notice_mime'])) : '';
+        if ($notice === 'publish_blocked_missing_audio') {
+            $message = __('Veröffentlichen wurde blockiert: Für Podcast-Episoden ist eine gültige Audio-Datei aus der Mediathek erforderlich. Der Beitrag wurde als Entwurf gespeichert.', 'persistent-podcast-player');
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($message) . '</p></div>';
+            return;
+        }
+
+        if ($notice === 'missing_audio') {
+            $message = __('Diese Episode wurde ohne Audio-Datei veröffentlicht. Bitte eine gültige Audio-Datei aus der Mediathek auswählen.', 'persistent-podcast-player');
+            echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html($message) . '</p></div>';
+            return;
+        }
+
+        $allowed_mimes = implode(', ', $this->get_allowed_audio_mimes());
+        $message = __('Die ausgewählte Datei ist kein gültiger Audio-Anhang. Bitte eine Audio-Datei aus der Mediathek auswählen.', 'persistent-podcast-player');
+        if ($invalid_mime !== '') {
+            $message .= ' ' . sprintf(__('Erkannter MIME-Type: %s.', 'persistent-podcast-player'), $invalid_mime);
+        }
+        $message .= ' ' . sprintf(__('Erlaubte MIME-Types: %s.', 'persistent-podcast-player'), $allowed_mimes);
+
+        echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($message) . '</p></div>';
+    }
+
+    /**
+     * Resolve episode audio by preferring WordPress media attachments.
+     */
+    private function resolve_episode_audio($post_id) {
+        $audio_url = get_post_meta($post_id, 'audio_url', true);
+        $audio_attachment_id = (int) get_post_meta($post_id, 'audio_attachment_id', true);
+
+        if ($audio_attachment_id > 0 && $this->is_audio_attachment($audio_attachment_id)) {
+            $resolved_audio_url = wp_get_attachment_url($audio_attachment_id);
+            if ($resolved_audio_url) {
+                return array(
+                    'url' => $resolved_audio_url,
+                    'attachment_id' => $audio_attachment_id,
+                    'source' => 'media_library',
+                );
+            }
+        }
+
+        if ($audio_url) {
+            $resolved_id = attachment_url_to_postid($audio_url);
+            if ($resolved_id > 0 && $this->is_audio_attachment($resolved_id)) {
+                update_post_meta($post_id, 'audio_attachment_id', $resolved_id);
+                $resolved_audio_url = wp_get_attachment_url($resolved_id);
+                if ($resolved_audio_url) {
+                    update_post_meta($post_id, 'audio_url', esc_url_raw($resolved_audio_url));
+                    return array(
+                        'url' => $resolved_audio_url,
+                        'attachment_id' => $resolved_id,
+                        'source' => 'media_library',
+                    );
+                }
+            }
+
+            return array(
+                'url' => $audio_url,
+                'attachment_id' => 0,
+                'source' => 'manual_url',
+            );
+        }
+
+        return array(
+            'url' => '',
+            'attachment_id' => 0,
+            'source' => 'none',
+        );
+    }
+
+    /**
+     * Check whether an attachment is an audio file.
+     */
+    private function is_audio_attachment($attachment_id) {
+        if ($attachment_id <= 0) {
+            return false;
+        }
+
+        if (get_post_type($attachment_id) !== 'attachment') {
+            return false;
+        }
+
+        $mime_type = (string) get_post_mime_type($attachment_id);
+        return in_array($mime_type, $this->get_allowed_audio_mimes(), true);
+    }
+
+    /**
+     * Allowed MIME types for strict media-only mode.
+     */
+    private function get_allowed_audio_mimes() {
+        return array(
+            'audio/mpeg',
+            'audio/mp3',
+            'audio/mp4',
+            'audio/x-m4a',
+            'audio/wav',
+            'audio/x-wav',
+            'audio/ogg',
+        );
     }
     
     /**
@@ -390,7 +573,20 @@ class Persistent_Podcast_Player {
             true
         );
         wp_enqueue_script('ppp-admin-media');
+        wp_localize_script('ppp-admin-media', 'pppAdminMedia', $this->get_admin_media_i18n());
         wp_add_inline_script('ppp-admin-media', $this->get_admin_media_js());
+    }
+
+    /**
+     * Localized strings for admin media picker script.
+     */
+    private function get_admin_media_i18n() {
+        return array(
+            'pickerTitle' => __('Audio-Datei auswählen', 'persistent-podcast-player'),
+            'pickerButtonText' => __('Diese Datei verwenden', 'persistent-podcast-player'),
+            'publishBlockedReason' => __('Veröffentlichen ist blockiert, bis eine gültige Audio-Datei aus der Mediathek ausgewählt wurde.', 'persistent-podcast-player'),
+            'allowedFilesAlert' => __('Es sind nur Audio-Dateien der Typen mp3, m4a, wav oder ogg erlaubt.', 'persistent-podcast-player'),
+        );
     }
     
     /**
@@ -399,7 +595,74 @@ class Persistent_Podcast_Player {
     private function get_admin_media_js() {
         return <<<'JS'
 jQuery(document).ready(function($) {
+    var i18n = window.pppAdminMedia || {};
     var mediaUploader;
+    var allowedMime = {
+        'audio/mpeg': true,
+        'audio/mp3': true,
+        'audio/mp4': true,
+        'audio/x-m4a': true,
+        'audio/wav': true,
+        'audio/x-wav': true,
+        'audio/ogg': true
+    };
+    var allowedExt = {
+        'mp3': true,
+        'm4a': true,
+        'wav': true,
+        'ogg': true
+    };
+
+    function getExtension(filename) {
+        var normalized = String(filename || '').toLowerCase();
+        var idx = normalized.lastIndexOf('.');
+        if (idx < 0) {
+            return '';
+        }
+        return normalized.substring(idx + 1);
+    }
+
+    function hasAudioAttachment() {
+        var raw = $('#ppp_audio_attachment_id').val();
+        var parsed = parseInt(raw, 10);
+        return !isNaN(parsed) && parsed > 0;
+    }
+
+    function setButtonDisabledState($button, disabled, reason) {
+        if (!$button || !$button.length) {
+            return;
+        }
+
+        $button.prop('disabled', disabled);
+        if (disabled) {
+            $button.attr('aria-disabled', 'true');
+            if (reason) {
+                $button.attr('title', reason);
+            }
+        } else {
+            $button.removeAttr('aria-disabled');
+            $button.removeAttr('title');
+        }
+    }
+
+    function updatePublishGuard() {
+        var hasAudio = hasAudioAttachment();
+        var reason = i18n.publishBlockedReason || 'Publishing is blocked until a valid Media Library audio file is selected.';
+
+        setButtonDisabledState($('#publish'), !hasAudio, reason);
+        setButtonDisabledState($('.editor-post-publish-panel__toggle'), !hasAudio, reason);
+        setButtonDisabledState($('.editor-post-publish-button'), !hasAudio, reason);
+        setButtonDisabledState($('.editor-post-publish-button__button'), !hasAudio, reason);
+
+        var $message = $('#ppp_publish_guard_message');
+        if ($message.length) {
+            if (hasAudio) {
+                $message.hide();
+            } else {
+                $message.show();
+            }
+        }
+    }
 
     $('#ppp_select_audio_btn').on('click', function(e) {
         e.preventDefault();
@@ -410,17 +673,28 @@ jQuery(document).ready(function($) {
         }
 
         mediaUploader = wp.media({
-            title: 'Select Audio File',
-            button: { text: 'Use this file' },
+            title: i18n.pickerTitle || 'Select Audio File',
+            button: { text: i18n.pickerButtonText || 'Use this file' },
             library: { type: 'audio' },
             multiple: false
         });
 
         mediaUploader.on('select', function() {
             var attachment = mediaUploader.state().get('selection').first().toJSON();
+            var mime = String(attachment.mime || '').toLowerCase();
+            var ext = getExtension(attachment.filename || attachment.url || '');
+            if (!allowedMime[mime] && !allowedExt[ext]) {
+                window.alert(i18n.allowedFilesAlert || 'Only mp3, m4a, wav, or ogg audio files are allowed.');
+                $('#ppp_audio_attachment_id').val('');
+                $('#ppp_audio_attachment_url_display').val('');
+                $('#ppp_remove_audio_btn').hide();
+                updatePublishGuard();
+                return;
+            }
             $('#ppp_audio_attachment_id').val(attachment.id);
             $('#ppp_audio_attachment_url_display').val(attachment.url);
             $('#ppp_remove_audio_btn').show();
+            updatePublishGuard();
         });
 
         mediaUploader.open();
@@ -431,7 +705,18 @@ jQuery(document).ready(function($) {
         $('#ppp_audio_attachment_id').val('');
         $('#ppp_audio_attachment_url_display').val('');
         $(this).hide();
+        updatePublishGuard();
     });
+
+    updatePublishGuard();
+
+    if (window.MutationObserver) {
+        var observer = new MutationObserver(function() {
+            updatePublishGuard();
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
 });
 JS;
     }

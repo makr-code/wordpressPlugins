@@ -14,6 +14,9 @@ if (!defined('ABSPATH')) {
         <span class="dashicons dashicons-sos"></span>
         <?php esc_html_e('ThemisDB Support - Tickets', 'themisdb-support-portal'); ?>
     </h1>
+    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support&tab=list')); ?>" class="page-title-action"><?php esc_html_e('Ticket-Uebersicht', 'themisdb-support-portal'); ?></a>
+    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support&tab=create')); ?>" class="page-title-action"><?php esc_html_e('Neues Ticket', 'themisdb-support-portal'); ?></a>
+    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support-settings')); ?>" class="page-title-action"><?php esc_html_e('Einstellungen', 'themisdb-support-portal'); ?></a>
     <hr class="wp-header-end">
 
     <?php if (!empty($notice_message)): ?>
@@ -33,8 +36,51 @@ if (!defined('ABSPATH')) {
         </a>
     </nav>
 
+    <?php
+    $all_count = 0;
+    foreach ((array) $status_counts as $status_key => $status_count) {
+        $all_count += intval($status_count);
+    }
+
+    $open_count = isset($status_counts['open']) ? intval($status_counts['open']) : 0;
+    $in_progress_count = isset($status_counts['in_progress']) ? intval($status_counts['in_progress']) : 0;
+    $resolved_count = isset($status_counts['resolved']) ? intval($status_counts['resolved']) : 0;
+    $closed_count = isset($status_counts['closed']) ? intval($status_counts['closed']) : 0;
+    ?>
+
     <?php if ($active_tab === 'create'): ?>
-        <div class="themisdb-support-create-ticket">
+        <div class="themisdb-admin-modules">
+            <div class="card">
+                <h2><?php esc_html_e('Schnellaktionen', 'themisdb-support-portal'); ?></h2>
+                <p>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support&tab=list')); ?>" class="button button-primary"><?php esc_html_e('Zur Ticket-Uebersicht', 'themisdb-support-portal'); ?></a>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support-settings')); ?>" class="button"><?php esc_html_e('Portal konfigurieren', 'themisdb-support-portal'); ?></a>
+                </p>
+                <p><?php esc_html_e('Erstelle Support-Tickets direkt im Admin und springe bei Bedarf zur Uebersicht oder in die zentrale Portal-Konfiguration.', 'themisdb-support-portal'); ?></p>
+            </div>
+
+            <div class="card">
+                <h2><?php esc_html_e('Aktuelle Ticketlage', 'themisdb-support-portal'); ?></h2>
+                <table class="widefat striped">
+                    <tbody>
+                        <tr>
+                            <th><?php esc_html_e('Alle Tickets', 'themisdb-support-portal'); ?></th>
+                            <td><?php echo esc_html($all_count); ?></td>
+                        </tr>
+                        <tr>
+                            <th><?php esc_html_e('Offen', 'themisdb-support-portal'); ?></th>
+                            <td><?php echo esc_html($open_count); ?></td>
+                        </tr>
+                        <tr>
+                            <th><?php esc_html_e('In Bearbeitung', 'themisdb-support-portal'); ?></th>
+                            <td><?php echo esc_html($in_progress_count); ?></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card themisdb-support-create-ticket">
             <h2><?php esc_html_e('Neues Support-Ticket erstellen', 'themisdb-support-portal'); ?></h2>
             <form method="post" class="themisdb-support-create-form">
                 <?php wp_nonce_field('themisdb_support_create_ticket', 'themisdb_support_nonce'); ?>
@@ -87,12 +133,46 @@ if (!defined('ABSPATH')) {
             </form>
         </div>
     <?php else: ?>
-        <?php
-        $all_count = 0;
-        foreach ((array) $status_counts as $status_key => $status_count) {
-            $all_count += intval($status_count);
-        }
+        <div class="themisdb-admin-modules">
+            <div class="card">
+                <h2><?php esc_html_e('Schnellaktionen', 'themisdb-support-portal'); ?></h2>
+                <p>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support&tab=create')); ?>" class="button button-primary"><?php esc_html_e('Neues Ticket', 'themisdb-support-portal'); ?></a>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support-settings')); ?>" class="button"><?php esc_html_e('Einstellungen', 'themisdb-support-portal'); ?></a>
+                </p>
+                <p><?php esc_html_e('Nutze die Uebersicht fuer Filter, Bulk-Aktionen und Ticketnavigation. Neue Tickets und Portal-Einstellungen bleiben direkt erreichbar.', 'themisdb-support-portal'); ?></p>
+            </div>
 
+            <div class="card">
+                <h2><?php esc_html_e('Status-Ueberblick', 'themisdb-support-portal'); ?></h2>
+                <table class="widefat striped">
+                    <tbody>
+                        <tr>
+                            <th><?php esc_html_e('Alle Tickets', 'themisdb-support-portal'); ?></th>
+                            <td><?php echo esc_html($all_count); ?></td>
+                        </tr>
+                        <tr>
+                            <th><?php esc_html_e('Offen', 'themisdb-support-portal'); ?></th>
+                            <td><?php echo esc_html($open_count); ?></td>
+                        </tr>
+                        <tr>
+                            <th><?php esc_html_e('In Bearbeitung', 'themisdb-support-portal'); ?></th>
+                            <td><?php echo esc_html($in_progress_count); ?></td>
+                        </tr>
+                        <tr>
+                            <th><?php esc_html_e('Geloest', 'themisdb-support-portal'); ?></th>
+                            <td><?php echo esc_html($resolved_count); ?></td>
+                        </tr>
+                        <tr>
+                            <th><?php esc_html_e('Geschlossen', 'themisdb-support-portal'); ?></th>
+                            <td><?php echo esc_html($closed_count); ?></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <?php
         $status_tab_links = array(
             '' => sprintf(__('Alle <span class="count">(%d)</span>', 'themisdb-support-portal'), $all_count),
         );

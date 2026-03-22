@@ -25,26 +25,73 @@
 
 /**
  * Admin Settings Template for Architecture Diagrams
+ * Tab-based layout: Einstellungen | Shortcodes & Ansichten
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
+
+$_tad_page   = 'themisdb-ad-settings';
+$_tad_tab    = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'settings';
+if ( ! in_array( $_tad_tab, array( 'settings', 'shortcodes' ), true ) ) {
+    $_tad_tab = 'settings';
+}
+$_tad_url = function ( $tab ) use ( $_tad_page ) {
+    return esc_url( admin_url( 'options-general.php?page=' . $_tad_page . '&tab=' . $tab ) );
+};
 ?>
 
 <div class="wrap">
-    <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-    
-    <div class="themisdb-admin-header">
-        <p><?php _e('Configure the Architecture Diagrams plugin settings.', 'themisdb-architecture-diagrams'); ?></p>
-    </div>
+    <h1 class="wp-heading-inline">
+        <?php echo esc_html( get_admin_page_title() ); ?>
+        <a href="<?php echo $_tad_url( 'shortcodes' ); ?>" class="page-title-action">
+            <?php _e( 'Shortcodes &amp; Ansichten', 'themisdb-architecture-diagrams' ); ?>
+        </a>
+    </h1>
+    <hr class="wp-header-end">
 
-    <?php settings_errors('themisdb_ad_settings'); ?>
+    <?php settings_errors( 'themisdb_ad_settings' ); ?>
+
+    <nav class="nav-tab-wrapper wp-clearfix">
+        <a href="<?php echo $_tad_url( 'settings' ); ?>"
+           class="nav-tab <?php echo $_tad_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
+            <?php _e( 'Einstellungen', 'themisdb-architecture-diagrams' ); ?>
+        </a>
+        <a href="<?php echo $_tad_url( 'shortcodes' ); ?>"
+           class="nav-tab <?php echo $_tad_tab === 'shortcodes' ? 'nav-tab-active' : ''; ?>">
+            <?php _e( 'Shortcodes &amp; Ansichten', 'themisdb-architecture-diagrams' ); ?>
+        </a>
+    </nav>
+
+    <div class="themisdb-tab-content">
+
+    <?php if ( $_tad_tab === 'settings' ) : ?>
+
+    <div class="themisdb-admin-modules">
+        <div class="card">
+            <h2><?php _e( 'Schnellaktionen', 'themisdb-architecture-diagrams' ); ?></h2>
+            <p><?php _e( 'Wechseln Sie direkt zu den Einbettungsbeispielen oder öffnen Sie die wichtigsten Architekturansichten im Frontend.', 'themisdb-architecture-diagrams' ); ?></p>
+            <p>
+                <a href="<?php echo $_tad_url( 'shortcodes' ); ?>" class="button button-secondary"><?php _e( 'Shortcodes anzeigen', 'themisdb-architecture-diagrams' ); ?></a>
+            </p>
+        </div>
+        <div class="card">
+            <h2><?php _e( 'Konfigurations-Überblick', 'themisdb-architecture-diagrams' ); ?></h2>
+            <table class="widefat striped">
+                <tbody>
+                    <tr><th><?php _e( 'Standardansicht', 'themisdb-architecture-diagrams' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_ad_default_view', 'high_level' ) ); ?></code></td></tr>
+                    <tr><th><?php _e( 'Theme', 'themisdb-architecture-diagrams' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_ad_theme', 'themis' ) ); ?></code></td></tr>
+                    <tr><th><?php _e( 'Interaktiv', 'themisdb-architecture-diagrams' ); ?></th><td><?php echo get_option( 'themisdb_ad_interactive', 1 ) ? esc_html__( 'Ja', 'themisdb-architecture-diagrams' ) : esc_html__( 'Nein', 'themisdb-architecture-diagrams' ); ?></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <form method="post" action="options.php">
         <?php
-        settings_fields('themisdb_ad_settings');
-        do_settings_sections('themisdb_ad_settings');
+        settings_fields( 'themisdb_ad_settings' );
+        do_settings_sections( 'themisdb_ad_settings' );
         ?>
 
         <table class="form-table" role="presentation">
@@ -185,64 +232,94 @@ if (!defined('ABSPATH')) {
         <?php submit_button(); ?>
     </form>
 
-    <div class="themisdb-admin-section">
-        <h2><?php _e('Shortcode Usage', 'themisdb-architecture-diagrams'); ?></h2>
-        <div class="themisdb-shortcode-examples">
-            <h3><?php _e('Basic Usage', 'themisdb-architecture-diagrams'); ?></h3>
-            <code>[themisdb_architecture]</code>
-            
-            <h3><?php _e('Specific View', 'themisdb-architecture-diagrams'); ?></h3>
-            <code>[themisdb_architecture view="storage_layer"]</code>
-            
-            <h3><?php _e('Custom Theme', 'themisdb-architecture-diagrams'); ?></h3>
-            <code>[themisdb_architecture theme="dark"]</code>
-            
-            <h3><?php _e('Without Controls', 'themisdb-architecture-diagrams'); ?></h3>
-            <code>[themisdb_architecture show_controls="false"]</code>
-            
-            <h3><?php _e('Combined Parameters', 'themisdb-architecture-diagrams'); ?></h3>
-            <code>[themisdb_architecture view="llm_integration" theme="neutral" interactive="true"]</code>
-        </div>
-    </div>
+    <?php elseif ( $_tad_tab === 'shortcodes' ) : ?>
 
-    <div class="themisdb-admin-section">
-        <h2><?php _e('Available Views', 'themisdb-architecture-diagrams'); ?></h2>
-        <ul>
-            <li><strong>high_level</strong> - Complete system architecture overview</li>
-            <li><strong>storage_layer</strong> - Storage engine and persistence details</li>
-            <li><strong>llm_integration</strong> - LLM/AI integration architecture</li>
-            <li><strong>sharding_raid</strong> - Distributed sharding and RAID configuration</li>
-        </ul>
-    </div>
-</div>
+    <h2><?php _e( 'Shortcode-Verwendung', 'themisdb-architecture-diagrams' ); ?></h2>
+    <p><?php _e( 'Fügen Sie einen der folgenden Shortcodes in eine Seite oder einen Beitrag ein.', 'themisdb-architecture-diagrams' ); ?></p>
+
+    <table class="widefat striped" style="max-width:800px;">
+        <thead>
+            <tr>
+                <th><?php _e( 'Beispiel', 'themisdb-architecture-diagrams' ); ?></th>
+                <th><?php _e( 'Beschreibung', 'themisdb-architecture-diagrams' ); ?></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>[themisdb_architecture]</code></td>
+                <td><?php _e( 'Standardansicht mit Plugin-Einstellungen', 'themisdb-architecture-diagrams' ); ?></td>
+            </tr>
+            <tr>
+                <td><code>[themisdb_architecture view="storage_layer"]</code></td>
+                <td><?php _e( 'Bestimmte Ansicht direkt angeben', 'themisdb-architecture-diagrams' ); ?></td>
+            </tr>
+            <tr>
+                <td><code>[themisdb_architecture theme="dark"]</code></td>
+                <td><?php _e( 'Eigenes Farbschema (dark, forest, neutral, default, themis)', 'themisdb-architecture-diagrams' ); ?></td>
+            </tr>
+            <tr>
+                <td><code>[themisdb_architecture show_controls="false"]</code></td>
+                <td><?php _e( 'Ansichts-Umschalter ausblenden', 'themisdb-architecture-diagrams' ); ?></td>
+            </tr>
+            <tr>
+                <td><code>[themisdb_architecture view="llm_integration" theme="neutral" interactive="true"]</code></td>
+                <td><?php _e( 'Mehrere Parameter kombiniert', 'themisdb-architecture-diagrams' ); ?></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2 style="margin-top:30px;"><?php _e( 'Verfügbare Ansichten', 'themisdb-architecture-diagrams' ); ?></h2>
+    <table class="widefat striped" style="max-width:800px;">
+        <thead>
+            <tr>
+                <th><?php _e( 'Schlüssel (view=)', 'themisdb-architecture-diagrams' ); ?></th>
+                <th><?php _e( 'Bezeichnung', 'themisdb-architecture-diagrams' ); ?></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><code>high_level</code></td><td><?php _e( 'Gesamt-Systemarchitektur', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>storage_layer</code></td><td><?php _e( 'Speicher-Engine &amp; Persistenz', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>llm_integration</code></td><td><?php _e( 'LLM / KI-Integration', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>sharding_raid</code></td><td><?php _e( 'Sharding &amp; RAID', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>database_comparison</code></td><td><?php _e( 'Datenbankvergleich', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>llm_comparison</code></td><td><?php _e( 'LLM-Vergleich', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>hardware_architecture</code></td><td><?php _e( 'Hardware-Architektur', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>performance_comparison</code></td><td><?php _e( 'Performance-Vergleich', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>tco_comparison</code></td><td><?php _e( 'TCO-Vergleich', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>feature_matrix</code></td><td><?php _e( 'Feature-Matrix', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>deployment_options</code></td><td><?php _e( 'Deployment-Optionen', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>use_case_recommendations</code></td><td><?php _e( 'Use-Case-Empfehlungen', 'themisdb-architecture-diagrams' ); ?></td></tr>
+            <tr><td><code>migration_paths</code></td><td><?php _e( 'Migrationspfade', 'themisdb-architecture-diagrams' ); ?></td></tr>
+        </tbody>
+    </table>
+
+    <?php endif; ?>
+
+    </div><!-- .themisdb-tab-content -->
+</div><!-- .wrap -->
 
 <style>
-.themisdb-admin-header {
-    background: #f0f0f1;
-    padding: 15px;
-    border-left: 4px solid #2ea44f;
-    margin: 20px 0;
+.themisdb-admin-modules {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+    gap:16px;
+    margin:0 0 20px;
 }
-
-.themisdb-admin-section {
-    margin-top: 30px;
-    padding: 20px;
+.themisdb-admin-modules .card { margin:0; max-width:none; }
+.themisdb-tab-content {
     background: #fff;
-    border: 1px solid #ccd0d4;
+    border: 1px solid #c3c4c7;
+    border-top: none;
+    padding: 20px 24px;
 }
-
-.themisdb-shortcode-examples h3 {
-    margin-top: 20px;
-    font-size: 14px;
-}
-
-.themisdb-shortcode-examples code {
-    display: block;
-    padding: 10px;
+.themisdb-tab-content > h2:first-child,
+.themisdb-tab-content > h3:first-child,
+.themisdb-tab-content > p:first-child { margin-top:0; }
+.themisdb-tab-content .widefat th { width:auto; }
+.themisdb-tab-content table.widefat code {
     background: #f6f7f7;
-    border: 1px solid #dcdcde;
+    padding: 2px 6px;
     border-radius: 3px;
-    font-family: Consolas, Monaco, monospace;
-    margin-bottom: 15px;
+    font-size: 12px;
 }
 </style>

@@ -50,8 +50,31 @@ if (isset($_POST['themisdb_matrix_save'])) {
 ?>
 
 <div class="wrap">
-    <h1><?php _e('ThemisDB Feature Matrix Settings', 'themisdb-feature-matrix'); ?></h1>
-    
+    <h1 class="wp-heading-inline"><?php _e('ThemisDB Feature Matrix Settings', 'themisdb-feature-matrix'); ?></h1>
+    <hr class="wp-header-end">
+
+    <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:20px 0;">
+        <div class="card" style="max-width:none;">
+            <h2><?php _e('Quick Actions', 'themisdb-feature-matrix'); ?></h2>
+            <p><?php _e('Review the current defaults and use the shortcode section below for embedding.', 'themisdb-feature-matrix'); ?></p>
+            <p>
+                <a href="#themisdb-feature-matrix-shortcodes" class="button button-secondary"><?php _e('Shortcode Usage', 'themisdb-feature-matrix'); ?></a>
+            </p>
+        </div>
+        <div class="card" style="max-width:none;">
+            <h2><?php _e('Current Defaults', 'themisdb-feature-matrix'); ?></h2>
+            <table class="widefat striped">
+                <tbody>
+                    <tr><th><?php _e('Default Category', 'themisdb-feature-matrix'); ?></th><td><?php echo esc_html(get_option('themisdb_matrix_default_category', 'all')); ?></td></tr>
+                    <tr><th><?php _e('Default Style', 'themisdb-feature-matrix'); ?></th><td><?php echo esc_html(get_option('themisdb_matrix_default_style', 'modern')); ?></td></tr>
+                    <tr><th><?php _e('Filtering', 'themisdb-feature-matrix'); ?></th><td><?php echo get_option('themisdb_matrix_enable_filtering', 1) ? esc_html__('Enabled', 'themisdb-feature-matrix') : esc_html__('Disabled', 'themisdb-feature-matrix'); ?></td></tr>
+                    <tr><th><?php _e('Export', 'themisdb-feature-matrix'); ?></th><td><?php echo get_option('themisdb_matrix_enable_export', 1) ? esc_html__('Enabled', 'themisdb-feature-matrix') : esc_html__('Disabled', 'themisdb-feature-matrix'); ?></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" style="max-width:none;">
     <form method="post" action="">
         <?php wp_nonce_field('themisdb_matrix_settings'); ?>
         
@@ -172,9 +195,9 @@ if (isset($_POST['themisdb_matrix_save'])) {
             <input type="submit" name="themisdb_matrix_save" class="button button-primary" value="<?php _e('Save Settings', 'themisdb-feature-matrix'); ?>">
         </p>
     </form>
-    
-    <hr>
-    
+    </div>
+
+    <div id="themisdb-feature-matrix-shortcodes" class="card" style="max-width:none; margin-top:20px;">
     <h2><?php _e('Shortcode Usage', 'themisdb-feature-matrix'); ?></h2>
     <p><?php _e('Use the following shortcode to display the feature matrix:', 'themisdb-feature-matrix'); ?></p>
     <code>[themisdb_feature_matrix]</code>
@@ -192,4 +215,5 @@ if (isset($_POST['themisdb_matrix_save'])) {
     <h3><?php _e('Examples', 'themisdb-feature-matrix'); ?></h3>
     <p><code>[themisdb_feature_matrix category="ai_ml"]</code></p>
     <p><code>[themisdb_feature_matrix category="all" style="modern" show_legend="yes"]</code></p>
+    </div>
 </div>

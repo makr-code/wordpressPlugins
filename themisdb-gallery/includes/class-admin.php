@@ -245,39 +245,138 @@ class ThemisDB_Gallery_Admin {
         }
         
         settings_errors('themisdb_gallery_messages');
+        $page_slug = 'themisdb-gallery';
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
+        $allowed_tabs = array('settings', 'cache');
+
+        if (!in_array($active_tab, $allowed_tabs, true)) {
+            $active_tab = 'settings';
+        }
+
+        $tab_url = static function ($tab) use ($page_slug) {
+            return admin_url('options-general.php?page=' . $page_slug . '&tab=' . $tab);
+        };
+
+        $default_provider = get_option('themisdb_gallery_default_provider', 'all');
+        $images_per_page = get_option('themisdb_gallery_images_per_page', 20);
+        $cache_duration = get_option('themisdb_gallery_cache_duration', 3600);
+        $openai_enabled = get_option('themisdb_gallery_openai_key') ? 'yes' : 'no';
         ?>
         <div class="wrap">
-            <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-            <form action="options.php" method="post">
-                <?php
-                settings_fields('themisdb_gallery_options');
-                do_settings_sections('themisdb-gallery');
-                submit_button(__('Einstellungen speichern', 'themisdb-gallery'));
-                ?>
-            </form>
-            
-            <hr />
-            
-            <h2><?php _e('Cache leeren', 'themisdb-gallery'); ?></h2>
-            <p><?php _e('Löscht alle gespeicherten Suchergebnisse aus dem Cache.', 'themisdb-gallery'); ?></p>
-            <button type="button" class="button" id="themisdb-gallery-clear-cache"><?php _e('Cache leeren', 'themisdb-gallery'); ?></button>
-            
-            <script>
-            jQuery(document).ready(function($) {
-                $('#themisdb-gallery-clear-cache').on('click', function() {
-                    var button = $(this);
-                    button.prop('disabled', true).text('<?php _e('Wird gelöscht...', 'themisdb-gallery'); ?>');
-                    
-                    $.post(ajaxurl, {
-                        action: 'themisdb_gallery_clear_cache',
-                        nonce: '<?php echo wp_create_nonce('themisdb_gallery_clear_cache'); ?>'
-                    }, function(response) {
-                        button.prop('disabled', false).text('<?php _e('Cache leeren', 'themisdb-gallery'); ?>');
-                        alert(response.data.message || '<?php _e('Cache geleert', 'themisdb-gallery'); ?>');
+            <style>
+                .themisdb-tab-content {
+                    background: #fff;
+                    border: 1px solid #c3c4c7;
+                    border-top: none;
+                    padding: 20px 24px;
+                }
+
+                .themisdb-tab-content > :first-child,
+                .themisdb-tab-content .themisdb-admin-modules:first-child,
+                .themisdb-tab-content .card:first-child,
+                .themisdb-tab-content form:first-child {
+                    margin-top: 0;
+                }
+
+                .themisdb-admin-modules {
+                    display: grid;
+                    gap: 20px;
+                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                    margin: 0 0 24px;
+                }
+
+                .themisdb-admin-modules .card,
+                .themisdb-tab-content .card {
+                    margin: 0;
+                    max-width: none;
+                    padding: 20px 24px;
+                }
+
+                .themisdb-tab-toolbar {
+                    display: flex;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                    margin: 0 0 16px;
+                }
+            </style>
+
+            <h1 class="wp-heading-inline"><?php echo esc_html(get_admin_page_title()); ?></h1>
+            <a href="<?php echo esc_url($tab_url('settings')); ?>" class="page-title-action"><?php esc_html_e('Einstellungen bearbeiten', 'themisdb-gallery'); ?></a>
+            <a href="<?php echo esc_url($tab_url('cache')); ?>" class="page-title-action"><?php esc_html_e('Cache verwalten', 'themisdb-gallery'); ?></a>
+            <hr class="wp-header-end">
+
+            <nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e('Gallery Einstellungen', 'themisdb-gallery'); ?>">
+                <a href="<?php echo esc_url($tab_url('settings')); ?>" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Einstellungen', 'themisdb-gallery'); ?></a>
+                <a href="<?php echo esc_url($tab_url('cache')); ?>" class="nav-tab <?php echo $active_tab === 'cache' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Cache & Aktionen', 'themisdb-gallery'); ?></a>
+            </nav>
+
+            <div class="themisdb-tab-content">
+                <?php if ($active_tab === 'settings') : ?>
+                    <div class="themisdb-admin-modules">
+                        <div class="card">
+                            <h2><?php esc_html_e('Schnellaktionen', 'themisdb-gallery'); ?></h2>
+                            <div class="themisdb-tab-toolbar">
+                                <a href="#themisdb-gallery-settings-form" class="button button-primary"><?php esc_html_e('Zur Konfiguration', 'themisdb-gallery'); ?></a>
+                                <a href="<?php echo esc_url($tab_url('cache')); ?>" class="button"><?php esc_html_e('Cache leeren', 'themisdb-gallery'); ?></a>
+                            </div>
+                            <p><?php esc_html_e('Definiere Provider, Cache-Laufzeit und optionale AI-Unterstützung für die Bildsuche im Editor.', 'themisdb-gallery'); ?></p>
+                        </div>
+
+                        <div class="card">
+                            <h2><?php esc_html_e('Aktive Defaults', 'themisdb-gallery'); ?></h2>
+                            <table class="widefat striped">
+                                <tbody>
+                                    <tr><th><?php esc_html_e('Standard-Provider', 'themisdb-gallery'); ?></th><td><?php echo esc_html($default_provider); ?></td></tr>
+                                    <tr><th><?php esc_html_e('Bilder pro Seite', 'themisdb-gallery'); ?></th><td><?php echo esc_html((string) $images_per_page); ?></td></tr>
+                                    <tr><th><?php esc_html_e('Cache-Dauer', 'themisdb-gallery'); ?></th><td><?php echo esc_html((string) $cache_duration); ?></td></tr>
+                                    <tr><th><?php esc_html_e('OpenAI', 'themisdb-gallery'); ?></th><td><?php echo esc_html($openai_enabled === 'yes' ? 'Aktiv' : 'Inaktiv'); ?></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <form id="themisdb-gallery-settings-form" action="options.php" method="post">
+                        <?php
+                        settings_fields('themisdb_gallery_options');
+                        do_settings_sections('themisdb-gallery');
+                        submit_button(__('Einstellungen speichern', 'themisdb-gallery'));
+                        ?>
+                    </form>
+                <?php else : ?>
+                    <div class="themisdb-admin-modules">
+                        <div class="card">
+                            <h2><?php esc_html_e('Cache leeren', 'themisdb-gallery'); ?></h2>
+                            <p><?php esc_html_e('Löscht alle gespeicherten Suchergebnisse aus dem Cache.', 'themisdb-gallery'); ?></p>
+                            <button type="button" class="button button-secondary" id="themisdb-gallery-clear-cache"><?php _e('Cache leeren', 'themisdb-gallery'); ?></button>
+                        </div>
+
+                        <div class="card">
+                            <h2><?php esc_html_e('Aktionen', 'themisdb-gallery'); ?></h2>
+                            <div class="themisdb-tab-toolbar">
+                                <a href="<?php echo esc_url($tab_url('settings')); ?>" class="button button-primary"><?php esc_html_e('Einstellungen öffnen', 'themisdb-gallery'); ?></a>
+                            </div>
+                            <p><?php esc_html_e('Nutze diesen Bereich für Wartung und schnelle Verwaltungsaktionen rund um die Bildsuche.', 'themisdb-gallery'); ?></p>
+                        </div>
+                    </div>
+
+                    <script>
+                    jQuery(document).ready(function($) {
+                        $('#themisdb-gallery-clear-cache').on('click', function() {
+                            var button = $(this);
+                            button.prop('disabled', true).text('<?php _e('Wird gelöscht...', 'themisdb-gallery'); ?>');
+
+                            $.post(ajaxurl, {
+                                action: 'themisdb_gallery_clear_cache',
+                                nonce: '<?php echo wp_create_nonce('themisdb_gallery_clear_cache'); ?>'
+                            }, function(response) {
+                                button.prop('disabled', false).text('<?php _e('Cache leeren', 'themisdb-gallery'); ?>');
+                                alert(response.data.message || '<?php _e('Cache geleert', 'themisdb-gallery'); ?>');
+                            });
+                        });
                     });
-                });
-            });
-            </script>
+                    </script>
+                <?php endif; ?>
+            </div>
         </div>
         <?php
     }

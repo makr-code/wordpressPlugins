@@ -148,46 +148,168 @@ class ThemisDB_Formula_Library {
      */
     public function render_admin_page() {
         $formulas = self::get_formulas();
+
+        $_tfl_page = 'themisdb-formula-library';
+        $_tfl_tab  = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'library';
+        if ( ! in_array( $_tfl_tab, array( 'library', 'shortcodes' ), true ) ) {
+            $_tfl_tab = 'library';
+        }
+        $_tfl_url = function( $tab ) use ( $_tfl_page ) {
+            return esc_url( admin_url( 'options-general.php?page=' . $_tfl_page . '&tab=' . $tab ) );
+        };
         ?>
         <div class="wrap themisdb-formula-library">
-            <h1><?php _e('Formula Library', 'themisdb-formula-renderer'); ?></h1>
-            <p><?php _e('Click any formula to copy its shortcode.', 'themisdb-formula-renderer'); ?></p>
-            
-            <?php foreach ($formulas as $category_key => $category): ?>
-            <div class="formula-category">
-                <h2><?php echo esc_html($category['name']); ?></h2>
-                <div class="formula-grid">
-                    <?php foreach ($category['formulas'] as $formula): ?>
-                    <div class="formula-card">
-                        <h3><?php echo esc_html($formula['name']); ?></h3>
-                        <p class="formula-description"><?php echo esc_html($formula['description']); ?></p>
-                        <div class="formula-preview">
-                            <?php echo do_shortcode('[themisdb_formula]' . $formula['latex'] . '[/themisdb_formula]'); ?>
-                        </div>
-                        <div class="formula-actions">
-                            <button class="button button-primary copy-shortcode" 
-                                    data-shortcode='[themisdb_formula]<?php echo esc_attr($formula['latex']); ?>[/themisdb_formula]'>
-                                📋 Copy Shortcode
-                            </button>
-                            <button class="button copy-latex" 
-                                    data-latex="<?php echo esc_attr($formula['latex']); ?>">
-                                Copy LaTeX
-                            </button>
-                        </div>
+            <h1 class="wp-heading-inline">
+                <?php _e( 'Formula Library', 'themisdb-formula-renderer' ); ?>
+                <a href="<?php echo $_tfl_url( 'shortcodes' ); ?>" class="page-title-action"><?php _e( 'Shortcode-Verwendung', 'themisdb-formula-renderer' ); ?></a>
+            </h1>
+            <hr class="wp-header-end">
+
+            <nav class="nav-tab-wrapper wp-clearfix">
+                <a href="<?php echo $_tfl_url( 'library' ); ?>"
+                   class="nav-tab <?php echo $_tfl_tab === 'library' ? 'nav-tab-active' : ''; ?>">
+                    <?php _e( 'Formel-Bibliothek', 'themisdb-formula-renderer' ); ?>
+                </a>
+                <a href="<?php echo $_tfl_url( 'shortcodes' ); ?>"
+                   class="nav-tab <?php echo $_tfl_tab === 'shortcodes' ? 'nav-tab-active' : ''; ?>">
+                    <?php _e( 'Shortcode-Verwendung', 'themisdb-formula-renderer' ); ?>
+                </a>
+            </nav>
+
+            <div class="themisdb-tab-content">
+
+                <?php if ( $_tfl_tab === 'library' ): ?>
+                <div class="themisdb-admin-modules">
+                    <div class="card">
+                        <h2><?php _e( 'Schnellaktionen', 'themisdb-formula-renderer' ); ?></h2>
+                        <p><?php _e( 'Wechseln Sie direkt zur Shortcode-Referenz oder nutzen Sie die Bibliothek zum Kopieren vorhandener Formeln.', 'themisdb-formula-renderer' ); ?></p>
+                        <p>
+                            <a href="<?php echo $_tfl_url( 'shortcodes' ); ?>" class="button button-secondary"><?php _e( 'Shortcode-Verwendung', 'themisdb-formula-renderer' ); ?></a>
+                        </p>
                     </div>
-                    <?php endforeach; ?>
+                    <div class="card">
+                        <h2><?php _e( 'Bibliotheks-Überblick', 'themisdb-formula-renderer' ); ?></h2>
+                        <table class="widefat striped">
+                            <tbody>
+                                <tr><th><?php _e( 'Kategorien', 'themisdb-formula-renderer' ); ?></th><td><?php echo esc_html( count( $formulas ) ); ?></td></tr>
+                                <tr><th><?php _e( 'Kopiermodus', 'themisdb-formula-renderer' ); ?></th><td><?php _e( 'Shortcode und LaTeX', 'themisdb-formula-renderer' ); ?></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-        
+                <p><?php _e( 'Click any formula to copy its shortcode.', 'themisdb-formula-renderer' ); ?></p>
+
+                <?php foreach ($formulas as $category_key => $category): ?>
+                <div class="formula-category">
+                    <h2><?php echo esc_html($category['name']); ?></h2>
+                    <div class="formula-grid">
+                        <?php foreach ($category['formulas'] as $formula): ?>
+                        <div class="formula-card">
+                            <h3><?php echo esc_html($formula['name']); ?></h3>
+                            <p class="formula-description"><?php echo esc_html($formula['description']); ?></p>
+                            <div class="formula-preview">
+                                <?php echo do_shortcode('[themisdb_formula]' . $formula['latex'] . '[/themisdb_formula]'); ?>
+                            </div>
+                            <div class="formula-actions">
+                                <button class="button button-primary copy-shortcode"
+                                        data-shortcode='[themisdb_formula]<?php echo esc_attr($formula['latex']); ?>[/themisdb_formula]'>
+                                    📋 Copy Shortcode
+                                </button>
+                                <button class="button copy-latex"
+                                        data-latex="<?php echo esc_attr($formula['latex']); ?>">
+                                    Copy LaTeX
+                                </button>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+
+                <?php elseif ( $_tfl_tab === 'shortcodes' ): ?>
+                <h2><?php _e( 'Shortcode-Verwendung', 'themisdb-formula-renderer' ); ?></h2>
+                <p><?php _e( 'Verwenden Sie den folgenden Shortcode, um LaTeX-Formeln auf beliebigen Seiten oder Beiträgen darzustellen.', 'themisdb-formula-renderer' ); ?></p>
+
+                <table class="widefat striped">
+                    <thead>
+                        <tr>
+                            <th><?php _e( 'Shortcode', 'themisdb-formula-renderer' ); ?></th>
+                            <th><?php _e( 'Beschreibung', 'themisdb-formula-renderer' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>[themisdb_formula]E = mc^2[/themisdb_formula]</code></td>
+                            <td><?php _e( 'Formel inline rendern (MathJax/KaTeX). Der LaTeX-Ausdruck wird zwischen den Tags platziert.', 'themisdb-formula-renderer' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>[themisdb_formula display="block"]x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}[/themisdb_formula]</code></td>
+                            <td><?php _e( 'Formel als eigenständigen Block zentriert darstellen.', 'themisdb-formula-renderer' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>[themisdb_formula]\sum_{i=1}^{n} i = \frac{n(n+1)}{2}[/themisdb_formula]</code></td>
+                            <td><?php _e( 'Summenformel mit Grenzen.', 'themisdb-formula-renderer' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>[themisdb_formula]\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}[/themisdb_formula]</code></td>
+                            <td><?php _e( 'Gaußsches Integral.', 'themisdb-formula-renderer' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>[themisdb_formula]\vec{F} = m \cdot \vec{a}[/themisdb_formula]</code></td>
+                            <td><?php _e( 'Formel mit Vektornotation.', 'themisdb-formula-renderer' ); ?></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="margin-top:24px;"><?php _e( 'Automatisches Rendering', 'themisdb-formula-renderer' ); ?></h3>
+                <p><?php _e( 'LaTeX-Ausdrücke können auch direkt im Post-Editor mit Standard-Delimitern verwendet werden:', 'themisdb-formula-renderer' ); ?></p>
+                <table class="widefat striped" style="max-width:600px;">
+                    <thead>
+                        <tr>
+                            <th><?php _e( 'Delimiter', 'themisdb-formula-renderer' ); ?></th>
+                            <th><?php _e( 'Typ', 'themisdb-formula-renderer' ); ?></th>
+                            <th><?php _e( 'Beispiel', 'themisdb-formula-renderer' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>$...$</code></td>
+                            <td><?php _e( 'Inline', 'themisdb-formula-renderer' ); ?></td>
+                            <td><code>$E = mc^2$</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>$$...$$</code></td>
+                            <td><?php _e( 'Block', 'themisdb-formula-renderer' ); ?></td>
+                            <td><code>$$\int_0^1 x\,dx = \tfrac{1}{2}$$</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>\(...\)</code></td>
+                            <td><?php _e( 'Inline', 'themisdb-formula-renderer' ); ?></td>
+                            <td><code>\(a^2+b^2=c^2\)</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>\[...\]</code></td>
+                            <td><?php _e( 'Block', 'themisdb-formula-renderer' ); ?></td>
+                            <td><code>\[\nabla \cdot \vec{E} = \frac{\rho}{\varepsilon_0}\]</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <?php endif; ?>
+
+            </div><!-- .themisdb-tab-content -->
+        </div><!-- .wrap -->
+
         <style>
-        .themisdb-formula-library {
-            max-width: 1400px;
-        }
-        .formula-category {
-            margin: 2rem 0;
-        }
+        .themisdb-formula-library { max-width: 1400px; }
+        .themisdb-admin-modules { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin:0 0 20px; }
+        .themisdb-admin-modules .card { margin:0; max-width:none; }
+        .themisdb-tab-content { background:#fff; border:1px solid #c3c4c7; border-top:none; padding:20px 24px; }
+        .themisdb-tab-content > h2:first-child,
+        .themisdb-tab-content > h3:first-child,
+        .themisdb-tab-content > p:first-child { margin-top:0; }
+        .themisdb-tab-content .widefat th { width:auto; }
+        .themisdb-tab-content table.widefat code { background:#f6f7f7; padding:2px 6px; border-radius:3px; font-size:12px; }
+        .formula-category { margin: 2rem 0; }
         .formula-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -206,15 +328,8 @@ class ThemisDB_Formula_Library {
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
-        .formula-card h3 {
-            margin: 0 0 0.5rem 0;
-            color: #2c3e50;
-        }
-        .formula-description {
-            color: #666;
-            font-size: 0.9em;
-            margin-bottom: 1rem;
-        }
+        .formula-card h3 { margin: 0 0 0.5rem 0; color: #2c3e50; }
+        .formula-description { color: #666; font-size: 0.9em; margin-bottom: 1rem; }
         .formula-preview {
             background: #f5f5f5;
             padding: 1rem;
@@ -225,21 +340,16 @@ class ThemisDB_Formula_Library {
             align-items: center;
             justify-content: center;
         }
-        .formula-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-        .formula-actions button {
-            flex: 1;
-        }
+        .formula-actions { display: flex; gap: 0.5rem; }
+        .formula-actions button { flex: 1; }
         </style>
-        
+
         <script>
         jQuery(document).ready(function($) {
             $('.copy-shortcode, .copy-latex').on('click', function() {
                 const text = $(this).data('shortcode') || $(this).data('latex');
                 const $btn = $(this);
-                
+
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(text).then(() => {
                         const originalText = $btn.text();
@@ -251,7 +361,6 @@ class ThemisDB_Formula_Library {
                         setTimeout(() => $btn.text($btn.data('original-text') || 'Copy'), 2000);
                     });
                 } else {
-                    // Fallback for older browsers
                     const originalText = $btn.text();
                     try {
                         const textarea = document.createElement('textarea');

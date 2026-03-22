@@ -951,6 +951,181 @@ class ThemisDB_Email_Handler {
     }
 
     /**
+     * Send support benefit expiry notification email.
+     *
+     * @param  int    $benefit_id       Support benefit ID.
+     * @param  int    $days_until_expiry Days remaining before expiry.
+     * @return bool   True on success, false on failure.
+     */
+    public static function send_support_expiry_notification($benefit_id, $days_until_expiry = 30) {
+        if (!class_exists('ThemisDB_License_Manager') || !class_exists('ThemisDB_Order_Manager')) {
+            return false;
+        }
+
+        // Load the benefit's license and order to get customer contact data.
+        $benefit_id = intval($benefit_id);
+        $table_benefits = $GLOBALS['wpdb']->prefix . 'themisdb_support_benefits';
+        $benefit = $GLOBALS['wpdb']->get_row(
+            $GLOBALS['wpdb']->prepare("SELECT * FROM $table_benefits WHERE id = %d", $benefit_id),
+            ARRAY_A
+        );
+        if (!$benefit) {
+            return false;
+        }
+
+        $license = ThemisDB_License_Manager::get_license(intval($benefit['license_id']));
+        if (!$license) {
+            return false;
+        }
+
+        $order = ThemisDB_Order_Manager::get_order(intval($license['order_id']));
+        if (!$order) {
+            return false;
+        }
+
+        $to = $order['customer_email'];
+        $subject = sprintf(
+            /* translators: %d: days until expiry */
+            _n(
+                'Ihr ThemisDB Support-Paket läuft in %d Tag ab',
+                'Ihr ThemisDB Support-Paket läuft in %d Tagen ab',
+                intval($days_until_expiry),
+                'themisdb-order-request'
+            ),
+            intval($days_until_expiry)
+        );
+
+        $message = self::get_support_expiry_template($benefit, $license, $order, intval($days_until_expiry));
+
+        return self::send_email($to, $subject, $message, array(), intval($order['id']), null);
+    }
+
+    /**
+     * Build HTML email body for support benefit expiry notification.
+     *
+     * @param  array  $benefit          Support benefit row.
+     * @param  array  $license          License row.
+     * @param  array  $order            Order row.
+     * @param  int    $days_until_expiry
+     * @return string HTML body.
+     */
+    private static function get_support_expiry_template($benefit, $license, $order, $days_until_expiry) {
+        $expires_formatted = !empty($benefit['expires_at'])
+            ? date_i18n('d.m.Y', strtotime($benefit['expires_at']))
+            : '—';
+
+        $tier_label = ucfirst(sanitize_text_field($benefit['tier_level'] ?? 'community'));
+
+        $sla_hours = isset($benefit['response_sla_hours']) ? intval($benefit['response_sla_hours']) : null;
+        $max_tickets = isset($benefit['max_open_tickets']) ? intval($benefit['max_open_tickets']) : -1;
+        $included_hours = isset($benefit['included_hours_per_month']) ? intval($benefit['included_hours_per_month']) : 0;
+
+        $header_color = $days_until_expiry <= 7 ? '#856404' : '#0c5460';
+        $header_bg    = $days_until_expiry <= 7 ? '#fff3cd' : '#d1ecf1';
+        $border_color = $days_until_expiry <= 7 ? '#ffc107' : '#17a2b8';
+
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background-color: #1a237e; color: white; padding: 20px; text-align: center; }
+                .content { padding: 20px; background-color: #f9f9f9; }
+                .notice { background-color: <?php echo esc_attr($header_bg); ?>; border: 1px solid <?php echo esc_attr($border_color); ?>; color: <?php echo esc_attr($header_color); ?>; padding: 15px; margin: 20px 0; border-radius: 4px; }
+                .benefit-details { background-color: white; padding: 15px; margin: 20px 0; border: 1px solid #ddd; }
+                .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+                th { background-color: #f5f5f5; width: 40%; }
+                .cta { display: inline-block; margin-top: 12px; padding: 10px 24px; background-color: #1a237e; color: white; text-decoration: none; border-radius: 4px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1><?php esc_html_e('Support-Paket läuft bald ab', 'themisdb-order-request'); ?></h1>
+                </div>
+                <div class="content">
+                    <p><?php echo esc_html(sprintf(__('Sehr geehrte(r) %s,', 'themisdb-order-request'), $order['customer_name'])); ?></p>
+
+                    <div class="notice">
+                        <?php if ($days_until_expiry <= 1) : ?>
+                            <strong><?php esc_html_e('Dringende Benachrichtigung:', 'themisdb-order-request'); ?></strong>
+                            <?php esc_html_e('Ihr ThemisDB Support-Paket läuft heute ab. Bitte verlängern Sie umgehend, um die Unterstützung nicht zu unterbrechen.', 'themisdb-order-request'); ?>
+                        <?php elseif ($days_until_expiry <= 7) : ?>
+                            <strong><?php esc_html_e('Wichtige Hinweis:', 'themisdb-order-request'); ?></strong>
+                            <?php echo esc_html(sprintf(
+                                __('Ihr Support-Paket läuft in %d Tagen ab. Handeln Sie jetzt, um eine Unterbrechung zu vermeiden.', 'themisdb-order-request'),
+                                $days_until_expiry
+                            )); ?>
+                        <?php else : ?>
+                            <?php echo esc_html(sprintf(
+                                __('Wir möchten Sie darauf hinweisen, dass Ihr ThemisDB Support-Paket in %d Tagen abläuft.', 'themisdb-order-request'),
+                                $days_until_expiry
+                            )); ?>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="benefit-details">
+                        <h2><?php esc_html_e('Ihr aktuelles Support-Paket', 'themisdb-order-request'); ?></h2>
+                        <table>
+                            <tr>
+                                <th><?php esc_html_e('Lizenzschlüssel:', 'themisdb-order-request'); ?></th>
+                                <td><code><?php echo esc_html($license['license_key']); ?></code></td>
+                            </tr>
+                            <tr>
+                                <th><?php esc_html_e('Edition:', 'themisdb-order-request'); ?></th>
+                                <td>ThemisDB <?php echo esc_html($tier_label); ?> Edition</td>
+                            </tr>
+                            <tr>
+                                <th><?php esc_html_e('Ablaufdatum:', 'themisdb-order-request'); ?></th>
+                                <td><strong><?php echo esc_html($expires_formatted); ?></strong></td>
+                            </tr>
+                            <?php if ($sla_hours) : ?>
+                            <tr>
+                                <th><?php esc_html_e('Reaktionszeit (SLA):', 'themisdb-order-request'); ?></th>
+                                <td><?php echo esc_html(sprintf(__('%d Stunden', 'themisdb-order-request'), $sla_hours)); ?></td>
+                            </tr>
+                            <?php endif; ?>
+                            <tr>
+                                <th><?php esc_html_e('Max. offene Tickets:', 'themisdb-order-request'); ?></th>
+                                <td><?php echo $max_tickets === -1 ? esc_html__('Unbegrenzt', 'themisdb-order-request') : esc_html($max_tickets); ?></td>
+                            </tr>
+                            <?php if ($included_hours > 0 || $included_hours === -1) : ?>
+                            <tr>
+                                <th><?php esc_html_e('Inkludierte Stunden/Monat:', 'themisdb-order-request'); ?></th>
+                                <td><?php echo $included_hours === -1 ? esc_html__('Unbegrenzt', 'themisdb-order-request') : esc_html(sprintf(__('%d Std.', 'themisdb-order-request'), $included_hours)); ?></td>
+                            </tr>
+                            <?php endif; ?>
+                        </table>
+                    </div>
+
+                    <p><?php esc_html_e('Um Ihren Support-Zugang ohne Unterbrechung zu erhalten, empfehlen wir eine rechtzeitige Verlängerung.', 'themisdb-order-request'); ?></p>
+                    <p><?php esc_html_e('Für Fragen zur Verlängerung oder einem Upgrade stehen wir Ihnen gerne zur Verfügung.', 'themisdb-order-request'); ?></p>
+
+                    <p>
+                        <a href="<?php echo esc_url(home_url('/support/')); ?>" class="cta"><?php esc_html_e('Support-Paket verlängern', 'themisdb-order-request'); ?></a>
+                    </p>
+
+                    <p><?php esc_html_e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br>
+                    <?php esc_html_e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
+                </div>
+                <div class="footer">
+                    <p><?php echo esc_html(get_option('blogname')); ?><br>
+                    <?php echo esc_html(get_option('admin_email')); ?></p>
+                </div>
+            </div>
+        </body>
+        </html>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
      * Get email logs
      */
     public static function get_email_logs($args = array()) {

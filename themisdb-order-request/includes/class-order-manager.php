@@ -109,9 +109,11 @@ class ThemisDB_Order_Manager {
         $order_data = self::filter_order_data_for_schema($order_data);
         
         $result = $wpdb->insert($table_orders, $order_data);
-        
+
         if ($result) {
-            return $wpdb->insert_id;
+            $order_id = intval($wpdb->insert_id);
+            self::sync_order_items_from_selection($order_id);
+            return $order_id;
         }
         
         return false;
@@ -260,6 +262,7 @@ class ThemisDB_Order_Manager {
         global $wpdb;
         
         $table_orders = $wpdb->prefix . 'themisdb_orders';
+        $sync_selection_items = false;
         
         $update_data = array();
         
@@ -301,12 +304,15 @@ class ThemisDB_Order_Manager {
         }
         if (isset($data['product_edition'])) {
             $update_data['product_edition'] = sanitize_text_field($data['product_edition']);
+            $sync_selection_items = true;
         }
         if (isset($data['modules'])) {
             $update_data['modules'] = json_encode($data['modules']);
+            $sync_selection_items = true;
         }
         if (isset($data['training_modules'])) {
             $update_data['training_modules'] = json_encode($data['training_modules']);
+            $sync_selection_items = true;
         }
         if (isset($data['legal_terms_accepted'])) {
             $update_data['legal_terms_accepted'] = !empty($data['legal_terms_accepted']) ? 1 : 0;
@@ -398,6 +404,10 @@ class ThemisDB_Order_Manager {
             array('%d')
         );
         
+        if ($result !== false && $sync_selection_items) {
+            self::sync_order_items_from_selection(intval($order_id));
+        }
+
         return $result !== false;
     }
     
@@ -655,6 +665,81 @@ class ThemisDB_Order_Manager {
 
         self::update_order($order_id, array('total_amount' => floatval($sum)));
         return floatval($sum);
+    }
+
+    /**
+     * Build canonical order_items from edition + selected modules/training modules.
+     */
+    private static function sync_order_items_from_selection($order_id) {
+        $order = self::get_order($order_id);
+        if (!$order) {
+            return false;
+        }
+
+        $currency = !empty($order['currency']) ? sanitize_text_field($order['currency']) : 'EUR';
+        $items = array();
+
+        $edition = isset($order['product_edition']) ? sanitize_text_field($order['product_edition']) : '';
+        if ($edition !== '') {
+            $product = self::get_product_by_edition($edition);
+            if ($product) {
+                $items[] = array(
+                    'item_type' => 'product',
+                    'product_id' => intval($product['id']),
+                    'sku' => sanitize_text_field($product['product_code'] ?? ''),
+                    'item_name' => sanitize_text_field($product['product_name'] ?? $edition),
+                    'quantity' => 1,
+                    'unit_price' => floatval($product['base_price'] ?? 0),
+                    'variant_data' => array(
+                        'edition' => $edition,
+                    ),
+                );
+            }
+        }
+
+        $selected_modules = is_array($order['modules'] ?? null) ? $order['modules'] : array();
+        if (!empty($selected_modules)) {
+            foreach (self::get_modules(null, true) as $module) {
+                if (!in_array($module['module_key'], $selected_modules, true)) {
+                    continue;
+                }
+
+                $items[] = array(
+                    'item_type' => 'module',
+                    'product_id' => intval($module['id']),
+                    'sku' => sanitize_text_field($module['module_key'] ?? ''),
+                    'item_name' => sanitize_text_field($module['module_name'] ?? ''),
+                    'quantity' => 1,
+                    'unit_price' => floatval($module['module_price'] ?? 0),
+                    'variant_data' => array(
+                        'module_key' => sanitize_text_field($module['module_key'] ?? ''),
+                    ),
+                );
+            }
+        }
+
+        $selected_training = is_array($order['training_modules'] ?? null) ? $order['training_modules'] : array();
+        if (!empty($selected_training)) {
+            foreach (self::get_training_modules(null, true) as $training) {
+                if (!in_array($training['training_key'], $selected_training, true)) {
+                    continue;
+                }
+
+                $items[] = array(
+                    'item_type' => 'training',
+                    'product_id' => intval($training['id']),
+                    'sku' => sanitize_text_field($training['training_key'] ?? ''),
+                    'item_name' => sanitize_text_field($training['training_name'] ?? ''),
+                    'quantity' => 1,
+                    'unit_price' => floatval($training['training_price'] ?? 0),
+                    'variant_data' => array(
+                        'training_key' => sanitize_text_field($training['training_key'] ?? ''),
+                    ),
+                );
+            }
+        }
+
+        return self::set_order_items($order_id, $items, $currency);
     }
 
     /**

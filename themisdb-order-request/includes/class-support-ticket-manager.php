@@ -62,10 +62,22 @@ class ThemisDB_Order_Support_Ticket_Manager {
             $status = 'open';
         }
 
+        $benefit_id = isset($data['benefit_id']) ? intval($data['benefit_id']) : 0;
+        if ($benefit_id > 0 && class_exists('ThemisDB_Support_Benefits_Manager')) {
+            $limit_check = ThemisDB_Support_Benefits_Manager::check_limits($benefit_id, $priority);
+            if (empty($limit_check['allowed'])) {
+                return new WP_Error(
+                    'support_limit_reached',
+                    isset($limit_check['reason']) ? (string) $limit_check['reason'] : __('Support-Limit erreicht.', 'themisdb-order-request'),
+                    array('limits' => $limit_check)
+                );
+            }
+        }
+
         $inserted = $wpdb->insert(
             $table,
             array(
-                'benefit_id' => isset($data['benefit_id']) ? intval($data['benefit_id']) : null,
+                'benefit_id' => $benefit_id > 0 ? $benefit_id : null,
                 'license_id' => isset($data['license_id']) ? intval($data['license_id']) : null,
                 'order_id' => isset($data['order_id']) ? intval($data['order_id']) : null,
                 'customer_email' => $customer_email,
@@ -84,13 +96,21 @@ class ThemisDB_Order_Support_Ticket_Manager {
 
         $ticket_id = intval($wpdb->insert_id);
 
-        if (isset($data['benefit_id']) && intval($data['benefit_id']) > 0 && class_exists('ThemisDB_Support_Benefits_Manager')) {
-            ThemisDB_Support_Benefits_Manager::increment_ticket_usage(intval($data['benefit_id']));
+        if ($benefit_id > 0 && class_exists('ThemisDB_Support_Benefits_Manager')) {
+            ThemisDB_Support_Benefits_Manager::increment_ticket_usage($benefit_id);
         }
 
         if (!empty($data['auto_sync_github'])) {
             self::create_github_issue_for_ticket($ticket_id);
         }
+
+        /**
+         * Fires after a support ticket is created in the order plugin.
+         *
+         * @param int   $ticket_id New ticket ID.
+         * @param array $payload   Raw ticket creation payload.
+         */
+        do_action('themisdb_order_support_ticket_created', $ticket_id, $data);
 
         return $ticket_id;
     }

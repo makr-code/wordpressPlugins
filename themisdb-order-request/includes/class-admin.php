@@ -241,6 +241,87 @@ class ThemisDB_Order_Admin {
         register_setting('themisdb_order_settings', 'themisdb_support_github_token');
         register_setting('themisdb_order_settings', 'themisdb_support_github_repository');
         register_setting('themisdb_order_settings', 'themisdb_support_github_labels');
+        register_setting('themisdb_order_settings', 'themisdb_order_page_url', array(
+            'sanitize_callback' => array($this, 'sanitize_order_page_reference'),
+        ));
+        register_setting('themisdb_order_settings', 'themisdb_product_page_url', array(
+            'sanitize_callback' => array($this, 'sanitize_product_page_reference'),
+        ));
+    }
+
+    /**
+     * Sanitize order flow page reference (page ID or legacy URL).
+     */
+    public function sanitize_order_page_reference($value) {
+        return $this->sanitize_page_reference_value($value, 'themisdb_order_page_url');
+    }
+
+    /**
+     * Sanitize product detail page reference (page ID or legacy URL).
+     */
+    public function sanitize_product_page_reference($value) {
+        return $this->sanitize_page_reference_value($value, 'themisdb_product_page_url');
+    }
+
+    /**
+     * Normalize a page reference value while keeping backward compatibility with URL-based options.
+     */
+    private function sanitize_page_reference_value($value, $option_name) {
+        if (is_numeric($value) && intval($value) > 0) {
+            return (string) intval($value);
+        }
+
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            $existing = get_option($option_name, '');
+            if (is_string($existing) && $existing !== '' && !is_numeric($existing)) {
+                return esc_url_raw($existing);
+            }
+            return '';
+        }
+
+        $url = esc_url_raw($raw);
+        if ($url === '') {
+            return '';
+        }
+
+        $page_id = url_to_postid($url);
+        if ($page_id > 0) {
+            return (string) intval($page_id);
+        }
+
+        return $url;
+    }
+
+    /**
+     * Resolve a stored option (ID or URL) to a page ID for native page selectors.
+     */
+    private function resolve_page_id_from_option($option_name) {
+        $raw = get_option($option_name, '');
+        if (is_numeric($raw) && intval($raw) > 0) {
+            return intval($raw);
+        }
+
+        $url = esc_url_raw((string) $raw);
+        if ($url === '') {
+            return 0;
+        }
+
+        $page_id = url_to_postid($url);
+        if ($page_id > 0) {
+            return intval($page_id);
+        }
+
+        $path = (string) wp_parse_url($url, PHP_URL_PATH);
+        $path = trim($path, '/');
+        if ($path !== '') {
+            $page = get_page_by_path($path, OBJECT, 'page');
+            if ($page instanceof WP_Post) {
+                return intval($page->ID);
+            }
+        }
+
+        return 0;
     }
 
     /**
@@ -890,7 +971,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
         ?>
         <div class="wrap themisdb-order-dashboard">
-            <h1><?php _e('Order Dashboard - Modulübersicht', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Order Dashboard - Modulübersicht', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders&action=new')); ?>" class="page-title-action"><?php _e('Neue Bestellung', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-settings')); ?>" class="page-title-action"><?php _e('Einstellungen', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-order-dashboard'); ?>
 
             <div class="themisdb-dashboard-cards">
@@ -1136,7 +1220,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
             ?>
             <div class="wrap">
-                <h1><?php _e('Bestellungen', 'themisdb-order-request'); ?></h1>
+                <h1 class="wp-heading-inline"><?php _e('Bestellungen', 'themisdb-order-request'); ?></h1>
+                <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders&action=new')); ?>"><?php _e('Neue Bestellung', 'themisdb-order-request'); ?></a>
+                <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-contracts')); ?>"><?php _e('Zu Verträgen', 'themisdb-order-request'); ?></a>
+                <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+                <hr class="wp-header-end">
                 <?php $this->render_module_navigation_tabs('themisdb-orders'); ?>
 
                 <?php $this->render_bulk_notice('bulk_orders'); ?>
@@ -1159,12 +1247,53 @@ document.addEventListener("DOMContentLoaded", function() {
                     <?php $this->render_per_page_select('per_page', $per_page); ?>
                 </form>
 
-                <div style="margin-bottom:1rem;">
-                    <a class="button button-primary" href="?page=themisdb-orders&action=new"><?php _e('+ Neue Bestellung', 'themisdb-order-request'); ?></a>
-                </div>
+                <?php $this->render_inline_help_box(
+                    __('Inline-Hilfe: Bestellungen', 'themisdb-order-request'),
+                    array(
+                        __('Status-Tabs und Suche wirken zusammen auf dieselbe Liste.', 'themisdb-order-request'),
+                        __('Sortierung und Seitenlänge bleiben beim Tab-Wechsel erhalten.', 'themisdb-order-request'),
+                        __('Bulk-Workflows gelten nur für markierte Bestellungen.', 'themisdb-order-request'),
+                        __('Bereits in Verträge übernommene Bestellungen erscheinen nur im Bereich Verträge.', 'themisdb-order-request'),
+                    )
+                ); ?>
 
-                <div class="notice notice-info" style="margin-bottom:1.5rem;">
-                    <p><?php _e('💡 Bestellungen, die bereits in Verträge übernommen wurden, werden in dieser Übersicht nicht angezeigt. Diese finden Sie unter "Verträge".', 'themisdb-order-request'); ?></p>
+                <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:20px 0;">
+                    <div class="card" style="max-width:none;">
+                        <h2><?php _e('Bestellstatus', 'themisdb-order-request'); ?></h2>
+                        <table class="widefat striped" style="border:none;box-shadow:none;">
+                            <tbody>
+                                <tr>
+                                    <td><?php _e('Gesamt', 'themisdb-order-request'); ?></td>
+                                    <td><strong><?php echo esc_html(number_format_i18n(count($all_orders))); ?></strong></td>
+                                </tr>
+                                <tr>
+                                    <td><?php _e('Ausstehend', 'themisdb-order-request'); ?></td>
+                                    <td><?php echo esc_html(number_format_i18n((int) $status_counts['pending'])); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><?php _e('Bestätigt', 'themisdb-order-request'); ?></td>
+                                    <td><?php echo esc_html(number_format_i18n((int) $status_counts['confirmed'])); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><?php _e('Aktiv', 'themisdb-order-request'); ?></td>
+                                    <td><?php echo esc_html(number_format_i18n((int) $status_counts['active'])); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><?php _e('Suspendiert', 'themisdb-order-request'); ?></td>
+                                    <td><?php echo esc_html(number_format_i18n((int) $status_counts['suspended'])); ?></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card" style="max-width:none;">
+                        <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                        <p><?php _e('Neue Bestellungen anlegen, aktive Vertrage prufen oder offene Bestellungen fokussieren.', 'themisdb-order-request'); ?></p>
+                        <p>
+                            <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders&action=new')); ?>"><?php _e('Bestellung anlegen', 'themisdb-order-request'); ?></a>
+                            <a class="button" href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-orders', 'status_tab' => 'pending'), admin_url('admin.php'))); ?>"><?php _e('Offene Bestellungen', 'themisdb-order-request'); ?></a>
+                            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-contracts')); ?>"><?php _e('Verträge ansehen', 'themisdb-order-request'); ?></a>
+                        </p>
+                    </div>
                 </div>
 
                 <?php if (isset($_GET['message']) && $_GET['message'] === 'saved'): ?>
@@ -1403,7 +1532,13 @@ document.addEventListener("DOMContentLoaded", function() {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Bestellung', 'themisdb-order-request'); ?>: <?php echo esc_html($order['order_number']); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Bestellung', 'themisdb-order-request'); ?>: <?php echo esc_html($order['order_number']); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders&action=edit&order_id=' . absint($order_id))); ?>" class="page-title-action"><?php _e('Bearbeiten', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders')); ?>" class="page-title-action"><?php _e('Zur Bestellliste', 'themisdb-order-request'); ?></a>
+            <?php if (!empty($contracts)) : ?>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-contracts')); ?>" class="page-title-action"><?php _e('Verträge', 'themisdb-order-request'); ?></a>
+            <?php endif; ?>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-orders'); ?>
 
             <?php if (isset($_GET['message']) && $_GET['message'] === 'fulfillment_updated'): ?>
@@ -1785,7 +1920,10 @@ document.addEventListener("DOMContentLoaded", function() {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Neue Bestellung', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Neue Bestellung', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders')); ?>" class="page-title-action"><?php _e('Zur Bestellliste', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>" class="page-title-action"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-orders'); ?>
             
             <form method="post" action="">
@@ -2007,7 +2145,10 @@ document.addEventListener("DOMContentLoaded", function() {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Bestellung bearbeiten', 'themisdb-order-request'); ?>: <?php echo esc_html($order['order_number']); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Bestellung bearbeiten', 'themisdb-order-request'); ?>: <?php echo esc_html($order['order_number']); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders&action=view&order_id=' . absint($order_id))); ?>" class="page-title-action"><?php _e('Zur Detailansicht', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders')); ?>" class="page-title-action"><?php _e('Zur Bestellliste', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-orders'); ?>
             
             <?php $current_tab = $this->render_detail_page_tabs($tabs); ?>
@@ -2767,7 +2908,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
             ?>
             <div class="wrap">
-                <h1><?php _e('Verträge', 'themisdb-order-request'); ?></h1>
+                <h1 class="wp-heading-inline"><?php _e('Verträge', 'themisdb-order-request'); ?></h1>
+                <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders')); ?>"><?php _e('Zu Bestellungen', 'themisdb-order-request'); ?></a>
+                <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-licenses')); ?>"><?php _e('Zu Lizenzen', 'themisdb-order-request'); ?></a>
+                <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+                <hr class="wp-header-end">
                 <?php $this->render_module_navigation_tabs('themisdb-contracts'); ?>
 
                 <?php $this->render_bulk_notice('bulk_contracts'); ?>
@@ -2789,6 +2934,54 @@ document.addEventListener("DOMContentLoaded", function() {
                     <button type="submit" class="button"><?php _e('Suchen', 'themisdb-order-request'); ?></button>
                     <?php $this->render_per_page_select('per_page', $per_page); ?>
                 </form>
+
+                <?php $this->render_inline_help_box(
+                    __('Inline-Hilfe: Verträge', 'themisdb-order-request'),
+                    array(
+                        __('Status-Tabs filtern die Vertragsliste, die Suche verfeinert zusätzlich.', 'themisdb-order-request'),
+                        __('Sortierung und Seitenlänge bleiben beim Wechsel erhalten.', 'themisdb-order-request'),
+                        __('Bulk-Workflows gelten nur für markierte Verträge.', 'themisdb-order-request'),
+                    )
+                ); ?>
+
+                <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:20px 0;">
+                    <div class="card" style="max-width:none;">
+                        <h2><?php _e('Vertragsstatus', 'themisdb-order-request'); ?></h2>
+                        <table class="widefat striped" style="border:none;box-shadow:none;">
+                            <tbody>
+                                <tr>
+                                    <td><?php _e('Gesamt', 'themisdb-order-request'); ?></td>
+                                    <td><strong><?php echo esc_html(number_format_i18n(count($all_contracts))); ?></strong></td>
+                                </tr>
+                                <tr>
+                                    <td><?php _e('Entwurf', 'themisdb-order-request'); ?></td>
+                                    <td><?php echo esc_html(number_format_i18n((int) $status_counts['draft'])); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><?php _e('Aktiv', 'themisdb-order-request'); ?></td>
+                                    <td><?php echo esc_html(number_format_i18n((int) $status_counts['active'])); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><?php _e('Beendet', 'themisdb-order-request'); ?></td>
+                                    <td><?php echo esc_html(number_format_i18n((int) $status_counts['ended'])); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><?php _e('Storniert', 'themisdb-order-request'); ?></td>
+                                    <td><?php echo esc_html(number_format_i18n((int) $status_counts['cancelled'])); ?></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card" style="max-width:none;">
+                        <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                        <p><?php _e('Vertragsstatus prufen, aktive Vertrage filtern oder in Bestellungen und Lizenzen springen.', 'themisdb-order-request'); ?></p>
+                        <p>
+                            <a class="button button-primary" href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-contracts', 'status_tab' => 'active'), admin_url('admin.php'))); ?>"><?php _e('Aktive Verträge', 'themisdb-order-request'); ?></a>
+                            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders')); ?>"><?php _e('Bestellungen', 'themisdb-order-request'); ?></a>
+                            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-licenses')); ?>"><?php _e('Lizenzen', 'themisdb-order-request'); ?></a>
+                        </p>
+                    </div>
+                </div>
 
                 <form method="post" class="themisdb-list-root" id="themisdb-contracts-list-root">
                     <?php wp_nonce_field('themisdb_bulk_contract_workflow'); ?>
@@ -2879,7 +3072,13 @@ document.addEventListener("DOMContentLoaded", function() {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Vertrag', 'themisdb-order-request'); ?>: <?php echo esc_html($contract['contract_number']); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Vertrag', 'themisdb-order-request'); ?>: <?php echo esc_html($contract['contract_number']); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-contracts')); ?>" class="page-title-action"><?php _e('Zur Vertragsliste', 'themisdb-order-request'); ?></a>
+            <?php if ($order): ?>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders&action=view&order_id=' . absint($order['id']))); ?>" class="page-title-action"><?php _e('Bestellung ansehen', 'themisdb-order-request'); ?></a>
+            <?php endif; ?>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>" class="page-title-action"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-contracts'); ?>
             
             <?php $current_tab = $this->render_detail_page_tabs($tabs); ?>
@@ -3296,9 +3495,64 @@ document.addEventListener("DOMContentLoaded", function() {
             'delete' => __('Deaktivieren/Löschen', 'themisdb-order-request'),
         );
 
+        $entity_label = $entity === 'product'
+            ? __('Produkte', 'themisdb-order-request')
+            : ($entity === 'module' ? __('Module', 'themisdb-order-request') : __('Schulungen', 'themisdb-order-request'));
+
+        $manage_tabs = array(
+            'categories' => __('Kategorien verwalten', 'themisdb-order-request'),
+            'items' => __('Datensätze', 'themisdb-order-request'),
+        );
+
+        $manage_tab_query_args = array(
+            'categories' => array(
+                'page' => 'themisdb-products',
+                'entity_tab' => $entity_tab,
+                'manage_tab' => 'categories',
+                'mq' => $manage_category_search,
+                'mfilter' => $manage_category_filter,
+                'msort_by' => $manage_category_sort_by,
+                'msort_dir' => $manage_category_sort_dir,
+            ),
+            'items' => array(
+                'page' => 'themisdb-products',
+                'entity_tab' => $entity_tab,
+                'manage_tab' => 'items',
+                'category_tab' => $category_tab,
+                'q' => $search_query,
+                'sort_by' => $sort_by,
+                'sort_dir' => $sort_dir,
+                'per_page' => $per_page,
+                'paged' => $paged,
+            ),
+        );
+
+        $active_entity_count = 0;
+        $inactive_entity_count = 0;
+        foreach ($entity_items as $entity_item) {
+            if (!empty($entity_item['is_active'])) {
+                $active_entity_count++;
+            } else {
+                $inactive_entity_count++;
+            }
+        }
+
+        $used_category_count = 0;
+        foreach ($categories as $category_usage_count) {
+            if (intval($category_usage_count) > 0) {
+                $used_category_count++;
+            }
+        }
+        $unused_category_count = max(0, count($managed_categories) - $used_category_count);
+
         ?>
         <div class="wrap">
-            <h1><?php _e('Produkte und Module (CRUD)', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Produkte und Module (CRUD)', 'themisdb-order-request'); ?></h1>
+            <a class="page-title-action" href="<?php echo esc_url(add_query_arg($manage_tab_query_args['items'], admin_url('admin.php'))); ?>"><?php _e('Datensätze', 'themisdb-order-request'); ?></a>
+            <a class="page-title-action" href="<?php echo esc_url(add_query_arg($manage_tab_query_args['categories'], admin_url('admin.php'))); ?>"><?php _e('Kategorien', 'themisdb-order-request'); ?></a>
+            <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-inventory')); ?>"><?php _e('Lagerbestand', 'themisdb-order-request'); ?></a>
+            <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-products'); ?>
 
             <style>
@@ -3360,33 +3614,6 @@ document.addEventListener("DOMContentLoaded", function() {
                 $category_buttons[$cat] = ucwords(str_replace(array('-', '_'), ' ', (string) $cat)) . ' (' . $cat_count . ')';
             }
             
-            $manage_tabs = array(
-                'categories' => __('Kategorien verwalten', 'themisdb-order-request'),
-                'items' => __('Datensätze', 'themisdb-order-request'),
-            );
-
-            $manage_tab_query_args = array(
-                'categories' => array(
-                    'page' => 'themisdb-products',
-                    'entity_tab' => $entity_tab,
-                    'manage_tab' => 'categories',
-                    'mq' => $manage_category_search,
-                    'mfilter' => $manage_category_filter,
-                    'msort_by' => $manage_category_sort_by,
-                    'msort_dir' => $manage_category_sort_dir,
-                ),
-                'items' => array(
-                    'page' => 'themisdb-products',
-                    'entity_tab' => $entity_tab,
-                    'manage_tab' => 'items',
-                    'category_tab' => $category_tab,
-                    'q' => $search_query,
-                    'sort_by' => $sort_by,
-                    'sort_dir' => $sort_dir,
-                    'per_page' => $per_page,
-                    'paged' => $paged,
-                ),
-            );
             ?>
             
             <nav class="nav-tab-wrapper themisdb-products-tabs-single-line" style="margin-bottom:1.5rem; margin-top:1.5rem; display:flex !important; flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; white-space:nowrap; -webkit-overflow-scrolling:touch;">
@@ -3396,6 +3623,80 @@ document.addEventListener("DOMContentLoaded", function() {
                     </a>
                 <?php endforeach; ?>
             </nav>
+
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:20px 0;">
+                <?php if ($manage_tab === 'items') : ?>
+                <div class="card" style="max-width:none;">
+                    <h2><?php echo esc_html(sprintf(__('%s Status', 'themisdb-order-request'), $entity_label)); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Datensätze gesamt', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n(count($entity_items))); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Aktiv', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($active_entity_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Inaktiv', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($inactive_entity_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Gefilterte Treffer', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($pagination['total_items'])); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Kategorien im Typ', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n(count($categories))); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Datensätze pflegen, den Bestand öffnen oder direkt in einen gefilterten Typ springen.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a class="button button-primary" href="#themisdb-products-list-root"><?php _e('Zur Datensatzliste', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-inventory')); ?>"><?php _e('Lagerbestand', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-products', 'entity_tab' => $entity_tab, 'manage_tab' => 'items', 'category_tab' => 'all', 'sort_by' => 'status', 'sort_dir' => 'asc', 'per_page' => $per_page), admin_url('admin.php'))); ?>"><?php _e('Inaktive Datensätze prüfen', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
+                <?php else : ?>
+                <div class="card" style="max-width:none;">
+                    <h2><?php echo esc_html(sprintf(__('%s Kategorien', 'themisdb-order-request'), $entity_label)); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Verwaltete Kategorien', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n(count($managed_categories))); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Verwendet', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($used_category_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Ungenutzt', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($unused_category_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Gefilterte Treffer', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n(count($managed_category_rows))); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Kategorien pflegen, ungenutzte Einträge bereinigen oder in die Datensatzansicht wechseln.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a class="button button-primary" href="#themisdb-products-category-card"><?php _e('Zur Kategorienpflege', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-products', 'entity_tab' => $entity_tab, 'manage_tab' => 'categories', 'mfilter' => 'unused', 'msort_by' => 'count', 'msort_dir' => 'asc'), admin_url('admin.php'))); ?>"><?php _e('Ungenutzte Kategorien', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(add_query_arg($manage_tab_query_args['items'], admin_url('admin.php'))); ?>"><?php _e('Zur Datensatzansicht', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
+                <?php endif; ?>
+            </div>
 
             <form method="get" class="themisdb-ajax-form" style="margin-bottom:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <input type="hidden" name="page" value="themisdb-products">
@@ -3429,6 +3730,29 @@ document.addEventListener("DOMContentLoaded", function() {
                     <button type="submit" class="button"><?php _e('Anwenden', 'themisdb-order-request'); ?></button>
                 <?php endif; ?>
             </form>
+
+            <?php
+            if ($manage_tab === 'items') {
+                $this->render_inline_help_box(
+                    __('Inline-Hilfe: Datensätze', 'themisdb-order-request'),
+                    array(
+                        __('Suche filtert Code, Name und Kategorie im aktiven Produkttyp.', 'themisdb-order-request'),
+                        __('Kategorie-Buttons verengen die Liste zusätzlich, ohne den Listenstatus zu verlieren.', 'themisdb-order-request'),
+                        __('Bearbeiten öffnet die Einzelansicht als Tab; Esc schließt sie wieder.', 'themisdb-order-request'),
+                        __('Bulk gilt nur für markierte Zeilen.', 'themisdb-order-request'),
+                    )
+                );
+            } else {
+                $this->render_inline_help_box(
+                    __('Inline-Hilfe: Kategorien', 'themisdb-order-request'),
+                    array(
+                        __('Suche, Filter und Sortierung gelten nur für die Kategorien dieses Produkttyps.', 'themisdb-order-request'),
+                        __('Nur verwendet zeigt belegte, Nur ungenutzt leere Kategorien.', 'themisdb-order-request'),
+                        __('Bearbeiten und Löschen behalten den aktuellen Filterzustand.', 'themisdb-order-request'),
+                    )
+                );
+            }
+            ?>
 
             <?php if ($manage_tab === 'items'): ?>
                 <?php $this->render_filter_button_bar('category_tab', $category_buttons, $category_tab, admin_url('admin.php?page=themisdb-products'), array(
@@ -3574,9 +3898,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
             <?php endif; // end if manage_tab === 'items' ?>
             
-            <?php if ($manage_tab === 'items'): ?>
+            <?php if ($manage_tab === 'categories'): ?>
 
-            <div class="card" style="max-width:none; margin-top:20px;">
+            <div id="themisdb-products-category-card" class="card" style="max-width:none; margin-top:20px;">
                 <h2><?php _e('Kategorien verwalten', 'themisdb-order-request'); ?></h2>
                 <form method="post" style="margin-bottom:12px;">
                     <?php wp_nonce_field('themisdb_catalog_save_category'); ?>
@@ -3916,6 +4240,16 @@ document.addEventListener("DOMContentLoaded", function() {
                 check_admin_referer('themisdb_save_inventory');
 
                 $item_id = absint($_POST['item_id'] ?? 0);
+                $redirect_args = array(
+                    'page' => 'themisdb-inventory',
+                    'manage_tab' => 'items',
+                    'category_tab' => sanitize_text_field($_POST['category_tab'] ?? $category_tab),
+                    'q' => sanitize_text_field($_POST['q'] ?? $search_query),
+                    'sort_by' => sanitize_key($_POST['sort_by'] ?? $sort_by),
+                    'sort_dir' => sanitize_key($_POST['sort_dir'] ?? $sort_dir),
+                    'per_page' => $this->resolve_per_page($_POST['per_page'] ?? $per_page, 25),
+                    'paged' => max(1, absint($_POST['paged'] ?? $paged)),
+                );
                 $payload = array(
                     'id' => $item_id,
                     'sku' => sanitize_text_field($_POST['sku'] ?? ''),
@@ -3928,20 +4262,15 @@ document.addEventListener("DOMContentLoaded", function() {
                 );
 
                 if ($payload['sku'] !== '' && $payload['product_name'] !== '') {
-                    ThemisDB_Order_Manager::save_inventory_item($payload, $item_id);
-                    wp_redirect(add_query_arg(array(
-                        'page' => 'themisdb-inventory',
-                        'manage_tab' => 'items',
-                        'category_tab' => sanitize_text_field($_POST['category_tab'] ?? $category_tab),
-                        'q' => sanitize_text_field($_POST['q'] ?? $search_query),
-                        'sort_by' => sanitize_key($_POST['sort_by'] ?? $sort_by),
-                        'sort_dir' => sanitize_key($_POST['sort_dir'] ?? $sort_dir),
-                        'per_page' => $this->resolve_per_page($_POST['per_page'] ?? $per_page, 25),
-                        'paged' => max(1, absint($_POST['paged'] ?? $paged)),
-                        'message' => 'saved',
-                    ), admin_url('admin.php')));
+                    $save_result = ThemisDB_Order_Manager::save_inventory_item($payload, $item_id);
+                    $redirect_args['message'] = $save_result ? 'saved' : 'save_error';
+                    wp_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
                     exit;
                 }
+
+                $redirect_args['message'] = 'save_error';
+                wp_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+                exit;
             }
 
             if ($post_action === 'inventory_bulk_items') {
@@ -4104,38 +4433,78 @@ document.addEventListener("DOMContentLoaded", function() {
             'deactivate' => __('Deaktivieren', 'themisdb-order-request'),
             'delete' => __('Deaktivieren/Löschen', 'themisdb-order-request'),
         );
+
+        $active_inventory_count = 0;
+        $inactive_inventory_count = 0;
+        $infinite_inventory_count = 0;
+        $low_stock_count = 0;
+
+        foreach ($inventory_items as $inventory_item) {
+            $stock_on_hand = intval($inventory_item['stock_on_hand'] ?? 0);
+            $reserved_stock = intval($inventory_item['reserved_stock'] ?? 0);
+            $reorder_level = intval($inventory_item['reorder_level'] ?? 0);
+            $is_active = !empty($inventory_item['is_active']);
+
+            if ($is_active) {
+                $active_inventory_count++;
+            } else {
+                $inactive_inventory_count++;
+            }
+
+            if ($stock_on_hand === -1) {
+                $infinite_inventory_count++;
+                continue;
+            }
+
+            if (($stock_on_hand - $reserved_stock) <= $reorder_level) {
+                $low_stock_count++;
+            }
+        }
+
+        $used_category_count = 0;
+        foreach ($categories as $category_usage_count) {
+            if (intval($category_usage_count) > 0) {
+                $used_category_count++;
+            }
+        }
+        $unused_category_count = max(0, count($managed_categories) - $used_category_count);
+
+        $manage_tabs = array(
+            'categories' => __('Kategorien verwalten', 'themisdb-order-request'),
+            'items' => __('Lagerbestand', 'themisdb-order-request'),
+        );
+
+        $manage_tab_query_args = array(
+            'categories' => array(
+                'page' => 'themisdb-inventory',
+                'manage_tab' => 'categories',
+                'cq' => $category_manage_search,
+                'cfilter' => $category_manage_filter,
+                'csort_by' => $category_manage_sort_by,
+                'csort_dir' => $category_manage_sort_dir,
+            ),
+            'items' => array(
+                'page' => 'themisdb-inventory',
+                'manage_tab' => 'items',
+                'category_tab' => $category_tab,
+                'q' => $search_query,
+                'sort_by' => $sort_by,
+                'sort_dir' => $sort_dir,
+                'per_page' => $per_page,
+                'paged' => $paged,
+            ),
+        );
         ?>
         <div class="wrap">
-            <h1><?php _e('Lagerbestand', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Lagerbestand', 'themisdb-order-request'); ?></h1>
+            <a class="page-title-action" href="<?php echo esc_url(add_query_arg($manage_tab_query_args['items'], admin_url('admin.php'))); ?>"><?php _e('Artikelansicht', 'themisdb-order-request'); ?></a>
+            <a class="page-title-action" href="<?php echo esc_url(add_query_arg($manage_tab_query_args['categories'], admin_url('admin.php'))); ?>"><?php _e('Kategorien', 'themisdb-order-request'); ?></a>
+            <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-products')); ?>"><?php _e('Produkte', 'themisdb-order-request'); ?></a>
+            <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-inventory'); ?>
 
-            <?php
-            $manage_tabs = array(
-                'categories' => __('Kategorien verwalten', 'themisdb-order-request'),
-                'items' => __('Lagerbestand', 'themisdb-order-request'),
-            );
-
-            $manage_tab_query_args = array(
-                'categories' => array(
-                    'page' => 'themisdb-inventory',
-                    'manage_tab' => 'categories',
-                    'cq' => $category_manage_search,
-                    'cfilter' => $category_manage_filter,
-                    'csort_by' => $category_manage_sort_by,
-                    'csort_dir' => $category_manage_sort_dir,
-                ),
-                'items' => array(
-                    'page' => 'themisdb-inventory',
-                    'manage_tab' => 'items',
-                    'category_tab' => $category_tab,
-                    'q' => $search_query,
-                    'sort_by' => $sort_by,
-                    'sort_dir' => $sort_dir,
-                    'per_page' => $per_page,
-                    'paged' => $paged,
-                ),
-            );
-            ?>
+            <?php ?>
             
             <nav class="nav-tab-wrapper" style="margin-bottom:1.5rem; margin-top:1.5rem; display:flex; flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; white-space:nowrap; -webkit-overflow-scrolling:touch;">
                 <?php foreach ($manage_tabs as $key => $label): ?>
@@ -4144,6 +4513,80 @@ document.addEventListener("DOMContentLoaded", function() {
                     </a>
                 <?php endforeach; ?>
             </nav>
+
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:20px 0;">
+                <?php if ($manage_tab === 'items') : ?>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Bestandsstatus', 'themisdb-order-request'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Artikel gesamt', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n(count($inventory_items))); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Aktiv', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($active_inventory_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Inaktiv', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($inactive_inventory_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Unbegrenzt', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($infinite_inventory_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Am oder unter Meldebestand', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($low_stock_count)); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Synchronisieren Sie Produktbestände, springen Sie in die Katalogpflege oder fokussieren Sie einen Bestandsbereich.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a class="button button-primary" href="#inventory-sync-card"><?php _e('Zur Synchronisierung', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-products')); ?>"><?php _e('Produktkatalog', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-inventory', 'manage_tab' => 'items', 'category_tab' => 'all', 'sort_by' => 'stock', 'sort_dir' => 'asc', 'per_page' => $per_page), admin_url('admin.php'))); ?>"><?php _e('Niedrige Bestände prüfen', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
+                <?php else : ?>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Kategoriebestand', 'themisdb-order-request'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Verwaltete Kategorien', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n(count($managed_categories))); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Verwendet', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($used_category_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Ungenutzt', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($unused_category_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Gefilterte Treffer', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n(count($managed_category_rows))); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Kategorien pflegen, ungenutzte Einträge prüfen und zwischen Katalog und Bestandsansicht wechseln.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a class="button button-primary" href="#inventory-category-card"><?php _e('Zur Kategorienpflege', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-inventory', 'manage_tab' => 'categories', 'cfilter' => 'unused', 'csort_by' => 'count', 'csort_dir' => 'asc'), admin_url('admin.php'))); ?>"><?php _e('Ungenutzte Kategorien', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(add_query_arg($manage_tab_query_args['items'], admin_url('admin.php'))); ?>"><?php _e('Zur Artikelansicht', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
+                <?php endif; ?>
+            </div>
 
             <form method="get" class="themisdb-ajax-form" style="margin-bottom:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <input type="hidden" name="page" value="themisdb-inventory">
@@ -4177,10 +4620,36 @@ document.addEventListener("DOMContentLoaded", function() {
                 <?php endif; ?>
             </form>
 
+            <?php
+            if ($manage_tab === 'items') {
+                $this->render_inline_help_box(
+                    __('Inline-Hilfe: Lagerbestand', 'themisdb-order-request'),
+                    array(
+                        __('Suche filtert SKU, Artikelname und Kategorie.', 'themisdb-order-request'),
+                        __('Kategorie-Buttons verengen die Liste zusätzlich, ohne den Listenstatus zu verlieren.', 'themisdb-order-request'),
+                        __('Synchronisierung übernimmt den aktuellen Kontext; ∞ steht für unbegrenzten Bestand.', 'themisdb-order-request'),
+                        __('Bulk gilt nur für markierte Lagerartikel.', 'themisdb-order-request'),
+                    )
+                );
+            } else {
+                $this->render_inline_help_box(
+                    __('Inline-Hilfe: Lagerkategorien', 'themisdb-order-request'),
+                    array(
+                        __('Suche filtert Kategorien nach Name oder Slug.', 'themisdb-order-request'),
+                        __('Nur verwendet und Nur ungenutzt helfen beim Aufräumen.', 'themisdb-order-request'),
+                        __('Bearbeiten, Löschen und Abbrechen behalten den Filterzustand.', 'themisdb-order-request'),
+                    )
+                );
+            }
+            ?>
+
             <?php $this->render_bulk_notice('bulk_inventory'); ?>
 
             <?php if (isset($_GET['message']) && $_GET['message'] === 'saved'): ?>
             <div class="notice notice-success"><p><?php _e('Lagerbestand wurde gespeichert.', 'themisdb-order-request'); ?></p></div>
+            <?php endif; ?>
+            <?php if (isset($_GET['message']) && $_GET['message'] === 'save_error'): ?>
+            <div class="notice notice-error"><p><?php _e('Lagerbestand konnte nicht gespeichert werden.', 'themisdb-order-request'); ?></p></div>
             <?php endif; ?>
             <?php if (isset($_GET['message']) && $_GET['message'] === 'category_saved'): ?>
             <div class="notice notice-success"><p><?php _e('Kategorie wurde gespeichert.', 'themisdb-order-request'); ?></p></div>
@@ -4220,7 +4689,7 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             ?>
 
-            <div class="card" style="max-width:none; margin-bottom:20px;">
+            <div id="inventory-sync-card" class="card" style="max-width:none; margin-bottom:20px;">
                 <h2><?php _e('Produkt-Lagerbestand synchronisieren', 'themisdb-order-request'); ?></h2>
                 <p><?php _e('Synchronisiert alle Produkte, Lizenzen, Module und Schulungsmodule in den Lagerbestand. Alle synchronisierten Einträge erhalten eine interne UUID und werden mit unendlichem Bestand gekennzeichnet.', 'themisdb-order-request'); ?></p>
                 <form method="post" style="display:inline;">
@@ -4312,7 +4781,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             <?php if ($manage_tab === 'categories'): ?>
 
-            <div class="card" style="max-width:none; margin-bottom:20px;">
+            <div id="inventory-category-card" class="card" style="max-width:none; margin-bottom:20px;">
                 <h2><?php _e('Kategorien verwalten', 'themisdb-order-request'); ?></h2>
                 <form method="post" style="margin-bottom:12px;">
                     <?php wp_nonce_field('themisdb_inventory_save_category'); ?>
@@ -4372,18 +4841,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
             <div class="card themisdb-list-root" id="themisdb-inventory-list-root" style="max-width:none;">
                 <h2><?php _e('Aktueller Lagerbestand', 'themisdb-order-request'); ?></h2>
-
-                <form method="get" class="themisdb-ajax-form" style="margin-bottom:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                    <input type="hidden" name="page" value="themisdb-inventory">
-                    <input type="hidden" name="manage_tab" value="items">
-                    <input type="hidden" name="category_tab" value="<?php echo esc_attr($category_tab); ?>">
-                    <input type="hidden" name="sort_by" value="<?php echo esc_attr($sort_by); ?>">
-                    <input type="hidden" name="sort_dir" value="<?php echo esc_attr($sort_dir); ?>">
-                    <input type="hidden" name="paged" value="1">
-                    <input type="search" name="q" value="<?php echo esc_attr($search_query); ?>" placeholder="<?php esc_attr_e('Suche nach SKU, Artikel, Kategorie ...', 'themisdb-order-request'); ?>" class="regular-text">
-                    <button type="submit" class="button"><?php _e('Suchen', 'themisdb-order-request'); ?></button>
-                    <?php $this->render_per_page_select('per_page', $per_page); ?>
-                </form>
 
                 <form method="post">
                     <?php wp_nonce_field('themisdb_inventory_bulk_items'); ?>
@@ -5005,12 +5462,12 @@ document.addEventListener("DOMContentLoaded", function() {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Zahlungen', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Zahlungen', 'themisdb-order-request'); ?></h1>
+            <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments&action=new')); ?>"><?php _e('Neue Zahlung', 'themisdb-order-request'); ?></a>
+            <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import')); ?>"><?php _e('Bankimport', 'themisdb-order-request'); ?></a>
+            <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-payments'); ?>
-
-            <div style="margin-bottom:1rem;">
-                <a class="button button-primary" href="?page=themisdb-payments&action=new"><?php _e('+ Neue Zahlung', 'themisdb-order-request'); ?></a>
-            </div>
             
             <?php if (isset($_GET['verified'])): ?>
             <div class="notice notice-success"><p><?php _e('Zahlung wurde erfolgreich verifiziert', 'themisdb-order-request'); ?></p></div>
@@ -5062,29 +5519,53 @@ document.addEventListener("DOMContentLoaded", function() {
                 <button type="submit" class="button"><?php _e('Suchen', 'themisdb-order-request'); ?></button>
                 <?php $this->render_per_page_select('per_page', $per_page); ?>
             </form>
-            
-            <div class="card" style="max-width: none; margin-bottom: 20px;">
-                <h2><?php _e('Zahlungsübersicht', 'themisdb-order-request'); ?></h2>
-                <table class="form-table">
-                    <tr>
-                        <th><?php _e('Gesamt Zahlungen', 'themisdb-order-request'); ?>:</th>
-                        <td><strong><?php echo $stats['total_payments']; ?></strong></td>
-                        <th><?php _e('Gesamtbetrag', 'themisdb-order-request'); ?>:</th>
-                        <td><strong><?php echo number_format($stats['total_amount'], 2, ',', '.'); ?> €</strong></td>
-                    </tr>
-                    <tr>
-                        <th><?php _e('Verifiziert', 'themisdb-order-request'); ?>:</th>
-                        <td><span style="color: green;"><strong><?php echo $stats['verified_payments']; ?></strong></span></td>
-                        <th><?php _e('Verifizierter Betrag', 'themisdb-order-request'); ?>:</th>
-                        <td><span style="color: green;"><strong><?php echo number_format($stats['verified_amount'], 2, ',', '.'); ?> €</strong></span></td>
-                    </tr>
-                    <tr>
-                        <th><?php _e('Ausstehend', 'themisdb-order-request'); ?>:</th>
-                        <td><span style="color: orange;"><strong><?php echo $stats['pending_payments']; ?></strong></span></td>
-                        <th><?php _e('Fehlgeschlagen', 'themisdb-order-request'); ?>:</th>
-                        <td><span style="color: red;"><strong><?php echo $stats['failed_payments']; ?></strong></span></td>
-                    </tr>
-                </table>
+
+            <?php $this->render_inline_help_box(
+                __('Inline-Hilfe: Zahlungen', 'themisdb-order-request'),
+                array(
+                    __('Status-Tabs filtern die Liste, die Suche verfeinert zusätzlich.', 'themisdb-order-request'),
+                    __('Die Übersichtskarte zeigt Summen, die Tabelle darunter die einzelnen Vorgänge.', 'themisdb-order-request'),
+                    __('Bulk-Workflows gelten nur für markierte Zahlungen.', 'themisdb-order-request'),
+                )
+            ); ?>
+
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:20px 0;">
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Zahlungsübersicht', 'themisdb-order-request'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Gesamt Zahlungen', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n((int) $stats['total_payments'])); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Gesamtbetrag', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n((float) $stats['total_amount'], 2)); ?> €</strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Verifiziert', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $stats['verified_payments'])); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Ausstehend', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $stats['pending_payments'])); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Fehlgeschlagen', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $stats['failed_payments'])); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Neue Zahlung anlegen, Bankabgleiche starten oder offene Zahlungen filtern.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments&action=new')); ?>"><?php _e('Zahlung erfassen', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import')); ?>"><?php _e('CSV-Import', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-payments', 'status_tab' => 'pending'), admin_url('admin.php'))); ?>"><?php _e('Offene Zahlungen', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
             </div>
             
             <form method="post" class="themisdb-list-root" id="themisdb-payments-list-root">
@@ -5189,7 +5670,13 @@ document.addEventListener("DOMContentLoaded", function() {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Zahlung', 'themisdb-order-request'); ?>: <?php echo esc_html($payment['payment_number']); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Zahlung', 'themisdb-order-request'); ?>: <?php echo esc_html($payment['payment_number']); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments&action=edit&payment_id=' . absint($payment_id))); ?>" class="page-title-action"><?php _e('Bearbeiten', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments')); ?>" class="page-title-action"><?php _e('Zur Zahlungsliste', 'themisdb-order-request'); ?></a>
+            <?php if ($order): ?>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders&action=view&order_id=' . absint($order['id']))); ?>" class="page-title-action"><?php _e('Bestellung ansehen', 'themisdb-order-request'); ?></a>
+            <?php endif; ?>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-payments'); ?>
             
             <div class="card">
@@ -5279,7 +5766,10 @@ document.addEventListener("DOMContentLoaded", function() {
     private function create_payment() {
         ?>
         <div class="wrap">
-            <h1><?php _e('Neue Zahlung anlegen', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Neue Zahlung anlegen', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments')); ?>" class="page-title-action"><?php _e('Zur Zahlungsliste', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import')); ?>" class="page-title-action"><?php _e('Bankimport', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-payments'); ?>
 
             <form method="post">
@@ -5331,7 +5821,10 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         ?>
         <div class="wrap">
-            <h1><?php _e('Zahlung bearbeiten', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Zahlung bearbeiten', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments&action=view&payment_id=' . absint($payment_id))); ?>" class="page-title-action"><?php _e('Zur Detailansicht', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments')); ?>" class="page-title-action"><?php _e('Zur Zahlungsliste', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-payments'); ?>
             <form method="post">
                 <?php wp_nonce_field('themisdb_save_payment'); ?>
@@ -5585,7 +6078,11 @@ document.addEventListener("DOMContentLoaded", function() {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Lizenzen', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Lizenzen', 'themisdb-order-request'); ?></h1>
+            <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-licenses&action=new')); ?>"><?php _e('Neue Lizenz', 'themisdb-order-request'); ?></a>
+            <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-license-audit')); ?>"><?php _e('Audit Log', 'themisdb-order-request'); ?></a>
+            <a class="page-title-action" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-licenses'); ?>
 
             <?php $this->render_bulk_notice('bulk_licenses'); ?>
@@ -5619,36 +6116,60 @@ document.addEventListener("DOMContentLoaded", function() {
                 <?php $this->render_per_page_select('per_page', $per_page); ?>
             </form>
 
-            <div style="margin-bottom:1rem;">
-                <a class="button button-primary" href="?page=themisdb-licenses&action=new"><?php _e('+ Neue Lizenz', 'themisdb-order-request'); ?></a>
-            </div>
+            <?php $this->render_inline_help_box(
+                __('Inline-Hilfe: Lizenzen', 'themisdb-order-request'),
+                array(
+                    __('Status-Tabs und Suche arbeiten auf derselben Lizenzliste.', 'themisdb-order-request'),
+                    __('Die Übersicht zeigt den Bestand, die Tabelle darunter die einzelnen Lizenzen.', 'themisdb-order-request'),
+                    __('Bulk-Workflows gelten nur für markierte Lizenzen.', 'themisdb-order-request'),
+                )
+            ); ?>
 
             <?php if (isset($_GET['message']) && $_GET['message'] === 'deleted'): ?>
             <div class="notice notice-success"><p><?php _e('Lizenz wurde gelöscht.', 'themisdb-order-request'); ?></p></div>
             <?php endif; ?>
-            
-            <div class="card" style="max-width: none; margin-bottom: 20px;">
-                <h2><?php _e('Lizenzübersicht', 'themisdb-order-request'); ?></h2>
-                <table class="form-table">
-                    <tr>
-                        <th><?php _e('Gesamt Lizenzen', 'themisdb-order-request'); ?>:</th>
-                        <td><strong><?php echo $stats['total_licenses']; ?></strong></td>
-                        <th><?php _e('Aktiv', 'themisdb-order-request'); ?>:</th>
-                        <td><span style="color: green;"><strong><?php echo $stats['active_licenses']; ?></strong></span></td>
-                    </tr>
-                    <tr>
-                        <th><?php _e('Ausstehend', 'themisdb-order-request'); ?>:</th>
-                        <td><span style="color: orange;"><strong><?php echo $stats['pending_licenses']; ?></strong></span></td>
-                        <th><?php _e('Suspendiert', 'themisdb-order-request'); ?>:</th>
-                        <td><span style="color: #856404;"><strong><?php echo $stats['suspended_licenses']; ?></strong></span></td>
-                    </tr>
-                    <tr>
-                        <th><?php _e('Abgelaufen', 'themisdb-order-request'); ?>:</th>
-                        <td><span style="color: #3c434a;"><strong><?php echo $stats['expired_licenses']; ?></strong></span></td>
-                        <th><?php _e('Gekündigt', 'themisdb-order-request'); ?>:</th>
-                        <td><span style="color: #721c24;"><strong><?php echo $stats['cancelled_licenses']; ?></strong></span></td>
-                    </tr>
-                </table>
+
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:20px 0;">
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Lizenzübersicht', 'themisdb-order-request'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Gesamt Lizenzen', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n((int) $stats['total_licenses'])); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Aktiv', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $stats['active_licenses'])); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Ausstehend', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $stats['pending_licenses'])); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Suspendiert', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $stats['suspended_licenses'])); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Abgelaufen', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $stats['expired_licenses'])); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Gekündigt', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $stats['cancelled_licenses'])); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Neue Lizenzen anlegen, Audit-Eintrage einsehen oder aktive Lizenzen filtern.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-licenses&action=new')); ?>"><?php _e('Lizenz anlegen', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=themisdb-license-audit')); ?>"><?php _e('Audit Log', 'themisdb-order-request'); ?></a>
+                        <a class="button" href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-licenses', 'status_tab' => 'active'), admin_url('admin.php'))); ?>"><?php _e('Aktive Lizenzen', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
             </div>
             
             <form method="post" class="themisdb-list-root" id="themisdb-licenses-list-root">
@@ -5772,6 +6293,30 @@ document.addEventListener("DOMContentLoaded", function() {
         echo esc_html($message !== '' ? $message : __('Sammelworkflow wurde ausgeführt.', 'themisdb-order-request'));
         echo ' ' . esc_html(sprintf(__('Verarbeitet: %d, Fehler: %d', 'themisdb-order-request'), $processed, $failed));
         echo '</p></div>';
+    }
+
+    /**
+     * Render a compact inline help box.
+     */
+    private function render_inline_help_box($title, $items) {
+        if ($title === '' || empty($items) || !is_array($items)) {
+            return;
+        }
+
+        echo '<details class="notice notice-info" open style="margin:0 0 12px 0; padding:12px 16px;">';
+        echo '<summary style="cursor:pointer; font-weight:600; margin:0 0 8px 0;">' . esc_html($title) . '</summary>';
+        echo '<ul style="margin:8px 0 0 0; padding-left:18px;">';
+
+        foreach ($items as $item) {
+            if (!is_string($item) || $item === '') {
+                continue;
+            }
+
+            echo '<li>' . esc_html($item) . '</li>';
+        }
+
+        echo '</ul>';
+        echo '</details>';
     }
 
     /**
@@ -6131,7 +6676,13 @@ document.addEventListener("DOMContentLoaded", function() {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Lizenz', 'themisdb-order-request'); ?>: <?php echo esc_html($license['product_edition']); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Lizenz', 'themisdb-order-request'); ?>: <?php echo esc_html($license['product_edition']); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-licenses&action=edit&license_id=' . absint($license_id))); ?>" class="page-title-action"><?php _e('Bearbeiten', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-licenses')); ?>" class="page-title-action"><?php _e('Zur Lizenzliste', 'themisdb-order-request'); ?></a>
+            <?php if ($contract): ?>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-contracts&action=view&contract_id=' . absint($contract['id']))); ?>" class="page-title-action"><?php _e('Vertrag ansehen', 'themisdb-order-request'); ?></a>
+            <?php endif; ?>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-licenses'); ?>
             
             <?php if (isset($_GET['cancelled'])): ?>
@@ -6352,7 +6903,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
         ?>
         <div class="wrap">
-            <h1><?php _e('Lizenz bearbeiten', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Lizenz bearbeiten', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-licenses&action=view&license_id=' . absint($license_id))); ?>" class="page-title-action"><?php _e('Zur Detailansicht', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-licenses')); ?>" class="page-title-action"><?php _e('Zur Lizenzliste', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-licenses'); ?>
 
             <form method="post">
@@ -6439,7 +6993,10 @@ document.addEventListener("DOMContentLoaded", function() {
     private function create_license() {
         ?>
         <div class="wrap">
-            <h1><?php _e('Neue Lizenz anlegen', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Neue Lizenz anlegen', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-licenses')); ?>" class="page-title-action"><?php _e('Zur Lizenzliste', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-license-audit')); ?>" class="page-title-action"><?php _e('Audit Log', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-licenses'); ?>
             <form method="post">
                 <?php wp_nonce_field('themisdb_save_license'); ?>
@@ -6620,7 +7177,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // Ensure table exists before querying
         if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
-            echo '<div class="wrap"><h1>' . esc_html__( 'License Audit Log', 'themisdb-order-request' ) . '</h1>';
+            echo '<div class="wrap"><h1 class="wp-heading-inline">' . esc_html__( 'License Audit Log', 'themisdb-order-request' ) . '</h1>';
+            echo '<a href="' . esc_url( admin_url( 'admin.php?page=themisdb-order-settings&tab=license' ) ) . '" class="page-title-action">' . esc_html__( 'License API konfigurieren', 'themisdb-order-request' ) . '</a>';
+            echo '<a href="' . esc_url( admin_url( 'admin.php?page=themisdb-order-dashboard' ) ) . '" class="page-title-action">' . esc_html__( 'Zum Dashboard', 'themisdb-order-request' ) . '</a>';
+            echo '<hr class="wp-header-end">';
             $this->render_module_navigation_tabs('themisdb-license-audit');
             echo '<p>' . esc_html__( 'No audit log entries yet. The log table is created on first REST API call.', 'themisdb-order-request' ) . '</p></div>';
             return;
@@ -6643,17 +7203,56 @@ document.addEventListener("DOMContentLoaded", function() {
         );
 
         $total_pages = (int) ceil( $total / $per_page );
+        $success_total = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table_sql} WHERE result = 'success'");
+        $failed_total = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table_sql} WHERE result <> 'success'");
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e( 'License Audit Log', 'themisdb-order-request' ); ?></h1>
+            <h1 class="wp-heading-inline"><?php esc_html_e( 'License Audit Log', 'themisdb-order-request' ); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-settings&tab=license')); ?>" class="page-title-action"><?php esc_html_e( 'License API konfigurieren', 'themisdb-order-request' ); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-licenses')); ?>" class="page-title-action"><?php esc_html_e( 'Lizenzen verwalten', 'themisdb-order-request' ); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>" class="page-title-action"><?php esc_html_e( 'Zum Dashboard', 'themisdb-order-request' ); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-license-audit'); ?>
-            <p class="description">
-                <?php printf(
-                    esc_html__( 'Showing %d of %d total entries.', 'themisdb-order-request' ),
-                    count( $rows ),
-                    $total
-                ); ?>
-            </p>
+
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin:20px 0;">
+                <div class="card" style="max-width:none;">
+                    <h2><?php esc_html_e( 'Audit-Status', 'themisdb-order-request' ); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php esc_html_e( 'Gesamteintrage', 'themisdb-order-request' ); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n($total)); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php esc_html_e( 'Erfolgreich', 'themisdb-order-request' ); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($success_total)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php esc_html_e( 'Auffallig/fehlgeschlagen', 'themisdb-order-request' ); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($failed_total)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php esc_html_e( 'Aktuelle Seite', 'themisdb-order-request' ); ?></td>
+                                <td><?php echo esc_html(sprintf('%d / %d', $page_num, max(1, $total_pages))); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php esc_html_e( 'Kontext', 'themisdb-order-request' ); ?></h2>
+                    <p class="description">
+                        <?php printf(
+                            esc_html__( 'Showing %d of %d total entries.', 'themisdb-order-request' ),
+                            count( $rows ),
+                            $total
+                        ); ?>
+                    </p>
+                    <p>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-settings&tab=license')); ?>" class="button button-primary"><?php esc_html_e( 'License API prufen', 'themisdb-order-request' ); ?></a>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-licenses')); ?>" class="button"><?php esc_html_e( 'Zu den Lizenzen', 'themisdb-order-request' ); ?></a>
+                    </p>
+                </div>
+            </div>
 
             <table class="wp-list-table widefat fixed striped">
                 <thead>
@@ -6716,11 +7315,61 @@ document.addEventListener("DOMContentLoaded", function() {
      */
     public function email_log_page() {
         $logs = ThemisDB_Email_Handler::get_email_logs();
+        $sent_count = 0;
+        $pending_count = 0;
+        $failed_count = 0;
+
+        foreach ($logs as $log) {
+            if (($log['status'] ?? '') === 'sent') {
+                $sent_count++;
+            } elseif (($log['status'] ?? '') === 'failed') {
+                $failed_count++;
+            } else {
+                $pending_count++;
+            }
+        }
         
         ?>
         <div class="wrap">
-            <h1><?php _e('E-Mail Log', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('E-Mail Log', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-settings&tab=email')); ?>" class="page-title-action"><?php _e('E-Mail Einstellungen', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>" class="page-title-action"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-email-log'); ?>
+
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin:20px 0;">
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Versandstatus', 'themisdb-order-request'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Eintrage gesamt', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n(count($logs))); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Gesendet', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($sent_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Ausstehend', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($pending_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Fehlgeschlagen', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($failed_count)); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Prufen Sie Absenderdaten und den Zustand ausgehender Kommunikation.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-settings&tab=email')); ?>" class="button button-primary"><?php _e('E-Mail Einstellungen offnen', 'themisdb-order-request'); ?></a>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support-tickets&tab=tickets')); ?>" class="button"><?php _e('Support-Tickets ansehen', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
+            </div>
             
             <table class="wp-list-table widefat fixed striped">
                 <thead>
@@ -6781,7 +7430,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         
         // Get current tab
-        $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'integration';
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'integration';
         $allowed_tabs = array('integration', 'email', 'pdf', 'legal', 'license');
         if (!in_array($active_tab, $allowed_tabs, true)) {
             $active_tab = 'integration';
@@ -6796,14 +7445,72 @@ document.addEventListener("DOMContentLoaded", function() {
         );
 
         $tab_base = admin_url('admin.php?page=themisdb-order-settings');
+        $test_connection_url = add_query_arg(
+            array(
+                'page' => 'themisdb-order-settings',
+                'tab' => 'integration',
+                'test_connection' => 1,
+            ),
+            admin_url('admin.php')
+        );
+        $sync_url = admin_url('admin-post.php?action=themisdb_sync_epserver');
+
+        $integration_ready = get_option('themisdb_order_epserver_url') && get_option('themisdb_order_epserver_api_key');
+        $email_sender = get_option('themisdb_order_email_from');
+        $pdf_storage = get_option('themisdb_order_pdf_storage', 'database');
+        $legal_enabled = get_option('themisdb_order_legal_compliance') === '1';
+        $license_api_ready = get_option('themisdb_license_api_key') && get_option('themisdb_license_admin_secret');
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Einstellungen', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Einstellungen', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url($test_connection_url); ?>" class="page-title-action"><?php _e('Verbindung testen', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url($sync_url); ?>" class="page-title-action"><?php _e('Daten synchronisieren', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>" class="page-title-action"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-order-settings'); ?>
 
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:20px 0;">
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Wichtige Wartungs- und Navigationsaktionen fur die Bestellplattform.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a href="<?php echo esc_url($test_connection_url); ?>" class="button button-primary"><?php _e('Integration testen', 'themisdb-order-request'); ?></a>
+                        <a href="<?php echo esc_url($sync_url); ?>" class="button"><?php _e('Produktdaten synchronisieren', 'themisdb-order-request'); ?></a>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-license-audit')); ?>" class="button"><?php _e('License Audit Log', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Aktiver Konfigurationsstatus', 'themisdb-order-request'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('epServer Integration', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html($integration_ready ? __('Konfiguriert', 'themisdb-order-request') : __('Unvollstandig', 'themisdb-order-request')); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('E-Mail Absender', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html($email_sender ? $email_sender : __('Nicht gesetzt', 'themisdb-order-request')); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('PDF Speicherung', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html($pdf_storage === 'filesystem' ? __('Dateisystem', 'themisdb-order-request') : __('Datenbank', 'themisdb-order-request')); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Rechtliche Prufungen', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html($legal_enabled ? __('Aktiv', 'themisdb-order-request') : __('Deaktiviert', 'themisdb-order-request')); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('License API', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html($license_api_ready ? __('Bereit', 'themisdb-order-request') : __('Nicht vollstandig konfiguriert', 'themisdb-order-request')); ?></strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Settings Tab Navigation -->
-            <?php $this->render_detail_page_tabs($settings_tabs); ?>
+            <?php $this->render_detail_page_tabs($settings_tabs, $active_tab); ?>
 
             <form method="post" action="options.php">
                 <?php settings_fields('themisdb_order_settings'); ?>
@@ -6812,6 +7519,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 <?php $this->render_detail_tab_pane('integration', ($active_tab === 'integration')); ?>
                 <section id="settings-integration">
                     <h2><?php _e('epServer Integration', 'themisdb-order-request'); ?></h2>
+                    <?php
+                    $order_page_id = $this->resolve_page_id_from_option('themisdb_order_page_url');
+                    $product_page_id = $this->resolve_page_id_from_option('themisdb_product_page_url');
+                    $order_page_raw = get_option('themisdb_order_page_url', '');
+                    $product_page_raw = get_option('themisdb_product_page_url', '');
+                    $order_has_legacy_url = is_string($order_page_raw) && $order_page_raw !== '' && !is_numeric($order_page_raw) && $order_page_id === 0;
+                    $product_has_legacy_url = is_string($product_page_raw) && $product_page_raw !== '' && !is_numeric($product_page_raw) && $product_page_id === 0;
+                    ?>
                     <table class="form-table">
                     <tr>
                         <th><label for="themisdb_order_epserver_url"><?php _e('epServer URL', 'themisdb-order-request'); ?></label></th>
@@ -6832,12 +7547,52 @@ document.addEventListener("DOMContentLoaded", function() {
                         </td>
                     </tr>
                     <tr>
+                        <th><label for="themisdb_order_page_url"><?php _e('Bestellfluss-Seite', 'themisdb-order-request'); ?></label></th>
+                        <td>
+                            <?php
+                            echo wp_dropdown_pages(array(
+                                'name' => 'themisdb_order_page_url',
+                                'id' => 'themisdb_order_page_url',
+                                'selected' => $order_page_id,
+                                'show_option_none' => __('- Seite wählen -', 'themisdb-order-request'),
+                                'option_none_value' => '',
+                                'post_status' => array('publish', 'private', 'draft'),
+                                'echo' => 0,
+                            ));
+                            ?>
+                            <p class="description"><?php _e('Native WordPress-Seite mit [themisdb_order_flow]. Wenn leer, nutzt das Plugin eine automatische Erkennung.', 'themisdb-order-request'); ?></p>
+                            <?php if ($order_has_legacy_url) : ?>
+                                <p class="description" style="color:#8a6d3b;"><?php echo esc_html(sprintf(__('Aktuell ist noch eine Legacy-URL gespeichert: %s', 'themisdb-order-request'), $order_page_raw)); ?></p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="themisdb_product_page_url"><?php _e('Produkt-/Konfigurator-Seite', 'themisdb-order-request'); ?></label></th>
+                        <td>
+                            <?php
+                            echo wp_dropdown_pages(array(
+                                'name' => 'themisdb_product_page_url',
+                                'id' => 'themisdb_product_page_url',
+                                'selected' => $product_page_id,
+                                'show_option_none' => __('- Seite wählen -', 'themisdb-order-request'),
+                                'option_none_value' => '',
+                                'post_status' => array('publish', 'private', 'draft'),
+                                'echo' => 0,
+                            ));
+                            ?>
+                            <p class="description"><?php _e('Native WordPress-Seite mit [themisdb_product_detail]. Wenn leer, fällt das Plugin auf die Bestellseite zurück.', 'themisdb-order-request'); ?></p>
+                            <?php if ($product_has_legacy_url) : ?>
+                                <p class="description" style="color:#8a6d3b;"><?php echo esc_html(sprintf(__('Aktuell ist noch eine Legacy-URL gespeichert: %s', 'themisdb-order-request'), $product_page_raw)); ?></p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
                         <th></th>
                         <td>
-                            <a href="?page=themisdb-order-settings&test_connection=1" class="button">
+                            <a href="<?php echo esc_url($test_connection_url); ?>" class="button">
                                 <?php _e('Verbindung testen', 'themisdb-order-request'); ?>
                             </a>
-                            <a href="<?php echo admin_url('admin-post.php?action=themisdb_sync_epserver'); ?>" class="button">
+                            <a href="<?php echo esc_url($sync_url); ?>" class="button">
                                 <?php _e('Daten synchronisieren', 'themisdb-order-request'); ?>
                             </a>
                         </td>
@@ -7142,7 +7897,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
                 if (is_wp_error($result)) {
                     $redirect_url = add_query_arg(
-                        array('page' => 'themisdb-support-tickets', 'message' => 'ticket_error', 'error' => rawurlencode($result->get_error_message())),
+                        array(
+                            'page' => 'themisdb-support-tickets',
+                            'message' => 'ticket_error',
+                            'error' => rawurlencode($result->get_error_message()),
+                            'error_code' => rawurlencode((string) $result->get_error_code()),
+                        ),
                         admin_url('admin.php')
                     );
                 } else {
@@ -7179,6 +7939,15 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
 
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'create';
+        $page_tabs = array(
+            'create' => __('Ticket erfassen', 'themisdb-order-request'),
+            'tickets' => __('Ticket-Ubersicht', 'themisdb-order-request'),
+        );
+        if (!isset($page_tabs[$active_tab])) {
+            $active_tab = 'create';
+        }
+
         $status_filter = isset($_GET['status_tab']) ? sanitize_key(wp_unslash($_GET['status_tab'])) : 'all';
         $status_buttons = array(
             'all' => __('Alle', 'themisdb-order-request'),
@@ -7196,12 +7965,38 @@ document.addEventListener("DOMContentLoaded", function() {
             'limit' => 200,
             'offset' => 0,
         ));
+        $all_tickets = ThemisDB_Order_Support_Ticket_Manager::get_tickets(array(
+            'status' => '',
+            'limit' => 500,
+            'offset' => 0,
+        ));
+        $open_count = 0;
+        $github_linked_count = 0;
+        foreach ($all_tickets as $ticket_item) {
+            if (in_array($ticket_item['status'], array('open', 'in_progress'), true)) {
+                $open_count++;
+            }
+            if (!empty($ticket_item['github_issue_number'])) {
+                $github_linked_count++;
+            }
+        }
+        $github_sync_enabled = get_option('themisdb_support_github_enabled', '0') === '1';
 
         if (isset($_GET['message']) && $_GET['message'] === 'ticket_created') {
             echo '<div class="notice notice-success"><p>' . esc_html__('Support-Ticket wurde erstellt.', 'themisdb-order-request') . '</p></div>';
         }
         if (isset($_GET['message']) && $_GET['message'] === 'ticket_error') {
-            echo '<div class="notice notice-error"><p>' . esc_html__('Support-Ticket konnte nicht erstellt werden.', 'themisdb-order-request') . ' ' . esc_html(rawurldecode(wp_unslash($_GET['error'] ?? ''))) . '</p></div>';
+            $error_code = sanitize_key(rawurldecode(wp_unslash($_GET['error_code'] ?? '')));
+            $error_text = rawurldecode(wp_unslash($_GET['error'] ?? ''));
+
+            if ($error_code === 'support_limit_reached') {
+                echo '<div class="notice notice-warning"><p>' .
+                    esc_html__('Support-Ticket blockiert: Das aktuelle Support-Limit wurde erreicht.', 'themisdb-order-request') .
+                    ' ' . esc_html($error_text) .
+                    '</p></div>';
+            } else {
+                echo '<div class="notice notice-error"><p>' . esc_html__('Support-Ticket konnte nicht erstellt werden.', 'themisdb-order-request') . ' ' . esc_html($error_text) . '</p></div>';
+            }
         }
         if (isset($_GET['message']) && $_GET['message'] === 'github_created') {
             echo '<div class="notice notice-success"><p>' . esc_html__('GitHub-Issue wurde erstellt.', 'themisdb-order-request') . '</p></div>';
@@ -7213,11 +8008,58 @@ document.addEventListener("DOMContentLoaded", function() {
         $priorities = ThemisDB_Order_Support_Ticket_Manager::get_priorities();
         ?>
         <div class="wrap">
-            <h1><?php _e('Support Tickets', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Support Tickets', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-support-tickets', 'tab' => 'create'), admin_url('admin.php'))); ?>" class="page-title-action"><?php _e('Neues Ticket', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-settings&tab=license')); ?>" class="page-title-action"><?php _e('GitHub Sync konfigurieren', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>" class="page-title-action"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-support-tickets'); ?>
 
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:20px 0;">
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Supportfalle erfassen, GitHub-Sync prufen und in die Auftragsdaten springen.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-support-tickets', 'tab' => 'create'), admin_url('admin.php'))); ?>" class="button button-primary"><?php _e('Ticket erfassen', 'themisdb-order-request'); ?></a>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-settings&tab=license')); ?>" class="button"><?php _e('GitHub/License Einstellungen', 'themisdb-order-request'); ?></a>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-orders')); ?>" class="button"><?php _e('Bestellungen offnen', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Supportstatus', 'themisdb-order-request'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Tickets gesamt', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n(count($all_tickets))); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Offen oder in Bearbeitung', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n($open_count)); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Mit GitHub verknupft', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($github_linked_count)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('GitHub-Sync', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html($github_sync_enabled ? __('Aktiv', 'themisdb-order-request') : __('Deaktiviert', 'themisdb-order-request')); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Aktiver Filter', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html($status_buttons[$status_filter]); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <?php $this->render_detail_page_tabs($page_tabs, $active_tab); ?>
+
+            <?php $this->render_detail_tab_pane('create', ($active_tab === 'create')); ?>
             <div class="card" style="max-width:none; margin-bottom:20px;">
                 <h2><?php _e('Neues Support-Ticket', 'themisdb-order-request'); ?></h2>
+                <p><?php _e('Erfassen Sie neue Kundenanfragen mit Referenzen auf Lizenzen, Bestellungen oder Benefits.', 'themisdb-order-request'); ?></p>
                 <form method="post">
                     <?php wp_nonce_field('themisdb_create_support_ticket'); ?>
                     <input type="hidden" name="action" value="themisdb_create_support_ticket">
@@ -7260,7 +8102,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             <th><label for="support_auto_sync_github"><?php _e('GitHub Sync', 'themisdb-order-request'); ?></label></th>
                             <td>
                                 <label>
-                                    <input id="support_auto_sync_github" name="auto_sync_github" type="checkbox" value="1" <?php checked(get_option('themisdb_support_github_enabled', '0'), '1'); ?>>
+                                    <input id="support_auto_sync_github" name="auto_sync_github" type="checkbox" value="1" <?php checked($github_sync_enabled, true); ?>>
                                     <?php _e('Sofort ein GitHub-Issue erzeugen (wenn Repository/Token konfiguriert sind).', 'themisdb-order-request'); ?>
                                 </label>
                             </td>
@@ -7269,7 +8111,9 @@ document.addEventListener("DOMContentLoaded", function() {
                     <p><button type="submit" class="button button-primary"><?php _e('Ticket erstellen', 'themisdb-order-request'); ?></button></p>
                 </form>
             </div>
+            <?php $this->close_detail_tab_pane(); ?>
 
+            <?php $this->render_detail_tab_pane('tickets', ($active_tab === 'tickets')); ?>
             <div class="card" style="max-width:none;">
                 <h2><?php _e('Tickets', 'themisdb-order-request'); ?></h2>
                 <?php
@@ -7277,7 +8121,8 @@ document.addEventListener("DOMContentLoaded", function() {
                     'status_tab',
                     $status_buttons,
                     $status_filter,
-                    admin_url('admin.php?page=themisdb-support-tickets')
+                    admin_url('admin.php?page=themisdb-support-tickets'),
+                    array('tab' => 'tickets')
                 );
                 ?>
                 <table class="wp-list-table widefat striped">
@@ -7326,7 +8171,7 @@ document.addEventListener("DOMContentLoaded", function() {
                                             <button type="submit" class="button button-small"><?php _e('GitHub-Issue erstellen', 'themisdb-order-request'); ?></button>
                                         </form>
                                     <?php else: ?>
-                                        <span>—</span>
+                                        <span>&mdash;</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -7335,6 +8180,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     </tbody>
                 </table>
             </div>
+            <?php $this->close_detail_tab_pane(); ?>
         </div>
         <?php
     }
@@ -7407,9 +8253,23 @@ document.addEventListener("DOMContentLoaded", function() {
     private function bank_import_list() {
         $imports = ThemisDB_Bank_Import::get_imports(array('limit' => 20));
         $formats = ThemisDB_Bank_Import::get_supported_formats();
+        $import_total = count($imports);
+        $rows_total = 0;
+        $rows_matched = 0;
+        $rows_unmatched = 0;
+
+        foreach ($imports as $import_item) {
+            $rows_total += (int) $import_item['rows_total'];
+            $rows_matched += (int) $import_item['rows_matched'];
+            $rows_unmatched += (int) $import_item['rows_unmatched'];
+        }
         ?>
         <div class="wrap">
-            <h1><?php _e('Bankimport – Zahlungsabgleich', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Bankimport – Zahlungsabgleich', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import')); ?>" class="page-title-action"><?php _e('Neue CSV laden', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments')); ?>" class="page-title-action"><?php _e('Zahlungen ansehen', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-order-dashboard')); ?>" class="page-title-action"><?php _e('Zum Dashboard', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-bank-import'); ?>
 
             <!-- Error/Success Messages -->
@@ -7463,14 +8323,48 @@ document.addEventListener("DOMContentLoaded", function() {
 
             <?php if (isset($_GET['assigned'])): ?>
             <div class="notice notice-success"><p>
-                ✅ <strong><?php _e('Transktion erfolgreich zugeordnet und verifiziert!', 'themisdb-order-request'); ?></strong>
+                <strong><?php _e('Transaktion erfolgreich zugeordnet und verifiziert.', 'themisdb-order-request'); ?></strong>
             </p></div>
             <?php endif; ?>
+
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:20px 0;">
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Importstatus', 'themisdb-order-request'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Importe im Verlauf', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n($import_total)); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Verarbeitete Zeilen', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($rows_total)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Automatisch gematcht', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($rows_matched)); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Noch offen', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($rows_unmatched)); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Neue Kontoauszuge hochladen, offene Zahlungen prufen und in die Zahlungsverwaltung wechseln.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a href="#bankimport-upload" class="button button-primary"><?php _e('Zur Upload-Maske', 'themisdb-order-request'); ?></a>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments')); ?>" class="button"><?php _e('Offene Zahlungen', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
+            </div>
 
             <!-- Reference guide box -->
             <div class="notice notice-info" style="padding:12px 16px;">
                 <h3 style="margin-top:0;">
-                    <?php _e('📋 Welche Referenz gehört auf den Überweisungsträger?', 'themisdb-order-request'); ?>
+                    <?php _e('Welche Referenz gehört auf den Überweisungsträger?', 'themisdb-order-request'); ?>
                 </h3>
                 <p><?php _e('Damit Banküberweisungen automatisch einer Lizenz/Bestellung zugeordnet werden können, <strong>muss der Kunde im Feld „Verwendungszweck" exakt eine der folgenden Referenzen angeben:</strong>', 'themisdb-order-request'); ?></p>
                 <table class="widefat" style="max-width:700px;">
@@ -7505,7 +8399,7 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
 
             <!-- Upload form -->
-            <div class="card" style="max-width:none; margin:20px 0;">
+            <div id="bankimport-upload" class="card" style="max-width:none; margin:20px 0;">
                 <h2><?php _e('CSV-Datei hochladen', 'themisdb-order-request'); ?></h2>
                 <form method="post"
                       action="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import&action=preview')); ?>"
@@ -7647,8 +8541,45 @@ document.addEventListener("DOMContentLoaded", function() {
         $formats = ThemisDB_Bank_Import::get_supported_formats();
         ?>
         <div class="wrap">
-            <h1><?php _e('Bankimport – Vorschau', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Bankimport – Vorschau', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import')); ?>" class="page-title-action"><?php _e('Zur Upload-Seite', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments')); ?>" class="page-title-action"><?php _e('Zahlungen ansehen', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-bank-import'); ?>
+
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin:20px 0;">
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Vorschau-Status', 'themisdb-order-request'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Datei', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html($data['filename']); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Gesamtzeilen', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n((int) $counts['total'])); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Gematcht', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $counts['matched'])); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Offen', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $counts['unmatched'])); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Nächste Schritte', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Prufen Sie Matchings, bestatigen Sie den Import oder brechen Sie zur Korrektur des Dateiformats ab.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a href="#bankimport-confirm" class="button button-primary"><?php _e('Zum Import-Button', 'themisdb-order-request'); ?></a>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import')); ?>" class="button"><?php _e('Abbrechen', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
+            </div>
 
             <div class="card" style="max-width:none; margin-bottom:20px;">
                 <h2><?php _e('Import-Zusammenfassung', 'themisdb-order-request'); ?></h2>
@@ -7739,6 +8670,7 @@ document.addEventListener("DOMContentLoaded", function() {
             <!-- Confirm / cancel -->
             <?php if ($counts['matched'] > 0 || $counts['unmatched'] > 0): ?>
             <form method="post"
+                id="bankimport-confirm"
                   action="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import&action=import')); ?>">
                 <?php wp_nonce_field('themisdb_bank_import_confirm'); ?>
                 <input type="hidden" name="preview_token" value="<?php echo esc_attr($token); ?>" />
@@ -7814,9 +8746,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
         $transactions = ThemisDB_Bank_Import::get_transactions($import_id);
         $formats      = ThemisDB_Bank_Import::get_supported_formats();
+        $counts = $this->bank_import_count_statuses($transactions);
         ?>
         <div class="wrap">
-            <h1><?php _e('Bankimport – Detailansicht', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Bankimport – Detailansicht', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import')); ?>" class="page-title-action"><?php _e('Zur Übersicht', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments')); ?>" class="page-title-action"><?php _e('Zahlungen ansehen', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-bank-import'); ?>
 
             <?php if (isset($_GET['imported'])): ?>
@@ -7824,6 +8760,40 @@ document.addEventListener("DOMContentLoaded", function() {
                 <p><?php _e('Import erfolgreich abgeschlossen. Gematchte Zahlungen wurden automatisch verifiziert.', 'themisdb-order-request'); ?></p>
             </div>
             <?php endif; ?>
+
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin:20px 0;">
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Importsitzung', 'themisdb-order-request'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Gesamt', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n((int) $counts['total'])); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Gematcht', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $counts['matched'])); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Offen', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $counts['unmatched'])); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Duplikate', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((int) $counts['duplicate'])); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Schnellaktionen', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Offene Buchungen manuell zuordnen oder in die Zahlungsverwaltung wechseln.', 'themisdb-order-request'); ?></p>
+                    <p>
+                        <a href="#bankimport-transactions" class="button button-primary"><?php _e('Zu den Transaktionen', 'themisdb-order-request'); ?></a>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments')); ?>" class="button"><?php _e('Zahlungen offnen', 'themisdb-order-request'); ?></a>
+                    </p>
+                </div>
+            </div>
 
             <div class="card" style="max-width:none; margin-bottom:20px;">
                 <h2><?php _e('Import-Details', 'themisdb-order-request'); ?></h2>
@@ -7861,9 +8831,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 </table>
             </div>
             
-            <?php if ($manage_tab === 'items'): ?>
-
-            <div class="card" style="max-width:none;">
+            <div id="bankimport-transactions" class="card" style="max-width:none;">
                 <h2><?php _e('Transaktionen', 'themisdb-order-request'); ?></h2>
                 <table class="wp-list-table widefat fixed striped" style="table-layout:auto;">
                     <thead>
@@ -7921,7 +8889,6 @@ document.addEventListener("DOMContentLoaded", function() {
                 </a>
             </p>
         </div>
-        <?php endif; ?>
         <?php
     }
 
@@ -7950,8 +8917,37 @@ document.addEventListener("DOMContentLoaded", function() {
         $pending_payments = ThemisDB_Payment_Manager::get_all_payments(array('status' => 'pending', 'limit' => 200));
         ?>
         <div class="wrap">
-            <h1><?php _e('Transaktion manuell zuordnen', 'themisdb-order-request'); ?></h1>
+            <h1 class="wp-heading-inline"><?php _e('Transaktion manuell zuordnen', 'themisdb-order-request'); ?></h1>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-bank-import&action=view&import_id=' . absint($tx['import_id']))); ?>" class="page-title-action"><?php _e('Zum Import zurück', 'themisdb-order-request'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-payments')); ?>" class="page-title-action"><?php _e('Zahlungen ansehen', 'themisdb-order-request'); ?></a>
+            <hr class="wp-header-end">
             <?php $this->render_module_navigation_tabs('themisdb-bank-import'); ?>
+
+            <div class="themisdb-admin-modules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin:20px 0;">
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Zuordnungsstatus', 'themisdb-order-request'); ?></h2>
+                    <table class="widefat striped" style="border:none;box-shadow:none;">
+                        <tbody>
+                            <tr>
+                                <td><?php _e('Import-ID', 'themisdb-order-request'); ?></td>
+                                <td><strong><?php echo esc_html(number_format_i18n((int) $tx['import_id'])); ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Transaktionsbetrag', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n((float) $tx['amount'], 2)); ?> <?php echo esc_html($tx['currency']); ?></td>
+                            </tr>
+                            <tr>
+                                <td><?php _e('Ausstehende Zahlungen', 'themisdb-order-request'); ?></td>
+                                <td><?php echo esc_html(number_format_i18n(count($pending_payments))); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="max-width:none;">
+                    <h2><?php _e('Hinweis', 'themisdb-order-request'); ?></h2>
+                    <p><?php _e('Wahlen Sie nur eine fachlich passende offene Zahlung aus. Die Zuordnung verifiziert den Zahlungseintrag direkt.', 'themisdb-order-request'); ?></p>
+                </div>
+            </div>
 
             <div class="card" style="max-width:700px; margin-bottom:20px;">
                 <h2><?php _e('Bankbuchung', 'themisdb-order-request'); ?></h2>

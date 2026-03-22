@@ -42,6 +42,7 @@ class ThemisDB_Order_Shortcodes {
         add_shortcode('themisdb_pricing', array($this, 'pricing_shortcode'));
         add_shortcode('themisdb_pricing_table', array($this, 'pricing_table_shortcode'));
         add_shortcode('themisdb_product_detail', array($this, 'product_detail_shortcode'));
+            add_shortcode('themisdb_shop', array($this, 'shop_shortcode'));
         add_shortcode('themisdb_shopping_cart',  array($this, 'shopping_cart_shortcode'));
 
         // AJAX handlers
@@ -63,8 +64,27 @@ class ThemisDB_Order_Shortcodes {
      */
     public function order_flow_shortcode($atts) {
         $atts = shortcode_atts(array(
-            'step' => 1
+            'step' => 1,
+            'product' => '',
         ), $atts);
+
+        $preset_product = $this->get_requested_product_edition($atts['product']);
+        $available_modules = ThemisDB_Order_Manager::get_modules();
+        $available_trainings = ThemisDB_Order_Manager::get_training_modules();
+        $preset_modules = $this->get_requested_code_list(array('modules', 'module'), array_column($available_modules, 'module_code'));
+        $preset_training = $this->get_requested_code_list(array('training', 'trainings'), array_column($available_trainings, 'training_code'));
+        if ($preset_product !== '') {
+            $target_step = 1;
+            if (isset($_GET['checkout']) && sanitize_key((string) wp_unslash($_GET['checkout'])) === '1') {
+                $target_step = 4;
+            } elseif (!empty($preset_training)) {
+                $target_step = 3;
+            } elseif (!empty($preset_modules)) {
+                $target_step = 2;
+            }
+
+            $this->bootstrap_preset_order($preset_product, $target_step, $preset_modules, $preset_training);
+        }
         
         ob_start();
         $this->render_order_flow(intval($atts['step']), array(
@@ -95,13 +115,19 @@ class ThemisDB_Order_Shortcodes {
             return $this->order_flow_shortcode(array('step' => intval($atts['step'])));
         }
 
-        $preset_product = sanitize_key((string) $atts['product']);
+        $preset_product = $this->get_requested_product_edition($atts['product']);
         $start_step = intval($atts['step']);
         if ($start_step < 1) {
             $start_step = 1;
         }
 
-        $this->bootstrap_express_order($preset_product);
+        if ($preset_product !== '') {
+            $available_modules = ThemisDB_Order_Manager::get_modules();
+            $available_trainings = ThemisDB_Order_Manager::get_training_modules();
+            $preset_modules = $this->get_requested_code_list(array('modules', 'module'), array_column($available_modules, 'module_code'));
+            $preset_training = $this->get_requested_code_list(array('training', 'trainings'), array_column($available_trainings, 'training_code'));
+            $this->bootstrap_preset_order($preset_product, 4, $preset_modules, $preset_training);
+        }
 
         ob_start();
         $this->render_order_flow($start_step, array(
@@ -115,14 +141,17 @@ class ThemisDB_Order_Shortcodes {
     /**
      * Ensure a draft session order exists for express checkout and apply an optional preset product.
      */
-    private function bootstrap_express_order($preset_product) {
+    private function bootstrap_preset_order($preset_product, $target_step = 1, $preset_modules = array(), $preset_training = array()) {
         if (!session_id()) {
             session_start();
         }
 
+        $preset_product = sanitize_key((string) $preset_product);
         if ($preset_product === '') {
             return;
         }
+
+        $target_step = max(1, intval($target_step));
 
         $product = ThemisDB_Order_Manager::get_product_by_edition($preset_product);
         if (!$product) {
@@ -143,15 +172,84 @@ class ThemisDB_Order_Shortcodes {
             $_SESSION['themisdb_order_id'] = $order_id;
         }
 
-        $total = ThemisDB_Order_Manager::calculate_total($preset_product, array(), array());
+        $preset_modules = is_array($preset_modules) ? array_values(array_unique(array_map('sanitize_text_field', $preset_modules))) : array();
+        $preset_training = is_array($preset_training) ? array_values(array_unique(array_map('sanitize_text_field', $preset_training))) : array();
+
+        $total = ThemisDB_Order_Manager::calculate_total($preset_product, $preset_modules, $preset_training);
         ThemisDB_Order_Manager::update_order($order_id, array(
             'product_edition' => $preset_product,
             'product_type' => $product['product_type'] ?? 'database',
-            'modules' => array(),
-            'training_modules' => array(),
+            'modules' => $preset_modules,
+            'training_modules' => $preset_training,
             'total_amount' => $total,
-            'step' => 4,
+            'step' => $target_step,
         ));
+    }
+
+    /**
+     * Resolve a requested product edition from shortcode attributes or URL parameters.
+     *
+     * @param string $fallback
+     * @return string
+     */
+    private function get_requested_product_edition($fallback = '') {
+        $requested_product = isset($_GET['product']) ? wp_unslash($_GET['product']) : '';
+        if ($requested_product === '' && isset($_GET['edition'])) {
+            $requested_product = wp_unslash($_GET['edition']);
+        }
+
+        if ($requested_product === '') {
+            $requested_product = $fallback;
+        }
+
+        return sanitize_key((string) $requested_product);
+    }
+
+    /**
+     * Resolve a sanitized list of requested codes from URL parameters.
+     *
+     * @param array|string $query_keys
+     * @param array        $allowed_codes
+     * @param string       $fallback
+     * @return array
+     */
+    private function get_requested_code_list($query_keys, $allowed_codes = array(), $fallback = '') {
+        $query_keys = is_array($query_keys) ? $query_keys : array($query_keys);
+        $raw_value = '';
+
+        foreach ($query_keys as $query_key) {
+            if (isset($_GET[$query_key])) {
+                $raw_value = wp_unslash($_GET[$query_key]);
+                break;
+            }
+        }
+
+        if ($raw_value === '') {
+            $raw_value = $fallback;
+        }
+
+        if ($raw_value === '') {
+            return array();
+        }
+
+        $allowed_lookup = array();
+        foreach ((array) $allowed_codes as $allowed_code) {
+            $allowed_lookup[sanitize_text_field((string) $allowed_code)] = true;
+        }
+
+        $codes = array();
+        foreach (explode(',', (string) $raw_value) as $code) {
+            $sanitized_code = sanitize_text_field(trim((string) $code));
+            if ($sanitized_code === '') {
+                continue;
+            }
+            if (!empty($allowed_lookup) && !isset($allowed_lookup[$sanitized_code])) {
+                continue;
+            }
+            $codes[] = $sanitized_code;
+        }
+
+        return array_values(array_unique($codes));
     }
     
     /**
@@ -344,7 +442,7 @@ class ThemisDB_Order_Shortcodes {
         }
         
         ?>
-        <div class="order-step-content" data-step="2">
+        <div class="order-step-content" data-step="2" id="modules">
             <h2><?php _e('Wählen Sie Ihre Module', 'themisdb-order-request'); ?></h2>
             <p><?php _e('Erweitern Sie Ihre ThemisDB-Installation mit zusätzlichen Modulen.', 'themisdb-order-request'); ?></p>
             
@@ -401,7 +499,7 @@ class ThemisDB_Order_Shortcodes {
         }
         
         ?>
-        <div class="order-step-content" data-step="3">
+        <div class="order-step-content" data-step="3" id="training">
             <h2><?php _e('Wählen Sie Ihre Schulungen', 'themisdb-order-request'); ?></h2>
             <p><?php _e('Profitieren Sie von professionellen Schulungen für Ihr Team.', 'themisdb-order-request'); ?></p>
             
@@ -1424,47 +1522,12 @@ class ThemisDB_Order_Shortcodes {
      * Render pricing from database
      */
     private function render_pricing($format = 'cards', $currency = 'EUR', $show_features = true) {
-        global $wpdb;
-        
-        // Get latest license prices (distinct by product_edition, valid_from DESC)
-        $query = "
-            SELECT lp.*, p.edition, p.product_name, p.description
-            FROM {$wpdb->prefix}themisdb_license_prices lp
-            LEFT JOIN {$wpdb->prefix}themisdb_products p ON lp.product_edition = p.edition
-            WHERE lp.valid_from <= CURDATE()
-            AND (lp.valid_until IS NULL OR lp.valid_until >= CURDATE())
-            AND lp.currency = %s
-            ORDER BY lp.product_edition, lp.valid_from DESC
-            GROUP BY lp.product_edition
-        ";
-        
-        $prices = $wpdb->get_results($wpdb->prepare($query, $currency), ARRAY_A);
+        list($prices_by_edition, $features_by_type) = $this->get_license_pricing_snapshot($currency, $show_features);
+        $prices = array_values($prices_by_edition);
         
         if (empty($prices)) {
             echo '<p>' . esc_html__('Keine Lizenzpreise verfügbar.', 'themisdb-order-request') . '</p>';
             return;
-        }
-        
-        // Get features for each license type
-        $features_by_type = array();
-        if ($show_features) {
-            $features_query = "
-                SELECT lf.*, lp.product_edition
-                FROM {$wpdb->prefix}themisdb_license_features lf
-                LEFT JOIN {$wpdb->prefix}themisdb_license_prices lp ON lf.license_id = lp.license_id
-                WHERE lf.is_active = 1
-                AND lf.valid_from <= CURDATE()
-                AND (lf.valid_until IS NULL OR lf.valid_until >= CURDATE())
-                GROUP BY lf.feature_code, lp.product_edition
-            ";
-            
-            $features = $wpdb->get_results($features_query, ARRAY_A);
-            foreach ($features as $feature) {
-                if (!isset($features_by_type[$feature['product_edition']])) {
-                    $features_by_type[$feature['product_edition']] = array();
-                }
-                $features_by_type[$feature['product_edition']][] = $feature;
-            }
         }
         
         // Render based on format
@@ -1482,6 +1545,11 @@ class ThemisDB_Order_Shortcodes {
      * Render pricing as cards
      */
     private function render_pricing_cards($prices, $features_by_type, $show_features) {
+        $order_flow_url = $this->resolve_frontend_page_url(
+            'themisdb_order_page_url',
+            array('bestellung', 'checkout'),
+            'themisdb_order_flow'
+        );
         ?>
         <div class="themisdb-pricing-cards">
             <div class="pricing-grid">
@@ -1533,7 +1601,7 @@ class ThemisDB_Order_Shortcodes {
                     <?php endif; ?>
                     
                     <div class="pricing-action">
-                        <a href="<?php echo esc_url(home_url('/bestellung')); ?>" class="button button-primary">
+                        <a href="<?php echo esc_url($order_flow_url); ?>" class="button button-primary">
                             <?php _e('Jetzt wählen', 'themisdb-order-request'); ?>
                         </a>
                     </div>
@@ -1783,6 +1851,8 @@ class ThemisDB_Order_Shortcodes {
             'currency'           => '€',
         ), $atts);
 
+        $requested_edition = $this->get_requested_product_edition($atts['edition']);
+
         wp_enqueue_style(
             'themisdb-product-detail-style',
             THEMISDB_ORDER_PLUGIN_URL . 'assets/css/product-detail.css',
@@ -1829,17 +1899,26 @@ class ThemisDB_Order_Shortcodes {
             );
         }
 
+        $default_modules = $this->get_requested_code_list(array('modules', 'module'), array_keys($modules_map));
+        $default_training = $this->get_requested_code_list(array('training', 'trainings'), array_keys($trainings_map));
+
         // Fallback order URL: use a page with [themisdb_order_flow] if none given.
         $order_url = esc_url_raw($atts['order_url']);
         if ($order_url === '') {
-            $order_url = (string) get_option('themisdb_order_page_url', home_url('/bestellung'));
+            $order_url = $this->resolve_frontend_page_url(
+                'themisdb_order_page_url',
+                array('bestellung', 'checkout'),
+                'themisdb_order_flow'
+            );
         }
 
         wp_localize_script('themisdb-product-selector', 'themisdbProductSelector', array(
             'products'       => $products_map,
             'modules'        => $modules_map,
             'trainings'      => $trainings_map,
-            'defaultEdition' => sanitize_key($atts['edition']),
+            'defaultEdition' => $requested_edition,
+            'defaultModules' => $default_modules,
+            'defaultTraining' => $default_training,
             'orderUrl'       => $order_url,
             'currency'       => sanitize_text_field($atts['currency']),
             'i18n'           => array(
@@ -1854,7 +1933,7 @@ class ThemisDB_Order_Shortcodes {
             $products_raw,
             $modules_raw,
             $trainings_raw,
-            sanitize_key($atts['edition']),
+            $requested_edition,
             $order_url,
             $atts['show_support_table'] === 'yes'
         );
@@ -1890,7 +1969,7 @@ class ThemisDB_Order_Shortcodes {
                 <div class="tpd-configurator">
 
                     <!-- 1. Edition selector -->
-                    <div class="tpd-section">
+                    <div class="tpd-section" id="edition">
                         <h2 class="tpd-section-title"><?php esc_html_e('Edition wählen', 'themisdb-order-request'); ?></h2>
                         <p class="tpd-section-subtitle"><?php esc_html_e('Wählen Sie die Edition, die am besten zu Ihren Anforderungen passt.', 'themisdb-order-request'); ?></p>
                         <div class="tpd-edition-grid">
@@ -1917,7 +1996,7 @@ class ThemisDB_Order_Shortcodes {
 
                     <!-- 2. Module selector -->
                     <?php if (!empty($modules)) : ?>
-                    <div class="tpd-section">
+                    <div class="tpd-section" id="modules">
                         <h2 class="tpd-section-title"><?php esc_html_e('Module', 'themisdb-order-request'); ?></h2>
                         <p class="tpd-section-subtitle"><?php esc_html_e('Optionale Erweiterungen für Ihre ThemisDB-Installation.', 'themisdb-order-request'); ?></p>
                         <?php
@@ -1955,7 +2034,7 @@ class ThemisDB_Order_Shortcodes {
 
                     <!-- 3. Training selector -->
                     <?php if (!empty($trainings)) : ?>
-                    <div class="tpd-section">
+                    <div class="tpd-section" id="training">
                         <h2 class="tpd-section-title"><?php esc_html_e('Schulungen', 'themisdb-order-request'); ?></h2>
                         <p class="tpd-section-subtitle"><?php esc_html_e('Professionelle Schulungen für Ihr Team.', 'themisdb-order-request'); ?></p>
                         <?php
@@ -2097,6 +2176,908 @@ class ThemisDB_Order_Shortcodes {
         <?php
     }
 
+    /**
+     * Shortcode: [themisdb_shop]
+     *
+     * Attributes:
+     *   order_url        - URL of the order flow page (default: option themisdb_order_page_url)
+     *   product_url      - URL of the detail/configurator page (default: option themisdb_product_page_url or order_url)
+     *   preferred_edition - Preferred edition slug for CTA/deep-link recommendations
+     *   sales_email      - Contact email for commercial inquiries
+     *   training_email   - Contact email for training inquiries
+     *   enterprise_email - Contact email for enterprise inquiries
+     */
+    public function shop_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'order_url' => '',
+            'product_url' => '',
+            'preferred_edition' => '',
+            'currency' => 'EUR',
+            'show_features' => 'yes',
+            'sales_email' => 'sales@themisdb.org',
+            'training_email' => 'training@themisdb.org',
+            'enterprise_email' => 'enterprise@themisdb.org',
+        ), $atts);
+
+        $order_url = esc_url_raw($atts['order_url']);
+        if ($order_url === '') {
+            $order_url = $this->resolve_frontend_page_url(
+                'themisdb_order_page_url',
+                array('bestellung', 'checkout'),
+                'themisdb_order_flow'
+            );
+        }
+
+        $product_url = esc_url_raw($atts['product_url']);
+        if ($product_url === '') {
+            $product_url = $this->resolve_frontend_page_url(
+                'themisdb_product_page_url',
+                array('produkte', 'produkt', 'konfigurator'),
+                'themisdb_product_detail'
+            );
+            if ($product_url === '') {
+                $product_url = $order_url;
+            }
+        }
+
+        $show_features = sanitize_text_field($atts['show_features']) === 'yes';
+        list($license_prices, $license_features) = $this->get_license_pricing_snapshot(
+            sanitize_text_field($atts['currency']),
+            $show_features
+        );
+
+        $products = ThemisDB_Order_Manager::get_products();
+        $modules = ThemisDB_Order_Manager::get_modules();
+        $trainings = ThemisDB_Order_Manager::get_training_modules();
+
+        ob_start();
+        $this->render_shop_page(
+            $products,
+            $modules,
+            $trainings,
+            $license_prices,
+            $license_features,
+            $show_features,
+            sanitize_key($atts['preferred_edition']),
+            $order_url,
+            $product_url,
+            sanitize_email($atts['sales_email']),
+            sanitize_email($atts['training_email']),
+            sanitize_email($atts['enterprise_email'])
+        );
+        return ob_get_clean();
+    }
+
+    /**
+     * Render the shop page from live order plugin catalog data.
+     *
+     * @param array  $products
+     * @param array  $modules
+     * @param array  $trainings
+     * @param array  $license_prices
+     * @param array  $license_features
+     * @param bool   $show_features
+    * @param string $preferred_edition
+     * @param string $order_url
+     * @param string $product_url
+     * @param string $sales_email
+     * @param string $training_email
+     * @param string $enterprise_email
+     */
+    private function render_shop_page($products, $modules, $trainings, $license_prices, $license_features, $show_features, $preferred_edition, $order_url, $product_url, $sales_email, $training_email, $enterprise_email) {
+        $has_distinct_configurator_target = !$this->urls_point_to_same_location($product_url, $order_url);
+
+        $module_groups = array();
+        foreach ($modules as $module) {
+            $category = sanitize_key($module['module_category'] ?? 'general');
+            if ($category === '') {
+                $category = 'general';
+            }
+
+            if (!isset($module_groups[$category])) {
+                $module_groups[$category] = array();
+            }
+
+            $module_groups[$category][] = $module;
+        }
+
+        $training_groups = array();
+        foreach ($trainings as $training) {
+            $type = sanitize_key($training['training_type'] ?? 'training');
+            if ($type === '') {
+                $type = 'training';
+            }
+
+            if (!isset($training_groups[$type])) {
+                $training_groups[$type] = array();
+            }
+
+            $training_groups[$type][] = $training;
+        }
+
+        $faq_items = apply_filters('themisdb_shop_faq_items', array(
+            array(
+                'question' => __('Kann ich mit einer Edition starten und später wechseln?', 'themisdb-order-request'),
+                'answer' => __('Ja. Editionen, Module und Schulungen werden zentral im Order-Plugin verwaltet und können jederzeit angepasst werden.', 'themisdb-order-request'),
+            ),
+            array(
+                'question' => __('Woher kommen Preise und Angebotsinhalte?', 'themisdb-order-request'),
+                'answer' => __('Die Shop-Seite liest Produkte, Module und Schulungen direkt aus den Tabellen des Order-Plugins und ergänzt Editionen mit aktiven Lizenzpreisen und Features.', 'themisdb-order-request'),
+            ),
+            array(
+                'question' => __('Wie bestelle ich Add-ons und Trainings?', 'themisdb-order-request'),
+                'answer' => __('Produkte führen in den Bestellfluss. Module und Schulungen können über den Produktkonfigurator oder über die Kontaktwege angefragt werden.', 'themisdb-order-request'),
+            ),
+        ));
+
+        $preferred_edition = sanitize_key($preferred_edition);
+        $primary_edition = $this->resolve_shop_recommended_edition($products, $license_prices, 'default', '', $preferred_edition);
+        $primary_product = null;
+        foreach ($products as $candidate_product) {
+            if (sanitize_key($candidate_product['edition'] ?? '') === $primary_edition) {
+                $primary_product = $candidate_product;
+                break;
+            }
+        }
+        if ($primary_product === null && !empty($products)) {
+            $primary_product = reset($products);
+        }
+
+        $primary_order_link = $primary_edition !== '' ? add_query_arg(array('product' => $primary_edition), $order_url) : $order_url;
+        $primary_configurator_link = $primary_edition !== '' ? add_query_arg(array('edition' => $primary_edition), $product_url) : $product_url;
+        $primary_label = $primary_product['product_name'] ?? __('Ihre Edition', 'themisdb-order-request');
+
+        ?>
+        <div class="themisdb-shop-page">
+            <style>
+                .themisdb-shop-page {
+                    --tds-navy: #0b1e3d;
+                    --tds-blue: #1e6fba;
+                    --tds-cyan: #1ab5c8;
+                    --tds-panel: #ffffff;
+                    --tds-border: rgba(11, 30, 61, 0.1);
+                    --tds-text: #10233f;
+                    --tds-text-soft: #5d6f84;
+                    --tds-shadow: 0 18px 38px rgba(11, 30, 61, 0.12);
+                    color: var(--tds-text);
+                }
+                .themisdb-shop-page a { text-decoration: none; }
+                .tds-hero {
+                    background: linear-gradient(160deg, var(--tds-navy) 0%, var(--tds-blue) 60%, var(--tds-cyan) 100%);
+                    padding: 4rem 2rem;
+                    text-align: center;
+                    border-radius: 22px;
+                    margin-bottom: 2rem;
+                    color: #fff;
+                }
+                .tds-hero p { max-width: 760px; margin: 0 auto; color: rgba(255,255,255,0.88); }
+                .tds-eyebrow {
+                    color: #c5f7fb;
+                    text-transform: uppercase;
+                    letter-spacing: 0.12em;
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    margin-bottom: 0.75rem;
+                }
+                .tds-nav {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.65rem;
+                    margin: 0 0 2rem;
+                }
+                .tds-chip, .tds-btn {
+                    border-radius: 999px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 700;
+                    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+                }
+                .tds-chip {
+                    padding: 0.6rem 1rem;
+                    border: 1px solid var(--tds-border);
+                    background: #fff;
+                    color: var(--tds-text);
+                }
+                .tds-btn {
+                    padding: 0.8rem 1.05rem;
+                    border: 1px solid transparent;
+                }
+                .tds-btn:hover, .tds-chip:hover { transform: translateY(-1px); }
+                .tds-btn-primary {
+                    background: linear-gradient(135deg, var(--tds-blue), var(--tds-cyan));
+                    color: #fff;
+                    box-shadow: 0 12px 24px rgba(30, 111, 186, 0.22);
+                }
+                .tds-btn-secondary {
+                    background: #fff;
+                    border-color: var(--tds-border);
+                    color: var(--tds-text);
+                }
+                .tds-section { margin-bottom: 3rem; }
+                .tds-section-head { margin-bottom: 1rem; }
+                .tds-section-head h2 { margin: 0 0 0.5rem; }
+                .tds-section-head p { margin: 0; color: var(--tds-text-soft); }
+                .tds-product-grid, .tds-info-grid, .tds-contact-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                    gap: 1.25rem;
+                }
+                .tds-card {
+                    background: var(--tds-panel);
+                    border: 1px solid var(--tds-border);
+                    border-radius: 18px;
+                    padding: 1.4rem;
+                    box-shadow: var(--tds-shadow);
+                    display: flex;
+                    flex-direction: column;
+                    min-height: 100%;
+                }
+                .tds-card--featured {
+                    background: linear-gradient(160deg, var(--tds-navy) 0%, #173a6b 100%);
+                    color: #fff;
+                    border-color: rgba(255,255,255,0.12);
+                }
+                .tds-card--featured .tds-meta,
+                .tds-card--featured .tds-description,
+                .tds-card--featured .tds-list,
+                .tds-card--featured .tds-muted { color: rgba(255,255,255,0.84); }
+                .tds-meta {
+                    margin: 0 0 0.5rem;
+                    font-size: 0.82rem;
+                    font-weight: 700;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    color: var(--tds-text-soft);
+                }
+                .tds-description, .tds-muted { color: var(--tds-text-soft); }
+                .tds-price {
+                    margin: 0.25rem 0 0.9rem;
+                    font-size: 1.9rem;
+                    font-weight: 800;
+                    color: var(--tds-blue);
+                }
+                .tds-card--featured .tds-price { color: #8de7f0; }
+                .tds-list {
+                    margin: 0 0 1rem 1rem;
+                    padding: 0;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.4rem;
+                }
+                .tds-actions {
+                    margin-top: auto;
+                    display: flex;
+                    gap: 0.65rem;
+                    flex-wrap: wrap;
+                }
+                .tds-info-group {
+                    background: #fff;
+                    border: 1px solid var(--tds-border);
+                    border-radius: 18px;
+                    padding: 1.25rem;
+                }
+                .tds-info-group h3 { margin-top: 0; }
+                .tds-info-group ul {
+                    margin: 0;
+                    padding-left: 1rem;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.45rem;
+                }
+                .tds-faq details {
+                    background: #fff;
+                    border: 1px solid var(--tds-border);
+                    border-radius: 14px;
+                    padding: 1rem 1.2rem;
+                    margin-bottom: 0.8rem;
+                }
+                .tds-faq summary {
+                    cursor: pointer;
+                    font-weight: 700;
+                    color: var(--tds-text);
+                }
+                .tds-contact-card {
+                    background: #fff;
+                    border: 1px solid var(--tds-border);
+                    border-radius: 18px;
+                    padding: 1.2rem;
+                }
+                .tds-contact-card p { margin: 0 0 0.9rem; color: var(--tds-text-soft); }
+                .tds-inline-link {
+                    display: inline-block;
+                    margin-left: 0.5rem;
+                    font-size: 0.88rem;
+                    color: var(--tds-blue);
+                    font-weight: 700;
+                }
+                .tds-inline-link--checkout {
+                    color: var(--tds-navy);
+                }
+                .tds-cta {
+                    background: linear-gradient(155deg, var(--tds-navy) 0%, #173a6b 100%);
+                    border-radius: 22px;
+                    padding: 2rem;
+                    color: #fff;
+                }
+                .tds-cta p { color: rgba(255,255,255,0.84); }
+                .tds-cta .tds-actions { margin-top: 1rem; }
+                @media (max-width: 640px) {
+                    .tds-hero { padding: 2.8rem 1.25rem; }
+                    .tds-card, .tds-info-group, .tds-contact-card { padding: 1.1rem; }
+                }
+            </style>
+
+            <section class="tds-hero">
+                <p class="tds-eyebrow"><?php esc_html_e('Live aus dem Order-Plugin', 'themisdb-order-request'); ?></p>
+                <h1><?php esc_html_e('ThemisDB Shop', 'themisdb-order-request'); ?></h1>
+                <p><?php esc_html_e('Diese Shop-Seite liest Produkte, Module und Schulungen direkt aus dem gepflegten Katalog des Order-Plugins.', 'themisdb-order-request'); ?></p>
+            </section>
+
+            <nav class="tds-nav" aria-label="<?php esc_attr_e('Shop-Bereiche', 'themisdb-order-request'); ?>">
+                <a href="#products" class="tds-chip"><?php esc_html_e('Produkte', 'themisdb-order-request'); ?></a>
+                <a href="#modules" class="tds-chip"><?php esc_html_e('Module', 'themisdb-order-request'); ?></a>
+                <a href="#training" class="tds-chip"><?php esc_html_e('Schulungen', 'themisdb-order-request'); ?></a>
+                <a href="#faq" class="tds-chip"><?php esc_html_e('FAQ', 'themisdb-order-request'); ?></a>
+                <a href="#contact" class="tds-chip"><?php esc_html_e('Kontakt', 'themisdb-order-request'); ?></a>
+            </nav>
+
+            <section id="products" class="tds-section">
+                <div class="tds-section-head">
+                    <p class="tds-eyebrow"><?php esc_html_e('Editionen', 'themisdb-order-request'); ?></p>
+                    <h2><?php esc_html_e('Produkte aus dem Katalog', 'themisdb-order-request'); ?></h2>
+                    <p><?php esc_html_e('Diese Karten werden direkt aus themisdb_products gerendert.', 'themisdb-order-request'); ?></p>
+                </div>
+                <?php if (empty($products)) : ?>
+                    <p class="tds-muted"><?php esc_html_e('Aktuell sind keine aktiven Produkte hinterlegt.', 'themisdb-order-request'); ?></p>
+                <?php else : ?>
+                    <div class="tds-product-grid">
+                        <?php foreach ($products as $product) :
+                            $edition = sanitize_key($product['edition'] ?? '');
+                            $is_featured = $edition === 'enterprise';
+                            $order_link = $order_url;
+                            $configurator_link = $product_url;
+                            $license_price = $edition !== '' && isset($license_prices[$edition]) ? $license_prices[$edition] : null;
+                            $feature_items = $edition !== '' && isset($license_features[$edition]) ? $license_features[$edition] : array();
+
+                            if ($edition !== '') {
+                                $order_link = add_query_arg(array('product' => $edition), $order_url);
+                                $configurator_link = add_query_arg(array('edition' => $edition), $product_url);
+                            }
+                        ?>
+                            <article class="tds-card<?php echo $is_featured ? ' tds-card--featured' : ''; ?>" id="product-<?php echo esc_attr($edition !== '' ? $edition : 'item-' . intval($product['id'] ?? 0)); ?>">
+                                <p class="tds-meta"><?php echo esc_html($product['product_type'] ?: __('Produkt', 'themisdb-order-request')); ?></p>
+                                <h3><?php echo esc_html($product['product_name'] ?: $edition); ?></h3>
+                                <p class="tds-description"><?php echo esc_html($product['description'] ?? ''); ?></p>
+                                <div class="tds-price"><?php echo esc_html($this->format_shop_price($license_price['base_price'] ?? ($product['price'] ?? 0), $license_price['currency'] ?? ($product['currency'] ?? 'EUR'))); ?></div>
+                                <ul class="tds-list">
+                                    <li><?php echo esc_html(sprintf(__('Edition: %s', 'themisdb-order-request'), $edition !== '' ? $edition : __('ohne Kennung', 'themisdb-order-request'))); ?></li>
+                                    <li><?php echo esc_html(sprintf(__('Code: %s', 'themisdb-order-request'), $product['product_code'] ?? '')); ?></li>
+                                    <li><?php echo esc_html(sprintf(__('Währung: %s', 'themisdb-order-request'), $license_price['currency'] ?? ($product['currency'] ?? 'EUR'))); ?></li>
+                                    <?php if ($license_price) : ?>
+                                    <li><?php echo esc_html(sprintf(__('Knoten: %s', 'themisdb-order-request'), $this->format_shop_limit($license_price['max_nodes'] ?? null))); ?></li>
+                                    <li><?php echo esc_html(sprintf(__('CPU-Cores: %s', 'themisdb-order-request'), $this->format_shop_limit($license_price['max_cores'] ?? null))); ?></li>
+                                    <li><?php echo esc_html(sprintf(__('Speicher: %s', 'themisdb-order-request'), $this->format_shop_limit($license_price['max_storage_gb'] ?? null, 'GB'))); ?></li>
+                                    <?php endif; ?>
+                                </ul>
+                                <?php if ($show_features && !empty($feature_items)) : ?>
+                                    <div class="tds-info-group" style="margin:0 0 1rem; padding:1rem; box-shadow:none;">
+                                        <h4 style="margin:0 0 .6rem;"><?php esc_html_e('Enthaltene Features', 'themisdb-order-request'); ?></h4>
+                                        <ul>
+                                            <?php foreach (array_slice($feature_items, 0, 4) as $feature_item) : ?>
+                                                <li><?php echo esc_html($feature_item['feature_name'] ?? ''); ?></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                <?php endif; ?>
+                                <div class="tds-actions">
+                                    <a href="<?php echo esc_url($order_link); ?>" class="tds-btn tds-btn-primary"><?php esc_html_e('Bestellfluss öffnen', 'themisdb-order-request'); ?></a>
+                                    <a href="<?php echo esc_url($configurator_link); ?>" class="tds-btn tds-btn-secondary"><?php esc_html_e('Konfigurator', 'themisdb-order-request'); ?></a>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            <section id="modules" class="tds-section">
+                <div class="tds-section-head">
+                    <p class="tds-eyebrow"><?php esc_html_e('Add-ons', 'themisdb-order-request'); ?></p>
+                    <h2><?php esc_html_e('Module und Services', 'themisdb-order-request'); ?></h2>
+                    <p><?php esc_html_e('Die Kategorien und Preise kommen live aus themisdb_modules.', 'themisdb-order-request'); ?></p>
+                </div>
+                <?php if (empty($module_groups)) : ?>
+                    <p class="tds-muted"><?php esc_html_e('Aktuell sind keine aktiven Module hinterlegt.', 'themisdb-order-request'); ?></p>
+                <?php else : ?>
+                    <div class="tds-info-grid">
+                        <?php foreach ($module_groups as $category => $items) : ?>
+                            <?php
+                            $module_edition = $this->resolve_shop_recommended_edition($products, $license_prices, 'module', $category, $preferred_edition);
+                            $module_configurator_url = $product_url;
+                            if ($module_edition !== '') {
+                                $module_configurator_url = add_query_arg(array('edition' => $module_edition), $product_url);
+                            }
+                            if ($has_distinct_configurator_target) {
+                                $module_configurator_url .= '#modules';
+                            }
+                            ?>
+                            <section class="tds-info-group" id="module-<?php echo esc_attr($category); ?>">
+                                <h3><?php echo esc_html($this->humanize_shop_key($category)); ?></h3>
+                                <ul>
+                                    <?php foreach ($items as $item) : ?>
+                                        <li>
+                                            <strong><?php echo esc_html($item['module_name'] ?? ''); ?></strong>
+                                            <?php echo esc_html(' - ' . $this->format_shop_price($item['price'] ?? 0, $item['currency'] ?? 'EUR')); ?>
+                                            <?php if ($module_edition !== '') : ?>
+                                                <a class="tds-inline-link" href="<?php echo esc_url(add_query_arg(array('modules' => $item['module_code']), $module_configurator_url)); ?>"><?php esc_html_e('Im Konfigurator öffnen', 'themisdb-order-request'); ?></a>
+                                                <a class="tds-inline-link tds-inline-link--checkout" href="<?php echo esc_url(add_query_arg(array('edition' => $module_edition, 'modules' => $item['module_code'], 'checkout' => 1), $order_url)); ?>"><?php esc_html_e('Direkt zum Checkout', 'themisdb-order-request'); ?></a>
+                                            <?php endif; ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </section>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            <section id="training" class="tds-section">
+                <div class="tds-section-head">
+                    <p class="tds-eyebrow"><?php esc_html_e('Enablement', 'themisdb-order-request'); ?></p>
+                    <h2><?php esc_html_e('Schulungen aus dem Katalog', 'themisdb-order-request'); ?></h2>
+                    <p><?php esc_html_e('Trainings werden direkt aus themisdb_training_modules gelesen.', 'themisdb-order-request'); ?></p>
+                </div>
+                <?php if (empty($training_groups)) : ?>
+                    <p class="tds-muted"><?php esc_html_e('Aktuell sind keine aktiven Schulungen hinterlegt.', 'themisdb-order-request'); ?></p>
+                <?php else : ?>
+                    <div class="tds-info-grid">
+                        <?php foreach ($training_groups as $type => $items) : ?>
+                            <?php
+                            $training_edition = $this->resolve_shop_recommended_edition($products, $license_prices, 'training', $type, $preferred_edition);
+                            $training_configurator_url = $product_url;
+                            if ($training_edition !== '') {
+                                $training_configurator_url = add_query_arg(array('edition' => $training_edition), $product_url);
+                            }
+                            if ($has_distinct_configurator_target) {
+                                $training_configurator_url .= '#training';
+                            }
+                            ?>
+                            <section class="tds-info-group" id="training-<?php echo esc_attr($type); ?>">
+                                <h3><?php echo esc_html($this->humanize_shop_key($type)); ?></h3>
+                                <ul>
+                                    <?php foreach ($items as $item) :
+                                        $duration = !empty($item['duration_hours']) ? sprintf(__(' (%d Std.)', 'themisdb-order-request'), absint($item['duration_hours'])) : '';
+                                    ?>
+                                        <li>
+                                            <strong><?php echo esc_html($item['training_name'] ?? ''); ?></strong>
+                                            <?php echo esc_html($duration . ' - ' . $this->format_shop_price($item['price'] ?? 0, $item['currency'] ?? 'EUR')); ?>
+                                            <?php if ($training_edition !== '') : ?>
+                                                <a class="tds-inline-link" href="<?php echo esc_url(add_query_arg(array('training' => $item['training_code']), $training_configurator_url)); ?>"><?php esc_html_e('Im Konfigurator öffnen', 'themisdb-order-request'); ?></a>
+                                                <a class="tds-inline-link tds-inline-link--checkout" href="<?php echo esc_url(add_query_arg(array('edition' => $training_edition, 'training' => $item['training_code'], 'checkout' => 1), $order_url)); ?>"><?php esc_html_e('Direkt zum Checkout', 'themisdb-order-request'); ?></a>
+                                            <?php endif; ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </section>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            <section id="faq" class="tds-section tds-faq">
+                <div class="tds-section-head">
+                    <p class="tds-eyebrow"><?php esc_html_e('FAQ', 'themisdb-order-request'); ?></p>
+                    <h2><?php esc_html_e('Fragen zum Shop', 'themisdb-order-request'); ?></h2>
+                </div>
+                <?php foreach ($faq_items as $faq_item) : ?>
+                    <details>
+                        <summary><?php echo esc_html($faq_item['question'] ?? ''); ?></summary>
+                        <p class="tds-muted"><?php echo esc_html($faq_item['answer'] ?? ''); ?></p>
+                    </details>
+                <?php endforeach; ?>
+            </section>
+
+            <section id="contact" class="tds-section">
+                <div class="tds-section-head">
+                    <p class="tds-eyebrow"><?php esc_html_e('Kontakt', 'themisdb-order-request'); ?></p>
+                    <h2><?php esc_html_e('Shop-Anfragen und Angebot', 'themisdb-order-request'); ?></h2>
+                    <p><?php esc_html_e('Die Kontaktkarten bleiben bewusst einfach, damit Produkte und Preise vollständig aus dem Plugin kommen und Kontakte separat gepflegt werden können.', 'themisdb-order-request'); ?></p>
+                </div>
+                <div class="tds-contact-grid">
+                    <section class="tds-contact-card">
+                        <h3><?php esc_html_e('Vertrieb', 'themisdb-order-request'); ?></h3>
+                        <p><?php esc_html_e('Allgemeine Shop-, Lizenz- und Bestellanfragen.', 'themisdb-order-request'); ?></p>
+                        <a href="mailto:<?php echo antispambot(esc_attr($sales_email)); ?>" class="tds-btn tds-btn-primary"><?php echo esc_html($sales_email); ?></a>
+                    </section>
+                    <section class="tds-contact-card">
+                        <h3><?php esc_html_e('Schulungen', 'themisdb-order-request'); ?></h3>
+                        <p><?php esc_html_e('Onboarding, Workshops und Team-Enablement.', 'themisdb-order-request'); ?></p>
+                        <a href="mailto:<?php echo antispambot(esc_attr($training_email)); ?>" class="tds-btn tds-btn-secondary"><?php echo esc_html($training_email); ?></a>
+                    </section>
+                    <section class="tds-contact-card">
+                        <h3><?php esc_html_e('Enterprise', 'themisdb-order-request'); ?></h3>
+                        <p><?php esc_html_e('Dedizierte Architektur-, Compliance- und Air-Gap-Anforderungen.', 'themisdb-order-request'); ?></p>
+                        <a href="mailto:<?php echo antispambot(esc_attr($enterprise_email)); ?>" class="tds-btn tds-btn-secondary"><?php echo esc_html($enterprise_email); ?></a>
+                    </section>
+                </div>
+            </section>
+
+            <section class="tds-cta">
+                <p class="tds-eyebrow"><?php esc_html_e('Nächster Schritt', 'themisdb-order-request'); ?></p>
+                <h2><?php echo esc_html(sprintf(__('Direkt mit %s starten', 'themisdb-order-request'), $primary_label)); ?></h2>
+                <p><?php esc_html_e('Wenn Preise oder Module im Admin geändert werden, aktualisiert sich dieser Shop automatisch beim nächsten Seitenaufruf.', 'themisdb-order-request'); ?></p>
+                <div class="tds-actions">
+                    <a href="<?php echo esc_url($primary_order_link); ?>" class="tds-btn tds-btn-primary"><?php esc_html_e('Edition direkt bestellen', 'themisdb-order-request'); ?></a>
+                    <a href="<?php echo esc_url($primary_configurator_link); ?>" class="tds-btn tds-btn-secondary"><?php esc_html_e('Edition konfigurieren', 'themisdb-order-request'); ?></a>
+                </div>
+            </section>
+        </div>
+        <?php
+    }
+
+    /**
+     * Load the active license pricing snapshot keyed by edition.
+     *
+     * @param string $currency
+     * @param bool   $include_features
+     * @return array
+     */
+    private function get_license_pricing_snapshot($currency = 'EUR', $include_features = true) {
+        global $wpdb;
+
+        $currency = strtoupper(sanitize_text_field($currency));
+        $prices_query = "
+            SELECT lp.*, p.edition, p.product_name, p.description
+            FROM {$wpdb->prefix}themisdb_license_prices lp
+            LEFT JOIN {$wpdb->prefix}themisdb_products p ON lp.product_edition = p.edition
+            WHERE lp.valid_from <= CURDATE()
+            AND (lp.valid_until IS NULL OR lp.valid_until >= CURDATE())
+            AND lp.currency = %s
+            AND lp.id = (
+                SELECT lp2.id
+                FROM {$wpdb->prefix}themisdb_license_prices lp2
+                WHERE lp2.product_edition = lp.product_edition
+                AND lp2.valid_from <= CURDATE()
+                AND (lp2.valid_until IS NULL OR lp2.valid_until >= CURDATE())
+                AND lp2.currency = %s
+                ORDER BY lp2.valid_from DESC, lp2.id DESC
+                LIMIT 1
+            )
+            ORDER BY lp.product_edition ASC
+        ";
+
+        $raw_prices = $wpdb->get_results($wpdb->prepare($prices_query, $currency, $currency), ARRAY_A);
+        $prices_by_edition = array();
+        $edition_by_license_id = array();
+        foreach ((array) $raw_prices as $price) {
+            $edition = sanitize_key($price['product_edition'] ?? '');
+            if ($edition === '') {
+                continue;
+            }
+            $prices_by_edition[$edition] = $price;
+
+            $license_id = absint($price['license_id'] ?? 0);
+            if ($license_id > 0) {
+                $edition_by_license_id[$license_id] = $edition;
+            }
+        }
+
+        $features_by_type = array();
+        if ($include_features && !empty($prices_by_edition) && !empty($edition_by_license_id)) {
+            $license_ids = array_keys($edition_by_license_id);
+            $license_placeholders = implode(',', array_fill(0, count($license_ids), '%d'));
+            $features_query = "
+                SELECT lf.*
+                FROM {$wpdb->prefix}themisdb_license_features lf
+                WHERE lf.is_active = 1
+                AND lf.valid_from <= CURDATE()
+                AND (lf.valid_until IS NULL OR lf.valid_until >= CURDATE())
+                AND lf.license_id IN ({$license_placeholders})
+                ORDER BY lf.license_id ASC, lf.feature_code ASC, lf.id ASC
+            ";
+
+            $raw_features = $wpdb->get_results($wpdb->prepare($features_query, $license_ids), ARRAY_A);
+            $seen_feature_keys = array();
+            foreach ((array) $raw_features as $feature) {
+                $license_id = absint($feature['license_id'] ?? 0);
+                $edition = $license_id > 0 && isset($edition_by_license_id[$license_id]) ? $edition_by_license_id[$license_id] : '';
+                if ($edition === '' || !isset($prices_by_edition[$edition])) {
+                    continue;
+                }
+
+                $feature_code = sanitize_key($feature['feature_code'] ?? '');
+                $feature_name = sanitize_text_field($feature['feature_name'] ?? '');
+                $dedupe_token = $feature_code !== '' ? $feature_code : sanitize_key($feature_name);
+                if ($dedupe_token === '') {
+                    $dedupe_token = (string) absint($feature['id'] ?? 0);
+                }
+
+                $dedupe_key = $edition . '|' . $dedupe_token;
+                if (isset($seen_feature_keys[$dedupe_key])) {
+                    continue;
+                }
+
+                $seen_feature_keys[$dedupe_key] = true;
+
+                if (!isset($features_by_type[$edition])) {
+                    $features_by_type[$edition] = array();
+                }
+                $features_by_type[$edition][] = $feature;
+            }
+        }
+
+        return array($prices_by_edition, $features_by_type);
+    }
+
+    /**
+     * Resolve a recommended edition for shop deep links.
+     *
+     * @param array  $products
+     * @param array  $license_prices
+     * @param string $context
+     * @param string $detail
+     * @param string $preferred_edition
+     * @return string
+     */
+    private function resolve_shop_recommended_edition($products, $license_prices, $context = 'default', $detail = '', $preferred_edition = '') {
+        $context = sanitize_key($context);
+        $available_editions = array();
+        foreach ((array) $products as $product) {
+            $edition = sanitize_key($product['edition'] ?? '');
+            if ($edition !== '') {
+                $available_editions[$edition] = true;
+            }
+        }
+        foreach (array_keys((array) $license_prices) as $edition) {
+            $available_editions[sanitize_key($edition)] = true;
+        }
+
+        if (empty($available_editions)) {
+            return '';
+        }
+
+        $detail = sanitize_key($detail);
+        $preferred_edition = sanitize_key($preferred_edition);
+
+        if ($preferred_edition !== '' && isset($available_editions[$preferred_edition])) {
+            return $preferred_edition;
+        }
+
+        $preferences = array('enterprise', 'hyperscaler', 'reseller', 'community');
+
+        if ($context === 'module') {
+            if (in_array($detail, array('scaling', 'cluster', 'high-availability'), true)) {
+                $preferences = array('hyperscaler', 'enterprise', 'reseller', 'community');
+            } elseif (in_array($detail, array('storage', 'ai-ml', 'security', 'compliance'), true)) {
+                $preferences = array('enterprise', 'hyperscaler', 'reseller', 'community');
+            }
+        }
+
+        if ($context === 'training') {
+            if (in_array($detail, array('onsite', 'consulting', 'workshop'), true)) {
+                $preferences = array('enterprise', 'hyperscaler', 'reseller', 'community');
+            } else {
+                $preferences = array('enterprise', 'community', 'hyperscaler', 'reseller');
+            }
+        }
+
+        $preferences = apply_filters(
+            'themisdb_shop_recommended_edition_preferences',
+            $preferences,
+            $context,
+            $detail,
+            array_keys($available_editions),
+            $products,
+            $license_prices
+        );
+
+        if (!is_array($preferences) || empty($preferences)) {
+            $preferences = array('enterprise', 'hyperscaler', 'reseller', 'community');
+        }
+
+        $preferences = array_values(array_unique(array_filter(array_map('sanitize_key', $preferences))));
+
+        foreach ($preferences as $preferred_edition) {
+            if (isset($available_editions[$preferred_edition])) {
+                $resolved = $preferred_edition;
+                return sanitize_key((string) apply_filters(
+                    'themisdb_shop_recommended_edition',
+                    $resolved,
+                    $context,
+                    $detail,
+                    $preferences,
+                    array_keys($available_editions),
+                    $products,
+                    $license_prices
+                ));
+            }
+        }
+
+        $fallback_editions = array_keys($available_editions);
+        $resolved = isset($fallback_editions[0]) ? $fallback_editions[0] : '';
+
+        return sanitize_key((string) apply_filters(
+            'themisdb_shop_recommended_edition',
+            $resolved,
+            $context,
+            $detail,
+            $preferences,
+            array_keys($available_editions),
+            $products,
+            $license_prices
+        ));
+    }
+
+    /**
+     * Format a catalog price for the dynamic shop.
+     *
+     * @param mixed  $price
+     * @param string $currency
+     * @return string
+     */
+    private function format_shop_price($price, $currency) {
+        $amount = floatval($price);
+        $currency = strtoupper(sanitize_text_field($currency));
+
+        if ($amount <= 0) {
+            return __('Kostenlos', 'themisdb-order-request');
+        }
+
+        return number_format($amount, 2, ',', '.') . ' ' . $currency;
+    }
+
+    /**
+     * Format license limits for the dynamic shop.
+     *
+     * @param mixed  $value
+     * @param string $suffix
+     * @return string
+     */
+    private function format_shop_limit($value, $suffix = '') {
+        if ($value === null || $value === '' || intval($value) <= 0) {
+            return $suffix !== '' ? '∞ ' . $suffix : '∞';
+        }
+
+        $formatted = number_format(intval($value), 0, ',', '.');
+        return $suffix !== '' ? $formatted . ' ' . $suffix : $formatted;
+    }
+
+    /**
+     * Turn a slug-like catalog key into a readable label.
+     *
+     * @param string $key
+     * @return string
+     */
+    private function humanize_shop_key($key) {
+        $label = str_replace(array('-', '_'), ' ', sanitize_text_field($key));
+        $label = trim($label);
+
+        if ($label === '') {
+            return __('Allgemein', 'themisdb-order-request');
+        }
+
+        return ucwords($label);
+    }
+
+    /**
+     * Compare two URLs by target location (scheme/host/port/path), ignoring query and fragment.
+     *
+     * @param string $left
+     * @param string $right
+     * @return bool
+     */
+    private function urls_point_to_same_location($left, $right) {
+        $left = esc_url_raw((string) $left);
+        $right = esc_url_raw((string) $right);
+
+        if ($left === '' || $right === '') {
+            return false;
+        }
+
+        $left_parts = wp_parse_url($left);
+        $right_parts = wp_parse_url($right);
+
+        if (!is_array($left_parts) || !is_array($right_parts)) {
+            return false;
+        }
+
+        $left_scheme = strtolower((string) ($left_parts['scheme'] ?? ''));
+        $right_scheme = strtolower((string) ($right_parts['scheme'] ?? ''));
+        $left_host = strtolower((string) ($left_parts['host'] ?? ''));
+        $right_host = strtolower((string) ($right_parts['host'] ?? ''));
+        $left_port = intval($left_parts['port'] ?? 0);
+        $right_port = intval($right_parts['port'] ?? 0);
+
+        $left_path = '/' . ltrim((string) ($left_parts['path'] ?? ''), '/');
+        $right_path = '/' . ltrim((string) ($right_parts['path'] ?? ''), '/');
+        $left_path = untrailingslashit($left_path);
+        $right_path = untrailingslashit($right_path);
+
+        if ($left_path === '') {
+            $left_path = '/';
+        }
+        if ($right_path === '') {
+            $right_path = '/';
+        }
+
+        return $left_scheme === $right_scheme
+            && $left_host === $right_host
+            && $left_port === $right_port
+            && $left_path === $right_path;
+    }
+
+    /**
+     * Resolve a frontend page URL using native WordPress lookups.
+     *
+     * Resolution order:
+     * 1) Option value as page ID or URL
+     * 2) First published page containing the requested shortcode
+     * 3) First published page matching a fallback slug
+     * 4) home_url for the first fallback slug
+     *
+     * @param string $option_key
+     * @param array  $fallback_slugs
+     * @param string $shortcode_tag
+     * @return string
+     */
+    private function resolve_frontend_page_url($option_key, $fallback_slugs = array(), $shortcode_tag = '') {
+        $option_key = sanitize_key((string) $option_key);
+        $shortcode_tag = sanitize_key((string) $shortcode_tag);
+
+        $fallback_slugs = array_values(array_filter(array_map(function($slug) {
+            return sanitize_title((string) $slug);
+        }, (array) $fallback_slugs)));
+
+        $configured = get_option($option_key, '');
+        if (is_numeric($configured) && intval($configured) > 0) {
+            $configured_permalink = get_permalink(intval($configured));
+            if (is_string($configured_permalink) && $configured_permalink !== '') {
+                return esc_url_raw($configured_permalink);
+            }
+        }
+
+        $configured_url = esc_url_raw((string) $configured);
+        if ($configured_url !== '') {
+            return $configured_url;
+        }
+
+        if ($shortcode_tag !== '') {
+            $page_ids = get_posts(array(
+                'post_type' => 'page',
+                'post_status' => 'publish',
+                'posts_per_page' => -1,
+                'fields' => 'ids',
+                'no_found_rows' => true,
+            ));
+
+            foreach ((array) $page_ids as $page_id) {
+                $content = (string) get_post_field('post_content', intval($page_id));
+                if ($content !== '' && has_shortcode($content, $shortcode_tag)) {
+                    $shortcode_permalink = get_permalink(intval($page_id));
+                    if (is_string($shortcode_permalink) && $shortcode_permalink !== '') {
+                        return esc_url_raw($shortcode_permalink);
+                    }
+                }
+            }
+        }
+
+        foreach ($fallback_slugs as $slug) {
+            $page = get_page_by_path($slug, OBJECT, 'page');
+            if ($page instanceof WP_Post && $page->post_status === 'publish') {
+                $page_permalink = get_permalink($page->ID);
+                if (is_string($page_permalink) && $page_permalink !== '') {
+                    return esc_url_raw($page_permalink);
+                }
+            }
+        }
+
+        if (!empty($fallback_slugs)) {
+            return esc_url_raw(home_url('/' . $fallback_slugs[0]));
+        }
+
+        return '';
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     //  SHOPPING CART (Phase 2.3)
     // ──────────────────────────────────────────────────────────────────────────
@@ -2132,7 +3113,11 @@ class ThemisDB_Order_Shortcodes {
 
         $checkout_url = esc_url_raw($atts['checkout_url']);
         if ($checkout_url === '') {
-            $checkout_url = (string) get_option('themisdb_order_page_url', home_url('/bestellung'));
+            $checkout_url = $this->resolve_frontend_page_url(
+                'themisdb_order_page_url',
+                array('bestellung', 'checkout'),
+                'themisdb_order_flow'
+            );
         }
 
         wp_localize_script('themisdb-shopping-cart', 'themisdbCart', array(
@@ -2233,7 +3218,11 @@ class ThemisDB_Order_Shortcodes {
             <div class="tsc-empty">
                 <p class="tsc-empty-msg"><?php esc_html_e('Ihr Warenkorb ist leer.', 'themisdb-order-request'); ?></p>
                 <?php
-                $product_page_url = (string) get_option('themisdb_product_page_url', '');
+                $product_page_url = $this->resolve_frontend_page_url(
+                    'themisdb_product_page_url',
+                    array('produkte', 'produkt', 'konfigurator'),
+                    'themisdb_product_detail'
+                );
                 if ($product_page_url) :
                 ?>
                 <a href="<?php echo esc_url($product_page_url); ?>" class="tsc-btn tsc-btn--secondary">

@@ -25,26 +25,73 @@
 
 /**
  * Admin Settings Template
+ * Tab-based layout: Einstellungen | Shortcodes
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
+
+$_tbv_page = 'themisdb-bv-settings';
+$_tbv_tab  = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'settings';
+if ( ! in_array( $_tbv_tab, array( 'settings', 'shortcodes' ), true ) ) {
+    $_tbv_tab = 'settings';
+}
+$_tbv_url = function ( $tab ) use ( $_tbv_page ) {
+    return esc_url( admin_url( 'options-general.php?page=' . $_tbv_page . '&tab=' . $tab ) );
+};
 ?>
 
 <div class="wrap">
-    <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-    
-    <div class="themisdb-admin-header">
-        <p><?php _e('Configure the Benchmark Visualizer plugin settings.', 'themisdb-benchmark-visualizer'); ?></p>
-    </div>
+    <h1 class="wp-heading-inline">
+        <?php echo esc_html( get_admin_page_title() ); ?>
+        <a href="<?php echo $_tbv_url( 'shortcodes' ); ?>" class="page-title-action">
+            <?php _e( 'Shortcodes', 'themisdb-benchmark-visualizer' ); ?>
+        </a>
+    </h1>
+    <hr class="wp-header-end">
 
-    <?php settings_errors('themisdb_bv_settings'); ?>
+    <?php settings_errors( 'themisdb_bv_settings' ); ?>
+
+    <nav class="nav-tab-wrapper wp-clearfix">
+        <a href="<?php echo $_tbv_url( 'settings' ); ?>"
+           class="nav-tab <?php echo $_tbv_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
+            <?php _e( 'Einstellungen', 'themisdb-benchmark-visualizer' ); ?>
+        </a>
+        <a href="<?php echo $_tbv_url( 'shortcodes' ); ?>"
+           class="nav-tab <?php echo $_tbv_tab === 'shortcodes' ? 'nav-tab-active' : ''; ?>">
+            <?php _e( 'Shortcodes', 'themisdb-benchmark-visualizer' ); ?>
+        </a>
+    </nav>
+
+    <div class="themisdb-tab-content">
+
+    <?php if ( $_tbv_tab === 'settings' ) : ?>
+
+    <div class="themisdb-admin-modules">
+        <div class="card">
+            <h2><?php _e( 'Schnellaktionen', 'themisdb-benchmark-visualizer' ); ?></h2>
+            <p><?php _e( 'Öffnen Sie direkt die Shortcode-Referenz oder prüfen Sie die aktuelle Datenquellen-Konfiguration.', 'themisdb-benchmark-visualizer' ); ?></p>
+            <p>
+                <a href="<?php echo $_tbv_url( 'shortcodes' ); ?>" class="button button-secondary"><?php _e( 'Shortcodes anzeigen', 'themisdb-benchmark-visualizer' ); ?></a>
+            </p>
+        </div>
+        <div class="card">
+            <h2><?php _e( 'Aktive Defaults', 'themisdb-benchmark-visualizer' ); ?></h2>
+            <table class="widefat striped">
+                <tbody>
+                    <tr><th><?php _e( 'Datenquelle', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_data_source', 'local' ) ); ?></code></td></tr>
+                    <tr><th><?php _e( 'Kategorie', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_category', 'all' ) ); ?></code></td></tr>
+                    <tr><th><?php _e( 'Metrik', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_metric', 'latency' ) ); ?></code></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <form method="post" action="options.php">
         <?php
-        settings_fields('themisdb_bv_settings');
-        do_settings_sections('themisdb_bv_settings');
+        settings_fields( 'themisdb_bv_settings' );
+        do_settings_sections( 'themisdb_bv_settings' );
         ?>
 
         <table class="form-table" role="presentation">
@@ -204,76 +251,81 @@ if (!defined('ABSPATH')) {
         <?php submit_button(); ?>
     </form>
 
-    <!-- Shortcode Usage -->
-    <div class="themisdb-admin-section">
-        <h2><?php _e('Shortcode Usage', 'themisdb-benchmark-visualizer'); ?></h2>
-        <p><?php _e('Use the following shortcodes to embed the benchmark visualizer:', 'themisdb-benchmark-visualizer'); ?></p>
-        
-        <div class="themisdb-shortcode-examples">
-            <h3><?php _e('Basic Usage', 'themisdb-benchmark-visualizer'); ?></h3>
-            <code>[themisdb_benchmark_visualizer]</code>
-            
-            <h3><?php _e('With Category Filter', 'themisdb-benchmark-visualizer'); ?></h3>
-            <code>[themisdb_benchmark_visualizer category="vector_search"]</code>
-            
-            <h3><?php _e('With Specific Metric', 'themisdb-benchmark-visualizer'); ?></h3>
-            <code>[themisdb_benchmark_visualizer metric="throughput"]</code>
-            
-            <h3><?php _e('With Custom Comparison', 'themisdb-benchmark-visualizer'); ?></h3>
-            <code>[themisdb_benchmark_visualizer compare="postgresql,mongodb"]</code>
-            
-            <h3><?php _e('With Chart Type', 'themisdb-benchmark-visualizer'); ?></h3>
-            <code>[themisdb_benchmark_visualizer chart_type="line"]</code>
-            
-            <h3><?php _e('Combined Parameters', 'themisdb-benchmark-visualizer'); ?></h3>
-            <code>[themisdb_benchmark_visualizer category="vector_search" metric="latency" chart_type="bar"]</code>
-        </div>
-    </div>
+    <?php elseif ( $_tbv_tab === 'shortcodes' ) : ?>
 
-    <!-- Plugin Info -->
-    <div class="themisdb-admin-section">
-        <h2><?php _e('About', 'themisdb-benchmark-visualizer'); ?></h2>
+    <h2><?php _e( 'Shortcode-Verwendung', 'themisdb-benchmark-visualizer' ); ?></h2>
+    <p><?php _e( 'Fügen Sie einen der folgenden Shortcodes in eine Seite oder einen Beitrag ein.', 'themisdb-benchmark-visualizer' ); ?></p>
+
+    <table class="widefat striped" style="max-width:860px;">
+        <thead>
+            <tr>
+                <th><?php _e( 'Shortcode', 'themisdb-benchmark-visualizer' ); ?></th>
+                <th><?php _e( 'Beschreibung', 'themisdb-benchmark-visualizer' ); ?></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>[themisdb_benchmark_visualizer]</code></td>
+                <td><?php _e( 'Standardansicht gemäß Plugin-Einstellungen', 'themisdb-benchmark-visualizer' ); ?></td>
+            </tr>
+            <tr>
+                <td><code>[themisdb_benchmark_visualizer category="vector_search"]</code></td>
+                <td><?php _e( 'Kategorie vorfiltern (all, vector_search, aql_query, graph_traversal)', 'themisdb-benchmark-visualizer' ); ?></td>
+            </tr>
+            <tr>
+                <td><code>[themisdb_benchmark_visualizer metric="throughput"]</code></td>
+                <td><?php _e( 'Metrik vorauswählen (latency, throughput, memory)', 'themisdb-benchmark-visualizer' ); ?></td>
+            </tr>
+            <tr>
+                <td><code>[themisdb_benchmark_visualizer compare="postgresql,mongodb"]</code></td>
+                <td><?php _e( 'Bestimmte Datenbanken vergleichen (kommagetrennt)', 'themisdb-benchmark-visualizer' ); ?></td>
+            </tr>
+            <tr>
+                <td><code>[themisdb_benchmark_visualizer chart_type="line"]</code></td>
+                <td><?php _e( 'Diagrammtyp setzen (bar, line, radar)', 'themisdb-benchmark-visualizer' ); ?></td>
+            </tr>
+            <tr>
+                <td><code>[themisdb_benchmark_visualizer category="vector_search" metric="latency" chart_type="bar"]</code></td>
+                <td><?php _e( 'Mehrere Parameter kombiniert', 'themisdb-benchmark-visualizer' ); ?></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="notice notice-info inline" style="margin-top:24px;">
         <p>
-            <strong><?php _e('Version:', 'themisdb-benchmark-visualizer'); ?></strong> <?php echo THEMISDB_BV_VERSION; ?><br>
-            <strong><?php _e('GitHub:', 'themisdb-benchmark-visualizer'); ?></strong> 
-            <a href="https://github.com/makr-code/wordpressPlugins" target="_blank">makr-code/wordpressPlugins</a>
+            <strong><?php _e( 'Version:', 'themisdb-benchmark-visualizer' ); ?></strong> <?php echo esc_html( THEMISDB_BV_VERSION ); ?>&nbsp;&nbsp;
+            <strong><?php _e( 'GitHub:', 'themisdb-benchmark-visualizer' ); ?></strong>
+            <a href="https://github.com/makr-code/wordpressPlugins" target="_blank" rel="noopener">makr-code/wordpressPlugins</a>
         </p>
     </div>
-</div>
+
+    <?php endif; ?>
+
+    </div><!-- .themisdb-tab-content -->
+</div><!-- .wrap -->
 
 <style>
-.themisdb-admin-header {
-    background: #f0f0f1;
-    padding: 15px;
-    border-left: 4px solid #2ea44f;
-    margin: 20px 0;
+.themisdb-admin-modules {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+    gap:16px;
+    margin:0 0 20px;
 }
-
-.themisdb-admin-section {
-    margin-top: 30px;
-    padding: 20px;
+.themisdb-admin-modules .card { margin:0; max-width:none; }
+.themisdb-tab-content {
     background: #fff;
-    border: 1px solid #ccd0d4;
-    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    border: 1px solid #c3c4c7;
+    border-top: none;
+    padding: 20px 24px;
 }
-
-.themisdb-shortcode-examples {
-    margin-top: 15px;
-}
-
-.themisdb-shortcode-examples h3 {
-    margin-top: 20px;
-    margin-bottom: 5px;
-    font-size: 14px;
-}
-
-.themisdb-shortcode-examples code {
-    display: block;
-    padding: 10px;
+.themisdb-tab-content > h2:first-child,
+.themisdb-tab-content > h3:first-child,
+.themisdb-tab-content > p:first-child { margin-top:0; }
+.themisdb-tab-content .widefat th { width:auto; }
+.themisdb-tab-content table.widefat code {
     background: #f6f7f7;
-    border: 1px solid #dcdcde;
+    padding: 2px 6px;
     border-radius: 3px;
-    font-family: Consolas, Monaco, monospace;
-    margin-bottom: 15px;
+    font-size: 12px;
 }
 </style>
