@@ -1,0 +1,11 @@
+{
+  "name": "ThemisDB Front Slider",
+  "version": "1.0.0",
+  "homepage": "https://github.com/makr-code/wordpressPlugins",
+  "description": "Titelseiten-Slider mit Timer, der die neuesten Artikel auf der Hauptseite darstellt. Shortcode: [themisdb_front_slider]",
+  "author": "ThemisDB Team",
+  "author_uri": "https://github.com/makr-code/wordpressPlugins",
+  "requires": "5.0",
+  "tested": "6.4",
+  "requires_php": "7.4"
+}

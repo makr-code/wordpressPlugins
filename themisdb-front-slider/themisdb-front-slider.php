@@ -21,6 +21,25 @@ define( 'THEMISDB_FS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'THEMISDB_FS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'THEMISDB_FS_PLUGIN_FILE', __FILE__ );
 
+// Load shared updater class (checks plugin directory and parent directory)
+$_themisdb_fs_updater_local  = THEMISDB_FS_PLUGIN_DIR . 'includes/class-themisdb-plugin-updater.php';
+$_themisdb_fs_updater_shared = dirname( THEMISDB_FS_PLUGIN_DIR ) . '/includes/class-themisdb-plugin-updater.php';
+
+if ( file_exists( $_themisdb_fs_updater_local ) ) {
+    require_once $_themisdb_fs_updater_local;
+} elseif ( file_exists( $_themisdb_fs_updater_shared ) ) {
+    require_once $_themisdb_fs_updater_shared;
+}
+unset( $_themisdb_fs_updater_local, $_themisdb_fs_updater_shared );
+
+if ( class_exists( 'ThemisDB_Plugin_Updater' ) ) {
+    new ThemisDB_Plugin_Updater(
+        THEMISDB_FS_PLUGIN_FILE,
+        'themisdb-front-slider',
+        THEMISDB_FS_VERSION
+    );
+}
+
 /* --------------------------------------------------------------------------
  * Activation / Deactivation
  * ---------------------------------------------------------------------- */

@@ -1,0 +1,11 @@
+{
+  "name": "ThemisDB Support Portal",
+  "version": "1.0.0",
+  "homepage": "https://github.com/makr-code/wordpressPlugins",
+  "description": "Exklusives Support-Portal f\u00fcr lizensierte ThemisDB-Kunden. Zugang nur mit g\u00fcltiger Lizenzdatei. Ticket-System f\u00fcr Kundensupport.",
+  "author": "ThemisDB Team",
+  "author_uri": "https://github.com/makr-code/wordpressPlugins",
+  "requires": "5.0",
+  "tested": "6.4",
+  "requires_php": "7.4"
+}
