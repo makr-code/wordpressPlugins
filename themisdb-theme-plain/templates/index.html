@@ -1,0 +1,35 @@
+<!-- wp:template-part {"slug":"header","theme":"themisdb-theme-plain","tagName":"header"} /-->
+
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"28px","bottom":"40px","left":"20px","right":"20px"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group" style="padding-top:28px;padding-right:20px;padding-bottom:40px;padding-left:20px">
+    <!-- wp:query-title {"type":"archive","showPrefix":false} /-->
+
+    <!-- wp:query {"queryId":0,"query":{"perPage":10,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":true}} -->
+    <div class="wp-block-query">
+        <!-- wp:post-template -->
+            <!-- wp:group {"className":"themisdb-plain-card","style":{"spacing":{"padding":{"top":"20px","bottom":"20px","left":"20px","right":"20px"},"margin":{"bottom":"16px"}}},"layout":{"type":"constrained"}} -->
+            <div class="wp-block-group themisdb-plain-card" style="margin-bottom:16px;padding-top:20px;padding-right:20px;padding-bottom:20px;padding-left:20px">
+                <!-- wp:post-title {"isLink":true} /-->
+                <!-- wp:post-date {"style":{"color":{"text":"var:preset|color|themisdb-text-muted"},"typography":{"fontSize":"0.9rem"}}} /-->
+                <!-- wp:post-excerpt /-->
+            </div>
+            <!-- /wp:group -->
+        <!-- /wp:post-template -->
+
+        <!-- wp:query-pagination {"layout":{"type":"flex","justifyContent":"space-between"}} -->
+            <!-- wp:query-pagination-previous /-->
+            <!-- wp:query-pagination-numbers /-->
+            <!-- wp:query-pagination-next /-->
+        <!-- /wp:query-pagination -->
+
+        <!-- wp:query-no-results -->
+            <!-- wp:paragraph -->
+            <p>Keine Beitraege gefunden.</p>
+            <!-- /wp:paragraph -->
+        <!-- /wp:query-no-results -->
+    </div>
+    <!-- /wp:query -->
+</div>
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"footer","theme":"themisdb-theme-plain","tagName":"footer"} /-->

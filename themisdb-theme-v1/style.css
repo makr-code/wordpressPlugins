@@ -4336,9 +4336,10 @@ pre,
         max-width: 100%;
         padding: 2rem 1.5rem;
     }
-    
+
+    /* Sidebar links (250-280 px), Content rechts (1fr) – konsistent mit dem globalen Links-Sidebar-Layout */
     .has-sidebar .site-content {
-        grid-template-columns: 1fr 280px;
+        grid-template-columns: minmax(250px, 280px) minmax(0, 1fr);
         gap: 1.5rem;
     }
 }
@@ -4760,43 +4761,58 @@ html.dark-mode img:hover { opacity: 1; }
     }
 }
 
-/* ===== Theme Fixes: Nav + Left Floating Sidebar ===== */
-.has-sidebar .site-content {
-    display: grid;
-    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
-    gap: 2rem;
-    align-items: start;
+/* ===== Theme Fixes: Nav + Left Floating Sidebar (nur Desktop ≥ 1025 px) ===== */
+@media (min-width: 1025px) {
+    .has-sidebar .site-content {
+        display: grid;
+        grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+        gap: 2rem;
+        align-items: start;
+    }
+
+    /* Sidebar explizit in Spalte 1 (links), Beitragsinhalt in Spalte 2 (rechts) */
+    .has-sidebar .content-area {
+        grid-column: 2;
+        min-width: 0;
+    }
+
+    .has-sidebar .sidebar {
+        grid-column: 1;
+        min-width: 0;
+        position: relative;
+        top: auto;
+        align-self: start;
+    }
+
+    .sidebar-inner.sidebar-floating-overlay {
+        position: sticky;
+        top: calc(100px + 1rem);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(245, 248, 252, 0.98) 100%);
+        border: 1px solid rgba(26, 46, 82, 0.08);
+        box-shadow: 0 18px 40px rgba(13, 31, 60, 0.12);
+        backdrop-filter: blur(12px);
+    }
+
+    .sidebar-inner.sidebar-floating-overlay > .widget {
+        margin-bottom: 0;
+    }
 }
 
-.has-sidebar .content-area {
-    grid-column: 2;
-    min-width: 0;
-}
+/* Tablet / Mobil: Grid-Spalten-Zuweisungen zurücksetzen, damit keine implizite 2. Spalte entsteht */
+@media (max-width: 1024px) {
+    .has-sidebar .content-area,
+    .has-sidebar .sidebar {
+        grid-column: auto;
+    }
 
-.has-sidebar .sidebar {
-    grid-column: 1;
-    min-width: 0;
-    position: relative;
-    top: auto;
-    align-self: start;
-}
-
-.sidebar-inner.sidebar-floating-overlay {
-    position: sticky;
-    top: calc(100px + 1rem);
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
-    border-radius: 20px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(245, 248, 252, 0.98) 100%);
-    border: 1px solid rgba(26, 46, 82, 0.08);
-    box-shadow: 0 18px 40px rgba(13, 31, 60, 0.12);
-    backdrop-filter: blur(12px);
-}
-
-.sidebar-inner.sidebar-floating-overlay > .widget {
-    margin-bottom: 0;
+    .sidebar-inner.sidebar-floating-overlay {
+        position: static;
+    }
 }
 
 .main-navigation > ul,

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schemas.wp.org/wp/6.7/theme.json",
+  "version": 2,
+  "title": "Plain Landing Focus",
+  "slug": "plain-landing-focus",
+  "styles": {
+    "color": {
+      "background": "#f2f7fd",
+      "text": "#10263a"
+    },
+    "typography": {
+      "lineHeight": "1.65"
+    },
+    "elements": {
+      "heading": {
+        "typography": {
+          "fontWeight": "650",
+          "lineHeight": "1.2"
+        },
+        "color": {
+          "text": "#003366"
+        }
+      },
+      "button": {
+        "color": {
+          "background": "#0a6ab8",
+          "text": "#ffffff"
+        },
+        "spacing": {
+          "padding": {
+            "top": "0.7rem",
+            "right": "1.2rem",
+            "bottom": "0.7rem",
+            "left": "1.2rem"
+          }
+        }
+      }
+    },
+    "blocks": {
+      "core/group": {
+        "spacing": {
+          "blockGap": "1.1rem"
+        }
+      },
+      "core/columns": {
+        "spacing": {
+          "blockGap": "1.4rem"
+        }
+      },
+      "core/post-title": {
+        "typography": {
+          "fontSize": "2rem"
+        }
+      }
+    }
+  }
+}

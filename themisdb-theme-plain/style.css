@@ -1,0 +1,127 @@
+/*
+Theme Name: ThemisDB Plain
+Theme URI: https://github.com/makr-code/wordpressPlugins
+Author: ThemisDB Team
+Author URI: https://github.com/makr-code
+Description: Minimalistisches Block-Theme mit ThemisDB-Farbschema. Fokus auf klare Lesbarkeit, ruhige Flächen und einfache Wartung.
+Version: 1.0.0
+Requires at least: 6.3
+Tested up to: 6.7
+Requires PHP: 7.4
+License: MIT
+License URI: https://opensource.org/licenses/MIT
+Text Domain: themisdb-plain
+Tags: full-site-editing, block-theme, custom-colors, custom-logo, one-column, two-columns
+*/
+
+:root {
+    --themisdb-primary: #003366;
+    --themisdb-primary-dark: #00264d;
+    --themisdb-secondary: #0078d4;
+    --themisdb-accent: #50e6ff;
+    --themisdb-surface: #f5f8fc;
+    --themisdb-surface-soft: #ecf2f9;
+    --themisdb-text: #12263a;
+    --themisdb-text-muted: #4d647b;
+    --themisdb-border: #d3dfeb;
+    --themisdb-success: #107c10;
+    --themisdb-warning: #d29200;
+    --themisdb-danger: #c4314b;
+}
+
+body {
+    background: var(--themisdb-surface);
+    color: var(--themisdb-text);
+}
+
+.wp-site-blocks {
+    min-height: 100vh;
+}
+
+.wp-block-site-title a {
+    text-decoration: none;
+}
+
+.wp-block-site-title {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+header .wp-block-group.alignwide {
+    margin-bottom: 0;
+}
+
+header .wp-block-site-title {
+    line-height: 1.2;
+}
+
+header .wp-block-site-title a {
+    color: var(--themisdb-primary);
+}
+
+.wp-block-navigation a {
+    text-underline-offset: 0.2em;
+}
+
+header .wp-block-navigation {
+    min-width: 0;
+    justify-content: flex-start;
+}
+
+header .wp-block-navigation__container {
+    gap: 0.75rem;
+    row-gap: 0.5rem;
+}
+
+header .wp-block-navigation-item {
+    white-space: nowrap;
+}
+
+header .wp-block-navigation-item__content {
+    color: var(--themisdb-text);
+    line-height: 1.3;
+    padding: 0.2rem 0.35rem;
+}
+
+header .wp-block-navigation-item__content:hover,
+header .wp-block-navigation-item__content:focus {
+    color: var(--themisdb-primary);
+}
+
+@media (max-width: 900px) {
+    header .wp-block-navigation__container {
+        gap: 0.5rem;
+    }
+
+    header .wp-block-navigation-item__content {
+        padding: 0.15rem 0.2rem;
+        font-size: 0.85rem;
+    }
+}
+
+.wp-block-post,
+.wp-block-query,
+.themisdb-plain-card {
+    border: 1px solid var(--themisdb-border);
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.wp-block-post {
+    padding: 1.25rem;
+}
+
+.wp-block-button__link {
+    border-radius: 10px;
+}
+
+.is-style-themisdb-outline .wp-block-button__link {
+    background: transparent;
+    border: 1px solid var(--themisdb-secondary);
+    color: var(--themisdb-secondary);
+}
+
+footer .wp-block-navigation a,
+footer p {
+    color: #dce8f5;
+}

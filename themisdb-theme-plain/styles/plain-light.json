@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schemas.wp.org/wp/6.7/theme.json",
+  "version": 2,
+  "title": "Plain Light",
+  "slug": "plain-light",
+  "styles": {
+    "color": {
+      "background": "#f8fbff",
+      "text": "#102438"
+    },
+    "elements": {
+      "heading": {
+        "color": {
+          "text": "#003366"
+        }
+      },
+      "link": {
+        "color": {
+          "text": "#0a6ab8"
+        }
+      },
+      "button": {
+        "color": {
+          "background": "#0078d4",
+          "text": "#ffffff"
+        }
+      }
+    },
+    "blocks": {
+      "core/group": {
+        "border": {
+          "radius": "12px"
+        }
+      },
+      "core/post-title": {
+        "typography": {
+          "fontWeight": "600"
+        }
+      }
+    }
+  }
+}
