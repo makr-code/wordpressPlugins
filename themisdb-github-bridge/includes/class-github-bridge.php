@@ -71,8 +71,8 @@ class ThemisDB_GitHub_Bridge {
 
     public function register_settings() {
         register_setting('themisdb_github_bridge_settings', 'themisdb_github_bridge_enabled');
-        register_setting('themisdb_github_bridge_settings', 'themisdb_github_bridge_repository');
-        register_setting('themisdb_github_bridge_settings', 'themisdb_github_bridge_token');
+        register_setting('themisdb_github_bridge_settings', 'themisdb_github_bridge_repository', array('sanitize_callback' => 'sanitize_text_field'));
+        register_setting('themisdb_github_bridge_settings', 'themisdb_github_bridge_token', array('sanitize_callback' => 'sanitize_text_field'));
         register_setting('themisdb_github_bridge_settings', 'themisdb_github_bridge_sync_order_tickets');
         register_setting('themisdb_github_bridge_settings', 'themisdb_github_bridge_sync_support_tickets');
         register_setting('themisdb_github_bridge_settings', 'themisdb_github_bridge_order_labels');

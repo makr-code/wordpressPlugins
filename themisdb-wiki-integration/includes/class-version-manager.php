@@ -179,16 +179,22 @@ class ThemisDB_Wiki_Version_Manager {
      */
     public function ajax_get_diff() {
         check_ajax_referer('themisdb_wiki_nonce', 'nonce');
-        
+
         $revision_id_old = isset($_POST['old_id']) ? intval($_POST['old_id']) : 0;
         $revision_id_new = isset($_POST['new_id']) ? intval($_POST['new_id']) : 0;
-        
+
         if (!$revision_id_old || !$revision_id_new) {
             wp_send_json_error(array('message' => __('Invalid revision IDs', 'themisdb-wiki')));
         }
-        
+
+        // Ensure current user can edit the parent post of the revision.
+        $revision = wp_get_post_revision($revision_id_new);
+        if (!$revision || !current_user_can('edit_post', $revision->post_parent)) {
+            wp_send_json_error(array('message' => __('Unauthorized', 'themisdb-wiki')));
+        }
+
         $diff = $this->get_diff($revision_id_old, $revision_id_new);
-        
+
         wp_send_json_success($diff);
     }
     

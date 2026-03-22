@@ -643,7 +643,7 @@ class ThemisDB_Support_Admin {
         }
 
         $ticket_id = isset($_POST['ticket_id']) ? intval($_POST['ticket_id']) : 0;
-        $message   = isset($_POST['message'])   ? wp_unslash($_POST['message']) : '';
+        $message   = isset($_POST['message'])   ? sanitize_textarea_field(wp_unslash($_POST['message'])) : '';
 
         if (!$ticket_id || empty(trim($message))) {
             wp_send_json_error(array('message' => __('Fehlende Parameter', 'themisdb-support-portal')));

@@ -47,9 +47,27 @@ class ThemisDB_Gallery_Media_Handler {
         if (empty($image_data['url'])) {
             return new WP_Error('invalid_image', __('Ungültige Bilddaten', 'themisdb-gallery'));
         }
-        
+
+        // Validate URL and block private/local addresses (SSRF prevention).
+        $url = $image_data['url'];
+        if (!wp_http_validate_url($url)) {
+            return new WP_Error('invalid_url', __('Ungültige oder nicht erlaubte Bild-URL', 'themisdb-gallery'));
+        }
+        $host = wp_parse_url($url, PHP_URL_HOST);
+        if (!$host) {
+            return new WP_Error('invalid_url', __('Bild-URL enthält keinen Host', 'themisdb-gallery'));
+        }
+        // Resolve hostname to IP and block private ranges not caught by wp_http_validate_url.
+        $ip = gethostbyname($host);
+        if (
+            $ip === $host || // DNS resolution failed (returned host unchanged) is still OK; WP's cURL handles it
+            filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false
+        ) {
+            return new WP_Error('ssrf_blocked', __('Bild-URL zeigt auf einen nicht erlaubten Adressbereich', 'themisdb-gallery'));
+        }
+
         // Download image
-        $temp_file = download_url($image_data['url']);
+        $temp_file = download_url($url);
         
         if (is_wp_error($temp_file)) {
             return $temp_file;

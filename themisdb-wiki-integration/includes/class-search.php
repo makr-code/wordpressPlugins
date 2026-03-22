@@ -145,7 +145,7 @@ class ThemisDB_Wiki_Search {
         $output .= 'class="wiki-search-input" ';
         $output .= 'placeholder="' . esc_attr__('Search wiki...', 'themisdb-wiki') . '" ';
         $output .= 'autocomplete="off" ';
-        $output .= 'value="' . get_search_query() . '">';
+        $output .= 'value="' . esc_attr(get_search_query()) . '">';
         $output .= '<button type="submit" class="wiki-search-submit">';
         $output .= '<span class="dashicons dashicons-search"></span>';
         $output .= '<span class="screen-reader-text">' . __('Search', 'themisdb-wiki') . '</span>';
@@ -161,7 +161,9 @@ class ThemisDB_Wiki_Search {
      * AJAX Search Handler
      */
     public function ajax_search() {
-        $query = isset($_POST['query']) ? sanitize_text_field($_POST['query']) : '';
+        check_ajax_referer('themisdb_wiki_search_nonce', 'nonce');
+
+        $query = isset($_POST['query']) ? sanitize_text_field(wp_unslash($_POST['query'])) : '';
         
         if (empty($query) || strlen($query) < 2) {
             wp_send_json_success(array('results' => array()));

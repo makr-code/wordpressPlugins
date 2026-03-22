@@ -258,10 +258,11 @@ class ThemisDB_Taxonomy_Manager_Plugin {
     }
     
     /**
-     * Register shortcodes
+     * Register shortcodes — only themisdb_taxonomy_info is registered here.
+     * themisdb_taxonomy is registered by ThemisDB_Taxonomy_Manager::register_shortcodes()
+     * to avoid duplicate/conflicting handlers.
      */
     public function register_shortcodes() {
-        add_shortcode('themisdb_taxonomy', array($this, 'taxonomy_shortcode'));
         add_shortcode('themisdb_taxonomy_info', array($this, 'taxonomy_info_shortcode'));
     }
     

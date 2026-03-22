@@ -133,6 +133,7 @@ class ThemisDB_Architecture_Diagrams {
         add_action('init', array($this, 'init'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
         add_action('wp_head', array($this, 'add_preload'), 1);
+            add_filter('script_loader_tag', array($this, 'add_crossorigin_to_cdn_scripts'), 10, 3);
         
         // Register shortcode
         add_shortcode('themisdb_architecture', array($this, 'render_diagram'));
@@ -255,6 +256,16 @@ class ThemisDB_Architecture_Diagrams {
         ));
     }
     
+    /**
+     * Add crossorigin attribute to CDN scripts for SRI readiness.
+     */
+    public function add_crossorigin_to_cdn_scripts($tag, $handle, $src) {
+        if ($handle === 'mermaid-js') {
+            return str_replace('<script ', '<script crossorigin="anonymous" ', $tag);
+        }
+        return $tag;
+    }
+
     /**
      * Add preload for Mermaid.js
      */

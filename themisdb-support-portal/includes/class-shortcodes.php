@@ -91,7 +91,7 @@ class ThemisDB_Support_Shortcodes {
         }
 
         $subject = isset($_POST['subject']) ? sanitize_text_field(wp_unslash($_POST['subject'])) : '';
-        $message = isset($_POST['message']) ? wp_unslash($_POST['message']) : '';
+        $message = isset($_POST['message']) ? sanitize_textarea_field(wp_unslash($_POST['message'])) : '';
         $priority = isset($_POST['priority']) ? sanitize_text_field($_POST['priority']) : 'normal';
 
         if (empty($subject) || empty(trim($message))) {

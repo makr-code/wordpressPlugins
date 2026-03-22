@@ -101,6 +101,7 @@ class ThemisDB_Benchmark_Visualizer {
         // Initialize plugin
         add_action('init', array($this, 'init'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+            add_filter('script_loader_tag', array($this, 'add_crossorigin_to_cdn_scripts'), 10, 3);
         
         // Register shortcode
         add_shortcode('themisdb_benchmark_visualizer', array($this, 'render_visualizer'));
@@ -205,6 +206,16 @@ class ThemisDB_Benchmark_Visualizer {
         ));
     }
     
+    /**
+     * Add crossorigin attribute to CDN scripts for SRI readiness.
+     */
+    public function add_crossorigin_to_cdn_scripts($tag, $handle, $src) {
+        if ($handle === 'chartjs') {
+            return str_replace('<script ', '<script crossorigin="anonymous" ', $tag);
+        }
+        return $tag;
+    }
+
     /**
      * Render benchmark visualizer
      */

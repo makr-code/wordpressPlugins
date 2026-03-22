@@ -297,36 +297,36 @@ class ThemisDB_Order_Shortcodes {
                 <?php if ($is_express) : ?>
                 <div class="step <?php echo $current_step >= 1 ? 'active' : ''; ?> <?php echo $current_step > 1 ? 'completed' : ''; ?>" data-step-value="1">
                     <span class="step-number">1</span>
-                    <span class="step-title"><?php _e('Produkt', 'themisdb-order-request'); ?></span>
+                    <span class="step-title"><?php esc_html_e('Produkt', 'themisdb-order-request'); ?></span>
                 </div>
                 <div class="step <?php echo $current_step >= 4 ? 'active' : ''; ?> <?php echo $current_step > 4 ? 'completed' : ''; ?>" data-step-value="4">
                     <span class="step-number">2</span>
-                    <span class="step-title"><?php _e('Checkout', 'themisdb-order-request'); ?></span>
+                    <span class="step-title"><?php esc_html_e('Checkout', 'themisdb-order-request'); ?></span>
                 </div>
                 <div class="step <?php echo $current_step >= 5 ? 'active' : ''; ?>" data-step-value="5">
                     <span class="step-number">3</span>
-                    <span class="step-title"><?php _e('Bestätigung', 'themisdb-order-request'); ?></span>
+                    <span class="step-title"><?php esc_html_e('Bestätigung', 'themisdb-order-request'); ?></span>
                 </div>
                 <?php else : ?>
                 <div class="step <?php echo $current_step >= 1 ? 'active' : ''; ?> <?php echo $current_step > 1 ? 'completed' : ''; ?>">
                     <span class="step-number">1</span>
-                    <span class="step-title"><?php _e('Produkt wählen', 'themisdb-order-request'); ?></span>
+                    <span class="step-title"><?php esc_html_e('Produkt wählen', 'themisdb-order-request'); ?></span>
                 </div>
                 <div class="step <?php echo $current_step >= 2 ? 'active' : ''; ?> <?php echo $current_step > 2 ? 'completed' : ''; ?>">
                     <span class="step-number">2</span>
-                    <span class="step-title"><?php _e('Module auswählen', 'themisdb-order-request'); ?></span>
+                    <span class="step-title"><?php esc_html_e('Module auswählen', 'themisdb-order-request'); ?></span>
                 </div>
                 <div class="step <?php echo $current_step >= 3 ? 'active' : ''; ?> <?php echo $current_step > 3 ? 'completed' : ''; ?>">
                     <span class="step-number">3</span>
-                    <span class="step-title"><?php _e('Schulungen', 'themisdb-order-request'); ?></span>
+                    <span class="step-title"><?php esc_html_e('Schulungen', 'themisdb-order-request'); ?></span>
                 </div>
                 <div class="step <?php echo $current_step >= 4 ? 'active' : ''; ?> <?php echo $current_step > 4 ? 'completed' : ''; ?>">
                     <span class="step-number">4</span>
-                    <span class="step-title"><?php _e('Kundendaten', 'themisdb-order-request'); ?></span>
+                    <span class="step-title"><?php esc_html_e('Kundendaten', 'themisdb-order-request'); ?></span>
                 </div>
                 <div class="step <?php echo $current_step >= 5 ? 'active' : ''; ?>">
                     <span class="step-number">5</span>
-                    <span class="step-title"><?php _e('Zusammenfassung', 'themisdb-order-request'); ?></span>
+                    <span class="step-title"><?php esc_html_e('Zusammenfassung', 'themisdb-order-request'); ?></span>
                 </div>
                 <?php endif; ?>
             </div>
@@ -394,8 +394,8 @@ class ThemisDB_Order_Shortcodes {
         
         ?>
         <div class="order-step-content" data-step="1">
-            <h2><?php _e('Wählen Sie Ihre ThemisDB Edition', 'themisdb-order-request'); ?></h2>
-            <p><?php _e('Wählen Sie die Edition, die am besten zu Ihren Anforderungen passt.', 'themisdb-order-request'); ?></p>
+            <h2><?php esc_html_e('Wählen Sie Ihre ThemisDB Edition', 'themisdb-order-request'); ?></h2>
+            <p><?php esc_html_e('Wählen Sie die Edition, die am besten zu Ihren Anforderungen passt.', 'themisdb-order-request'); ?></p>
             
             <div class="product-selection">
                 <?php foreach ($products as $product): ?>
@@ -408,9 +408,9 @@ class ThemisDB_Order_Shortcodes {
                             <p class="product-description"><?php echo esc_html($product['description']); ?></p>
                             <p class="product-price">
                                 <?php if ($product['price'] == 0): ?>
-                                    <strong><?php _e('Kostenlos', 'themisdb-order-request'); ?></strong>
+                                    <strong><?php esc_html_e('Kostenlos', 'themisdb-order-request'); ?></strong>
                                 <?php else: ?>
-                                    <strong><?php echo number_format($product['price'], 2, ',', '.'); ?> €</strong> / <?php _e('Monat', 'themisdb-order-request'); ?>
+                                    <strong><?php echo number_format($product['price'], 2, ',', '.'); ?> €</strong> / <?php esc_html_e('Monat', 'themisdb-order-request'); ?>
                                 <?php endif; ?>
                             </p>
                         </div>
@@ -421,7 +421,7 @@ class ThemisDB_Order_Shortcodes {
             
             <div class="order-navigation">
                 <button type="button" class="button button-primary button-next" data-step="1">
-                    <?php _e('Weiter', 'themisdb-order-request'); ?> →
+                    <?php esc_html_e('Weiter', 'themisdb-order-request'); ?> →
                 </button>
             </div>
         </div>
@@ -443,8 +443,8 @@ class ThemisDB_Order_Shortcodes {
         
         ?>
         <div class="order-step-content" data-step="2" id="modules">
-            <h2><?php _e('Wählen Sie Ihre Module', 'themisdb-order-request'); ?></h2>
-            <p><?php _e('Erweitern Sie Ihre ThemisDB-Installation mit zusätzlichen Modulen.', 'themisdb-order-request'); ?></p>
+            <h2><?php esc_html_e('Wählen Sie Ihre Module', 'themisdb-order-request'); ?></h2>
+            <p><?php esc_html_e('Erweitern Sie Ihre ThemisDB-Installation mit zusätzlichen Modulen.', 'themisdb-order-request'); ?></p>
             
             <?php foreach ($grouped_modules as $category => $category_modules): ?>
             <div class="module-category">
@@ -460,7 +460,7 @@ class ThemisDB_Order_Shortcodes {
                                 <p><?php echo esc_html($module['description']); ?></p>
                                 <p class="module-price">
                                     <?php if ($module['price'] == 0): ?>
-                                        <em><?php _e('Inklusive', 'themisdb-order-request'); ?></em>
+                                        <em><?php esc_html_e('Inklusive', 'themisdb-order-request'); ?></em>
                                     <?php else: ?>
                                         <strong>+<?php echo number_format($module['price'], 2, ',', '.'); ?> €</strong>
                                     <?php endif; ?>
@@ -475,10 +475,10 @@ class ThemisDB_Order_Shortcodes {
             
             <div class="order-navigation">
                 <button type="button" class="button button-secondary button-prev" data-step="2">
-                    ← <?php _e('Zurück', 'themisdb-order-request'); ?>
+                    ← <?php esc_html_e('Zurück', 'themisdb-order-request'); ?>
                 </button>
                 <button type="button" class="button button-primary button-next" data-step="2">
-                    <?php _e('Weiter', 'themisdb-order-request'); ?> →
+                    <?php esc_html_e('Weiter', 'themisdb-order-request'); ?> →
                 </button>
             </div>
         </div>
@@ -500,8 +500,8 @@ class ThemisDB_Order_Shortcodes {
         
         ?>
         <div class="order-step-content" data-step="3" id="training">
-            <h2><?php _e('Wählen Sie Ihre Schulungen', 'themisdb-order-request'); ?></h2>
-            <p><?php _e('Profitieren Sie von professionellen Schulungen für Ihr Team.', 'themisdb-order-request'); ?></p>
+            <h2><?php esc_html_e('Wählen Sie Ihre Schulungen', 'themisdb-order-request'); ?></h2>
+            <p><?php esc_html_e('Profitieren Sie von professionellen Schulungen für Ihr Team.', 'themisdb-order-request'); ?></p>
             
             <?php foreach ($grouped_trainings as $type => $type_trainings): ?>
             <div class="training-category">
@@ -517,7 +517,7 @@ class ThemisDB_Order_Shortcodes {
                                 <p><?php echo esc_html($training['description']); ?></p>
                                 <p class="training-meta">
                                     <span class="training-duration">
-                                        <strong><?php echo absint($training['duration_hours']); ?></strong> <?php _e('Stunden', 'themisdb-order-request'); ?>
+                                        <strong><?php echo absint($training['duration_hours']); ?></strong> <?php esc_html_e('Stunden', 'themisdb-order-request'); ?>
                                     </span>
                                     <span class="training-price">
                                         <strong>+<?php echo number_format($training['price'], 2, ',', '.'); ?> €</strong>
@@ -533,10 +533,10 @@ class ThemisDB_Order_Shortcodes {
             
             <div class="order-navigation">
                 <button type="button" class="button button-secondary button-prev" data-step="3">
-                    ← <?php _e('Zurück', 'themisdb-order-request'); ?>
+                    ← <?php esc_html_e('Zurück', 'themisdb-order-request'); ?>
                 </button>
                 <button type="button" class="button button-primary button-next" data-step="3">
-                    <?php _e('Weiter', 'themisdb-order-request'); ?> →
+                    <?php esc_html_e('Weiter', 'themisdb-order-request'); ?> →
                 </button>
             </div>
         </div>
@@ -575,23 +575,23 @@ class ThemisDB_Order_Shortcodes {
         
         ?>
         <div class="order-step-content" data-step="4">
-            <h2><?php _e('Ihre Kontaktdaten', 'themisdb-order-request'); ?></h2>
-            <p><?php _e('Bitte geben Sie Ihre Kontakt- und Rechnungsdaten ein.', 'themisdb-order-request'); ?></p>
+            <h2><?php esc_html_e('Ihre Kontaktdaten', 'themisdb-order-request'); ?></h2>
+            <p><?php esc_html_e('Bitte geben Sie Ihre Kontakt- und Rechnungsdaten ein.', 'themisdb-order-request'); ?></p>
 
             <div class="customer-form">
 
                 <!-- Kontaktdaten -->
                 <div class="compliance-section">
-                    <h3><?php _e('Kontakt', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Kontakt', 'themisdb-order-request'); ?></h3>
 
                     <div class="form-group">
-                        <label for="customer_name"><?php _e('Name', 'themisdb-order-request'); ?> *</label>
+                        <label for="customer_name"><?php esc_html_e('Name', 'themisdb-order-request'); ?> *</label>
                         <input type="text" id="customer_name" name="customer_name"
                                value="<?php echo esc_attr($customer_name); ?>" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="customer_email"><?php _e('E-Mail-Adresse', 'themisdb-order-request'); ?> *</label>
+                        <label for="customer_email"><?php esc_html_e('E-Mail-Adresse', 'themisdb-order-request'); ?> *</label>
                         <input type="email" id="customer_email" name="customer_email"
                                value="<?php echo esc_attr($customer_email); ?>" required>
                     </div>
@@ -599,141 +599,141 @@ class ThemisDB_Order_Shortcodes {
 
                 <!-- Kundentyp -->
                 <div class="compliance-section">
-                    <h3><?php _e('Kundentyp', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Kundentyp', 'themisdb-order-request'); ?></h3>
                     <div class="customer-type-group">
                         <label class="customer-type-option <?php echo $customer_type === 'consumer' ? 'selected' : ''; ?>">
                             <input type="radio" name="customer_type" value="consumer" <?php checked($customer_type, 'consumer'); ?>>
-                            <strong><?php _e('Verbraucher', 'themisdb-order-request'); ?></strong>
-                            <small><?php _e('Privatperson (B2C)', 'themisdb-order-request'); ?></small>
+                            <strong><?php esc_html_e('Verbraucher', 'themisdb-order-request'); ?></strong>
+                            <small><?php esc_html_e('Privatperson (B2C)', 'themisdb-order-request'); ?></small>
                         </label>
                         <label class="customer-type-option <?php echo $customer_type === 'business' ? 'selected' : ''; ?>">
                             <input type="radio" name="customer_type" value="business" <?php checked($customer_type, 'business'); ?>>
-                            <strong><?php _e('Unternehmer / Firma', 'themisdb-order-request'); ?></strong>
-                            <small><?php _e('Gewerblicher Käufer (B2B)', 'themisdb-order-request'); ?></small>
+                            <strong><?php esc_html_e('Unternehmer / Firma', 'themisdb-order-request'); ?></strong>
+                            <small><?php esc_html_e('Gewerblicher Käufer (B2B)', 'themisdb-order-request'); ?></small>
                         </label>
                     </div>
 
                     <!-- B2B-Felder (nur sichtbar wenn Unternehmer gewählt) -->
                     <div class="themisdb-b2b-fields" <?php echo $customer_type !== 'business' ? 'style="display:none"' : ''; ?>>
                         <div class="form-group">
-                            <label for="customer_company"><?php _e('Firmenname', 'themisdb-order-request'); ?> *</label>
+                            <label for="customer_company"><?php esc_html_e('Firmenname', 'themisdb-order-request'); ?> *</label>
                             <input type="text" id="customer_company" name="customer_company"
                                    value="<?php echo esc_attr($customer_company); ?>">
                         </div>
 
                         <div class="form-group">
-                            <label for="vat_id"><?php _e('USt-IdNr.', 'themisdb-order-request'); ?></label>
+                            <label for="vat_id"><?php esc_html_e('USt-IdNr.', 'themisdb-order-request'); ?></label>
                             <input type="text" id="vat_id" name="vat_id"
                                    value="<?php echo esc_attr($vat_id); ?>"
                                    placeholder="DE123456789">
-                            <span class="themisdb-field-hint"><?php _e('Format: zwei Buchstaben Ländercode + Ziffern/Buchstaben, z. B. DE123456789', 'themisdb-order-request'); ?></span>
+                            <span class="themisdb-field-hint"><?php esc_html_e('Format: zwei Buchstaben Ländercode + Ziffern/Buchstaben, z. B. DE123456789', 'themisdb-order-request'); ?></span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Rechnungsadresse -->
                 <div class="compliance-section">
-                    <h3><?php _e('Rechnungsadresse', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Rechnungsadresse', 'themisdb-order-request'); ?></h3>
 
                     <div class="form-group">
-                        <label for="billing_name"><?php _e('Rechnungsempfänger (Name / Firma)', 'themisdb-order-request'); ?> *</label>
+                        <label for="billing_name"><?php esc_html_e('Rechnungsempfänger (Name / Firma)', 'themisdb-order-request'); ?> *</label>
                         <input type="text" id="billing_name" name="billing_name"
                                value="<?php echo esc_attr($billing_name); ?>" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="billing_address_line1"><?php _e('Straße und Hausnummer', 'themisdb-order-request'); ?> *</label>
+                        <label for="billing_address_line1"><?php esc_html_e('Straße und Hausnummer', 'themisdb-order-request'); ?> *</label>
                         <input type="text" id="billing_address_line1" name="billing_address_line1"
                                value="<?php echo esc_attr($billing_address_line1); ?>" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="billing_address_line2"><?php _e('Adresszusatz (optional)', 'themisdb-order-request'); ?></label>
+                        <label for="billing_address_line2"><?php esc_html_e('Adresszusatz (optional)', 'themisdb-order-request'); ?></label>
                         <input type="text" id="billing_address_line2" name="billing_address_line2"
                                value="<?php echo esc_attr($billing_address_line2); ?>">
                     </div>
 
                     <div class="address-grid">
                         <div class="form-group">
-                            <label for="billing_postal_code"><?php _e('PLZ', 'themisdb-order-request'); ?> *</label>
+                            <label for="billing_postal_code"><?php esc_html_e('PLZ', 'themisdb-order-request'); ?> *</label>
                             <input type="text" id="billing_postal_code" name="billing_postal_code"
                                    value="<?php echo esc_attr($billing_postal_code); ?>"
                                    placeholder="z. B. 80333" maxlength="10" required>
                         </div>
 
                         <div class="form-group">
-                            <label for="billing_city"><?php _e('Ort', 'themisdb-order-request'); ?> *</label>
+                            <label for="billing_city"><?php esc_html_e('Ort', 'themisdb-order-request'); ?> *</label>
                             <input type="text" id="billing_city" name="billing_city"
                                    value="<?php echo esc_attr($billing_city); ?>" required>
                         </div>
 
                         <div class="form-group">
-                            <label for="billing_country"><?php _e('Land', 'themisdb-order-request'); ?> *</label>
+                            <label for="billing_country"><?php esc_html_e('Land', 'themisdb-order-request'); ?> *</label>
                             <input type="text" id="billing_country" name="billing_country"
                                    value="<?php echo esc_attr($billing_country); ?>"
                                    placeholder="DE" maxlength="2" required>
-                            <span class="themisdb-field-hint"><?php _e('ISO-Ländercode, 2 Großbuchstaben (z. B. DE, AT, CH)', 'themisdb-order-request'); ?></span>
+                            <span class="themisdb-field-hint"><?php esc_html_e('ISO-Ländercode, 2 Großbuchstaben (z. B. DE, AT, CH)', 'themisdb-order-request'); ?></span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Lieferadresse (optional) -->
                 <div class="compliance-section optional-section">
-                    <h3><?php _e('Lieferadresse', 'themisdb-order-request'); ?> <small style="font-weight:normal;color:#666;">(<?php _e('optional, z. B. für Merchandise', 'themisdb-order-request'); ?>)</small></h3>
+                    <h3><?php esc_html_e('Lieferadresse', 'themisdb-order-request'); ?> <small style="font-weight:normal;color:#666;">(<?php esc_html_e('optional, z. B. für Merchandise', 'themisdb-order-request'); ?>)</small></h3>
 
                     <div class="form-group">
-                        <label for="shipping_name"><?php _e('Empfänger', 'themisdb-order-request'); ?></label>
+                        <label for="shipping_name"><?php esc_html_e('Empfänger', 'themisdb-order-request'); ?></label>
                         <input type="text" id="shipping_name" name="shipping_name"
                                value="<?php echo esc_attr($shipping_name); ?>">
                     </div>
 
                     <div class="form-group">
-                        <label for="shipping_address_line1"><?php _e('Straße und Hausnummer', 'themisdb-order-request'); ?></label>
+                        <label for="shipping_address_line1"><?php esc_html_e('Straße und Hausnummer', 'themisdb-order-request'); ?></label>
                         <input type="text" id="shipping_address_line1" name="shipping_address_line1"
                                value="<?php echo esc_attr($shipping_address_line1); ?>">
                     </div>
 
                     <div class="form-group">
-                        <label for="shipping_address_line2"><?php _e('Adresszusatz', 'themisdb-order-request'); ?></label>
+                        <label for="shipping_address_line2"><?php esc_html_e('Adresszusatz', 'themisdb-order-request'); ?></label>
                         <input type="text" id="shipping_address_line2" name="shipping_address_line2"
                                value="<?php echo esc_attr($shipping_address_line2); ?>">
                     </div>
 
                     <div class="address-grid">
                         <div class="form-group">
-                            <label for="shipping_postal_code"><?php _e('PLZ', 'themisdb-order-request'); ?></label>
+                            <label for="shipping_postal_code"><?php esc_html_e('PLZ', 'themisdb-order-request'); ?></label>
                             <input type="text" id="shipping_postal_code" name="shipping_postal_code"
                                    value="<?php echo esc_attr($shipping_postal_code); ?>"
                                    placeholder="z. B. 80333" maxlength="10">
                         </div>
 
                         <div class="form-group">
-                            <label for="shipping_city"><?php _e('Ort', 'themisdb-order-request'); ?></label>
+                            <label for="shipping_city"><?php esc_html_e('Ort', 'themisdb-order-request'); ?></label>
                             <input type="text" id="shipping_city" name="shipping_city"
                                    value="<?php echo esc_attr($shipping_city); ?>">
                         </div>
 
                         <div class="form-group">
-                            <label for="shipping_country"><?php _e('Land', 'themisdb-order-request'); ?></label>
+                            <label for="shipping_country"><?php esc_html_e('Land', 'themisdb-order-request'); ?></label>
                             <input type="text" id="shipping_country" name="shipping_country"
                                    value="<?php echo esc_attr($shipping_country); ?>"
                                    placeholder="DE" maxlength="2">
-                            <span class="themisdb-field-hint"><?php _e('ISO-Ländercode, 2 Großbuchstaben', 'themisdb-order-request'); ?></span>
+                            <span class="themisdb-field-hint"><?php esc_html_e('ISO-Ländercode, 2 Großbuchstaben', 'themisdb-order-request'); ?></span>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="shipping_method"><?php _e('Versandart', 'themisdb-order-request'); ?></label>
+                        <label for="shipping_method"><?php esc_html_e('Versandart', 'themisdb-order-request'); ?></label>
                         <select id="shipping_method" name="shipping_method">
-                            <option value="standard" <?php selected($shipping_method, 'standard'); ?>><?php _e('Standard', 'themisdb-order-request'); ?></option>
-                            <option value="express" <?php selected($shipping_method, 'express'); ?>><?php _e('Express', 'themisdb-order-request'); ?></option>
+                            <option value="standard" <?php selected($shipping_method, 'standard'); ?>><?php esc_html_e('Standard', 'themisdb-order-request'); ?></option>
+                            <option value="express" <?php selected($shipping_method, 'express'); ?>><?php esc_html_e('Express', 'themisdb-order-request'); ?></option>
                         </select>
                     </div>
                 </div>
 
                 <!-- Rechtliche Zustimmungen -->
                 <div class="legal-checkboxes">
-                    <h4><?php _e('Rechtliche Zustimmungen', 'themisdb-order-request'); ?></h4>
+                    <h4><?php esc_html_e('Rechtliche Zustimmungen', 'themisdb-order-request'); ?></h4>
 
                     <div class="legal-check-item">
                         <input type="checkbox" id="legal_terms_accepted" name="legal_terms_accepted" value="1" <?php checked($legal_terms_accepted); ?> required>
@@ -768,7 +768,7 @@ class ThemisDB_Order_Shortcodes {
                     <div class="legal-check-item legal-withdrawal-waiver">
                         <input type="checkbox" id="legal_withdrawal_waiver" name="legal_withdrawal_waiver" value="1" <?php checked($legal_withdrawal_waiver); ?>>
                         <label for="legal_withdrawal_waiver">
-                            <?php _e('Ich stimme ausdrücklich zu, dass mit der Ausführung der digitalen Leistungen vor Ablauf der Widerrufsfrist begonnen wird und erkenne an, dass mein Widerrufsrecht damit erlischt (§ 356 Abs. 5 BGB).', 'themisdb-order-request'); ?>
+                            <?php esc_html_e('Ich stimme ausdrücklich zu, dass mit der Ausführung der digitalen Leistungen vor Ablauf der Widerrufsfrist begonnen wird und erkenne an, dass mein Widerrufsrecht damit erlischt (§ 356 Abs. 5 BGB).', 'themisdb-order-request'); ?>
                         </label>
                     </div>
                 </div>
@@ -777,10 +777,10 @@ class ThemisDB_Order_Shortcodes {
             
             <div class="order-navigation">
                 <button type="button" class="button button-secondary button-prev" data-step="4">
-                    ← <?php _e('Zurück', 'themisdb-order-request'); ?>
+                    ← <?php esc_html_e('Zurück', 'themisdb-order-request'); ?>
                 </button>
                 <button type="button" class="button button-primary button-next" data-step="4">
-                    <?php _e('Weiter', 'themisdb-order-request'); ?> →
+                    <?php esc_html_e('Weiter', 'themisdb-order-request'); ?> →
                 </button>
             </div>
         </div>
@@ -802,11 +802,11 @@ class ThemisDB_Order_Shortcodes {
         
         ?>
         <div class="order-step-content" data-step="5">
-            <h2><?php _e('Zusammenfassung Ihrer Bestellung', 'themisdb-order-request'); ?></h2>
+            <h2><?php esc_html_e('Zusammenfassung Ihrer Bestellung', 'themisdb-order-request'); ?></h2>
             
             <div class="order-summary">
                 <div class="summary-section">
-                    <h3><?php _e('Produkt', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Produkt', 'themisdb-order-request'); ?></h3>
                     <?php foreach ($products as $product): ?>
                         <?php if ($product['edition'] === $order['product_edition']): ?>
                             <p><strong><?php echo esc_html($product['product_name']); ?></strong><br>
@@ -817,7 +817,7 @@ class ThemisDB_Order_Shortcodes {
                 
                 <?php if (!empty($order['modules'])): ?>
                 <div class="summary-section">
-                    <h3><?php _e('Module', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Module', 'themisdb-order-request'); ?></h3>
                     <ul>
                         <?php foreach ($modules as $module): ?>
                             <?php if (in_array($module['module_code'], $order['modules'])): ?>
@@ -830,7 +830,7 @@ class ThemisDB_Order_Shortcodes {
                 
                 <?php if (!empty($order['training_modules'])): ?>
                 <div class="summary-section">
-                    <h3><?php _e('Schulungen', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Schulungen', 'themisdb-order-request'); ?></h3>
                     <ul>
                         <?php foreach ($trainings as $training): ?>
                             <?php if (in_array($training['training_code'], $order['training_modules'])): ?>
@@ -842,7 +842,7 @@ class ThemisDB_Order_Shortcodes {
                 <?php endif; ?>
                 
                 <div class="summary-section">
-                    <h3><?php _e('Kontaktdaten', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Kontaktdaten', 'themisdb-order-request'); ?></h3>
                     <p>
                         <strong><?php echo esc_html($order['customer_name']); ?></strong><br>
                         <?php if (!empty($order['customer_company'])): ?>
@@ -863,7 +863,7 @@ class ThemisDB_Order_Shortcodes {
 
                 <?php if (!empty($order['billing_address_line1'])): ?>
                 <div class="summary-section">
-                    <h3><?php _e('Rechnungsadresse', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Rechnungsadresse', 'themisdb-order-request'); ?></h3>
                     <p>
                         <strong><?php echo esc_html($order['billing_name'] ?: $order['customer_name']); ?></strong><br>
                         <?php echo esc_html($order['billing_address_line1']); ?><br>
@@ -878,7 +878,7 @@ class ThemisDB_Order_Shortcodes {
 
                 <?php if (!empty($order['shipping_address_line1'])): ?>
                 <div class="summary-section">
-                    <h3><?php _e('Lieferadresse', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Lieferadresse', 'themisdb-order-request'); ?></h3>
                     <p>
                         <?php if (!empty($order['shipping_name'])): ?>
                             <strong><?php echo esc_html($order['shipping_name']); ?></strong><br>
@@ -895,7 +895,7 @@ class ThemisDB_Order_Shortcodes {
                 
                 <!-- Rechtliche Zustimmungen (Bestätigung vor Absenden) -->
                 <div class="summary-section">
-                    <h3><?php _e('Rechtliche Zustimmungen', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Rechtliche Zustimmungen', 'themisdb-order-request'); ?></h3>
                     <ul style="margin:0;padding-left:1.4em;">
                         <li style="color:<?php echo !empty($order['legal_terms_accepted']) ? '#155724' : '#b32d2e'; ?>">
                             <?php echo !empty($order['legal_terms_accepted'])
@@ -916,14 +916,14 @@ class ThemisDB_Order_Shortcodes {
                         <?php endif; ?>
                         <?php if (!empty($order['legal_withdrawal_waiver'])): ?>
                         <li style="color:#155724;">
-                            &#10003; <?php _e('Verzicht auf Widerrufsrecht (§ 356 Abs. 5 BGB) erklärt', 'themisdb-order-request'); ?>
+                            &#10003; <?php esc_html_e('Verzicht auf Widerrufsrecht (§ 356 Abs. 5 BGB) erklärt', 'themisdb-order-request'); ?>
                         </li>
                         <?php endif; ?>
                     </ul>
                 </div>
 
                 <div class="summary-total">
-                    <h3><?php _e('Gesamtbetrag', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Gesamtbetrag', 'themisdb-order-request'); ?></h3>
                     <p class="total-amount">
                         <strong><?php echo number_format($order['total_amount'], 2, ',', '.'); ?> <?php echo esc_html($order['currency']); ?></strong>
                     </p>
@@ -936,35 +936,35 @@ class ThemisDB_Order_Shortcodes {
                 }
                 ?>
                 <div class="summary-section themisdb-payment-methods">
-                    <h3><?php _e('Zahlungsmethode', 'themisdb-order-request'); ?></h3>
+                    <h3><?php esc_html_e('Zahlungsmethode', 'themisdb-order-request'); ?></h3>
 
                     <label class="themisdb-payment-option" style="display:block;margin:.4rem 0;">
                         <input type="radio" name="payment_method" value="bank_transfer" <?php checked($selected_payment_method, 'bank_transfer'); ?>>
-                        <?php _e('Banküberweisung (Rechnung)', 'themisdb-order-request'); ?>
+                        <?php esc_html_e('Banküberweisung (Rechnung)', 'themisdb-order-request'); ?>
                     </label>
 
                     <label class="themisdb-payment-option" style="display:block;margin:.4rem 0;">
                         <input type="radio" name="payment_method" value="stripe" <?php checked($selected_payment_method, 'stripe'); ?>>
-                        <?php _e('Kreditkarte (Stripe)', 'themisdb-order-request'); ?>
+                        <?php esc_html_e('Kreditkarte (Stripe)', 'themisdb-order-request'); ?>
                     </label>
 
                     <label class="themisdb-payment-option" style="display:block;margin:.4rem 0;">
                         <input type="radio" name="payment_method" value="paypal" <?php checked($selected_payment_method, 'paypal'); ?>>
-                        <?php _e('PayPal', 'themisdb-order-request'); ?>
+                        <?php esc_html_e('PayPal', 'themisdb-order-request'); ?>
                     </label>
 
                     <p style="margin:.6rem 0 0;color:#64748b;font-size:.9em;">
-                        <?php _e('Stripe/PayPal werden als Sofortzahlung verarbeitet. Bei Banküberweisung bleibt der Status auf ausstehend, bis der Zahlungseingang verifiziert ist.', 'themisdb-order-request'); ?>
+                        <?php esc_html_e('Stripe/PayPal werden als Sofortzahlung verarbeitet. Bei Banküberweisung bleibt der Status auf ausstehend, bis der Zahlungseingang verifiziert ist.', 'themisdb-order-request'); ?>
                     </p>
                 </div>
             </div>
             
             <div class="order-navigation">
                 <button type="button" class="button button-secondary button-prev" data-step="5">
-                    ← <?php _e('Zurück', 'themisdb-order-request'); ?>
+                    ← <?php esc_html_e('Zurück', 'themisdb-order-request'); ?>
                 </button>
                 <button type="button" class="button button-primary button-submit">
-                    <?php _e('Bestellung absenden', 'themisdb-order-request'); ?>
+                    <?php esc_html_e('Bestellung absenden', 'themisdb-order-request'); ?>
                 </button>
             </div>
         </div>
@@ -985,19 +985,19 @@ class ThemisDB_Order_Shortcodes {
         ob_start();
         ?>
         <div class="themisdb-my-orders">
-            <h2><?php _e('Meine Bestellungen', 'themisdb-order-request'); ?></h2>
+            <h2><?php esc_html_e('Meine Bestellungen', 'themisdb-order-request'); ?></h2>
             
             <?php if (empty($orders)): ?>
-                <p><?php _e('Sie haben noch keine Bestellungen.', 'themisdb-order-request'); ?></p>
+                <p><?php esc_html_e('Sie haben noch keine Bestellungen.', 'themisdb-order-request'); ?></p>
             <?php else: ?>
                 <table class="orders-table">
                     <thead>
                         <tr>
-                            <th><?php _e('Bestellnummer', 'themisdb-order-request'); ?></th>
-                            <th><?php _e('Produkt', 'themisdb-order-request'); ?></th>
-                            <th><?php _e('Betrag', 'themisdb-order-request'); ?></th>
-                            <th><?php _e('Status', 'themisdb-order-request'); ?></th>
-                            <th><?php _e('Datum', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Bestellnummer', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Produkt', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Betrag', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Status', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Datum', 'themisdb-order-request'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1032,18 +1032,18 @@ class ThemisDB_Order_Shortcodes {
         ob_start();
         ?>
         <div class="themisdb-my-contracts">
-            <h2><?php _e('Meine Verträge', 'themisdb-order-request'); ?></h2>
+            <h2><?php esc_html_e('Meine Verträge', 'themisdb-order-request'); ?></h2>
             
             <?php if (empty($contracts)): ?>
-                <p><?php _e('Sie haben noch keine Verträge.', 'themisdb-order-request'); ?></p>
+                <p><?php esc_html_e('Sie haben noch keine Verträge.', 'themisdb-order-request'); ?></p>
             <?php else: ?>
                 <table class="contracts-table">
                     <thead>
                         <tr>
-                            <th><?php _e('Vertragsnummer', 'themisdb-order-request'); ?></th>
-                            <th><?php _e('Typ', 'themisdb-order-request'); ?></th>
-                            <th><?php _e('Status', 'themisdb-order-request'); ?></th>
-                            <th><?php _e('Gültig bis', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Vertragsnummer', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Typ', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Status', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Gültig bis', 'themisdb-order-request'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1566,29 +1566,29 @@ class ThemisDB_Order_Shortcodes {
                     
                     <div class="pricing-price">
                         <?php if ($price['base_price'] == 0): ?>
-                            <p class="price-amount"><strong><?php _e('Kostenlos', 'themisdb-order-request'); ?></strong></p>
+                            <p class="price-amount"><strong><?php esc_html_e('Kostenlos', 'themisdb-order-request'); ?></strong></p>
                         <?php else: ?>
                             <p class="price-currency"><?php echo esc_html($price['currency']); ?></p>
                             <p class="price-amount"><strong><?php echo number_format($price['base_price'], 0, ',', '.'); ?></strong></p>
-                            <p class="price-period"><?php _e('pro Jahr', 'themisdb-order-request'); ?></p>
+                            <p class="price-period"><?php esc_html_e('pro Jahr', 'themisdb-order-request'); ?></p>
                         <?php endif; ?>
                     </div>
                     
                     <div class="pricing-specs">
                         <?php if ($price['max_nodes']): ?>
-                        <div class="spec"><strong><?php _e('Knoten', 'themisdb-order-request'); ?>:</strong> <?php echo esc_html($price['max_nodes']); ?></div>
+                        <div class="spec"><strong><?php esc_html_e('Knoten', 'themisdb-order-request'); ?>:</strong> <?php echo esc_html($price['max_nodes']); ?></div>
                         <?php endif; ?>
                         <?php if ($price['max_cores']): ?>
-                        <div class="spec"><strong><?php _e('CPU-Cores', 'themisdb-order-request'); ?>:</strong> <?php echo esc_html($price['max_cores']); ?></div>
+                        <div class="spec"><strong><?php esc_html_e('CPU-Cores', 'themisdb-order-request'); ?>:</strong> <?php echo esc_html($price['max_cores']); ?></div>
                         <?php endif; ?>
                         <?php if ($price['max_storage_gb']): ?>
-                        <div class="spec"><strong><?php _e('Speicher', 'themisdb-order-request'); ?>:</strong> <?php echo number_format($price['max_storage_gb'], 0, '', '.'); ?> GB</div>
+                        <div class="spec"><strong><?php esc_html_e('Speicher', 'themisdb-order-request'); ?>:</strong> <?php echo number_format($price['max_storage_gb'], 0, '', '.'); ?> GB</div>
                         <?php endif; ?>
                     </div>
                     
                     <?php if ($show_features && isset($features_by_type[$price['product_edition']])): ?>
                     <div class="pricing-features">
-                        <h4><?php _e('Features', 'themisdb-order-request'); ?></h4>
+                        <h4><?php esc_html_e('Features', 'themisdb-order-request'); ?></h4>
                         <ul>
                             <?php foreach ($features_by_type[$price['product_edition']] as $feature): ?>
                             <li>
@@ -1602,7 +1602,7 @@ class ThemisDB_Order_Shortcodes {
                     
                     <div class="pricing-action">
                         <a href="<?php echo esc_url($order_flow_url); ?>" class="button button-primary">
-                            <?php _e('Jetzt wählen', 'themisdb-order-request'); ?>
+                            <?php esc_html_e('Jetzt wählen', 'themisdb-order-request'); ?>
                         </a>
                     </div>
                 </div>
@@ -1663,13 +1663,13 @@ class ThemisDB_Order_Shortcodes {
         <table class="themisdb-pricing-table">
             <thead>
                 <tr>
-                    <th><?php _e('Edition', 'themisdb-order-request'); ?></th>
-                    <th><?php _e('Preis', 'themisdb-order-request'); ?></th>
-                    <th><?php _e('Knoten', 'themisdb-order-request'); ?></th>
-                    <th><?php _e('CPU-Cores', 'themisdb-order-request'); ?></th>
-                    <th><?php _e('Speicher', 'themisdb-order-request'); ?></th>
+                    <th><?php esc_html_e('Edition', 'themisdb-order-request'); ?></th>
+                    <th><?php esc_html_e('Preis', 'themisdb-order-request'); ?></th>
+                    <th><?php esc_html_e('Knoten', 'themisdb-order-request'); ?></th>
+                    <th><?php esc_html_e('CPU-Cores', 'themisdb-order-request'); ?></th>
+                    <th><?php esc_html_e('Speicher', 'themisdb-order-request'); ?></th>
                     <?php if ($show_features): ?>
-                    <th><?php _e('Hauptfeatures', 'themisdb-order-request'); ?></th>
+                    <th><?php esc_html_e('Hauptfeatures', 'themisdb-order-request'); ?></th>
                     <?php endif; ?>
                 </tr>
             </thead>
@@ -1679,7 +1679,7 @@ class ThemisDB_Order_Shortcodes {
                     <td><strong><?php echo esc_html($price['product_name'] ?: ucfirst($price['product_edition'])); ?></strong></td>
                     <td>
                         <?php if ($price['base_price'] == 0): ?>
-                            <strong><?php _e('Kostenlos', 'themisdb-order-request'); ?></strong>
+                            <strong><?php esc_html_e('Kostenlos', 'themisdb-order-request'); ?></strong>
                         <?php else: ?>
                             <strong><?php echo number_format($price['base_price'], 2, ',', '.'); ?> <?php echo esc_html($price['currency']); ?></strong> / a
                         <?php endif; ?>
@@ -1733,18 +1733,18 @@ class ThemisDB_Order_Shortcodes {
     private function render_pricing_comparison($prices, $features_by_type, $show_features) {
         ?>
         <div class="themisdb-pricing-comparison">
-            <h2><?php _e('Vergleichen Sie unsere Editionen', 'themisdb-order-request'); ?></h2>
+            <h2><?php esc_html_e('Vergleichen Sie unsere Editionen', 'themisdb-order-request'); ?></h2>
             
             <table class="comparison-table">
                 <thead>
                     <tr>
-                        <th<?php _e('Funktion', 'themisdb-order-request'); ?></th>
+                        <th<?php esc_html_e('Funktion', 'themisdb-order-request'); ?></th>
                         <?php foreach ($prices as $price): ?>
                         <th>
                             <div class="edition-name"><?php echo esc_html($price['product_name'] ?: ucfirst($price['product_edition'])); ?></div>
                             <div class="edition-price">
                                 <?php if ($price['base_price'] == 0): ?>
-                                    <?php _e('Kostenlos', 'themisdb-order-request'); ?>
+                                    <?php esc_html_e('Kostenlos', 'themisdb-order-request'); ?>
                                 <?php else: ?>
                                     <?php echo number_format($price['base_price'], 0, ',', '.'); ?> <?php echo esc_html($price['currency']); ?>/a
                                 <?php endif; ?>

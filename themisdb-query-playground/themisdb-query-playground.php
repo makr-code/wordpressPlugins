@@ -115,6 +115,8 @@ class ThemisDB_Query_Playground {
         // Initialize plugin
         add_action('init', array($this, 'init'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+            add_filter('script_loader_tag', array($this, 'add_crossorigin_to_cdn_scripts'), 10, 3);
+            add_filter('style_loader_tag', array($this, 'add_crossorigin_to_cdn_styles'), 10, 4);
         
         // Register shortcode
         add_shortcode('themisdb_query_playground', array($this, 'render_playground'));
@@ -273,6 +275,28 @@ class ThemisDB_Query_Playground {
         ));
     }
     
+    /**
+     * Add crossorigin attribute to CDN scripts for SRI readiness.
+     */
+    public function add_crossorigin_to_cdn_scripts($tag, $handle, $src) {
+        $cdn_handles = array('codemirror-js', 'codemirror-sql');
+        if (in_array($handle, $cdn_handles, true)) {
+            return str_replace('<script ', '<script crossorigin="anonymous" ', $tag);
+        }
+        return $tag;
+    }
+
+    /**
+     * Add crossorigin attribute to CDN styles for SRI readiness.
+     */
+    public function add_crossorigin_to_cdn_styles($tag, $handle, $href, $media) {
+        $cdn_handles = array('codemirror-css', 'codemirror-theme');
+        if (in_array($handle, $cdn_handles, true)) {
+            return str_replace(' />', ' crossorigin="anonymous" />', $tag);
+        }
+        return $tag;
+    }
+
     /**
      * Render query playground
      */

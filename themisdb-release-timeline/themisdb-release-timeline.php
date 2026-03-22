@@ -103,6 +103,18 @@ function themisdb_rt_enqueue_scripts() {
 add_action('wp_enqueue_scripts', 'themisdb_rt_enqueue_scripts');
 
 /**
+ * Add crossorigin attribute to CDN scripts for SRI readiness.
+ */
+function themisdb_rt_add_crossorigin_scripts($tag, $handle, $src) {
+    if ($handle === 'mermaid-js') {
+        return str_replace('<script ', '<script crossorigin="anonymous" ', $tag);
+    }
+    return $tag;
+}
+add_filter('script_loader_tag', 'themisdb_rt_add_crossorigin_scripts', 10, 3);
+
+
+/**
  * Register shortcode
  */
 function themisdb_rt_shortcode($atts) {

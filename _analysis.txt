@@ -1,0 +1,2103 @@
+=== themisdb-architecture-diagrams ===
+--- \themisdb-architecture-diagrams.php ---
+  CLASS: class ThemisDB_Architecture_Diagrams {
+  METHOD: public static function get_instance() {
+  METHOD: private function __construct() {
+  ACTION: add_action('init', array($this, 'init'));
+  ACTION: add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+  ACTION: add_action('wp_head', array($this, 'add_preload'), 1);
+  SHORTCODE: add_shortcode('themisdb_architecture', array($this, 'render_diagram'));
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  FILTER: add_filter('plugin_action_links_' . plugin_basename(THEMISDB_AD_PLUGIN_FILE), array($this, 'add_action_links'));
+  ACTION: add_action('wp_ajax_themisdb_ad_get_diagram', array($this, 'ajax_get_diagram'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_ad_get_diagram', array($this, 'ajax_get_diagram'));
+  METHOD: public function activate() {
+  METHOD: public function deactivate() {
+  METHOD: public function init() {
+  METHOD: public function enqueue_assets() {
+  METHOD: public function add_preload() {
+  METHOD: public function render_diagram($atts) {
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function render_settings_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function add_action_links($links) {
+  METHOD: public function ajax_get_diagram() {
+  NONCE: check_ajax_referer('themisdb_ad_nonce', 'nonce');
+  METHOD: private function get_diagram_code($view) {
+  METHOD: private function get_high_level_diagram() {
+  METHOD: private function get_storage_layer_diagram() {
+  METHOD: private function get_llm_integration_diagram() {
+  METHOD: private function get_sharding_raid_diagram() {
+  METHOD: private function get_database_comparison_diagram() {
+  METHOD: private function get_llm_comparison_diagram() {
+  METHOD: private function get_hardware_architecture_diagram() {
+  METHOD: private function get_performance_comparison_diagram() {
+  METHOD: private function get_tco_comparison_diagram() {
+  METHOD: private function get_feature_matrix_diagram() {
+  METHOD: private function get_deployment_options_diagram() {
+  METHOD: private function get_use_case_recommendations_diagram() {
+  METHOD: private function get_migration_paths_diagram() {
+  ACTION: add_action('plugins_loaded', 'themisdb_architecture_diagrams_init');
+--- \uninstall.php ---
+--- \templates\admin-settings.php ---
+--- \templates\diagram.php ---
+=== themisdb-benchmark-visualizer ===
+--- \themisdb-benchmark-visualizer.php ---
+  CLASS: class ThemisDB_Benchmark_Visualizer {
+  METHOD: public static function get_instance() {
+  METHOD: private function __construct() {
+  ACTION: add_action('init', array($this, 'init'));
+  ACTION: add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+  SHORTCODE: add_shortcode('themisdb_benchmark_visualizer', array($this, 'render_visualizer'));
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  FILTER: add_filter('plugin_action_links_' . plugin_basename(THEMISDB_BV_PLUGIN_FILE), array($this, 'add_action_links'));
+  ACTION: add_action('wp_ajax_themisdb_bv_get_data', array($this, 'ajax_get_data'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_bv_get_data', array($this, 'ajax_get_data'));
+  METHOD: public function activate() {
+  METHOD: public function deactivate() {
+  METHOD: public function init() {
+  METHOD: public function enqueue_assets() {
+  METHOD: public function render_visualizer($atts) {
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function render_settings_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function add_action_links($links) {
+  METHOD: public function ajax_get_data() {
+  NONCE: check_ajax_referer('themisdb_bv_nonce', 'nonce');
+  METHOD: private function load_benchmark_data($category = 'all', $metric = 'latency') {
+  METHOD: private function load_local_benchmark_data($category, $metric) {
+  METHOD: private function find_benchmark_directory() {
+  METHOD: private function get_benchmark_files($benchmark_dir, $category) {
+  METHOD: private function get_category_description($category, $summary_stats) {
+  METHOD: private function parse_benchmark_files($files, $metric) {
+  METHOD: private function format_benchmark_name($name) {
+  METHOD: private function extract_metric_value($bench, $metric) {
+  METHOD: private function get_fallback_data($category, $metric) {
+  METHOD: private function load_github_benchmark_data($category, $metric) {
+  ACTION: add_action('plugins_loaded', 'themisdb_benchmark_visualizer_init');
+--- \uninstall.php ---
+--- \templates\admin-settings.php ---
+--- \templates\visualizer.php ---
+=== themisdb-compendium-downloads ===
+--- \themisdb-compendium-downloads.php ---
+  ACTION: add_action('admin_notices', function() {
+  ACTION: add_action('plugins_loaded', 'themisdb_compendium_init');
+  ACTION: add_action('widgets_init', 'themisdb_compendium_register_widgets');
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_compendium_enqueue_scripts');
+  ACTION: add_action('admin_enqueue_scripts', 'themisdb_compendium_admin_enqueue_scripts');
+--- \includes\class-compendium-admin.php ---
+  CLASS: class ThemisDB_Compendium_Admin {
+  METHOD: public function __construct() {
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function render_section_info() {
+  METHOD: public function render_github_repo_field() {
+  METHOD: public function render_show_file_sizes_field() {
+  METHOD: public function render_cache_duration_field() {
+  METHOD: public function render_button_style_field() {
+  METHOD: public function render_search_term_field() {
+  METHOD: public function render_settings_page() {
+  CAP: if (!current_user_can('manage_options')) {
+--- \includes\class-compendium-downloads.php ---
+  CLASS: class ThemisDB_Compendium_Downloads {
+  METHOD: public function __construct() {
+  SHORTCODE: add_shortcode('themisdb_compendium_downloads', array($this, 'render_downloads'));
+  SHORTCODE: add_shortcode('themisdb_compendium', array($this, 'render_downloads')); // Alias
+  ACTION: add_action('wp_ajax_themisdb_track_download', array($this, 'track_download'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_track_download', array($this, 'track_download'));
+  METHOD: public function get_release_data() {
+  METHOD: private function format_file_size($bytes) {
+  METHOD: public function render_downloads($atts) {
+  METHOD: public function track_download() {
+  NONCE: check_ajax_referer('themisdb_compendium_download_track', 'nonce');
+--- \includes\class-compendium-widget.php ---
+  CLASS: class ThemisDB_Compendium_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget($args, $instance) {
+  METHOD: public function form($instance) {
+  METHOD: public function update($new_instance, $old_instance) {
+=== themisdb-docker-downloads ===
+--- \themisdb-docker-downloads.php ---
+  ACTION: add_action('admin_notices', function() {
+  ACTION: add_action('plugins_loaded', 'themisdb_docker_downloads_init');
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_docker_downloads_enqueue_scripts');
+--- \includes\class-admin.php ---
+  CLASS: class ThemisDB_Docker_Downloads_Admin {
+  METHOD: public function __construct() {
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  ACTION: add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
+  ACTION: add_action('wp_ajax_themisdb_docker_test_connection', array($this, 'ajax_test_connection'));
+  ACTION: add_action('wp_ajax_themisdb_docker_clear_cache', array($this, 'ajax_clear_cache'));
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function enqueue_admin_scripts($hook) {
+  METHOD: public function render_settings_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function ajax_test_connection() {
+  NONCE: check_ajax_referer('themisdb_docker_admin_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function ajax_clear_cache() {
+  NONCE: check_ajax_referer('themisdb_docker_admin_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+--- \includes\class-dockerhub-api.php ---
+  CLASS: class ThemisDB_Docker_Downloads_DockerHub_API {
+  METHOD: public function __construct() {
+  METHOD: public function get_tags($per_page = 10) {
+  METHOD: public function get_latest_tag() {
+  METHOD: private function parse_tag($data) {
+  METHOD: private function make_request($url) {
+  METHOD: public function clear_cache() {
+--- \includes\class-shortcodes.php ---
+  CLASS: class ThemisDB_Docker_Downloads_Shortcodes {
+  METHOD: public function __construct() {
+  SHORTCODE: add_shortcode('themisdb_docker_tags', array($this, 'render_docker_tags'));
+  SHORTCODE: add_shortcode('themisdb_docker_latest', array($this, 'render_latest_tag'));
+  METHOD: public function render_docker_tags($atts) {
+  METHOD: public function render_latest_tag() {
+  METHOD: private function filter_by_architecture($tags, $architecture) {
+  METHOD: private function render_default_style($tags) {
+  METHOD: private function render_compact_style($tags) {
+  METHOD: private function render_table_style($tags) {
+  METHOD: private function render_error($error) {
+  METHOD: private function get_platform_icon($architecture, $os) {
+  METHOD: private function format_bytes($bytes) {
+=== themisdb-downloads ===
+--- \themisdb-downloads.php ---
+  ACTION: add_action('admin_notices', function() {
+  ACTION: add_action('admin_notices', 'themisdb_downloads_show_shared_taxonomy_notice');
+  ACTION: add_action('plugins_loaded', 'themisdb_downloads_init');
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_downloads_enqueue_scripts');
+--- \includes\class-admin.php ---
+  CLASS: class ThemisDB_Downloads_Admin {
+  METHOD: public function __construct() {
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  ACTION: add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
+  ACTION: add_action('wp_ajax_themisdb_clear_cache', array($this, 'ajax_clear_cache'));
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function enqueue_admin_scripts($hook) {
+  METHOD: public function ajax_clear_cache() {
+  NONCE: check_ajax_referer('themisdb_admin_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function render_admin_page() {
+  CAP: if (!current_user_can('manage_options')) {
+--- \includes\class-github-api.php ---
+  CLASS: class ThemisDB_Downloads_GitHub_API {
+  METHOD: public function __construct() {
+  METHOD: public function get_latest_release() {
+  METHOD: public function get_all_releases($per_page = 10) {
+  METHOD: private function parse_release($data) {
+  METHOD: private function download_sha256_file($url) {
+  METHOD: private function download_text_file($url) {
+  METHOD: private function parse_sha256_file($content) {
+  METHOD: private function make_request($url) {
+  METHOD: public function clear_cache() {
+--- \includes\class-markdown-converter.php ---
+  CLASS: class ThemisDB_Markdown_Converter {
+  METHOD: public static function convert($markdown) {
+  METHOD: private static function parse_tables($html) {
+  METHOD: private static function parse_lists($html) {
+  METHOD: private static function parse_blockquotes($html) {
+  METHOD: private static function wrap_paragraphs($html) {
+--- \includes\class-shortcodes.php ---
+  CLASS: class ThemisDB_Downloads_Shortcodes {
+  METHOD: public function __construct() {
+  SHORTCODE: add_shortcode('themisdb_downloads', array($this, 'render_downloads'));
+  SHORTCODE: add_shortcode('themisdb_latest', array($this, 'render_latest'));
+  SHORTCODE: add_shortcode('themisdb_verify', array($this, 'render_verify_tool'));
+  SHORTCODE: add_shortcode('themisdb_readme', array($this, 'render_readme'));
+  SHORTCODE: add_shortcode('themisdb_changelog', array($this, 'render_changelog'));
+  METHOD: public function render_downloads($atts) {
+  METHOD: public function render_latest($atts) {
+  METHOD: public function render_verify_tool($atts) {
+  METHOD: private function render_default($releases) {
+  METHOD: private function render_compact($releases) {
+  METHOD: private function render_table($releases) {
+  METHOD: private function filter_by_platform($releases, $platform) {
+  METHOD: private function detect_platform($filename) {
+  METHOD: private function get_platform_icon($platform) {
+  METHOD: public function render_readme($atts) {
+  METHOD: public function render_changelog($atts) {
+  METHOD: private function markdown_to_html($markdown) {
+  METHOD: private function render_error($error) {
+--- \includes\class-taxonomy-manager.php ---
+  CLASS: class ThemisDB_Downloads_Taxonomy_Manager {
+  METHOD: public function __construct() {
+  ACTION: add_action('save_post', array($this, 'auto_assign_taxonomies'), 10, 3);
+  METHOD: public function auto_assign_taxonomies($post_id, $post, $update) {
+  CAP: if (!current_user_can('edit_post', $post_id)) {
+  METHOD: private function extract_and_assign_taxonomies_from_content($post) {
+  METHOD: private function extract_tags_from_text($text, $title = '') {
+  METHOD: private function extract_categories_from_text($text, $title = '') {
+  METHOD: private function tokenize_text($text) {
+  METHOD: private function extract_phrases($text) {
+  METHOD: private function assign_tags($post_id, $tags) {
+  METHOD: private function assign_categories($post_id, $categories) {
+=== themisdb-feature-matrix ===
+--- \themisdb-feature-matrix.php ---
+  ACTION: add_action('admin_notices', function() use ($file, $is_critical) {
+  ACTION: add_action('plugins_loaded', 'themisdb_matrix_init');
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_matrix_enqueue_assets');
+  NONCE: check_ajax_referer('themisdb_fm_nonce', 'nonce');
+  ACTION: add_action('wp_ajax_themisdb_fm_get_features', 'themisdb_matrix_ajax_get_features');
+  ACTION: add_action('wp_ajax_nopriv_themisdb_fm_get_features', 'themisdb_matrix_ajax_get_features');
+--- \uninstall.php ---
+--- \includes\class-admin.php ---
+  CLASS: class ThemisDB_Feature_Matrix_Admin {
+  METHOD: public function __construct() {
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function general_section_callback() {
+  METHOD: public function default_view_callback() {
+  METHOD: public function default_style_callback() {
+  METHOD: public function enable_filters_callback() {
+  METHOD: public function enable_csv_export_callback() {
+  METHOD: public function show_themis_highlight_callback() {
+  METHOD: public function sticky_header_callback() {
+  METHOD: public function enable_tooltips_callback() {
+  METHOD: public function render_settings_page() {
+  CAP: if (!current_user_can('manage_options')) {
+--- \includes\class-feature-matrix.php ---
+  CLASS: class ThemisDB_Feature_Matrix_Data {
+  METHOD: public static function get_features() {
+  METHOD: public static function get_features_by_category($category = 'all') {
+  METHOD: public static function get_flat_features($category = 'all') {
+  METHOD: public static function get_databases() {
+  METHOD: public static function get_status_info($status, $inverted = false) {
+--- \includes\class-shortcode.php ---
+  CLASS: class ThemisDB_Matrix_Shortcode {
+  METHOD: public function __construct() {
+  SHORTCODE: add_shortcode('themisdb_feature_matrix', array($this, 'render_shortcode'));
+  METHOD: public function render_shortcode($atts) {
+--- \templates\admin-settings.php ---
+--- \templates\matrix.php ---
+=== themisdb-formula-renderer ===
+--- \themisdb-formula-renderer.php ---
+  ACTION: add_action('admin_notices', function() {
+  ACTION: add_action('plugins_loaded', 'themisdb_formula_init');
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_formula_enqueue_scripts');
+  ACTION: add_action('wp_head', 'themisdb_formula_add_preload', 1);
+  ACTION: add_action('admin_enqueue_scripts', 'themisdb_formula_admin_enqueue_scripts');
+  ACTION: add_action('admin_menu', 'themisdb_formula_library_menu');
+--- \includes\class-formula-library.php ---
+  CLASS: class ThemisDB_Formula_Library {
+  METHOD: public static function get_formulas() {
+  METHOD: public function render_admin_page() {
+--- \includes\class-formula-renderer.php ---
+  CLASS: class ThemisDB_Formula_Renderer {
+  METHOD: public function __construct() {
+  FILTER: add_filter('the_content', array($this, 'render_formulas'), 10);
+  FILTER: add_filter('comment_text', array($this, 'render_formulas'), 10);
+  FILTER: add_filter('widget_text', array($this, 'render_formulas'), 10);
+  ACTION: add_action('admin_menu', array($this, 'add_settings_page'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  METHOD: public function render_formulas($content) {
+  METHOD: public function sanitize_delimiter($delimiter) {
+  METHOD: public function add_settings_page() {
+  METHOD: public function register_settings() {
+  METHOD: public function render_settings_section() {
+  METHOD: public function render_auto_render_field() {
+  METHOD: public function render_inline_delimiter_field() {
+  METHOD: public function render_block_delimiter_field() {
+  METHOD: public function render_settings_page() {
+  CAP: if (!current_user_can('manage_options')) {
+--- \includes\class-shortcodes.php ---
+  CLASS: class ThemisDB_Formula_Shortcodes {
+  METHOD: public function __construct() {
+  SHORTCODE: add_shortcode('themisdb_formula', array($this, 'render_formula_shortcode'));
+  SHORTCODE: add_shortcode('formula', array($this, 'render_formula_shortcode'));
+  SHORTCODE: add_shortcode('latex', array($this, 'render_formula_shortcode'));
+  SHORTCODE: add_shortcode('math', array($this, 'render_formula_shortcode'));
+  METHOD: public function render_formula_shortcode($atts, $content = null) {
+  METHOD: private function starts_with($haystack, $needle) {
+=== themisdb-front-slider ===
+--- \themisdb-front-slider.php ---
+  ACTION: add_action( 'wp_enqueue_scripts', 'themisdb_fs_enqueue' );
+  SHORTCODE: add_shortcode( 'themisdb_front_slider', 'themisdb_fs_shortcode' );
+  ACTION: add_action( 'admin_menu', 'themisdb_fs_admin_menu' );
+  ACTION: add_action( 'admin_init', 'themisdb_fs_register_settings' );
+  CAP: if ( ! current_user_can( 'manage_options' ) ) {
+--- \uninstall.php ---
+--- \templates\slider.php ---
+=== themisdb-gallery ===
+--- \themisdb-gallery.php ---
+  ACTION: add_action('admin_notices', function() {
+  ACTION: add_action('plugins_loaded', 'themisdb_gallery_init');
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_gallery_enqueue_scripts');
+  ACTION: add_action('admin_enqueue_scripts', 'themisdb_gallery_admin_enqueue_scripts');
+--- \includes\class-admin.php ---
+  CLASS: class ThemisDB_Gallery_Admin {
+  METHOD: public function __construct() {
+  ACTION: add_action('admin_menu', array($this, 'add_settings_page'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  ACTION: add_action('add_meta_boxes', array($this, 'add_gallery_meta_box'));
+  ACTION: add_action('wp_ajax_themisdb_gallery_search', array($this, 'ajax_search_images'));
+  ACTION: add_action('wp_ajax_themisdb_gallery_generate_ai', array($this, 'ajax_generate_ai_image'));
+  FILTER: add_filter('media_upload_tabs', array($this, 'add_media_upload_tab'));
+  ACTION: add_action('media_upload_themisdb_gallery', array($this, 'media_upload_tab_content'));
+  METHOD: public function add_settings_page() {
+  METHOD: public function register_settings() {
+  METHOD: public function render_api_keys_section() {
+  METHOD: public function render_text_field($args) {
+  METHOD: public function render_number_field($args) {
+  METHOD: public function render_select_field($args) {
+  METHOD: public function render_checkbox_field($args) {
+  METHOD: public function render_settings_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function add_gallery_meta_box() {
+  METHOD: public function render_gallery_meta_box($post) {
+  METHOD: public function ajax_search_images() {
+  NONCE: check_ajax_referer('themisdb_gallery_admin_nonce', 'nonce');
+  METHOD: public function ajax_generate_ai_image() {
+  NONCE: check_ajax_referer('themisdb_gallery_admin_nonce', 'nonce');
+  METHOD: public function add_media_upload_tab($tabs) {
+  METHOD: public function media_upload_tab_content() {
+  METHOD: public function render_media_upload_iframe() {
+  ACTION: add_action('wp_ajax_themisdb_gallery_clear_cache', function() {
+  NONCE: check_ajax_referer('themisdb_gallery_clear_cache', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+--- \includes\class-gutenberg-block.php ---
+  CLASS: class ThemisDB_Gallery_Gutenberg_Block {
+  METHOD: public function __construct() {
+  ACTION: add_action('init', array($this, 'register_blocks'));
+  ACTION: add_action('enqueue_block_editor_assets', array($this, 'enqueue_block_editor_assets'));
+  METHOD: public function register_blocks() {
+  METHOD: public function enqueue_block_editor_assets() {
+  METHOD: public function render_image_search_block($attributes) {
+  METHOD: public function render_gallery_block($attributes) {
+--- \includes\class-image-api.php ---
+  CLASS: class ThemisDB_Gallery_Image_API {
+  METHOD: public static function search_unsplash($query, $page = 1, $per_page = 20) {
+  METHOD: public static function search_pexels($query, $page = 1, $per_page = 20) {
+  METHOD: public static function search_pixabay($query, $page = 1, $per_page = 20) {
+  METHOD: public static function search_images($query, $provider = 'all', $page = 1, $per_page = 20) {
+  METHOD: public static function generate_ai_image($prompt, $size = '1024x1024') {
+--- \includes\class-media-handler.php ---
+  CLASS: class ThemisDB_Gallery_Media_Handler {
+  METHOD: public static function import_image($image_data, $post_id = 0) {
+  METHOD: private static function generate_filename($image_data) {
+  METHOD: private static function add_attribution_metadata($attachment_id, $image_data) {
+  METHOD: public static function generate_attribution_text($image_data) {
+  METHOD: public static function get_attribution_html($attachment_id) {
+  METHOD: public static function ajax_import_image() {
+  NONCE: check_ajax_referer('themisdb_gallery_admin_nonce', 'nonce');
+  CAP: if (!current_user_can('upload_files')) {
+  ACTION: add_action('wp_ajax_themisdb_gallery_import_image', array('ThemisDB_Gallery_Media_Handler', 'ajax_import_image'));
+--- \includes\class-shortcodes.php ---
+  CLASS: class ThemisDB_Gallery_Shortcodes {
+  METHOD: public function __construct() {
+  SHORTCODE: add_shortcode('themisdb_gallery', array($this, 'gallery_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_image_search', array($this, 'image_search_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_image_attribution', array($this, 'attribution_shortcode'));
+  METHOD: public function gallery_shortcode($atts) {
+  METHOD: private function render_gallery_item($attachment_id, $show_attribution) {
+  METHOD: private function render_search_result_item($image, $show_attribution) {
+  METHOD: public function image_search_shortcode($atts) {
+  METHOD: public function attribution_shortcode($atts) {
+=== themisdb-github-bridge ===
+--- \themisdb-github-bridge.php ---
+  ACTION: add_action('admin_notices', function () {
+  ACTION: add_action('plugins_loaded', function () {
+--- \includes\class-github-bridge.php ---
+  CLASS: class ThemisDB_GitHub_Bridge {
+  METHOD: public static function instance() {
+  METHOD: public static function activate() {
+  METHOD: private function __construct() {
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  ACTION: add_action('themisdb_order_support_ticket_created', array($this, 'handle_order_ticket_created'), 10, 2);
+  ACTION: add_action('themisdb_support_portal_ticket_created', array($this, 'handle_support_portal_ticket_created'), 10, 3);
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function render_settings_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function handle_order_ticket_created($ticket_id, $payload = array()) {
+  METHOD: public function handle_support_portal_ticket_created($ticket_id, $ticket_data = array(), $raw_payload = array()) {
+  METHOD: private function create_issue_for_source($source_plugin, $source_type, $source_id, $title, $body, $labels, $ticket = array()) {
+  METHOD: private function has_link($source_plugin, $source_type, $source_id) {
+  METHOD: private function store_link($source_plugin, $source_type, $source_id, $repository, $issue_number, $issue_url, $issue_state) {
+  METHOD: private function get_recent_links() {
+  METHOD: private function parse_labels($csv) {
+  METHOD: private function build_order_ticket_body($ticket) {
+  METHOD: private function build_support_ticket_body($ticket, $raw_payload = array()) {
+--- \includes\class-github-client.php ---
+  CLASS: class ThemisDB_GitHub_Client {
+  METHOD: public static function create_issue($repository, $token, $title, $body, $labels = array()) {
+=== themisdb-graph-navigation ===
+--- \themisdb-graph-navigation.php ---
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_graph_navigation_enqueue_assets', 20);
+--- \includes\class-themisdb-plugin-updater.php ---
+  CLASS: class ThemisDB_Plugin_Updater {
+  METHOD: public function __construct($plugin_file, $plugin_slug, $version, $username = 'makr-code', $repository = 'wordpressPlugins') {
+  FILTER: add_filter('pre_set_site_transient_update_plugins', array($this, 'check_for_update'));
+  FILTER: add_filter('plugins_api', array($this, 'plugin_info'), 10, 3);
+  FILTER: add_filter('upgrader_post_install', array($this, 'after_install'), 10, 3);
+  ACTION: add_action('admin_init', array($this, 'maybe_clear_cache'));
+  METHOD: public function check_for_update($transient) {
+  METHOD: public function plugin_info($result, $action, $args) {
+  METHOD: public function after_install($response, $hook_extra, $result) {
+  METHOD: private function get_remote_version() {
+  METHOD: private function fetch_plugin_metadata() {
+  METHOD: private function fetch_latest_release() {
+  METHOD: private function fetch_release_for_plugin() {
+  METHOD: private function release_has_plugin_asset($release) {
+  METHOD: private function tag_matches_plugin($tag_name) {
+  METHOD: private function extract_version_from_tag($tag_name) {
+  METHOD: private function get_download_url($release) {
+  METHOD: public function maybe_clear_cache() {
+  CAP: current_user_can('update_plugins') &&
+=== themisdb-order-request ===
+--- \themisdb-order-request.php ---
+  ACTION: add_action('admin_notices', function() {
+  ACTION: add_action('plugins_loaded', 'themisdb_order_request_init');
+  ACTION: add_action('themisdb_license_renewal_check', 'themisdb_run_license_renewal_check');
+  ACTION: add_action('themisdb_support_benefits_monthly_reset', 'themisdb_run_support_benefits_monthly_reset');
+  ACTION: add_action('themisdb_support_benefits_expiry_check', 'themisdb_run_support_benefits_expiry_check');
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_order_request_enqueue_scripts');
+  ACTION: add_action('admin_enqueue_scripts', 'themisdb_order_request_admin_enqueue_scripts');
+--- \uninstall.php ---
+--- \includes\class-admin-dashboard.php ---
+  CLASS: class ThemisDB_Admin_Dashboard {
+  METHOD: public static function init() {
+  ACTION: add_action('wp_dashboard_setup', array(__CLASS__, 'register_widgets'));
+  ACTION: add_action('admin_enqueue_scripts', array(__CLASS__, 'enqueue_styles'));
+  ACTION: add_action('wp_ajax_themisdb_dashboard_refresh', array(__CLASS__, 'ajax_refresh_metrics'));
+  METHOD: public static function enqueue_styles($hook) {
+  METHOD: public static function register_widgets() {
+  METHOD: public static function render_order_pipeline_widget() {
+  METHOD: public static function render_revenue_chart_widget() {
+  METHOD: public static function render_support_metrics_widget() {
+  METHOD: public static function render_license_metrics_widget() {
+  METHOD: public static function render_health_status_widget() {
+  METHOD: public static function ajax_refresh_metrics() {
+  NONCE: check_ajax_referer('themisdb_dashboard_nonce', 'nonce');
+  METHOD: private static function get_orders_last_n_days($days) {
+  METHOD: private static function get_monthly_revenue($months = 12) {
+  METHOD: private static function get_database_size() {
+--- \includes\class-admin.php ---
+  CLASS: class ThemisDB_Order_Admin {
+  METHOD: public function __construct() {
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  ACTION: add_action('admin_init', array($this, 'handle_early_post'));
+  ACTION: add_action('admin_post_themisdb_sync_epserver', array($this, 'handle_sync'));
+  METHOD: private function log_admin_event($level, $message, $context = array()) {
+  METHOD: private function abort_with_log($user_message, $log_message, $context = array(), $level = 'error') {
+  METHOD: public function handle_early_post() {
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function sanitize_order_page_reference($value) {
+  METHOD: public function sanitize_product_page_reference($value) {
+  METHOD: private function sanitize_page_reference_value($value, $option_name) {
+  METHOD: private function resolve_page_id_from_option($option_name) {
+  METHOD: private function render_detail_page_tabs($tabs, $current_tab = null) {
+  METHOD: private function render_detail_tab_pane($tab_key, $is_active = false) {
+  METHOD: private function close_detail_tab_pane() {
+  METHOD: private function render_module_navigation_tabs($current_page) {
+  METHOD: public function enqueue_expandable_row_assets() {
+  METHOD: private function render_row_expand_button($row_id) {
+  METHOD: private function render_row_details($row_id, $colspan, $tabs, $panes) {
+  METHOD: private function render_filter_button_bar($param_name, $items, $active_key, $base_url, $query_args = array(), $extra_nav_class = '') {
+  METHOD: private function get_payment_status_label($status) {
+  METHOD: private function get_order_status_label($status) {
+  METHOD: private function get_contract_status_label($status) {
+  METHOD: private function get_license_status_label($status) {
+  METHOD: private function get_fulfillment_status_label($status) {
+  METHOD: private function get_product_edition_label($edition) {
+  METHOD: private function get_product_type_label($type) {
+  METHOD: private function get_contract_type_label($type) {
+  METHOD: private function get_license_type_label($type) {
+  METHOD: private function get_payment_method_label($method) {
+  METHOD: private function get_customer_type_label($type) {
+  METHOD: private function get_email_log_status_label($status) {
+  METHOD: public function order_dashboard_page() {
+  METHOD: public function orders_page() {
+  METHOD: private function list_orders() {
+  METHOD: private function view_order($order_id) {
+  METHOD: public function create_order() {
+  METHOD: public function edit_order($order_id) {
+  METHOD: private function handle_save_order($order_id) {
+  METHOD: private function is_order_compliance_complete($order) {
+  METHOD: private function validate_order_regulatory_fields($order) {
+  METHOD: private function handle_delete_order($order_id) {
+  METHOD: private function handle_change_order_status($order_id, $new_status) {
+  METHOD: private function handle_update_fulfillment($order_id) {
+  METHOD: private function handle_create_contract($order_id) {
+  METHOD: public function contracts_page() {
+  METHOD: private function handle_bulk_contract_workflow() {
+  METHOD: private function list_contracts() {
+  METHOD: private function view_contract($contract_id) {
+  METHOD: public function products_page() {
+  METHOD: public function inventory_page() {
+  METHOD: private function handle_catalog_bulk_items() {
+  METHOD: private function handle_inventory_bulk_items() {
+  METHOD: private function get_catalog_categories($entity) {
+  METHOD: private function save_catalog_category($entity, $name, $slug = '', $old_slug = '') {
+  METHOD: private function delete_catalog_category($entity, $slug) {
+  METHOD: private function get_inventory_categories() {
+  METHOD: private function save_inventory_category($name, $slug = '', $old_slug = '') {
+  METHOD: private function delete_inventory_category($slug) {
+  METHOD: private function get_catalog_category_option_key($entity) {
+  METHOD: private function count_catalog_category_usage($entity, $slug) {
+  METHOD: private function migrate_catalog_category_slug($entity, $old_slug, $new_slug) {
+  METHOD: private function count_inventory_category_usage($slug) {
+  METHOD: private function migrate_inventory_category_slug($old_slug, $new_slug) {
+  METHOD: public function payments_page() {
+  METHOD: private function list_payments() {
+  METHOD: private function view_payment($payment_id) {
+  METHOD: private function create_payment() {
+  METHOD: private function edit_payment($payment_id) {
+  METHOD: private function handle_save_payment($payment_id) {
+  METHOD: private function handle_delete_payment($payment_id) {
+  METHOD: public function licenses_page() {
+  METHOD: private function list_licenses() {
+  METHOD: private function render_bulk_action_bar($field_name, $actions, $button_label) {
+  METHOD: private function render_bulk_notice($param_name) {
+  METHOD: private function render_inline_help_box($title, $items) {
+  METHOD: private function render_bulk_table_script() {
+  METHOD: private function filter_rows_by_search($rows, $query, $fields) {
+  METHOD: private function sort_rows($rows, $field, $direction = 'asc', $numeric_fields = array(), $date_fields = array()) {
+  METHOD: private function render_sortable_column($label, $key, $current_sort_by, $current_sort_dir, $base_url, $args = array()) {
+  METHOD: private function get_list_preferences($list_key) {
+  METHOD: private function save_list_preferences($list_key, $prefs) {
+  METHOD: private function resolve_per_page($value, $default = 25) {
+  METHOD: private function render_per_page_select($name, $current) {
+  METHOD: private function paginate_rows($rows, $per_page = 25, $paged = 1) {
+  METHOD: private function render_simple_pagination($base_url, $paged, $total_pages, $args = array()) {
+  METHOD: private function redirect_with_bulk_result($page_slug, $param_name, $message, $processed, $failed) {
+  METHOD: private function handle_bulk_payment_workflow() {
+  METHOD: private function handle_bulk_order_workflow() {
+  METHOD: private function handle_bulk_license_workflow() {
+  METHOD: private function view_license($license_id) {
+  METHOD: private function edit_license($license_id) {
+  METHOD: private function create_license() {
+  METHOD: private function handle_save_license($license_id) {
+  METHOD: private function handle_change_license_status($license_id, $new_status) {
+  METHOD: private function handle_delete_license($license_id) {
+  METHOD: public function license_audit_page() {
+  METHOD: public function email_log_page() {
+  METHOD: public function settings_page() {
+  METHOD: public function handle_sync() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function support_tickets_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function bank_import_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: private function bank_import_list() {
+  METHOD: private function bank_import_handle_upload() {
+  METHOD: private function bank_import_show_preview($token) {
+  METHOD: private function bank_import_handle_confirm() {
+  METHOD: private function bank_import_view_session($import_id) {
+  METHOD: private function bank_import_assign_form($transaction_id) {
+  METHOD: private function bank_import_handle_assign() {
+  METHOD: private function bank_import_count_statuses(array $transactions) {
+  METHOD: private function bank_import_status_badge($status) {
+--- \includes\class-advanced-reporting.php ---
+  CLASS: class ThemisDB_Advanced_Reporting {
+  METHOD: public static function init() {
+  ACTION: add_action('admin_menu', array(__CLASS__, 'register_admin_page'));
+  SHORTCODE: add_shortcode('themisdb_advanced_reporting', array(__CLASS__, 'shortcode'));
+  METHOD: public static function register_admin_page() {
+  METHOD: public static function render_admin_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public static function shortcode($atts) {
+  METHOD: private static function render_reports_content($cohort, $ltv_cac, $churn, $mix, $is_admin = true) {
+  METHOD: private static function render_table($title, $rows, $columns, $section_id = '') {
+  METHOD: public static function get_cohort_analysis($months = 12) {
+  METHOD: private static function get_retained_for_cohort_month($cohort_month, $offset_months) {
+  METHOD: public static function get_ltv_cac_tracking($months = 12) {
+  METHOD: private static function get_marketing_spend_map() {
+  METHOD: public static function get_churn_analysis($months = 6) {
+  METHOD: public static function get_product_mix_analysis($months = 12) {
+--- \includes\class-affiliate-program.php ---
+  CLASS: class ThemisDB_Affiliate_Program {
+  METHOD: public static function init() {
+  ACTION: add_action('init', array(__CLASS__, 'capture_referral_code'), 5);
+  ACTION: add_action('themisdb_order_submitted', array(__CLASS__, 'track_conversion_for_order'), 10, 2);
+  ACTION: add_action('themisdb_woocommerce_order_synced', array(__CLASS__, 'track_conversion_for_woo_order'), 10, 4);
+  SHORTCODE: add_shortcode('themisdb_affiliate_dashboard', array(__CLASS__, 'affiliate_dashboard_shortcode'));
+  METHOD: public static function register_affiliate($user_id = 0, $contact_email = '', $commission_rate = null) {
+  METHOD: public static function create_referral_link($referral_code, $target_url = '') {
+  METHOD: public static function capture_referral_code() {
+  METHOD: public static function track_conversion_for_order($order_id, $order = null) {
+  METHOD: public static function track_conversion_for_woo_order($themis_order_id, $woo_order_id, $woo_order, $mapped_data) {
+  METHOD: public static function track_conversion($order_id, $referral_code, $source = 'frontend', $order = null) {
+  METHOD: public static function create_payout_for_pending_commissions($affiliate_id, $notes = '') {
+  METHOD: public static function affiliate_dashboard_shortcode($atts) {
+  METHOD: private static function get_pending_total($affiliate_id) {
+  METHOD: private static function get_affiliate_by_code($code) {
+  METHOD: private static function get_affiliate_by_user($user_id) {
+  METHOD: private static function get_current_referral_code() {
+  METHOD: private static function generate_unique_referral_code() {
+--- \includes\class-auth-system.php ---
+  CLASS: class ThemisDB_Auth_System {
+  METHOD: public function __construct() {
+  ACTION: add_action('init', array($this, 'register_custom_login'));
+  SHORTCODE: add_shortcode('themisdb_login', array($this, 'login_form_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_license_upload', array($this, 'license_upload_form_shortcode'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_login', array($this, 'handle_login'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_license_auth', array($this, 'handle_license_auth'));
+  ACTION: add_action('wp_ajax_themisdb_license_auth', array($this, 'handle_license_auth'));
+  METHOD: public function register_custom_login() {
+  METHOD: public function login_form_shortcode($atts) {
+  METHOD: public function license_upload_form_shortcode($atts) {
+  METHOD: public function handle_login() {
+  NONCE: check_ajax_referer('themisdb_login', 'nonce');
+  METHOD: public function handle_license_auth() {
+  NONCE: check_ajax_referer('themisdb_license_auth', 'nonce');
+--- \includes\class-b2b-portal.php ---
+  CLASS: class ThemisDB_B2B_Portal {
+  METHOD: public static function init() {
+  SHORTCODE: add_shortcode('themisdb_b2b_portal', array(__CLASS__, 'b2b_portal_shortcode'));
+  ACTION: add_action('wp_ajax_themisdb_b2b_create_department', array(__CLASS__, 'ajax_create_department'));
+  ACTION: add_action('wp_ajax_themisdb_b2b_bulk_upload_users', array(__CLASS__, 'ajax_bulk_upload_users'));
+  ACTION: add_action('wp_ajax_themisdb_b2b_save_pricing_rule', array(__CLASS__, 'ajax_save_pricing_rule'));
+  ACTION: add_action('wp_ajax_themisdb_b2b_save_procurement', array(__CLASS__, 'ajax_save_procurement'));
+  METHOD: public static function create_department($department_name, $company_name, $contact_email = '', $department_code = '') {
+  METHOD: public static function bulk_upload_users($department_id, $csv_text) {
+  METHOD: public static function save_pricing_rule($department_id, $product_edition, $discount_type, $discount_value, $min_quantity = 1) {
+  METHOD: public static function apply_custom_pricing_to_order($order_id, $order) {
+  METHOD: public static function save_procurement($order_id, $data) {
+  METHOD: public static function b2b_portal_shortcode($atts) {
+  METHOD: public static function ajax_create_department() {
+  NONCE: check_ajax_referer('themisdb_b2b_portal_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public static function ajax_bulk_upload_users() {
+  NONCE: check_ajax_referer('themisdb_b2b_portal_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public static function ajax_save_pricing_rule() {
+  NONCE: check_ajax_referer('themisdb_b2b_portal_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public static function ajax_save_procurement() {
+  NONCE: check_ajax_referer('themisdb_b2b_portal_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+--- \includes\class-bank-import.php ---
+  CLASS: class ThemisDB_Bank_Import {
+  METHOD: public static function get_supported_formats() {
+  METHOD: public static function parse_csv_file( $file_path, $format = self::FORMAT_AUTO ) {
+  METHOD: public static function match_transactions( array $transactions ) {
+  METHOD: public static function save_import( array $import_meta, array $transactions ) {
+  METHOD: public static function assign_transaction( $transaction_id, $payment_id ) {
+  METHOD: public static function get_imports( array $args = array() ) {
+  METHOD: public static function get_transactions( $import_id ) {
+  METHOD: public static function get_import_count() {
+  METHOD: private static function apply_match( array &$tx, array $payment, $table_tx, $tx_amount ) {
+  METHOD: private static function apply_matched_payment( $payment_id, array $tx ) {
+  METHOD: private static function detect_delimiter( $raw ) {
+  METHOD: private static function find_header_row( array $lines, $delimiter ) {
+  METHOD: private static function parse_csv_line( $line, $delimiter ) {
+  METHOD: private static function detect_format( array $headers, $raw ) {
+  METHOD: private static function normalize_sparkasse( array $rows ) {
+  METHOD: private static function normalize_dkb( array $rows ) {
+  METHOD: private static function normalize_deutsche_bank( array $rows ) {
+  METHOD: private static function normalize_commerzbank( array $rows ) {
+  METHOD: private static function normalize_ing( array $rows ) {
+  METHOD: private static function normalize_generic( array $rows ) {
+  METHOD: private static function normalize_rows( array $rows, array $field_map ) {
+  METHOD: private static function extract_fields( array $row, array $field_map ) {
+  METHOD: private static function parse_german_amount( $value ) {
+  METHOD: private static function parse_german_date( $value ) {
+--- \includes\class-contract-manager.php ---
+  CLASS: class ThemisDB_Contract_Manager {
+  METHOD: public static function ensure_contract_for_order($order_id, $args = array()) {
+  METHOD: public static function get_allowed_status_transitions($current_status) {
+  METHOD: public static function transition_contract_status($contract_id, $new_status, $reason = '', $changed_by = null) {
+  METHOD: public static function run_daily_lifecycle_jobs() {
+  METHOD: public static function end_expired_contracts() {
+  METHOD: public static function process_payment_dunning() {
+  METHOD: private static function sync_related_records_for_status($contract, $previous_status, $new_status, $reason, $changed_by) {
+  METHOD: public static function create_contract($data) {
+  METHOD: public static function update_contract($contract_id, $data, $change_reason = '') {
+  METHOD: public static function get_contract($contract_id) {
+  METHOD: public static function get_contract_by_number($contract_number) {
+  METHOD: public static function get_contracts_by_order($order_id) {
+  METHOD: public static function get_customer_contracts($customer_id, $status = null) {
+  METHOD: public static function get_all_contracts($args = array()) {
+  METHOD: public static function delete_contract($contract_id) {
+  METHOD: private static function create_revision($contract_id, $contract_data, $user_id, $change_reason = '') {
+  METHOD: public static function get_contract_revisions($contract_id) {
+  METHOD: private static function generate_contract_number($contract_type) {
+  METHOD: public static function sign_contract($contract_id, $signature_data = null) {
+--- \includes\class-database.php ---
+  CLASS: class ThemisDB_Order_Database {
+  METHOD: public static function init() {
+  METHOD: public static function create_tables() {
+  METHOD: private static function run_post_schema_migrations() {
+  METHOD: private static function ensure_support_benefits_columns() {
+  METHOD: private static function ensure_order_items_order_foreign_key() {
+  METHOD: private static function ensure_support_tickets_foreign_keys() {
+  METHOD: private static function ensure_payments_contract_foreign_key() {
+  METHOD: private static function ensure_inventory_product_foreign_key() {
+  METHOD: private static function insert_default_data() {
+--- \includes\class-document-template-manager.php ---
+  CLASS: class ThemisDB_Document_Template_Manager {
+  METHOD: public static function get_templates() {
+  METHOD: public static function get_template($template_id) {
+  METHOD: public static function save_template($template_id, $data) {
+  METHOD: public static function delete_template($template_id) {
+  METHOD: private static function extract_variables($content) {
+  METHOD: public static function replace_variables($template_content, $data) {
+  METHOD: private static function get_default_templates() {
+  METHOD: private static function get_default_contract_template() {
+  METHOD: private static function get_default_invoice_template() {
+  METHOD: private static function get_default_letter_template() {
+--- \includes\class-email-handler.php ---
+  CLASS: class ThemisDB_Email_Handler {
+  METHOD: public static function send_cancellation_email($license_id) {
+  METHOD: public static function send_order_confirmation($order_id) {
+  METHOD: public static function send_contract_email($contract_id) {
+  METHOD: public static function send_license_email($license_id) {
+  METHOD: private static function send_email($to, $subject, $message, $attachments = array(), $order_id = null, $contract_id = null) {
+  METHOD: private static function get_order_confirmation_template($order) {
+  METHOD: private static function get_contract_template($contract, $order) {
+  METHOD: private static function get_cancellation_template($license, $order) {
+  METHOD: private static function get_license_template($license, $order) {
+  METHOD: public static function send_invoice_email($order_id) {
+  METHOD: private static function generate_invoice_data($order) {
+  METHOD: private static function generate_invoice_number($order) {
+  METHOD: private static function get_invoice_template($order) {
+  METHOD: public static function send_support_expiry_notification($benefit_id, $days_until_expiry = 30) {
+  METHOD: private static function get_support_expiry_template($benefit, $license, $order, $days_until_expiry) {
+  METHOD: public static function get_email_logs($args = array()) {
+--- \includes\class-epserver-api.php ---
+  CLASS: class ThemisDB_EPServer_API {
+  METHOD: private static function init() {
+  METHOD: private static function make_request($endpoint, $method = 'GET', $data = null) {
+  METHOD: public static function sync_products() {
+  METHOD: public static function create_customer($customer_data) {
+  METHOD: public static function create_subscription($order) {
+  METHOD: public static function validate_license($license_key) {
+  METHOD: public static function create_payment($order, $subscription_id) {
+  METHOD: public static function check_payment_status($epserver_payment_id) {
+  METHOD: public static function verify_payment($epserver_payment_id) {
+  METHOD: public static function get_subscription($subscription_id) {
+  METHOD: public static function get_license_info($license_key) {
+  METHOD: public static function test_connection() {
+  METHOD: public static function get_pricing() {
+  METHOD: public static function sync_all() {
+--- \includes\class-error-handler.php ---
+  CLASS: class ThemisDB_Error_Handler {
+  METHOD: public static function init() {
+  METHOD: public static function log($level, $message, $context = array()) {
+  METHOD: private static function store_in_db($entry) {
+  METHOD: private static function ensure_table($table) {
+  METHOD: private static function sanitize_context($context) {
+  METHOD: private static function sanitize_scalar($value) {
+--- \includes\class-license-api.php ---
+  CLASS: class ThemisDB_License_API {
+  METHOD: public function __construct() {
+  ACTION: add_action( 'rest_api_init', array( $this, 'register_routes' ) );
+  METHOD: public function register_routes() {
+  REST: register_rest_route( self::NAMESPACE, '/license/validate', array(
+  REST: register_rest_route( self::NAMESPACE, '/license/download/(?P<license_key>[A-Z0-9\-]+)', array(
+  REST: register_rest_route( self::NAMESPACE, '/license/renew', array(
+  REST: register_rest_route( self::NAMESPACE, '/license/revoke', array(
+  REST: register_rest_route( self::NAMESPACE, '/license/cancel', array(
+  METHOD: public function check_api_key( WP_REST_Request $request ) {
+  METHOD: public function check_admin_api_key( WP_REST_Request $request ) {
+  METHOD: public function validate_license( WP_REST_Request $request ) {
+  METHOD: public function download_license( WP_REST_Request $request ) {
+  METHOD: public function renew_license( WP_REST_Request $request ) {
+  METHOD: public function revoke_license( WP_REST_Request $request ) {
+  METHOD: public function cancel_license( WP_REST_Request $request ) {
+  METHOD: private function sign_response( array $data ) {
+  METHOD: private function audit_log( $license_key, string $action, string $result, WP_REST_Request $request ) {
+  METHOD: private function ensure_audit_table() {
+  METHOD: private function get_client_ip() {
+--- \includes\class-license-build-dispatcher.php ---
+  CLASS: class ThemisDB_License_Build_Dispatcher {
+  METHOD: public static function get_settings() {
+  METHOD: public static function build_payload_from_license($license_id) {
+  METHOD: public static function get_payload_json($license_id) {
+  METHOD: public static function dispatch_for_license($license_id, $mode_override = '') {
+  METHOD: private static function dispatch_repository_event($settings, $payload) {
+  METHOD: private static function dispatch_workflow($settings, $payload) {
+  METHOD: private static function build_workflow_inputs($payload) {
+  METHOD: private static function perform_dispatch_request($url, $token, $body) {
+  METHOD: private static function record_dispatch_result($license_id, $settings, $payload, $response) {
+--- \includes\class-license-manager.php ---
+  CLASS: class ThemisDB_License_Manager {
+  METHOD: public static function create_license($data) {
+  METHOD: public static function activate_license($license_id) {
+  METHOD: public static function cancel_license($license_id, $reason = '', $cancelled_by = 0) {
+  METHOD: public static function suspend_license($license_id, $reason = '') {
+  METHOD: public static function validate_license($license_key) {
+  METHOD: private static function validate_license_key_format($license_key) {
+  METHOD: public static function check_license_limits($license_key, $current_nodes, $current_cores = null, $current_storage_tb = null) {
+  METHOD: public static function authenticate_with_license_file($file_content) {
+  METHOD: public static function get_license($license_id) {
+  METHOD: public static function get_all_licenses($limit = 100, $offset = 0) {
+  METHOD: public static function update_license($license_id, $data) {
+  METHOD: public static function delete_license($license_id) {
+  METHOD: public static function get_license_by_key($license_key) {
+  METHOD: public static function get_license_by_contract($contract_id) {
+  METHOD: public static function get_customer_licenses($customer_id) {
+  METHOD: private static function generate_license_key($edition) {
+  METHOD: private static function generate_license_file($license_id) {
+  METHOD: private static function parse_license_file($file_content) {
+  METHOD: private static function sign_license_data($license) {
+  METHOD: private static function verify_license_signature($license_data) {
+  METHOD: private static function get_or_create_user_for_license($license) {
+  METHOD: private static function log_auth_attempt($license_id, $method, $status, $auth_data = null) {
+  METHOD: public static function check_license_with_epserver($license_key) {
+  METHOD: public static function get_license_stats() {
+--- \includes\class-license-portal.php ---
+  CLASS: class ThemisDB_License_Portal {
+  METHOD: public function __construct() {
+  SHORTCODE: add_shortcode( 'themisdb_license_portal', array( $this, 'render_portal' ) );
+  ACTION: add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+  ACTION: add_action( 'wp_ajax_themisdb_portal_download',    array( $this, 'ajax_download_license' ) );
+  ACTION: add_action( 'wp_ajax_themisdb_portal_start_trial', array( $this, 'ajax_start_trial' ) );
+  METHOD: public function enqueue_assets() {
+  METHOD: public function render_portal( $atts ) {
+  METHOD: private function render_login_notice() {
+  METHOD: private function render_full_portal( $customer_id ) {
+  METHOD: private function render_single_download( $license_key, $customer_id ) {
+  METHOD: private function render_status_badge( array $license ) {
+  METHOD: private function render_expiry( array $license ) {
+  METHOD: private function render_actions( array $license ) {
+  METHOD: private function render_trial_form() {
+  METHOD: public function ajax_download_license() {
+  NONCE: check_ajax_referer( 'themisdb_portal_nonce', 'nonce' );
+  METHOD: public function ajax_start_trial() {
+  NONCE: check_ajax_referer( 'themisdb_portal_nonce', 'nonce' );
+  METHOD: private function get_current_customer_id() {
+  METHOD: private function get_or_create_trial_order( WP_User $user ) {
+  METHOD: private function get_or_create_trial_contract( $order_id ) {
+--- \includes\class-license-pricing.php ---
+  CLASS: class ThemisDB_License_Pricing {
+  METHOD: public static function create_price_entry($license_id, $contract_id, $data) {
+  METHOD: public static function get_current_price($license_id, $as_of_date = NULL) {
+  METHOD: public static function get_price_history($license_id) {
+  METHOD: public static function update_price($license_id, $contract_id, $new_data, $reason = '') {
+  METHOD: public static function create_upgrade($license_id, $contract_id, $upgrade_data) {
+  METHOD: public static function approve_upgrade($upgrade_id, $notes = '') {
+  METHOD: public static function reject_upgrade($upgrade_id, $reason = '') {
+  METHOD: public static function set_feature($license_id, $contract_id, $feature_data) {
+  METHOD: public static function get_active_features($license_id, $as_of_date = NULL) {
+  METHOD: public static function get_feature_history($license_id, $feature_code = NULL) {
+  METHOD: public static function add_history_entry($license_id, $contract_id, $change_type, $old_value, $new_value, $changed_field, $change_reason = '') {
+  METHOD: public static function get_history($license_id, $contract_id = NULL) {
+  METHOD: public static function calculate_upgrade_cost($license_id, $from_edition, $to_edition) {
+  METHOD: public static function calculate_prorated_change_cost($license_id, $from_edition, $to_edition, $effective_date = null) {
+  METHOD: public static function apply_mid_term_edition_change($license_id, $target_edition, $effective_date = null, $notes = '') {
+  METHOD: public static function generate_pricing_summary_pdf($license_id, $contract_id) {
+  METHOD: private static function get_license_upgrades($license_id) {
+--- \includes\class-license-renewal.php ---
+  CLASS: class ThemisDB_License_Renewal {
+  METHOD: public static function init() {
+  ACTION: add_action( 'init', array( __CLASS__, 'handle_one_click_request' ) );
+  METHOD: public static function send_renewal_reminders() {
+  METHOD: private static function maybe_send_reminder( array $license, string $today, array $reminder_days_list ) {
+  METHOD: private static function maybe_auto_renew( array $license ) {
+  METHOD: public static function renew_license_term( $license_id, $reason = 'manual' ) {
+  METHOD: public static function generate_one_click_url( $license_id ) {
+  METHOD: public static function handle_one_click_request() {
+  METHOD: private static function send_reminder_email( array $license, $days_left ) {
+  METHOD: private static function get_reminder_template( array $data ) {
+--- \includes\class-notification-manager.php ---
+  CLASS: class ThemisDB_Notification_Manager {
+  METHOD: public static function init() {
+  ACTION: add_action('admin_notices', array(__CLASS__, 'render_admin_notices'), 10, 0);
+  FILTER: add_filter('cron_schedules', array(__CLASS__, 'add_cron_intervals'));
+  ACTION: add_action('themisdb_run_notification_checks', array(__CLASS__, 'run_all_checks'));
+  ACTION: add_action('wp_ajax_themisdb_dismiss_notification', array(__CLASS__, 'ajax_dismiss_notification'));
+  METHOD: public static function add_cron_intervals($schedules) {
+  METHOD: public static function run_all_checks() {
+  METHOD: private static function check_payment_overdue() {
+  METHOD: private static function check_support_sla_breach() {
+  METHOD: private static function check_high_error_rate() {
+  METHOD: private static function check_database_size() {
+  METHOD: private static function check_cron_skip() {
+  METHOD: private static function update_active_notifications($alerts) {
+  METHOD: private static function get_dismissed_notifications() {
+  METHOD: public static function render_admin_notices() {
+  CAP: if (!is_admin() || !current_user_can('manage_options')) {
+  METHOD: private static function render_single_notice($alert_id, $alert) {
+  METHOD: public static function ajax_dismiss_notification() {
+  CAP: if (!current_user_can('manage_options')) {
+  NONCE: check_ajax_referer('themisdb_dismiss_notification');
+  METHOD: public static function trigger_check_now() {
+  METHOD: public static function add_custom_alert($alert_id, $alert_data) {
+  METHOD: public static function clear_all() {
+--- \includes\class-order-manager.php ---
+  CLASS: class ThemisDB_Order_Manager {
+  METHOD: public static function create_order($data) {
+  METHOD: public static function get_product_by_edition($edition) {
+  METHOD: private static function normalize_order_status($status) {
+  METHOD: private static function get_orders_table_columns() {
+  METHOD: private static function filter_order_data_for_schema($data) {
+  METHOD: public static function set_order_status($order_id, $status) {
+  METHOD: public static function update_order($order_id, $data) {
+  METHOD: public static function get_order($order_id) {
+  METHOD: public static function get_order_by_number($order_number) {
+  METHOD: public static function get_customer_orders($customer_id, $status = null) {
+  METHOD: public static function get_all_orders($args = array()) {
+  METHOD: public static function delete_order($order_id) {
+  METHOD: public static function set_order_items($order_id, $items, $currency = 'EUR') {
+  METHOD: public static function get_order_items($order_id) {
+  METHOD: public static function recalculate_order_total_from_items($order_id) {
+  METHOD: private static function sync_order_items_from_selection($order_id) {
+  METHOD: public static function set_inventory_stock($sku, $product_name, $stock_on_hand, $product_id = null, $reorder_level = 0, $category_slug = '', $is_active = 1) {
+  METHOD: public static function get_inventory_stock($sku) {
+  METHOD: public static function get_inventory_item($id) {
+  METHOD: public static function get_inventory_items($include_inactive = true, $category_slug = '') {
+  METHOD: public static function save_inventory_item($data, $id = 0) {
+  METHOD: public static function set_inventory_item_active($id, $is_active) {
+  METHOD: public static function deactivate_inventory_item($id) {
+  METHOD: public static function add_inventory_movement($sku, $quantity_delta, $movement_type, $reason = '', $order_id = null, $created_by = null, $adjust_stock = true) {
+  METHOD: public static function reserve_inventory_for_order($order_id) {
+  METHOD: public static function release_inventory_for_order($order_id) {
+  METHOD: public static function fulfill_inventory_for_order($order_id) {
+  METHOD: private static function inventory_movement_exists($order_id, $sku, $movement_type) {
+  METHOD: public static function calculate_total($product_edition, $modules = array(), $training_modules = array()) {
+  METHOD: private static function generate_order_number() {
+  METHOD: public static function get_products($include_inactive = false) {
+  METHOD: public static function get_modules($category = null, $include_inactive = false) {
+  METHOD: public static function get_training_modules($type = null, $include_inactive = false) {
+  METHOD: public static function get_product($id, $include_inactive = true) {
+  METHOD: public static function get_module($id, $include_inactive = true) {
+  METHOD: public static function get_training_module($id, $include_inactive = true) {
+  METHOD: public static function save_product($data, $id = 0) {
+  METHOD: public static function save_module($data, $id = 0) {
+  METHOD: public static function save_training_module($data, $id = 0) {
+  METHOD: public static function deactivate_catalog_item($entity, $id) {
+  METHOD: public static function get_catalog_categories($include_inactive = true) {
+  METHOD: public static function get_catalog_category($id) {
+  METHOD: public static function save_catalog_category($data, $id = 0) {
+  METHOD: public static function set_catalog_category_active($id, $is_active) {
+  METHOD: public static function delete_catalog_category($id) {
+  METHOD: public static function sync_catalog_categories_from_data() {
+  METHOD: private static function hydrate_inventory_item($item) {
+  METHOD: private static function prepare_inventory_metadata($existing_metadata, $category_slug) {
+  METHOD: private static function resolve_inventory_category_slug($data, $existing = null) {
+  METHOD: private static function load_catalog_categories_option() {
+  METHOD: private static function get_next_catalog_category_id($categories) {
+  METHOD: public static function set_catalog_item_active($entity, $id, $is_active) {
+  METHOD: private static function sync_product_inventory_link($product_id) {
+  METHOD: public static function generate_internal_uuid() {
+  METHOD: public static function get_or_create_inventory_uuid($inventory_id) {
+  METHOD: public static function sync_products_to_inventory() {
+  METHOD: public static function sync_licenses_to_inventory() {
+  METHOD: public static function sync_modules_to_inventory() {
+  METHOD: public static function sync_training_to_inventory() {
+  METHOD: public static function sync_all_to_inventory() {
+--- \includes\class-payment-manager.php ---
+  CLASS: class ThemisDB_Payment_Manager {
+  METHOD: private static function normalize_payment_status($status) {
+  METHOD: private static function can_transition_payment_status($current_status, $new_status) {
+  METHOD: public static function create_payment($data) {
+  METHOD: public static function verify_payment($payment_id, $verified_by = null) {
+  METHOD: public static function mark_payment_failed($payment_id, $reason = '') {
+  METHOD: public static function mark_payment_overdue($payment_id, $reason = '') {
+  METHOD: public static function update_payment($payment_id, $data) {
+  METHOD: public static function delete_payment($payment_id) {
+  METHOD: public static function get_payment($payment_id) {
+  METHOD: public static function get_payments_by_order($order_id) {
+  METHOD: public static function get_payments_by_contract($contract_id) {
+  METHOD: public static function get_primary_payment_by_contract($contract_id) {
+  METHOD: public static function get_all_payments($args = array()) {
+  METHOD: public static function check_payment_with_epserver($payment_id) {
+  METHOD: public static function get_payment_by_reference($bank_reference) {
+  METHOD: public static function get_payment_by_number($payment_number) {
+  METHOD: private static function generate_payment_number() {
+  METHOD: public static function get_payment_stats() {
+--- \includes\class-pdf-generator.php ---
+  CLASS: class ThemisDB_PDF_Generator {
+  METHOD: public static function generate_contract_pdf($contract_id) {
+  METHOD: public static function generate_invoice_pdf($order_id) {
+  METHOD: public static function generate_pdf_from_html($html_content, $filename = 'document') {
+  METHOD: private static function generate_invoice_html($order) {
+  METHOD: private static function generate_invoice_number_for_order($order_id) {
+  METHOD: public static function generate_order_pdf($order_id) {
+  METHOD: private static function generate_contract_html($contract, $order) {
+  METHOD: private static function generate_order_html($order) {
+  METHOD: private static function html_to_pdf($html, $filename) {
+  METHOD: private static function is_wkhtmltopdf_available() {
+  METHOD: private static function wkhtmltopdf_convert($html, $filename) {
+  METHOD: private static function fallback_pdf($html, $filename) {
+  METHOD: public static function get_contract_pdf($contract_id) {
+--- \includes\class-privacy.php ---
+  CLASS: class ThemisDB_Privacy {
+  METHOD: public static function init() {
+  FILTER: add_filter( 'wp_privacy_personal_data_exporters', array( __CLASS__, 'register_exporters' ) );
+  FILTER: add_filter( 'wp_privacy_personal_data_erasers', array( __CLASS__, 'register_erasers' ) );
+  FILTER: add_filter( 'wp_privacy_policy_content', array( __CLASS__, 'add_privacy_policy_content' ) );
+  METHOD: public static function register_exporters( $exporters ) {
+  METHOD: public static function register_erasers( $erasers ) {
+  METHOD: public static function export_orders( $email_address, $page = 1 ) {
+  METHOD: public static function export_licenses( $email_address, $page = 1 ) {
+  METHOD: public static function export_contracts( $email_address, $page = 1 ) {
+  METHOD: public static function export_support_benefits( $email_address, $page = 1 ) {
+  METHOD: public static function erase_orders( $email_address, $page = 1 ) {
+  METHOD: public static function erase_licenses( $email_address, $page = 1 ) {
+  METHOD: public static function erase_contracts( $email_address, $page = 1 ) {
+  METHOD: public static function erase_support_benefits( $email_address, $page = 1 ) {
+  METHOD: public static function add_privacy_policy_content( $content ) {
+--- \includes\class-shortcodes.php ---
+  CLASS: class ThemisDB_Order_Shortcodes {
+  METHOD: public function __construct() {
+  SHORTCODE: add_shortcode('themisdb_order_flow', array($this, 'order_flow_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_express_checkout', array($this, 'express_checkout_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_my_orders', array($this, 'my_orders_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_my_contracts', array($this, 'my_contracts_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_pricing', array($this, 'pricing_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_pricing_table', array($this, 'pricing_table_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_product_detail', array($this, 'product_detail_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_shop', array($this, 'shop_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_shopping_cart',  array($this, 'shopping_cart_shortcode'));
+  ACTION: add_action('wp_ajax_themisdb_save_order_step', array($this, 'ajax_save_order_step'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_save_order_step', array($this, 'ajax_save_order_step'));
+  ACTION: add_action('wp_ajax_themisdb_calculate_total', array($this, 'ajax_calculate_total'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_calculate_total', array($this, 'ajax_calculate_total'));
+  ACTION: add_action('wp_ajax_themisdb_submit_order', array($this, 'ajax_submit_order'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_submit_order', array($this, 'ajax_submit_order'));
+  ACTION: add_action('wp_ajax_themisdb_cart_remove_item',   array($this, 'ajax_cart_remove_item'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_cart_remove_item', array($this, 'ajax_cart_remove_item'));
+  ACTION: add_action('wp_ajax_themisdb_cart_clear',         array($this, 'ajax_cart_clear'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_cart_clear',  array($this, 'ajax_cart_clear'));
+  METHOD: public function order_flow_shortcode($atts) {
+  METHOD: public function express_checkout_shortcode($atts) {
+  METHOD: private function bootstrap_preset_order($preset_product, $target_step = 1, $preset_modules = array(), $preset_training = array()) {
+  METHOD: private function get_requested_product_edition($fallback = '') {
+  METHOD: private function get_requested_code_list($query_keys, $allowed_codes = array(), $fallback = '') {
+  METHOD: private function render_order_flow($current_step = 1, $options = array()) {
+  METHOD: private function render_step_product($order) {
+  METHOD: private function render_step_modules($order) {
+  METHOD: private function render_step_training($order) {
+  METHOD: private function render_step_customer($order) {
+  METHOD: private function render_step_summary($order) {
+  METHOD: public function my_orders_shortcode() {
+  METHOD: public function my_contracts_shortcode() {
+  METHOD: private function validate_regulatory_fields($data, $strict_legal = true) {
+  METHOD: public function ajax_save_order_step() {
+  NONCE: check_ajax_referer('themisdb_order_nonce', 'nonce');
+  METHOD: public function ajax_calculate_total() {
+  NONCE: check_ajax_referer('themisdb_order_nonce', 'nonce');
+  METHOD: public function ajax_submit_order() {
+  NONCE: check_ajax_referer('themisdb_order_nonce', 'nonce');
+  METHOD: public function pricing_shortcode($atts) {
+  METHOD: public function pricing_table_shortcode($atts) {
+  METHOD: private function render_pricing($format = 'cards', $currency = 'EUR', $show_features = true) {
+  METHOD: private function render_pricing_cards($prices, $features_by_type, $show_features) {
+  METHOD: private function render_pricing_table($prices, $features_by_type, $show_features) {
+  METHOD: private function render_pricing_comparison($prices, $features_by_type, $show_features) {
+  METHOD: public function product_detail_shortcode($atts) {
+  METHOD: private function render_product_detail($products, $modules, $trainings, $default_edition, $order_url, $show_support) {
+  METHOD: public function shop_shortcode($atts) {
+  METHOD: private function render_shop_page($products, $modules, $trainings, $license_prices, $license_features, $show_features, $preferred_edition, $order_url, $product_url, $sales_email, $training_email, $enterprise_email) {
+  METHOD: private function get_license_pricing_snapshot($currency = 'EUR', $include_features = true) {
+  METHOD: private function resolve_shop_recommended_edition($products, $license_prices, $context = 'default', $detail = '', $preferred_edition = '') {
+  METHOD: private function format_shop_price($price, $currency) {
+  METHOD: private function format_shop_limit($value, $suffix = '') {
+  METHOD: private function humanize_shop_key($key) {
+  METHOD: private function urls_point_to_same_location($left, $right) {
+  METHOD: private function resolve_frontend_page_url($option_key, $fallback_slugs = array(), $shortcode_tag = '') {
+  METHOD: public function shopping_cart_shortcode($atts) {
+  METHOD: private function render_shopping_cart($checkout_url, $show_tax_note, $currency) {
+  METHOD: public function ajax_cart_remove_item() {
+  NONCE: check_ajax_referer('themisdb_order_nonce', 'nonce');
+  METHOD: public function ajax_cart_clear() {
+  NONCE: check_ajax_referer('themisdb_order_nonce', 'nonce');
+--- \includes\class-support-benefits-manager.php ---
+  CLASS: class ThemisDB_Support_Benefits_Manager {
+  METHOD: private static function get_tier_config() {
+  METHOD: public static function create_for_license($license_id, $tier_level = 'community') {
+  METHOD: public static function get_by_license($license_id) {
+  METHOD: public static function get_by_id($benefit_id) {
+  METHOD: public static function update_tier_for_license($license_id, $tier_level) {
+  METHOD: public static function get_benefit_id_by_license($license_id) {
+  METHOD: public static function activate($benefit_id) {
+  METHOD: public static function suspend($benefit_id, $reason = '') {
+  METHOD: public static function deactivate($benefit_id) {
+  METHOD: public static function check_limits($benefit_id, $priority = 'normal') {
+  METHOD: public static function increment_ticket_usage($benefit_id) {
+  METHOD: public static function increment_hours_usage($benefit_id, $hours = 0) {
+  METHOD: public static function reset_monthly_counts($benefit_id = null) {
+  METHOD: public static function expire_expired_licenses() {
+  METHOD: public static function send_expiry_notification($benefit_id, $days_until_expiry = 30) {
+--- \includes\class-support-ticket-manager.php ---
+  CLASS: class ThemisDB_Order_Support_Ticket_Manager {
+  METHOD: public static function init() {
+  METHOD: public static function get_table_name() {
+  METHOD: public static function get_priorities() {
+  METHOD: public static function get_statuses() {
+  METHOD: public static function create_ticket($data) {
+  METHOD: public static function get_tickets($args = array()) {
+  METHOD: public static function get_ticket($ticket_id) {
+  METHOD: public static function create_github_issue_for_ticket($ticket_id, $force = false) {
+  METHOD: private static function build_github_issue_body($ticket) {
+  METHOD: private static function set_sync_error($table, $ticket_id, $error_message) {
+  METHOD: public static function get_github_settings() {
+--- \includes\class-woocommerce-bridge.php ---
+  CLASS: class ThemisDB_WooCommerce_Bridge {
+  METHOD: public function __construct() {
+  ACTION: add_action('woocommerce_order_status_completed', array($this, 'on_order_completed'), 10, 1);
+  ACTION: add_action('woocommerce_payment_complete', array($this, 'on_payment_complete'), 10, 1);
+  ACTION: add_action('woocommerce_order_status_changed', array($this, 'on_order_status_changed'), 10, 4);
+  ACTION: add_action('woocommerce_order_refunded', array($this, 'on_order_refunded'), 10, 2);
+  ACTION: add_action('woocommerce_thankyou', array($this, 'maybe_generate_license'), 20, 1);
+  ACTION: add_action('themisdb_woocommerce_license_generation_requested', array($this, 'handle_license_generation_requested'), 10, 2);
+  ACTION: add_action('woocommerce_new_product',    array($this, 'on_product_created'),   20, 1);
+  ACTION: add_action('woocommerce_update_product', array($this, 'on_product_updated'),   20, 1);
+  ACTION: add_action('woocommerce_trash_product',  array($this, 'on_product_trashed'),   10, 1);
+  ACTION: add_action('woocommerce_untrash_product', array($this, 'on_product_untrashed'), 10, 1);
+  ACTION: add_action('woocommerce_product_set_stock', array($this, 'on_product_stock_changed'), 20, 1);
+  METHOD: private function is_available() {
+  METHOD: public function on_order_completed($woo_order_id) {
+  METHOD: public function on_payment_complete($woo_order_id) {
+  METHOD: public function on_order_status_changed($woo_order_id, $from_status, $to_status, $woo_order) {
+  METHOD: public function on_order_refunded($woo_order_id, $refund_id) {
+  METHOD: private function sync_order($woo_order_id, $trigger, $target_status = 'confirmed') {
+  METHOD: private function apply_status_sync($woo_order_id, $woo_status, $trigger) {
+  METHOD: private function map_woo_status_to_themis_status($woo_status, $woo_order = null) {
+  METHOD: private function get_gateway_status_overrides($woo_order) {
+  METHOD: private function sync_existing_license_status_from_woo($woo_order_id, $woo_status, $woo_order = null) {
+  METHOD: public function maybe_generate_license($woo_order_id) {
+  METHOD: public function handle_license_generation_requested($themis_order_id, $woo_order_id) {
+  METHOD: private function map_woo_order_to_themisdb($woo_order) {
+  METHOD: private function analyze_line_items($woo_order) {
+  METHOD: private function edition_from_signal($signal) {
+  METHOD: private function guess_product_edition($woo_order) {
+  METHOD: public function on_product_stock_changed($product) {
+  METHOD: public function on_product_created($product_id) {
+  METHOD: public function on_product_updated($product_id) {
+  METHOD: public function on_product_trashed($product_id) {
+  METHOD: public function on_product_untrashed($product_id) {
+  METHOD: public function sync_product_to_themisdb($woo_product_id) {
+  METHOD: private function upsert_product($product, $woo_product_id, $sku, $name, $price, $desc, $is_active, $edition, $currency, $meta_json) {
+  METHOD: private function upsert_module($product, $woo_product_id, $sku, $name, $price, $desc, $is_active, $currency, $meta_json) {
+  METHOD: private function upsert_training($product, $woo_product_id, $sku, $name, $price, $desc, $is_active, $currency, $meta_json) {
+  METHOD: private function set_themisdb_product_active($woo_product_id, $is_active) {
+=== themisdb-persistent-podcast-player ===
+--- \persistent-podcast-player.php ---
+  CLASS: class Persistent_Podcast_Player {
+  METHOD: public static function get_instance() {
+  METHOD: private function __construct() {
+  ACTION: add_action('init', array($this, 'register_post_type'));
+  ACTION: add_action('rest_api_init', array($this, 'register_rest_routes'));
+  ACTION: add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+  ACTION: add_action('wp_body_open', array($this, 'render_player'));
+  ACTION: add_action('add_meta_boxes', array($this, 'add_audio_meta_box'));
+  ACTION: add_action('save_post_pod_episode', array($this, 'save_audio_meta'), 10, 2);
+  ACTION: add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
+  FILTER: add_filter('redirect_post_location', array($this, 'add_audio_notice_redirect_arg'), 10, 2);
+  ACTION: add_action('admin_notices', array($this, 'render_audio_admin_notice'));
+  METHOD: public function activate() {
+  METHOD: public function deactivate() {
+  METHOD: public function register_post_type() {
+  METHOD: public function register_rest_routes() {
+  REST: register_rest_route('persistent-player/v1', '/episodes', array(
+  METHOD: public function get_episodes($request) {
+  METHOD: public function add_audio_meta_box() {
+  METHOD: public function render_audio_meta_box($post) {
+  METHOD: public function save_audio_meta($post_id, $post) {
+  NONCE: !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['ppp_audio_meta_box_nonce'])), 'ppp_audio_meta_box')) {
+  CAP: if (!current_user_can('edit_post', $post_id)) {
+  ACTION: add_action('save_post_pod_episode', array($this, 'save_audio_meta'), 10, 2);
+  METHOD: public function add_audio_notice_redirect_arg($location, $post_id) {
+  METHOD: public function render_audio_admin_notice() {
+  METHOD: private function resolve_episode_audio($post_id) {
+  METHOD: private function is_audio_attachment($attachment_id) {
+  METHOD: private function get_allowed_audio_mimes() {
+  METHOD: public function enqueue_admin_assets($hook) {
+  METHOD: private function get_admin_media_i18n() {
+  METHOD: private function get_admin_media_js() {
+  METHOD: public function enqueue_assets() {
+  METHOD: public function render_player() {
+=== themisdb-query-playground ===
+--- \themisdb-query-playground.php ---
+  CLASS: class ThemisDB_Query_Playground {
+  METHOD: public static function get_instance() {
+  METHOD: private function __construct() {
+  ACTION: add_action('init', array($this, 'init'));
+  ACTION: add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+  SHORTCODE: add_shortcode('themisdb_query_playground', array($this, 'render_playground'));
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  FILTER: add_filter('plugin_action_links_' . plugin_basename(THEMISDB_QP_PLUGIN_FILE), array($this, 'add_action_links'));
+  ACTION: add_action('wp_ajax_themisdb_qp_execute_query', array($this, 'ajax_execute_query'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_qp_execute_query', array($this, 'ajax_execute_query'));
+  ACTION: add_action('wp_ajax_themisdb_qp_get_examples', array($this, 'ajax_get_examples'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_qp_get_examples', array($this, 'ajax_get_examples'));
+  METHOD: public function activate() {
+  METHOD: public function deactivate() {
+  METHOD: public function init() {
+  METHOD: private function init_client() {
+  METHOD: public function enqueue_assets() {
+  METHOD: public function render_playground($atts) {
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function render_settings_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function add_action_links($links) {
+  METHOD: public function ajax_execute_query() {
+  NONCE: check_ajax_referer('themisdb_qp_nonce', 'nonce');
+  CAP: if (!current_user_can('edit_posts')) {
+  METHOD: public function ajax_get_examples() {
+  NONCE: check_ajax_referer('themisdb_qp_nonce', 'nonce');
+  METHOD: private function is_write_query($query) {
+  METHOD: private function get_example_queries() {
+  ACTION: add_action('plugins_loaded', 'themisdb_query_playground_init');
+--- \uninstall.php ---
+--- \templates\admin-settings.php ---
+--- \templates\playground.php ---
+=== themisdb-release-timeline ===
+--- \themisdb-release-timeline.php ---
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_rt_enqueue_scripts');
+  SHORTCODE: add_shortcode('themisdb_release_timeline', 'themisdb_rt_shortcode');
+  NONCE: check_ajax_referer('themisdb_rt_nonce', 'nonce');
+  ACTION: add_action('wp_ajax_themisdb_rt_load_data', 'themisdb_rt_ajax_load_data');
+  ACTION: add_action('wp_ajax_nopriv_themisdb_rt_load_data', 'themisdb_rt_ajax_load_data');
+  ACTION: add_action('admin_menu', 'themisdb_rt_admin_menu');
+  ACTION: add_action('admin_init', 'themisdb_rt_register_settings');
+--- \uninstall.php ---
+--- \templates\admin-settings.php ---
+  CAP: if (!current_user_can('manage_options')) {
+--- \templates\timeline.php ---
+=== themisdb-support-portal ===
+--- \themisdb-support-portal.php ---
+  ACTION: add_action('admin_notices', function () {
+  ACTION: add_action('plugins_loaded', 'themisdb_support_portal_init');
+  ACTION: add_action('admin_notices', function () use ($legacy_file) {
+  CAP: if (!current_user_can('manage_options')) {
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_support_enqueue_scripts');
+  ACTION: add_action('admin_enqueue_scripts', 'themisdb_support_admin_enqueue_scripts');
+--- \uninstall.php ---
+--- \includes\class-admin.php ---
+  CLASS: class ThemisDB_Support_Admin {
+  METHOD: public function __construct() {
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  ACTION: add_action('wp_ajax_themisdb_support_admin_reply', array($this, 'handle_admin_reply'));
+  ACTION: add_action('wp_ajax_themisdb_support_admin_status', array($this, 'handle_status_change'));
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function tickets_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: private function handle_ticket_get_actions() {
+  METHOD: private function handle_quick_status_action() {
+  NONCE: if (!isset($_GET['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'themisdb_support_quick_status')) {
+  METHOD: private function get_ticket_status_counts() {
+  METHOD: private function get_list_state_args_from_get() {
+  METHOD: private function handle_ticket_post_actions() {
+  METHOD: private function handle_create_ticket_action() {
+  METHOD: private function handle_bulk_ticket_action() {
+  METHOD: private function get_list_state_args_from_post() {
+  METHOD: private function handle_update_ticket_action() {
+  METHOD: private function handle_delete_ticket_action() {
+  METHOD: private function redirect_to_tickets($args = array()) {
+  METHOD: private function view_ticket_page($ticket_id) {
+  METHOD: private function get_ticket_navigation($current_ticket_id, $list_state_args = array()) {
+  METHOD: private function resolve_support_context_for_ticket($ticket) {
+  METHOD: public function settings_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function handle_admin_reply() {
+  NONCE: check_ajax_referer('themisdb_support_admin_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function handle_status_change() {
+  NONCE: check_ajax_referer('themisdb_support_admin_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+--- \includes\class-database.php ---
+  CLASS: class ThemisDB_Support_Database {
+  METHOD: public static function init() {
+  METHOD: public static function create_tables() {
+  METHOD: public static function drop_tables() {
+--- \includes\class-license-auth.php ---
+  CLASS: class ThemisDB_Support_License_Auth {
+  METHOD: public function __construct() {
+  ACTION: add_action('wp_ajax_nopriv_themisdb_support_license_auth', array($this, 'handle_license_auth'));
+  ACTION: add_action('wp_ajax_themisdb_support_license_auth', array($this, 'handle_license_auth'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_support_logout', array($this, 'handle_logout'));
+  ACTION: add_action('wp_ajax_themisdb_support_logout', array($this, 'handle_logout'));
+  METHOD: public static function authenticate_with_license_file($file_content) {
+  METHOD: public static function current_user_has_license() {
+  CAP: if (current_user_can('manage_options')) {
+  METHOD: public function handle_license_auth() {
+  NONCE: check_ajax_referer('themisdb_support_nonce', 'nonce');
+  METHOD: public function handle_logout() {
+  NONCE: check_ajax_referer('themisdb_support_nonce', 'nonce');
+  METHOD: private static function standalone_authenticate($file_content) {
+  METHOD: private static function verify_license_signature($license_data) {
+  METHOD: private static function validate_license_key_format($license_key) {
+  METHOD: private static function get_or_create_user($email, $name, $company, $license_key) {
+--- \includes\class-shortcodes.php ---
+  CLASS: class ThemisDB_Support_Shortcodes {
+  METHOD: public function __construct() {
+  SHORTCODE: add_shortcode('themisdb_support_portal', array($this, 'portal_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_support_login',  array($this, 'login_shortcode'));
+  ACTION: add_action('wp_ajax_themisdb_support_new_ticket',        array($this, 'handle_new_ticket'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_support_new_ticket', array($this, 'handle_new_ticket_denied'));
+  ACTION: add_action('wp_ajax_themisdb_support_get_ticket', array($this, 'handle_get_ticket'));
+  METHOD: public function portal_shortcode($atts) {
+  METHOD: public function login_shortcode($atts) {
+  METHOD: public function handle_new_ticket() {
+  NONCE: check_ajax_referer('themisdb_support_nonce', 'nonce');
+  METHOD: public function handle_new_ticket_denied() {
+  NONCE: check_ajax_referer('themisdb_support_nonce', 'nonce');
+  METHOD: public function handle_get_ticket() {
+  NONCE: check_ajax_referer('themisdb_support_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options') && intval($ticket['user_id']) !== get_current_user_id()) {
+  METHOD: private function render_login_form() {
+  METHOD: private function render_portal() {
+  METHOD: private function get_current_user_license_info($user_id) {
+  METHOD: private function get_current_user_support_benefit_info($user_id) {
+--- \includes\class-ticket-manager.php ---
+  CLASS: class ThemisDB_SupportPortal_Ticket_Manager {
+  METHOD: public static function create_ticket($data) {
+  METHOD: public static function get_last_error() {
+  METHOD: public static function get_ticket($ticket_id) {
+  METHOD: public static function get_ticket_by_number($ticket_number) {
+  METHOD: public static function get_tickets($args = array()) {
+  METHOD: public static function get_user_tickets($user_id) {
+  METHOD: public static function update_ticket_status($ticket_id, $status) {
+  METHOD: public static function update_ticket($ticket_id, $data) {
+  METHOD: public static function delete_ticket($ticket_id) {
+  METHOD: public static function bulk_update_status($ticket_ids, $status) {
+  METHOD: public static function bulk_delete_tickets($ticket_ids) {
+  METHOD: private static function sanitize_ticket_ids($ticket_ids) {
+  METHOD: public static function add_message($ticket_id, $message_data) {
+  METHOD: public static function get_messages($ticket_id) {
+  METHOD: private static function generate_ticket_number() {
+  METHOD: private static function ticket_number_exists($ticket_number) {
+  METHOD: public static function get_status_labels() {
+  METHOD: public static function get_priority_labels() {
+  METHOD: private static function notify_admin_new_ticket($ticket_id, $ticket_data) {
+  METHOD: private static function notify_customer_reply($ticket, $reply_message) {
+--- \templates\admin-settings.php ---
+--- \templates\admin-ticket-view.php ---
+--- \templates\admin-tickets.php ---
+--- \templates\portal-ticket-detail.php ---
+=== themisdb-taxonomy-manager ===
+--- \themisdb-taxonomy-manager.php ---
+  ACTION: add_action('admin_notices', function() use ($file, $is_critical) {
+  CLASS: class ThemisDB_Taxonomy_Manager_Plugin {
+  METHOD: public static function get_instance() {
+  METHOD: private function __construct() {
+  ACTION: add_action('plugins_loaded', array($this, 'load_textdomain'));
+  ACTION: add_action('init', array($this, 'register_shortcodes'));
+  ACTION: add_action('rest_api_init', array($this, 'register_rest_api'));
+  ACTION: add_action('wp_head', array($this, 'add_schema_markup'));
+  ACTION: add_action('themisdb_before_taxonomy_archive', array($this, 'render_breadcrumbs'));
+  METHOD: public function activate() {
+  METHOD: public function deactivate() {
+  METHOD: public function load_textdomain() {
+  METHOD: public function register_shortcodes() {
+  SHORTCODE: add_shortcode('themisdb_taxonomy', array($this, 'taxonomy_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_taxonomy_info', array($this, 'taxonomy_info_shortcode'));
+  METHOD: public function taxonomy_shortcode($atts) {
+  METHOD: public function taxonomy_info_shortcode($atts) {
+  METHOD: private function render_list_shortcode($terms, $show_count) {
+  METHOD: private function render_cloud_shortcode($terms, $show_count, $min_size, $max_size) {
+  METHOD: private function render_grid_shortcode($terms, $show_count) {
+  METHOD: public function register_rest_api() {
+  REST: register_rest_route('themisdb/v1', '/taxonomies', array(
+  REST: register_rest_route('themisdb/v1', '/taxonomy/(?P<taxonomy>[a-z_]+)', array(
+  REST: register_rest_route('themisdb/v1', '/taxonomy/(?P<taxonomy>[a-z_]+)/tree', array(
+  METHOD: public function rest_get_taxonomies($request) {
+  METHOD: public function rest_get_taxonomy_terms($request) {
+  METHOD: public function rest_get_taxonomy_tree($request) {
+  METHOD: private function build_term_tree($term) {
+  METHOD: public function add_schema_markup() {
+  METHOD: public function render_breadcrumbs() {
+  METHOD: public function get_taxonomy_manager() {
+  ACTION: add_action('plugins_loaded', 'themisdb_taxonomy_init');
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_taxonomy_enqueue_styles');
+  ACTION: add_action('widgets_init', 'themisdb_taxonomy_register_widget');
+--- \uninstall.php ---
+--- \verify-implementation.php ---
+--- \includes\class-admin.php ---
+  CLASS: class ThemisDB_Taxonomy_Admin {
+  METHOD: public function __construct() {
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  ACTION: add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
+  ACTION: add_action('wp_ajax_themisdb_consolidate_categories', array($this, 'ajax_consolidate'));
+  ACTION: add_action('wp_ajax_themisdb_get_recommendations', array($this, 'ajax_recommendations'));
+  ACTION: add_action('wp_ajax_themisdb_cleanup_unused', array($this, 'ajax_cleanup_unused'));
+  ACTION: add_action('wp_ajax_themisdb_merge_terms', array($this, 'ajax_merge_terms'));
+  ACTION: add_action('wp_ajax_themisdb_get_cleanup_preview', array($this, 'ajax_get_cleanup_preview'));
+  ACTION: add_action('wp_ajax_themisdb_delete_terms_batch', array($this, 'ajax_delete_terms_batch'));
+  ACTION: add_action('wp_ajax_themisdb_merge_terms_taxonomy', array($this, 'ajax_merge_terms_taxonomy'));
+  ACTION: add_action('wp_ajax_themisdb_consolidate_taxonomy', array($this, 'ajax_consolidate_taxonomy'));
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function enqueue_admin_scripts($hook) {
+  METHOD: public function admin_page() {
+  METHOD: private function display_category_hierarchy() {
+  METHOD: public function ajax_consolidate() {
+  NONCE: check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+  CAP: if (!current_user_can('manage_categories')) {
+  METHOD: public function ajax_recommendations() {
+  NONCE: check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+  CAP: if (!current_user_can('manage_categories')) {
+  METHOD: public function ajax_cleanup_unused() {
+  NONCE: check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+  CAP: if (!current_user_can('manage_categories')) {
+  METHOD: public function ajax_merge_terms() {
+  NONCE: check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+  CAP: if (!current_user_can('manage_categories')) {
+  METHOD: public function cleanup_page() {
+  METHOD: public function ajax_get_cleanup_preview() {
+  NONCE: check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+  CAP: if (!current_user_can('manage_categories')) {
+  METHOD: public function ajax_delete_terms_batch() {
+  NONCE: check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+  CAP: if (!current_user_can('manage_categories')) {
+  METHOD: public function ajax_merge_terms_taxonomy() {
+  NONCE: check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+  CAP: if (!current_user_can('manage_categories')) {
+  METHOD: public function ajax_consolidate_taxonomy() {
+  NONCE: check_ajax_referer('themisdb_taxonomy_admin', 'nonce');
+  CAP: if (!current_user_can('manage_categories')) {
+  METHOD: public function analytics_page() {
+--- \includes\class-analytics.php ---
+  CLASS: class ThemisDB_Taxonomy_Analytics {
+  METHOD: public function get_taxonomy_statistics() {
+  METHOD: public function get_consolidation_suggestions($similarity_threshold = 0.8) {
+  METHOD: public function calculate_similarity($str1, $str2) {
+  METHOD: public function are_synonyms($term1, $term2) {
+  METHOD: public function get_unused_terms($taxonomy = 'category') {
+  METHOD: public function cleanup_unused_terms($taxonomy = 'category') {
+  METHOD: public function consolidate_categories($similarity_threshold = 0.8) {
+  METHOD: public function get_category_distribution() {
+--- \includes\class-category-hierarchy.php ---
+  CLASS: class ThemisDB_Category_Hierarchy {
+  METHOD: public function __construct() {
+  METHOD: public function consolidate_category($category_name) {
+  METHOD: public function get_parent_category($category_name) {
+  METHOD: public function get_category_path($category_name) {
+  METHOD: public function get_or_create_hierarchical_category($category_name) {
+  METHOD: public function get_child_categories($parent_name) {
+  METHOD: public function is_child_of($child_name, $parent_name) {
+  METHOD: public function consolidate_existing_categories() {
+  METHOD: public function get_optimization_recommendations() {
+--- \includes\class-custom-taxonomies.php ---
+  CLASS: class ThemisDB_Custom_Taxonomies {
+  METHOD: public function __construct() {
+  ACTION: add_action('init', array($this, 'register_taxonomies'), -1);
+  ACTION: add_action('init', array($this, 'create_default_terms'), 15);
+  ACTION: add_action('create_term', array($this, 'save_term_meta'), 10, 3);
+  ACTION: add_action('edit_term', array($this, 'save_term_meta'), 10, 3);
+  ACTION: add_action('themisdb_feature_add_form_fields', array($this, 'add_term_meta_fields'));
+  ACTION: add_action('themisdb_feature_edit_form_fields', array($this, 'edit_term_meta_fields'), 10, 2);
+  METHOD: public function register_taxonomies() {
+  METHOD: public function create_default_terms() {
+  METHOD: public function add_term_meta_fields($taxonomy) {
+  METHOD: public function edit_term_meta_fields($term, $taxonomy) {
+  METHOD: public function save_term_meta($term_id, $tt_id, $taxonomy) {
+--- \includes\class-metabox.php ---
+  CLASS: class ThemisDB_Enhanced_Metabox {
+  METHOD: public function __construct() {
+  ACTION: add_action('add_meta_boxes', array($this, 'add_meta_boxes'));
+  ACTION: add_action('save_post', array($this, 'save_meta_box'), 10, 2);
+  ACTION: add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
+  METHOD: public function add_meta_boxes() {
+  METHOD: public function enqueue_scripts($hook) {
+  METHOD: public function render_feature_metabox($post) {
+  METHOD: public function render_simple_metabox($post, $metabox) {
+  METHOD: public function render_tag_metabox($post) {
+  METHOD: public function save_meta_box($post_id, $post) {
+  NONCE: if (!wp_verify_nonce($_POST[$nonce_name], 'themisdb_' . str_replace('themisdb_', '', $taxonomy) . '_metabox')) {
+  CAP: if (!current_user_can('edit_post', $post_id)) {
+--- \includes\class-seo.php ---
+  CLASS: class ThemisDB_Taxonomy_SEO {
+  METHOD: public function __construct() {
+  ACTION: add_action('wp_head', array($this, 'add_schema_markup'));
+  ACTION: add_action('themisdb_taxonomy_breadcrumb', array($this, 'render_breadcrumb'));
+  METHOD: public function add_schema_markup() {
+  METHOD: private function get_breadcrumb_schema($term) {
+  METHOD: public function render_breadcrumb($term = null) {
+--- \includes\class-taxonomy-extractor.php ---
+  CLASS: class ThemisDB_Taxonomy_Extractor {
+  METHOD: public function __construct() {
+  METHOD: public function extract_taxonomies($post, $options = array()) {
+  METHOD: private function extract_from_content($post) {
+  METHOD: private function extract_all_terms($text, $title = '') {
+  METHOD: private function score_by_frequency($terms, $text) {
+  METHOD: private function separate_categories_and_tags($extracted_terms) {
+  METHOD: private function is_broad_term($term) {
+  METHOD: private function is_specific_term($term) {
+  METHOD: private function exists_as_tag($term) {
+  METHOD: private function exists_as_category($term) {
+  METHOD: private function extract_from_metadata($post) {
+  METHOD: private function extract_from_path($path) {
+  METHOD: private function extract_phrases($text) {
+  METHOD: private function extract_keywords($text, $title = '') {
+  METHOD: private function tokenize($text) {
+  METHOD: private function is_stop_word($word) {
+  METHOD: private function is_valid_category($name) {
+  METHOD: private function filter_and_deduplicate($items) {
+--- \includes\class-taxonomy-manager.php ---
+  CLASS: class ThemisDB_Taxonomy_Manager {
+  METHOD: public function __construct() {
+  ACTION: add_action('init', array($this, 'register_taxonomies'), 0);
+  ACTION: add_action('init', array($this, 'register_shortcodes'));
+  METHOD: public function register_taxonomies() {
+  METHOD: public function insert_default_terms() {
+  METHOD: private function insert_feature_terms() {
+  METHOD: private function insert_usecase_terms() {
+  METHOD: private function insert_industry_terms() {
+  METHOD: private function insert_techspec_terms() {
+  METHOD: public function register_shortcodes() {
+  SHORTCODE: add_shortcode('themisdb_taxonomy', array($this, 'shortcode_taxonomy_list'));
+  SHORTCODE: add_shortcode('themisdb_term_card', array($this, 'shortcode_term_card'));
+  METHOD: public function shortcode_taxonomy_list($atts) {
+  METHOD: private function render_list_style($terms, $atts) {
+  METHOD: private function render_cloud_style($terms, $atts) {
+  METHOD: private function render_grid_style($terms, $atts) {
+  METHOD: public function shortcode_term_card($atts) {
+  METHOD: public function find_matching_category($term, $taxonomy = 'category') {
+  METHOD: public function find_semantic_parent($term) {
+  METHOD: public function assign_with_hierarchy($post_id, $category_names, $append = false) {
+  METHOD: public function consolidate_categories($similarity_threshold = 0.8) {
+  METHOD: public function get_optimization_recommendations() {
+--- \includes\class-template-handler.php ---
+  CLASS: class ThemisDB_Template_Handler {
+  METHOD: public function __construct() {
+  FILTER: add_filter('template_include', array($this, 'taxonomy_template'), 99);
+  ACTION: add_action('themisdb_taxonomy_archive_header', array($this, 'render_archive_header'));
+  ACTION: add_action('wp_enqueue_scripts', array($this, 'enqueue_frontend_styles'));
+  METHOD: public function taxonomy_template($template) {
+  METHOD: public function render_archive_header() {
+  METHOD: public function enqueue_frontend_styles() {
+--- \includes\class-term-cleaner.php ---
+  CLASS: class ThemisDB_Term_Cleaner {
+  METHOD: public function detect_nonsensical_terms( $taxonomy = 'category' ) {
+  METHOD: public function get_similar_terms( $taxonomy = 'category', $similarity_threshold = 0.8 ) {
+  METHOD: public function merge_terms( $keep_id, $remove_id, $taxonomy ) {
+  METHOD: public function delete_terms( array $term_ids, $taxonomy ) {
+  METHOD: public function consolidate_taxonomy( $taxonomy, $similarity_threshold = 0.8 ) {
+  METHOD: public function get_cleanup_preview() {
+  METHOD: public function get_nonsensical_reason( $name ) {
+  METHOD: private function pattern_reason( $pattern ) {
+  METHOD: private function calculate_similarity( $str1, $str2 ) {
+--- \includes\class-term-meta.php ---
+  CLASS: class ThemisDB_Term_Meta {
+  METHOD: public function __construct() {
+  ACTION: add_action('themisdb_feature_edit_form_fields', array($this, 'edit_form_fields'), 10, 2);
+  ACTION: add_action('themisdb_usecase_edit_form_fields', array($this, 'edit_form_fields'), 10, 2);
+  ACTION: add_action('themisdb_industry_edit_form_fields', array($this, 'edit_form_fields'), 10, 2);
+  ACTION: add_action('themisdb_techspec_edit_form_fields', array($this, 'edit_form_fields'), 10, 2);
+  ACTION: add_action('edited_themisdb_feature', array($this, 'save_term_meta'), 10, 2);
+  ACTION: add_action('edited_themisdb_usecase', array($this, 'save_term_meta'), 10, 2);
+  ACTION: add_action('edited_themisdb_industry', array($this, 'save_term_meta'), 10, 2);
+  ACTION: add_action('edited_themisdb_techspec', array($this, 'save_term_meta'), 10, 2);
+  ACTION: add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
+  METHOD: public function edit_form_fields($term, $taxonomy) {
+  METHOD: public function save_term_meta($term_id, $tt_id) {
+  METHOD: public function enqueue_scripts($hook) {
+--- \includes\class-tfidf.php ---
+  CLASS: class ThemisDB_TFIDF {
+  METHOD: public function __construct() {
+  METHOD: public function calculate_tfidf($term, $text) {
+  METHOD: private function calculate_term_frequency($term, $text) {
+  METHOD: private function calculate_inverse_document_frequency($term) {
+  METHOD: private function get_term_document_frequency($term) {
+  METHOD: private function get_total_post_count() {
+  METHOD: public function score_terms($terms, $text, $limit = 10) {
+  METHOD: public function clear_cache() {
+--- \includes\class-tree-view.php ---
+  CLASS: class ThemisDB_Tree_View {
+  METHOD: public function __construct() {
+  ACTION: add_action('admin_menu', array($this, 'add_menu_page'));
+  ACTION: add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
+  ACTION: add_action('wp_ajax_themisdb_save_term_order', array($this, 'ajax_save_term_order'));
+  ACTION: add_action('wp_ajax_themisdb_export_taxonomies', array($this, 'ajax_export_taxonomies'));
+  ACTION: add_action('wp_ajax_themisdb_import_taxonomies', array($this, 'ajax_import_taxonomies'));
+  METHOD: public function add_menu_page() {
+  METHOD: public function enqueue_scripts($hook) {
+  METHOD: public function render_tree_page() {
+  METHOD: public function render_taxonomy_tree($taxonomy) {
+  METHOD: private function render_term_item($term, $taxonomy) {
+  METHOD: public function ajax_save_term_order() {
+  NONCE: check_ajax_referer('themisdb_taxonomy_tree', 'nonce');
+  CAP: if (!current_user_can('manage_categories')) {
+  METHOD: public function ajax_export_taxonomies() {
+  NONCE: check_ajax_referer('themisdb_taxonomy_tree', 'nonce');
+  CAP: if (!current_user_can('manage_categories')) {
+  METHOD: public function ajax_import_taxonomies() {
+  NONCE: check_ajax_referer('themisdb_taxonomy_tree', 'nonce');
+  CAP: if (!current_user_can('manage_categories')) {
+--- \includes\class-widget.php ---
+  CLASS: class ThemisDB_Taxonomy_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  ACTION: add_action('wp_enqueue_scripts', array($this, 'enqueue_widget_styles'));
+  METHOD: public function enqueue_widget_styles() {
+  METHOD: public function form($instance) {
+  METHOD: public function update($new_instance, $old_instance) {
+  METHOD: public function widget($args, $instance) {
+  METHOD: private function render_list($terms, $show_count) {
+  METHOD: private function render_cloud($terms, $show_count) {
+  METHOD: private function render_grid($terms, $show_count) {
+  ACTION: add_action('widgets_init', 'themisdb_register_taxonomy_widget');
+--- \templates\taxonomy-archive.php ---
+=== themisdb-tco-calculator ===
+--- \themisdb-tco-calculator.php ---
+  CLASS: class ThemisDB_TCO_Calculator {
+  METHOD: public static function get_instance() {
+  METHOD: private function __construct() {
+  ACTION: add_action('init', array($this, 'init'));
+  ACTION: add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+  SHORTCODE: add_shortcode('themisdb_tco_calculator', array($this, 'render_calculator'));
+  SHORTCODE: add_shortcode('themisdb_tco_workload', array($this, 'render_workload_section'));
+  SHORTCODE: add_shortcode('themisdb_tco_infrastructure', array($this, 'render_infrastructure_section'));
+  SHORTCODE: add_shortcode('themisdb_tco_personnel', array($this, 'render_personnel_section'));
+  SHORTCODE: add_shortcode('themisdb_tco_operations', array($this, 'render_operations_section'));
+  SHORTCODE: add_shortcode('themisdb_tco_ai', array($this, 'render_ai_section'));
+  SHORTCODE: add_shortcode('themisdb_tco_results', array($this, 'render_results_section'));
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  FILTER: add_filter('plugin_action_links_' . plugin_basename(THEMISDB_TCO_PLUGIN_FILE), array($this, 'add_action_links'));
+  FILTER: add_filter('pre_set_site_transient_update_plugins', array($this, 'check_for_updates'));
+  FILTER: add_filter('plugins_api', array($this, 'plugin_info'), 20, 3);
+  METHOD: public function activate() {
+  METHOD: public function deactivate() {
+  METHOD: public function init() {
+  METHOD: public function enqueue_assets() {
+  METHOD: public function render_calculator($atts) {
+  METHOD: public function render_workload_section($atts) {
+  METHOD: public function render_infrastructure_section($atts) {
+  METHOD: public function render_personnel_section($atts) {
+  METHOD: public function render_operations_section($atts) {
+  METHOD: public function render_ai_section($atts) {
+  METHOD: public function render_results_section($atts) {
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function render_admin_page() {
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function add_action_links($links) {
+  METHOD: public function check_for_updates($transient) {
+  METHOD: public function plugin_info($false, $action, $response) {
+  METHOD: private function get_github_release_info() {
+  METHOD: private function get_github_download_url($version) {
+--- \uninstall.php ---
+--- \templates\admin-settings.php ---
+--- \templates\calculator.php ---
+--- \templates\sections\ai.php ---
+--- \templates\sections\infrastructure.php ---
+--- \templates\sections\operations.php ---
+--- \templates\sections\personnel.php ---
+--- \templates\sections\workload.php ---
+=== themisdb-test-dashboard ===
+--- \themisdb-test-dashboard.php ---
+  ACTION: add_action('wp_enqueue_scripts', 'themisdb_test_dashboard_enqueue_assets');
+  SHORTCODE: add_shortcode('themisdb_test_dashboard', 'themisdb_test_dashboard_shortcode');
+  NONCE: check_ajax_referer('themisdb_test_dashboard_nonce', 'nonce');
+  ACTION: add_action('wp_ajax_themisdb_test_dashboard_fetch', 'themisdb_test_dashboard_fetch_data');
+  ACTION: add_action('wp_ajax_nopriv_themisdb_test_dashboard_fetch', 'themisdb_test_dashboard_fetch_data');
+  ACTION: add_action('admin_menu', 'themisdb_test_dashboard_admin_menu');
+  CAP: if (!current_user_can('manage_options')) {
+  ACTION: add_action('admin_init', 'themisdb_test_dashboard_register_settings');
+--- \uninstall.php ---
+--- \templates\admin-settings.php ---
+--- \templates\dashboard.php ---
+=== themisdb-theme ===
+--- \404.php ---
+--- \archive.php ---
+--- \comments.php ---
+--- \footer.php ---
+--- \front-page.php ---
+--- \functions.php ---
+  ACTION: add_action( 'after_setup_theme', 'themisdb_setup' );
+  ACTION: add_action( 'after_setup_theme', 'themisdb_content_width', 0 );
+  ACTION: add_action( 'after_switch_theme', 'themisdb_flush_rewrite_on_switch' );
+  ACTION: add_action( 'init', 'themisdb_maybe_flush_rewrite_rules', 20 );
+  ACTION: add_action( 'template_redirect', 'themisdb_maybe_redirect_404_to_resolved_permalink', 1 );
+  FILTER: add_filter( 'cron_schedules', 'themisdb_add_every_minute_schedule' );
+  ACTION: add_action( 'widgets_init', 'themisdb_widgets_init' );
+  ACTION: add_action( 'after_setup_theme', 'themisdb_load_widgets_file', 20 );
+  ACTION: add_action( 'wp_enqueue_scripts', 'themisdb_scripts' );
+  FILTER: add_filter( 'body_class', 'themisdb_body_classes' );
+  FILTER: add_filter( 'sidebars_widgets', 'themisdb_remove_search_widgets_from_primary_sidebar', 20 );
+  FILTER: add_filter( 'excerpt_length', 'themisdb_excerpt_length', 999 );
+  FILTER: add_filter( 'excerpt_more', 'themisdb_excerpt_more' );
+  FILTER: add_filter( 'the_content_more_link', 'themisdb_read_more_link' );
+  METHOD: public function render_content() {
+  ACTION: add_action( 'customize_register', 'themisdb_customize_register' );
+  ACTION: add_action( 'customize_preview_init', 'themisdb_customize_preview_js' );
+  ACTION: add_action( 'customize_controls_enqueue_scripts', 'themisdb_customize_controls_js' );
+  ACTION: add_action( 'wp_enqueue_scripts', 'themisdb_custom_colors_css' );
+--- \header.php ---
+--- \home.php ---
+--- \index.php ---
+--- \page.php ---
+--- \search.php ---
+--- \searchform.php ---
+--- \sidebar.php ---
+--- \single.php ---
+--- \template-benchmarks-dashboard.php ---
+  CAP: <?php if ( current_user_can( 'activate_plugins' ) ) : ?>
+--- \template-full-width.php ---
+--- \inc\widgets.php ---
+  CLASS: class ThemisDB_Featured_Slider_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Recent_Posts_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Category_Highlights_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_CTA_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_About_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Social_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Tag_Cloud_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Quick_Links_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Testimonials_Carousel_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Image_Carousel_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Timeline_Carousel_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Posts_Grid_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Author_Card_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Stats_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Popular_Posts_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Newsletter_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Video_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: private function get_embed_url( $raw_url ) {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Tabbed_Posts_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: private function run_query( $count, $orderby, $meta_key = '' ) {
+  METHOD: private function render_list( $query, $show_thumb, $show_date ) {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Recent_Comments_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Category_Grid_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Post_Ticker_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Related_Posts_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  CLASS: class ThemisDB_Reading_Progress_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget( $args, $instance ) {
+  ACTION: add_action( 'wp_footer', static function() use ( $color_safe, $height_safe, $only_s_int ) {
+  METHOD: public function form( $instance ) {
+  METHOD: public function update( $new_instance, $old_instance ) {
+  ACTION: add_action( 'widgets_init', 'themisdb_register_widgets' );
+--- \template-parts\content-none.php ---
+  CAP: if ( is_home() && current_user_can( 'publish_posts' ) ) :
+--- \template-parts\content-page.php ---
+--- \template-parts\content-search.php ---
+--- \template-parts\content-single.php ---
+--- \template-parts\content.php ---
+=== themisdb-theme-v2 ===
+--- \functions.php ---
+  ACTION: add_action( 'after_setup_theme', 'themisdb_v2_setup' );
+  ACTION: add_action( 'after_switch_theme', 'themisdb_v2_flush_rewrite_on_switch' );
+  ACTION: add_action( 'init', 'themisdb_v2_maybe_flush_rewrite_rules', 20 );
+  ACTION: add_action( 'template_redirect', 'themisdb_v2_maybe_redirect_404_to_resolved_permalink', 1 );
+  FILTER: add_filter( 'cron_schedules', 'themisdb_v2_add_every_minute_schedule' );
+  SHORTCODE: add_shortcode( $shortcode, '__return_empty_string' );
+  ACTION: add_action( 'init', 'themisdb_v2_register_shortcode_fallbacks', 30 );
+  ACTION: add_action( 'wp_enqueue_scripts', 'themisdb_v2_enqueue' );
+  FILTER: add_filter( 'render_block', 'themisdb_v2_filter_render_block_urls', 20, 1 );
+  ACTION: add_action( 'init', 'themisdb_v2_register_pattern_categories' );
+  ACTION: add_action( 'init', 'themisdb_v2_register_block_styles' );
+  FILTER: add_filter( 'themisdb_shortcode_wrapper_class', 'themisdb_v2_shortcode_wrapper' );
+  ACTION: add_action( 'wp_head', 'themisdb_v2_yoast_breadcrumb_support' );
+  FILTER: add_filter( 'ez_toc_container_class', function( $class ) {
+  FILTER: add_filter( 'relevanssi_search_ok', '__return_true' );
+  FILTER: add_filter( 'kadence_blocks_color_palette', 'themisdb_v2_kadence_palette' );
+  ACTION: add_action( 'widgets_init', 'themisdb_v2_widgets' );
+  FILTER: add_filter( 'body_class', 'themisdb_v2_body_classes' );
+  FILTER: add_filter( 'xmlrpc_enabled', '__return_false' );
+  FILTER: add_filter( 'script_loader_tag', 'themisdb_v2_defer_scripts', 10, 3 );
+  FILTER: add_filter( 'excerpt_length', function() { return 30; } );
+  FILTER: add_filter( 'excerpt_more',   function() {
+  FILTER: add_filter( 'block_categories_all', 'themisdb_v2_block_categories', 10, 2 );
+--- \patterns\cta-download.php ---
+--- \patterns\docs-grid.php ---
+--- \patterns\feature-cards.php ---
+--- \patterns\hero-home.php ---
+--- \patterns\query-showcase.php ---
+--- \patterns\stats-bar.php ---
+--- \patterns\testimonial.php ---
+=== themisdb-theme-v3 ===
+--- \functions.php ---
+  ACTION: add_action( 'after_setup_theme', 'themisdb_v3_setup' );
+  ACTION: add_action( 'after_switch_theme', 'themisdb_v3_flush_rewrite_on_switch' );
+  ACTION: add_action( 'init', 'themisdb_v3_maybe_flush_rewrite_rules', 20 );
+  ACTION: add_action( 'template_redirect', 'themisdb_v3_maybe_redirect_404_to_resolved_permalink', 1 );
+  FILTER: add_filter( 'cron_schedules', 'themisdb_v3_add_every_minute_schedule' );
+  SHORTCODE: add_shortcode( $shortcode, '__return_empty_string' );
+  ACTION: add_action( 'init', 'themisdb_v3_register_shortcode_fallbacks', 30 );
+  ACTION: add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue' );
+  FILTER: add_filter( 'render_block', 'themisdb_v3_filter_render_block_urls', 20, 1 );
+  ACTION: add_action( 'init', 'themisdb_v3_register_pattern_categories' );
+  ACTION: add_action( 'init', 'themisdb_v3_register_block_styles' );
+  ACTION: add_action( 'wp_head', 'themisdb_v3_plugin_compatibility_styles' );
+  FILTER: add_filter( 'themisdb_shortcode_wrapper_class', 'themisdb_v3_shortcode_wrapper' );
+  ACTION: add_action( 'wp_head', 'themisdb_v3_yoast_breadcrumb_support' );
+  FILTER: add_filter( 'ez_toc_container_class', function( $class ) {
+  FILTER: add_filter( 'kadence_blocks_color_palette', 'themisdb_v3_kadence_palette' );
+  ACTION: add_action( 'widgets_init', 'themisdb_v3_widgets' );
+  FILTER: add_filter( 'body_class', 'themisdb_v3_body_classes' );
+  ACTION: add_action( 'after_setup_theme', 'themisdb_v3_cleanup_head', 11 );
+  FILTER: add_filter( 'xmlrpc_enabled', '__return_false' );
+  FILTER: add_filter( 'script_loader_tag', 'themisdb_v3_defer_scripts', 10, 3 );
+  FILTER: add_filter( 'excerpt_length', function() { return 28; } );
+  FILTER: add_filter( 'excerpt_more',   function() {
+  FILTER: add_filter( 'block_categories_all', 'themisdb_v3_block_categories', 10, 2 );
+  FILTER: add_filter( 'relevanssi_search_ok', '__return_true' );
+--- \patterns\cta-download.php ---
+--- \patterns\docs-grid.php ---
+--- \patterns\feature-cards.php ---
+--- \patterns\hero-home.php ---
+--- \patterns\pricing-section.php ---
+--- \patterns\query-showcase.php ---
+--- \patterns\stats-bar.php ---
+--- \patterns\tabs-section.php ---
+--- \patterns\testimonial.php ---
+=== themisdb-wiki-integration ===
+--- \themisdb-wiki-integration.php ---
+  CLASS: class ThemisDB_Wiki_Integration {
+  METHOD: public function __construct() {
+  ACTION: add_action('plugins_loaded', array($this, 'init'));
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  ACTION: add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
+  SHORTCODE: add_shortcode('themisdb_wiki', array($this, 'wiki_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_docs', array($this, 'docs_shortcode'));
+  SHORTCODE: add_shortcode('themisdb_wiki_nav', array($this, 'wiki_nav_shortcode'));
+  ACTION: add_action('widgets_init', array($this, 'register_widgets'));
+  ACTION: add_action('wp_ajax_themisdb_sync_docs', array($this, 'ajax_sync_docs'));
+  ACTION: add_action('wp_ajax_themisdb_clear_cache', array($this, 'ajax_clear_cache'));
+  METHOD: public function activate() {
+  METHOD: public function deactivate() {
+  METHOD: public function init() {
+  ACTION: add_action('themisdb_wiki_auto_sync_hook', array($this, 'auto_sync_docs'));
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function enqueue_scripts() {
+  METHOD: public function admin_page() {
+  METHOD: private function fetch_github_file($file_path, $lang = null) {
+  METHOD: private function markdown_to_html($markdown) {
+  METHOD: private function list_docs_files($lang = null) {
+  METHOD: public function wiki_shortcode($atts) {
+  METHOD: public function docs_shortcode($atts) {
+  METHOD: public function wiki_nav_shortcode($atts) {
+  METHOD: private function parse_sidebar_to_nav($markdown, $lang, $style) {
+  METHOD: private function build_nav_link_url($github_path, $lang) {
+  METHOD: public function register_widgets() {
+  METHOD: private function generate_toc($html) {
+  METHOD: public function ajax_sync_docs() {
+  NONCE: check_ajax_referer('themisdb_wiki_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function ajax_clear_cache() {
+  NONCE: check_ajax_referer('themisdb_wiki_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function auto_sync_docs() {
+  METHOD: private function clear_all_cache() {
+  CLASS: class ThemisDB_Wiki_Nav_Widget extends WP_Widget {
+  METHOD: public function __construct() {
+  METHOD: public function widget($args, $instance) {
+  METHOD: public function form($instance) {
+  METHOD: public function update($new_instance, $old_instance) {
+--- \wordpress_doc_importer.php ---
+  CLASS: class ThemisDB_Doc_Importer {
+  METHOD: public function __construct($json_file = 'wordpress_categories.json') {
+  METHOD: public function import() {
+  METHOD: private function load_json_data() {
+  METHOD: private function ensure_categories($categories) {
+  METHOD: private function ensure_tags($tags) {
+  METHOD: private function get_or_create_category($name) {
+  METHOD: private function get_or_create_tag($name) {
+  METHOD: private function import_document($doc) {
+  METHOD: private function find_existing_post($title, $content_hash) {
+  METHOD: private function prepare_content($file_path) {
+  METHOD: private function print_statistics() {
+  METHOD: private function log($message, $level = 'info') {
+  ACTION: add_action('admin_menu', function() {
+--- \includes\class-admin.php ---
+  CLASS: class ThemisDB_Wiki_Admin {
+  METHOD: public function __construct() {
+  ACTION: add_action('admin_menu', array($this, 'add_admin_menu'));
+  ACTION: add_action('admin_init', array($this, 'register_settings'));
+  METHOD: public function add_admin_menu() {
+  METHOD: public function register_settings() {
+  METHOD: public function render_settings_page() {
+  METHOD: public function render_github_section() {
+  METHOD: public function render_repo_field() {
+  METHOD: public function render_token_field() {
+  METHOD: public function render_branch_field() {
+  METHOD: public function render_sync_direction_field() {
+  METHOD: public function render_auto_sync_field() {
+  METHOD: private function render_sync_panel() {
+--- \includes\class-github-sync.php ---
+  CLASS: class ThemisDB_Wiki_GitHub_Sync {
+  METHOD: public function __construct() {
+  ACTION: add_action('wp_ajax_sync_wiki_to_github', array($this, 'ajax_push_to_github'));
+  ACTION: add_action('wp_ajax_sync_wiki_from_github', array($this, 'ajax_pull_from_github'));
+  ACTION: add_action('wp_ajax_bulk_sync_wiki', array($this, 'ajax_bulk_sync'));
+  METHOD: private function get_config() {
+  METHOD: public function push_to_github($post_id) {
+  METHOD: public function pull_from_github($github_path) {
+  METHOD: private function get_file_sha($config, $github_path) {
+  METHOD: public function sync_all() {
+  METHOD: public function ajax_push_to_github() {
+  NONCE: check_ajax_referer('themisdb_wiki_nonce', 'nonce');
+  CAP: if (!$post_id || !current_user_can('edit_post', $post_id)) {
+  METHOD: public function ajax_pull_from_github() {
+  NONCE: check_ajax_referer('themisdb_wiki_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+  METHOD: public function ajax_bulk_sync() {
+  NONCE: check_ajax_referer('themisdb_wiki_nonce', 'nonce');
+  CAP: if (!current_user_can('manage_options')) {
+--- \includes\class-markdown-converter.php ---
+  CLASS: class ThemisDB_Markdown_Converter {
+  METHOD: public static function convert($markdown) {
+  METHOD: private static function parse_tables($html) {
+  METHOD: private static function parse_lists($html) {
+  METHOD: private static function parse_blockquotes($html) {
+  METHOD: private static function wrap_paragraphs($html) {
+--- \includes\class-search.php ---
+  CLASS: class ThemisDB_Wiki_Search {
+  METHOD: public function __construct() {
+  ACTION: add_action('wp_ajax_themisdb_wiki_search', array($this, 'ajax_search'));
+  ACTION: add_action('wp_ajax_nopriv_themisdb_wiki_search', array($this, 'ajax_search'));
+  ACTION: add_action('pre_get_posts', array($this, 'modify_search_query'));
+  METHOD: public function search($query) {
+  METHOD: private function generate_excerpt($content, $query, $length = 150) {
+  METHOD: public function get_search_form() {
+  METHOD: public function ajax_search() {
+  METHOD: public function modify_search_query($query) {
+  METHOD: public function get_related_pages($post_id, $limit = 5) {
+  METHOD: public function get_popular_pages($limit = 10) {
+  METHOD: public function track_page_view($post_id) {
+--- \includes\class-version-manager.php ---
+  CLASS: class ThemisDB_Wiki_Version_Manager {
+  METHOD: public function __construct() {
+  ACTION: add_action('wp_ajax_get_wiki_revisions', array($this, 'ajax_get_revisions'));
+  ACTION: add_action('wp_ajax_get_wiki_diff', array($this, 'ajax_get_diff'));
+  ACTION: add_action('wp_ajax_restore_wiki_revision', array($this, 'ajax_restore_revision'));
+  METHOD: public function save_revision($post_id, $markdown, $message = '') {
+  METHOD: public function get_revisions($post_id, $limit = 10) {
+  METHOD: public function get_diff($revision_id_old, $revision_id_new) {
+  METHOD: public function restore_revision($post_id, $revision_id) {
+  METHOD: public function ajax_get_revisions() {
+  NONCE: check_ajax_referer('themisdb_wiki_nonce', 'nonce');
+  CAP: if (!$post_id || !current_user_can('edit_post', $post_id)) {
+  METHOD: public function ajax_get_diff() {
+  NONCE: check_ajax_referer('themisdb_wiki_nonce', 'nonce');
+  METHOD: public function ajax_restore_revision() {
+  NONCE: check_ajax_referer('themisdb_wiki_nonce', 'nonce');
+  CAP: if (!$post_id || !$revision_id || !current_user_can('edit_post', $post_id)) {
+  METHOD: public function render_revision_history($post_id) {
+--- \includes\class-wiki.php ---
+  CLASS: class ThemisDB_Wiki {
+  METHOD: public function __construct() {
+  ACTION: add_action('init', array($this, 'register_post_type'));
+  ACTION: add_action('save_post_themisdb_wiki', array($this, 'save_wiki_metadata'), 10, 3);
+  FILTER: add_filter('the_content', array($this, 'process_wiki_content'));
+  METHOD: public function register_post_type() {
+  ACTION: add_action('add_meta_boxes_themisdb_wiki', array($this, 'add_meta_boxes'));
+  METHOD: public function add_meta_boxes() {
+  METHOD: public function render_markdown_editor($post) {
+  METHOD: public function render_metadata_box($post) {
+  METHOD: public function render_github_sync_box($post) {
+  METHOD: public function save_wiki_metadata($post_id, $post, $update) {
+  NONCE: if (!isset($_POST['wiki_markdown_nonce']) || !wp_verify_nonce($_POST['wiki_markdown_nonce'], 'wiki_markdown_nonce')) {
+  CAP: if (!current_user_can('edit_post', $post_id)) {
+  ACTION: add_action('save_post_themisdb_wiki', array($this, 'save_wiki_metadata'), 10, 3);
+  METHOD: public function process_wiki_content($content) {
+--- \includes\class-wikilinks.php ---
+  CLASS: class ThemisDB_WikiLinks {
+  METHOD: public function convert_markdown_with_wikilinks($markdown) {
+  METHOD: private function parse_wikilinks($markdown) {
+  METHOD: private function create_wiki_link($page_reference, $display_text = '') {
+  METHOD: private function render_file_embed($file_reference, $options) {
+  METHOD: private function assign_category($category_name) {
+  METHOD: public function add_table_of_contents($html) {
+  METHOD: public function generate_toc_html($content, $depth = 3, $title = 'Contents') {
+  METHOD: public function get_backlinks($page_slug) {
+--- \templates\admin-settings.php ---
+--- \templates\archive-themisdb_wiki.php ---
+  CAP: <?php if (current_user_can('publish_posts')) : ?>
+--- \templates\single-themisdb_wiki.php ---
+  CAP: <?php if (current_user_can('edit_post', get_the_ID())) : ?>

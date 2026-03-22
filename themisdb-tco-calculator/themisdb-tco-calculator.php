@@ -101,6 +101,7 @@ class ThemisDB_TCO_Calculator {
         // Initialize plugin
         add_action('init', array($this, 'init'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+            add_filter('script_loader_tag', array($this, 'add_crossorigin_to_cdn_scripts'), 10, 3);
         
         // Register shortcodes
         add_shortcode('themisdb_tco_calculator', array($this, 'render_calculator'));
@@ -117,10 +118,10 @@ class ThemisDB_TCO_Calculator {
         
         // Plugin action links
         add_filter('plugin_action_links_' . plugin_basename(THEMISDB_TCO_PLUGIN_FILE), array($this, 'add_action_links'));
-        
-        // GitHub updates
-        add_filter('pre_set_site_transient_update_plugins', array($this, 'check_for_updates'));
-        add_filter('plugins_api', array($this, 'plugin_info'), 20, 3);
+
+        // Updates are handled by ThemisDB_Plugin_Updater (initialised at file load).
+        // The manual pre_set_site_transient_update_plugins / plugins_api filters below
+        // were removed to avoid double API calls and inconsistent update data.
     }
     
     /**
@@ -244,6 +245,17 @@ class ThemisDB_TCO_Calculator {
         }
     }
     
+    /**
+     * Add crossorigin attribute to CDN scripts for SRI readiness.
+     */
+    public function add_crossorigin_to_cdn_scripts($tag, $handle, $src) {
+        $cdn_handles = array('chartjs', 'mermaidjs');
+        if (in_array($handle, $cdn_handles, true)) {
+            return str_replace('<script ', '<script crossorigin="anonymous" ', $tag);
+        }
+        return $tag;
+    }
+
     /**
      * Render calculator HTML
      */

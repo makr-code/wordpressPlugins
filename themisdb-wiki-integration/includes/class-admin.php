@@ -60,7 +60,7 @@ class ThemisDB_Wiki_Admin {
      */
     public function register_settings() {
         register_setting('themisdb_wiki_settings', 'themisdb_wiki_github_repo');
-        register_setting('themisdb_wiki_settings', 'themisdb_wiki_github_token');
+        register_setting('themisdb_wiki_settings', 'themisdb_wiki_github_token', array('sanitize_callback' => 'sanitize_text_field'));
         register_setting('themisdb_wiki_settings', 'themisdb_wiki_github_branch');
         register_setting('themisdb_wiki_settings', 'themisdb_wiki_sync_direction');
         register_setting('themisdb_wiki_settings', 'themisdb_wiki_auto_sync');

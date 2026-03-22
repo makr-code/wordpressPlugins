@@ -88,6 +88,7 @@ class ThemisDB_Wiki_Integration {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
+            add_filter('script_loader_tag', array($this, 'add_crossorigin_to_cdn_scripts'), 10, 3);
         
         // Register shortcodes
         add_shortcode('themisdb_wiki', array($this, 'wiki_shortcode'));
@@ -176,7 +177,7 @@ class ThemisDB_Wiki_Integration {
         register_setting('themisdb_wiki_settings', 'themisdb_wiki_auto_sync');
         register_setting('themisdb_wiki_settings', 'themisdb_wiki_sync_interval');
         register_setting('themisdb_wiki_settings', 'themisdb_wiki_default_lang');
-        register_setting('themisdb_wiki_settings', 'themisdb_wiki_github_token');
+        register_setting('themisdb_wiki_settings', 'themisdb_wiki_github_token', array('sanitize_callback' => 'sanitize_text_field'));
     }
     
     /**
@@ -217,12 +218,23 @@ class ThemisDB_Wiki_Integration {
             
             // Localize script
             wp_localize_script('themisdb-wiki-script', 'themisdbWiki', array(
-                'ajaxurl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('themisdb_wiki_nonce')
+                'ajaxurl'      => admin_url('admin-ajax.php'),
+                'nonce'        => wp_create_nonce('themisdb_wiki_nonce'),
+                'search_nonce' => wp_create_nonce('themisdb_wiki_search_nonce'),
             ));
         }
     }
     
+    /**
+     * Add crossorigin attribute to CDN scripts for SRI readiness.
+     */
+    public function add_crossorigin_to_cdn_scripts($tag, $handle, $src) {
+        if ($handle === 'mermaid-js') {
+            return str_replace('<script ', '<script crossorigin="anonymous" ', $tag);
+        }
+        return $tag;
+    }
+
     /**
      * Admin page
      */

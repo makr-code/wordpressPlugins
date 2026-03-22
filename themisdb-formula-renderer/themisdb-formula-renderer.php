@@ -191,6 +191,27 @@ function themisdb_formula_enqueue_scripts() {
 add_action('wp_enqueue_scripts', 'themisdb_formula_enqueue_scripts');
 
 /**
+ * Add crossorigin attribute to CDN scripts for SRI readiness.
+ */
+function themisdb_formula_add_crossorigin_scripts($tag, $handle, $src) {
+    $cdn_handles = array('katex-js', 'katex-auto-render');
+    if (in_array($handle, $cdn_handles, true)) {
+        return str_replace('<script ', '<script crossorigin="anonymous" ', $tag);
+    }
+    return $tag;
+}
+add_filter('script_loader_tag', 'themisdb_formula_add_crossorigin_scripts', 10, 3);
+
+function themisdb_formula_add_crossorigin_styles($tag, $handle, $href, $media) {
+    if ($handle === 'katex-style') {
+        return str_replace(' />', ' crossorigin="anonymous" />', $tag);
+    }
+    return $tag;
+}
+add_filter('style_loader_tag', 'themisdb_formula_add_crossorigin_styles', 10, 4);
+
+
+/**
  * Add preload for KaTeX
  */
 function themisdb_formula_add_preload() {

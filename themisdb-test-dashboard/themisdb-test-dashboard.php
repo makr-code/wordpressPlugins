@@ -104,6 +104,18 @@ function themisdb_test_dashboard_enqueue_assets() {
 add_action('wp_enqueue_scripts', 'themisdb_test_dashboard_enqueue_assets');
 
 /**
+ * Add crossorigin attribute to CDN scripts for SRI readiness.
+ */
+function themisdb_test_dashboard_add_crossorigin_scripts($tag, $handle, $src) {
+    if ($handle === 'chartjs') {
+        return str_replace('<script ', '<script crossorigin="anonymous" ', $tag);
+    }
+    return $tag;
+}
+add_filter('script_loader_tag', 'themisdb_test_dashboard_add_crossorigin_scripts', 10, 3);
+
+
+/**
  * Register shortcode
  */
 function themisdb_test_dashboard_shortcode($atts) {

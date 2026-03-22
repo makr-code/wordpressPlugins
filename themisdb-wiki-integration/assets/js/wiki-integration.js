@@ -17,9 +17,10 @@
                 fontFamily: 'inherit'
             });
         }
-        
+
         ThemisDBWikiIntegration.init();
         ThemisDBWikiNav.init();
+        ThemisDBWikiSearch.init();
     });
     
     /**
@@ -263,4 +264,140 @@
         }
     };
     
+    /**
+     * Wiki Live-Search
+     *
+     * Watches #wiki-search-input and populates #search-suggestions with AJAX results.
+     * Requires themisdbWiki.search_nonce to be set via wp_localize_script.
+     */
+    var ThemisDBWikiSearch = {
+
+        $input: null,
+        $suggestions: null,
+        debounceTimer: null,
+        minLength: 2,
+
+        init: function() {
+            this.$input       = $('#wiki-search-input');
+            this.$suggestions = $('#search-suggestions');
+
+            if (!this.$input.length || !this.$suggestions.length) {
+                return;
+            }
+
+            var self = this;
+
+            this.$input.on('input', function() {
+                clearTimeout(self.debounceTimer);
+                var query = $(this).val().trim();
+
+                if (query.length < self.minLength) {
+                    self.hide();
+                    return;
+                }
+
+                self.debounceTimer = setTimeout(function() {
+                    self.fetch(query);
+                }, 300);
+            });
+
+            // Close suggestions when focus leaves the search area.
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.wiki-search').length) {
+                    self.hide();
+                }
+            });
+
+            // Keyboard navigation inside suggestions.
+            this.$input.on('keydown', function(e) {
+                var $items = self.$suggestions.find('li');
+                var $active = $items.filter('.suggestion-active');
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (!$active.length) {
+                        $items.first().addClass('suggestion-active').focus();
+                    } else {
+                        $active.removeClass('suggestion-active')
+                               .next('li').addClass('suggestion-active').focus();
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    $active.removeClass('suggestion-active')
+                           .prev('li').addClass('suggestion-active').focus();
+                } else if (e.key === 'Escape') {
+                    self.hide();
+                }
+            });
+        },
+
+        fetch: function(query) {
+            var self = this;
+            var nonce = (typeof themisdbWiki !== 'undefined') ? themisdbWiki.search_nonce : '';
+            var ajaxUrl = (typeof themisdbWiki !== 'undefined') ? themisdbWiki.ajaxurl : '';
+
+            if (!ajaxUrl) {
+                return;
+            }
+
+            $.post(ajaxUrl, {
+                action: 'themisdb_wiki_search',
+                query:  query,
+                nonce:  nonce
+            })
+            .done(function(response) {
+                if (response.success && response.data && response.data.results) {
+                    self.render(response.data.results);
+                } else {
+                    self.hide();
+                }
+            })
+            .fail(function() {
+                self.hide();
+            });
+        },
+
+        render: function(results) {
+            var self = this;
+
+            if (!results.length) {
+                this.hide();
+                return;
+            }
+
+            var $list = $('<ul>');
+
+            $.each(results, function(i, item) {
+                // item.title and item.url come from server — escape before inserting into DOM.
+                var $li = $('<li>')
+                    .attr('tabindex', '0')
+                    .on('click keydown', function(e) {
+                        if (e.type === 'click' || e.key === 'Enter' || e.key === ' ') {
+                            window.location.href = item.url;
+                        }
+                    });
+
+                var $link = $('<a>')
+                    .attr('href', item.url)
+                    .text(item.title);
+
+                $li.append($link);
+
+                if (item.excerpt) {
+                    // excerpt may contain <mark> tags from server — use html() only for that node.
+                    var $excerpt = $('<span>').addClass('suggestion-excerpt').html(item.excerpt);
+                    $li.append($excerpt);
+                }
+
+                $list.append($li);
+            });
+
+            this.$suggestions.empty().append($list).show();
+        },
+
+        hide: function() {
+            this.$suggestions.hide().empty();
+        }
+    };
+
 })(jQuery);

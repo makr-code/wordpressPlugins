@@ -32,9 +32,24 @@ class ThemisDB_Document_Template_Manager {
      */
     public static function get_templates() {
         $templates = get_option('themisdb_document_templates', array());
+        $defaults = self::get_default_templates();
         
         if (empty($templates)) {
-            $templates = self::get_default_templates();
+            $templates = $defaults;
+            update_option('themisdb_document_templates', $templates);
+            return $templates;
+        }
+
+        // Backfill newly introduced system templates without overriding user customizations.
+        $missing = false;
+        foreach ($defaults as $template_id => $template_data) {
+            if (!isset($templates[$template_id])) {
+                $templates[$template_id] = $template_data;
+                $missing = true;
+            }
+        }
+
+        if ($missing) {
             update_option('themisdb_document_templates', $templates);
         }
         
@@ -76,6 +91,31 @@ class ThemisDB_Document_Template_Manager {
         $templates = self::get_templates();
         unset($templates[$template_id]);
         update_option('themisdb_document_templates', $templates);
+    }
+
+    /**
+     * Get one default system template definition.
+     */
+    public static function get_default_template($template_id) {
+        $defaults = self::get_default_templates();
+        return isset($defaults[$template_id]) ? $defaults[$template_id] : null;
+    }
+
+    /**
+     * Reset one template to its shipped default definition.
+     */
+    public static function reset_template_to_default($template_id) {
+        $default = self::get_default_template($template_id);
+        if (empty($default)) {
+            return false;
+        }
+
+        $templates = self::get_templates();
+        $templates[$template_id] = $default;
+        $templates[$template_id]['updated_at'] = date('Y-m-d H:i:s');
+        update_option('themisdb_document_templates', $templates);
+
+        return $templates[$template_id];
     }
     
     /**
@@ -151,6 +191,43 @@ class ThemisDB_Document_Template_Manager {
                 'variables' => array(
                     'customer_name', 'customer_company', 'company_name',
                     'company_address', 'contract_number', 'order_number'
+                ),
+                'updated_at' => date('Y-m-d H:i:s')
+            ),
+            'terms_default' => array(
+                'id' => 'terms_default',
+                'name' => 'AGB / Bedingungen',
+                'type' => 'terms',
+                'subject' => 'Allgemeine Geschaeftsbedingungen',
+                'content' => self::get_default_terms_template(),
+                'variables' => array(
+                    'company_name', 'company_address', 'company_email',
+                    'customer_name', 'order_number', 'order_date', 'product_name'
+                ),
+                'updated_at' => date('Y-m-d H:i:s')
+            ),
+            'callback_default' => array(
+                'id' => 'callback_default',
+                'name' => 'Rueckrufbestaetigung',
+                'type' => 'callback',
+                'subject' => 'Rueckruf angefragt: Bestellung {{order_number}}',
+                'content' => self::get_default_callback_template(),
+                'variables' => array(
+                    'customer_name', 'customer_company', 'customer_email',
+                    'order_number', 'order_date', 'company_name', 'company_email'
+                ),
+                'updated_at' => date('Y-m-d H:i:s')
+            ),
+            'payment_request_default' => array(
+                'id' => 'payment_request_default',
+                'name' => 'Zahlungsaufforderung',
+                'type' => 'payment_request',
+                'subject' => 'Zahlungsaufforderung Rechnung {{invoice_number}}',
+                'content' => self::get_default_payment_request_template(),
+                'variables' => array(
+                    'customer_name', 'customer_company', 'order_number',
+                    'invoice_number', 'invoice_date', 'due_date',
+                    'total_amount', 'currency', 'company_name', 'company_email'
                 ),
                 'updated_at' => date('Y-m-d H:i:s')
             )
@@ -296,6 +373,7 @@ HTML;
 
     <div class="section">
         <h2>Leistungsdetails</h2>
+        {{line_items_table}}
         <table class="info-table">
             <tr>
                 <td>Leistung:</td>
@@ -388,6 +466,109 @@ HTML;
             </p>
         </div>
     </div>
+</body>
+</html>
+HTML;
+    }
+
+    /**
+     * Default terms and conditions template
+     */
+    private static function get_default_terms_template() {
+        return <<<'HTML'
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.6; margin: 40px; }
+        h1 { font-size: 20pt; margin-bottom: 6px; }
+        h2 { font-size: 13pt; margin-top: 24px; }
+        .meta { margin-bottom: 24px; color: #444; }
+        .box { border: 1px solid #ddd; padding: 12px; background: #fafafa; }
+    </style>
+</head>
+<body>
+    <h1>Allgemeine Geschaeftsbedingungen</h1>
+    <div class="meta">
+        <p>{{company_name}} | {{company_address}} | {{company_email}}</p>
+        <p>Kunde: {{customer_name}} | Bestellung: {{order_number}} vom {{order_date}}</p>
+    </div>
+
+    <h2>1. Vertragsgegenstand</h2>
+    <p>Gegenstand dieses Vertrages ist die Bereitstellung von {{product_name}} gemaess den jeweils gueltigen Leistungsbeschreibungen.</p>
+
+    <h2>2. Preise und Zahlung</h2>
+    <p>Es gelten die zum Bestellzeitpunkt vereinbarten Preise. Rechnungen sind innerhalb der angegebenen Fristen zu begleichen.</p>
+
+    <h2>3. Laufzeit und Kuendigung</h2>
+    <p>Laufzeit und Kuendigungsbedingungen richten sich nach dem gewaehlten Vertragsmodell und den produktbezogenen Bedingungen.</p>
+
+    <h2>4. Schlussbestimmungen</h2>
+    <div class="box">
+        <p>Sollten einzelne Bestimmungen unwirksam sein oder werden, bleibt die Wirksamkeit der uebrigen Bestimmungen unberuehrt.</p>
+    </div>
+</body>
+</html>
+HTML;
+    }
+
+    /**
+     * Default callback confirmation template
+     */
+    private static function get_default_callback_template() {
+        return <<<'HTML'
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.6; margin: 40px; }
+        h1 { margin-bottom: 20px; }
+        .meta { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>Rueckrufbestaetigung</h1>
+    <p>Sehr geehrte/r {{customer_name}},</p>
+    <p>wir bestaetigen Ihren Rueckrufwunsch zur Bestellung {{order_number}} ({{order_date}}).</p>
+    <div class="meta">
+        <p>Unternehmen: {{customer_company}}</p>
+        <p>E-Mail: {{customer_email}}</p>
+    </div>
+    <p>Unser Team meldet sich schnellstmoeglich bei Ihnen.</p>
+    <p>Freundliche Gruesse<br>{{company_name}}<br>{{company_email}}</p>
+</body>
+</html>
+HTML;
+    }
+
+    /**
+     * Default payment request template
+     */
+    private static function get_default_payment_request_template() {
+        return <<<'HTML'
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.6; margin: 40px; }
+        .notice { border: 1px solid #efc25c; background: #fff8e8; padding: 12px; margin: 18px 0; }
+        .amount { font-size: 18pt; font-weight: bold; margin: 12px 0; }
+    </style>
+</head>
+<body>
+    <h1>Zahlungsaufforderung</h1>
+    <p>Sehr geehrte/r {{customer_name}},</p>
+    <p>bezugnehmend auf Ihre Bestellung {{order_number}} erinnern wir an die Zahlung der Rechnung {{invoice_number}}.</p>
+
+    <div class="amount">Offener Betrag: {{total_amount}} {{currency}}</div>
+    <p>Rechnungsdatum: {{invoice_date}}<br>Faelligkeitsdatum: {{due_date}}</p>
+
+    <div class="notice">
+        Bitte ueberweisen Sie den offenen Betrag unter Angabe der Rechnungsnummer.
+    </div>
+
+    <p>Bei Rueckfragen kontaktieren Sie uns bitte unter {{company_email}}.</p>
+    <p>Freundliche Gruesse<br>{{company_name}}</p>
 </body>
 </html>
 HTML;

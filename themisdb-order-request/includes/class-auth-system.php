@@ -66,11 +66,11 @@ class ThemisDB_Auth_System {
         ob_start();
         ?>
         <div class="themisdb-login-form">
-            <h2><?php _e('Anmeldung', 'themisdb-order-request'); ?></h2>
+            <h2><?php esc_html_e('Anmeldung', 'themisdb-order-request'); ?></h2>
             
             <div class="login-tabs">
-                <button class="tab-button active" data-tab="standard"><?php _e('Standard-Anmeldung', 'themisdb-order-request'); ?></button>
-                <button class="tab-button" data-tab="license"><?php _e('Lizenz-Anmeldung', 'themisdb-order-request'); ?></button>
+                <button class="tab-button active" data-tab="standard"><?php esc_html_e('Standard-Anmeldung', 'themisdb-order-request'); ?></button>
+                <button class="tab-button" data-tab="license"><?php esc_html_e('Lizenz-Anmeldung', 'themisdb-order-request'); ?></button>
             </div>
             
             <!-- Standard Login -->
@@ -79,28 +79,28 @@ class ThemisDB_Auth_System {
                     <?php wp_nonce_field('themisdb_login', 'themisdb_login_nonce'); ?>
                     
                     <div class="form-group">
-                        <label for="login_username"><?php _e('E-Mail oder Benutzername', 'themisdb-order-request'); ?></label>
+                        <label for="login_username"><?php esc_html_e('E-Mail oder Benutzername', 'themisdb-order-request'); ?></label>
                         <input type="text" id="login_username" name="username" required>
                     </div>
                     
                     <div class="form-group">
-                        <label for="login_password"><?php _e('Passwort', 'themisdb-order-request'); ?></label>
+                        <label for="login_password"><?php esc_html_e('Passwort', 'themisdb-order-request'); ?></label>
                         <input type="password" id="login_password" name="password" required>
                     </div>
                     
                     <div class="form-group">
                         <label>
                             <input type="checkbox" name="remember" value="1">
-                            <?php _e('Angemeldet bleiben', 'themisdb-order-request'); ?>
+                            <?php esc_html_e('Angemeldet bleiben', 'themisdb-order-request'); ?>
                         </label>
                     </div>
                     
                     <div class="form-group">
-                        <button type="submit" class="button button-primary"><?php _e('Anmelden', 'themisdb-order-request'); ?></button>
+                        <button type="submit" class="button button-primary"><?php esc_html_e('Anmelden', 'themisdb-order-request'); ?></button>
                     </div>
                     
                     <div class="login-links">
-                        <a href="<?php echo wp_lostpassword_url(); ?>"><?php _e('Passwort vergessen?', 'themisdb-order-request'); ?></a>
+                        <a href="<?php echo wp_lostpassword_url(); ?>"><?php esc_html_e('Passwort vergessen?', 'themisdb-order-request'); ?></a>
                     </div>
                 </form>
             </div>
@@ -111,22 +111,22 @@ class ThemisDB_Auth_System {
                     <?php wp_nonce_field('themisdb_license_auth', 'themisdb_license_auth_nonce'); ?>
                     
                     <div class="license-upload-info">
-                        <p><?php _e('Melden Sie sich mit Ihrer ThemisDB-Lizenzdatei an:', 'themisdb-order-request'); ?></p>
+                        <p><?php esc_html_e('Melden Sie sich mit Ihrer ThemisDB-Lizenzdatei an:', 'themisdb-order-request'); ?></p>
                         <ul>
-                            <li><?php _e('Laden Sie Ihre Lizenzdatei (.json) hoch', 'themisdb-order-request'); ?></li>
-                            <li><?php _e('Die Datei wird sicher verifiziert', 'themisdb-order-request'); ?></li>
-                            <li><?php _e('Bei erfolgreicher Verifizierung werden Sie automatisch angemeldet', 'themisdb-order-request'); ?></li>
+                            <li><?php esc_html_e('Laden Sie Ihre Lizenzdatei (.json) hoch', 'themisdb-order-request'); ?></li>
+                            <li><?php esc_html_e('Die Datei wird sicher verifiziert', 'themisdb-order-request'); ?></li>
+                            <li><?php esc_html_e('Bei erfolgreicher Verifizierung werden Sie automatisch angemeldet', 'themisdb-order-request'); ?></li>
                         </ul>
                     </div>
                     
                     <div class="form-group">
-                        <label for="license_file"><?php _e('Lizenzdatei hochladen', 'themisdb-order-request'); ?></label>
+                        <label for="license_file"><?php esc_html_e('Lizenzdatei hochladen', 'themisdb-order-request'); ?></label>
                         <input type="file" id="license_file" name="license_file" accept=".json" required>
-                        <small><?php _e('Nur .json Dateien erlaubt', 'themisdb-order-request'); ?></small>
+                        <small><?php esc_html_e('Nur .json Dateien erlaubt', 'themisdb-order-request'); ?></small>
                     </div>
                     
                     <div class="form-group">
-                        <button type="submit" class="button button-primary"><?php _e('Mit Lizenz anmelden', 'themisdb-order-request'); ?></button>
+                        <button type="submit" class="button button-primary"><?php esc_html_e('Mit Lizenz anmelden', 'themisdb-order-request'); ?></button>
                     </div>
                 </form>
             </div>
@@ -253,7 +253,7 @@ class ThemisDB_Auth_System {
                 var $button = $form.find('button[type="submit"]');
                 var $messages = $('.login-messages');
                 
-                $button.prop('disabled', true).text('<?php _e('Anmeldung läuft...', 'themisdb-order-request'); ?>');
+                $button.prop('disabled', true).text('<?php esc_html_e('Anmeldung läuft...', 'themisdb-order-request'); ?>');
                 $messages.empty();
                 
                 $.ajax({
@@ -274,12 +274,12 @@ class ThemisDB_Auth_System {
                             }, 1000);
                         } else {
                             $messages.html('<div class="notice notice-error"><p>' + response.data.message + '</p></div>');
-                            $button.prop('disabled', false).text('<?php _e('Anmelden', 'themisdb-order-request'); ?>');
+                            $button.prop('disabled', false).text('<?php esc_html_e('Anmelden', 'themisdb-order-request'); ?>');
                         }
                     },
                     error: function() {
-                        $messages.html('<div class="notice notice-error"><p><?php _e('Ein Fehler ist aufgetreten', 'themisdb-order-request'); ?></p></div>');
-                        $button.prop('disabled', false).text('<?php _e('Anmelden', 'themisdb-order-request'); ?>');
+                        $messages.html('<div class="notice notice-error"><p><?php esc_html_e('Ein Fehler ist aufgetreten', 'themisdb-order-request'); ?></p></div>');
+                        $button.prop('disabled', false).text('<?php esc_html_e('Anmelden', 'themisdb-order-request'); ?>');
                     }
                 });
             });
@@ -294,11 +294,11 @@ class ThemisDB_Auth_System {
                 var fileInput = document.getElementById('license_file');
                 
                 if (!fileInput.files.length) {
-                    $messages.html('<div class="notice notice-error"><p><?php _e('Bitte wählen Sie eine Lizenzdatei aus', 'themisdb-order-request'); ?></p></div>');
+                    $messages.html('<div class="notice notice-error"><p><?php esc_html_e('Bitte wählen Sie eine Lizenzdatei aus', 'themisdb-order-request'); ?></p></div>');
                     return;
                 }
                 
-                $button.prop('disabled', true).text('<?php _e('Lizenz wird verifiziert...', 'themisdb-order-request'); ?>');
+                $button.prop('disabled', true).text('<?php esc_html_e('Lizenz wird verifiziert...', 'themisdb-order-request'); ?>');
                 $messages.empty();
                 
                 var reader = new FileReader();
@@ -321,12 +321,12 @@ class ThemisDB_Auth_System {
                                 }, 1000);
                             } else {
                                 $messages.html('<div class="notice notice-error"><p>' + response.data.message + '</p></div>');
-                                $button.prop('disabled', false).text('<?php _e('Mit Lizenz anmelden', 'themisdb-order-request'); ?>');
+                                $button.prop('disabled', false).text('<?php esc_html_e('Mit Lizenz anmelden', 'themisdb-order-request'); ?>');
                             }
                         },
                         error: function() {
-                            $messages.html('<div class="notice notice-error"><p><?php _e('Ein Fehler ist aufgetreten', 'themisdb-order-request'); ?></p></div>');
-                            $button.prop('disabled', false).text('<?php _e('Mit Lizenz anmelden', 'themisdb-order-request'); ?>');
+                            $messages.html('<div class="notice notice-error"><p><?php esc_html_e('Ein Fehler ist aufgetreten', 'themisdb-order-request'); ?></p></div>');
+                            $button.prop('disabled', false).text('<?php esc_html_e('Mit Lizenz anmelden', 'themisdb-order-request'); ?>');
                         }
                     });
                 };
@@ -353,15 +353,15 @@ class ThemisDB_Auth_System {
                 ob_start();
                 ?>
                 <div class="themisdb-license-info">
-                    <h3><?php _e('Ihre Lizenz', 'themisdb-order-request'); ?></h3>
-                    <p><strong><?php _e('Status', 'themisdb-order-request'); ?>:</strong> 
+                    <h3><?php esc_html_e('Ihre Lizenz', 'themisdb-order-request'); ?></h3>
+                    <p><strong><?php esc_html_e('Status', 'themisdb-order-request'); ?>:</strong> 
                         <span class="license-status-<?php echo esc_attr($license['license_status']); ?>">
                             <?php echo esc_html(ucfirst($license['license_status'])); ?>
                         </span>
                     </p>
-                    <p><strong><?php _e('Edition', 'themisdb-order-request'); ?>:</strong> <?php echo esc_html(ucfirst($license['product_edition'])); ?></p>
-                    <p><strong><?php _e('Lizenzschlüssel', 'themisdb-order-request'); ?>:</strong> <code><?php echo esc_html(substr($license['license_key'], 0, 20)); ?>...</code></p>
-                    <p><a href="<?php echo wp_logout_url(); ?>" class="button"><?php _e('Abmelden', 'themisdb-order-request'); ?></a></p>
+                    <p><strong><?php esc_html_e('Edition', 'themisdb-order-request'); ?>:</strong> <?php echo esc_html(ucfirst($license['product_edition'])); ?></p>
+                    <p><strong><?php esc_html_e('Lizenzschlüssel', 'themisdb-order-request'); ?>:</strong> <code><?php echo esc_html(substr($license['license_key'], 0, 20)); ?>...</code></p>
+                    <p><a href="<?php echo wp_logout_url(); ?>" class="button"><?php esc_html_e('Abmelden', 'themisdb-order-request'); ?></a></p>
                 </div>
                 <?php
                 return ob_get_clean();

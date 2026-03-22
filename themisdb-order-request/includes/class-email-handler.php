@@ -546,49 +546,49 @@ class ThemisDB_Email_Handler {
         <body>
             <div class="container">
                 <div class="header">
-                    <h1><?php _e('Lizenzkündigung', 'themisdb-order-request'); ?></h1>
+                    <h1><?php esc_html_e('Lizenzkündigung', 'themisdb-order-request'); ?></h1>
                 </div>
                 
                 <div class="content">
                     <p><?php echo esc_html(sprintf(__('Sehr geehrte(r) %s,', 'themisdb-order-request'), $order['customer_name'])); ?></p>
                     
-                    <p><?php _e('wir bestätigen hiermit die Kündigung Ihrer ThemisDB Lizenz. Bitte beachten Sie, dass die Lizenz ab sofort nicht mehr genutzt werden kann.', 'themisdb-order-request'); ?></p>
+                    <p><?php esc_html_e('wir bestätigen hiermit die Kündigung Ihrer ThemisDB Lizenz. Bitte beachten Sie, dass die Lizenz ab sofort nicht mehr genutzt werden kann.', 'themisdb-order-request'); ?></p>
                     
                     <div class="warning">
-                        <strong><?php _e('Wichtiger Hinweis:', 'themisdb-order-request'); ?></strong>
-                        <?php _e('Diese Kündigung ist unwiderruflich. Die Lizenz wurde dauerhaft deaktiviert und kann nicht wiederhergestellt werden. Bitte sichern Sie Ihre Daten rechtzeitig.', 'themisdb-order-request'); ?>
+                        <strong><?php esc_html_e('Wichtiger Hinweis:', 'themisdb-order-request'); ?></strong>
+                        <?php esc_html_e('Diese Kündigung ist unwiderruflich. Die Lizenz wurde dauerhaft deaktiviert und kann nicht wiederhergestellt werden. Bitte sichern Sie Ihre Daten rechtzeitig.', 'themisdb-order-request'); ?>
                     </div>
                     
                     <div class="license-details">
-                        <h2><?php _e('Lizenzdetails', 'themisdb-order-request'); ?></h2>
+                        <h2><?php esc_html_e('Lizenzdetails', 'themisdb-order-request'); ?></h2>
                         <table>
                             <tr>
-                                <th><?php _e('Lizenzschlüssel:', 'themisdb-order-request'); ?></th>
+                                <th><?php esc_html_e('Lizenzschlüssel:', 'themisdb-order-request'); ?></th>
                                 <td><code><?php echo esc_html($license['license_key']); ?></code></td>
                             </tr>
                             <tr>
-                                <th><?php _e('Edition:', 'themisdb-order-request'); ?></th>
+                                <th><?php esc_html_e('Edition:', 'themisdb-order-request'); ?></th>
                                 <td>ThemisDB <?php echo esc_html(ucfirst($license['product_edition'])); ?> Edition</td>
                             </tr>
                             <tr>
-                                <th><?php _e('Bestellnummer:', 'themisdb-order-request'); ?></th>
+                                <th><?php esc_html_e('Bestellnummer:', 'themisdb-order-request'); ?></th>
                                 <td><?php echo esc_html($order['order_number']); ?></td>
                             </tr>
                             <tr>
-                                <th><?php _e('Kündigungsdatum:', 'themisdb-order-request'); ?></th>
+                                <th><?php esc_html_e('Kündigungsdatum:', 'themisdb-order-request'); ?></th>
                                 <td><?php echo esc_html($cancellation_date); ?></td>
                             </tr>
                             <tr>
-                                <th><?php _e('Kündigungsgrund:', 'themisdb-order-request'); ?></th>
+                                <th><?php esc_html_e('Kündigungsgrund:', 'themisdb-order-request'); ?></th>
                                 <td><?php echo esc_html($reason); ?></td>
                             </tr>
                         </table>
                     </div>
                     
-                    <p><?php _e('Falls Sie der Meinung sind, dass diese Kündigung irrtümlich erfolgt ist, kontaktieren Sie uns bitte umgehend.', 'themisdb-order-request'); ?></p>
+                    <p><?php esc_html_e('Falls Sie der Meinung sind, dass diese Kündigung irrtümlich erfolgt ist, kontaktieren Sie uns bitte umgehend.', 'themisdb-order-request'); ?></p>
                     
-                    <p><?php _e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br>
-                    <?php _e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
+                    <p><?php esc_html_e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br>
+                    <?php esc_html_e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
                 </div>
                 
                 <div class="footer">
@@ -633,47 +633,47 @@ class ThemisDB_Email_Handler {
         <body>
             <div class="container">
                 <div class="header">
-                    <h1><?php _e('Ihre Lizenz ist aktiv', 'themisdb-order-request'); ?></h1>
+                    <h1><?php esc_html_e('Ihre Lizenz ist aktiv', 'themisdb-order-request'); ?></h1>
                 </div>
 
                 <div class="content">
                     <p><?php echo esc_html(sprintf(__('Sehr geehrte(r) %s,', 'themisdb-order-request'), $order['customer_name'])); ?></p>
 
                     <div class="success">
-                        <strong><?php _e('Zahlung erfolgreich verifiziert.', 'themisdb-order-request'); ?></strong>
-                        <?php _e('Ihre ThemisDB Lizenz wurde aktiviert und die Lizenzdatei ist dieser E-Mail beigefügt.', 'themisdb-order-request'); ?>
+                        <strong><?php esc_html_e('Zahlung erfolgreich verifiziert.', 'themisdb-order-request'); ?></strong>
+                        <?php esc_html_e('Ihre ThemisDB Lizenz wurde aktiviert und die Lizenzdatei ist dieser E-Mail beigefügt.', 'themisdb-order-request'); ?>
                     </div>
 
                     <div class="license-details">
-                        <h2><?php _e('Lizenzdetails', 'themisdb-order-request'); ?></h2>
+                        <h2><?php esc_html_e('Lizenzdetails', 'themisdb-order-request'); ?></h2>
                         <table>
                             <tr>
-                                <th><?php _e('Lizenzschlüssel:', 'themisdb-order-request'); ?></th>
+                                <th><?php esc_html_e('Lizenzschlüssel:', 'themisdb-order-request'); ?></th>
                                 <td><code><?php echo esc_html($license['license_key']); ?></code></td>
                             </tr>
                             <tr>
-                                <th><?php _e('Edition:', 'themisdb-order-request'); ?></th>
+                                <th><?php esc_html_e('Edition:', 'themisdb-order-request'); ?></th>
                                 <td><?php echo esc_html(ucfirst($license['product_edition'])); ?></td>
                             </tr>
                             <tr>
-                                <th><?php _e('Status:', 'themisdb-order-request'); ?></th>
+                                <th><?php esc_html_e('Status:', 'themisdb-order-request'); ?></th>
                                 <td><?php echo esc_html(ucfirst($license['license_status'])); ?></td>
                             </tr>
                             <tr>
-                                <th><?php _e('Aktivierungsdatum:', 'themisdb-order-request'); ?></th>
+                                <th><?php esc_html_e('Aktivierungsdatum:', 'themisdb-order-request'); ?></th>
                                 <td><?php echo !empty($license['activation_date']) ? esc_html(date_i18n('d.m.Y H:i', strtotime($license['activation_date']))) : '—'; ?></td>
                             </tr>
                             <?php if (!empty($license['expiry_date'])): ?>
                             <tr>
-                                <th><?php _e('Ablaufdatum:', 'themisdb-order-request'); ?></th>
+                                <th><?php esc_html_e('Ablaufdatum:', 'themisdb-order-request'); ?></th>
                                 <td><?php echo esc_html(date_i18n('d.m.Y', strtotime($license['expiry_date']))); ?></td>
                             </tr>
                             <?php endif; ?>
                         </table>
                     </div>
 
-                    <p><?php _e('Sie können die Lizenzdatei direkt verwenden oder zusätzlich über das Lizenzportal herunterladen.', 'themisdb-order-request'); ?></p>
-                    <p><?php _e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br><?php _e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
+                    <p><?php esc_html_e('Sie können die Lizenzdatei direkt verwenden oder zusätzlich über das Lizenzportal herunterladen.', 'themisdb-order-request'); ?></p>
+                    <p><?php esc_html_e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br><?php esc_html_e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
                 </div>
 
                 <div class="footer">
@@ -738,47 +738,21 @@ class ThemisDB_Email_Handler {
      * @return string|false PDF binary or false.
      */
     private static function generate_invoice_data($order) {
-        // get_templates() returns all templates; filter for invoice.
-        $templates = ThemisDB_Document_Template_Manager::get_templates();
-        $invoice_template = null;
+        $pdf_data = ThemisDB_Document_Renderer::render_invoice_pdf($order, 'invoice_default');
 
-        foreach ($templates as $template) {
-            if (!empty($template['type']) && $template['type'] === 'invoice') {
-                $invoice_template = $template;
-                break;
-            }
+        if ($pdf_data !== false) {
+            return $pdf_data;
         }
 
-        if (empty($invoice_template)) {
-            // Fallback if no invoice template exists
-            return ThemisDB_PDF_Generator::generate_invoice_pdf($order['id']);
-        }
-
-        $variables = array(
-            'customer_name' => $order['customer_name'],
-            'customer_email' => $order['customer_email'],
-            'customer_company' => $order['customer_company'],
-            'order_number' => $order['order_number'],
-            'order_date' => date_i18n('d.m.Y', strtotime($order['created_at'])),
-            'total_amount' => number_format($order['total_amount'], 2, ',', '.'),
-            'currency' => $order['currency'],
-            'invoice_number' => self::generate_invoice_number($order),
-            'invoice_date' => date_i18n('d.m.Y'),
-            'due_date' => date_i18n('d.m.Y', strtotime('+14 days')),
-        );
-
-        $content = ThemisDB_Document_Template_Manager::replace_variables($invoice_template['content'], $variables);
-
-        return ThemisDB_PDF_Generator::generate_pdf_from_html($content, 'invoice-' . self::generate_invoice_number($order));
+        // Hard fallback for backward compatibility when template rendering fails.
+        return ThemisDB_PDF_Generator::generate_invoice_pdf($order['id']);
     }
 
     /**
      * Generate unique invoice number.
      */
     private static function generate_invoice_number($order) {
-        $year = date('Y');
-        $order_id = str_pad($order['id'], 5, '0', STR_PAD_LEFT);
-        return 'INV-' . $year . '-' . $order_id;
+        return ThemisDB_Document_Renderer::generate_invoice_number($order);
     }
 
     /**
@@ -862,53 +836,53 @@ class ThemisDB_Email_Handler {
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1><?php _e('Rechnung', 'themisdb-order-request'); ?></h1>
+                        <h1><?php esc_html_e('Rechnung', 'themisdb-order-request'); ?></h1>
                     </div>
                 
                     <div class="content">
                         <p><?php echo esc_html(sprintf(__('Sehr geehrte(r) %s,', 'themisdb-order-request'), $order['customer_name'])); ?></p>
                     
-                        <p><?php _e('anbei finden Sie die Rechnung für Ihre Bestellung bei ThemisDB.', 'themisdb-order-request'); ?></p>
+                        <p><?php esc_html_e('anbei finden Sie die Rechnung für Ihre Bestellung bei ThemisDB.', 'themisdb-order-request'); ?></p>
                     
                         <div class="invoice-details">
-                            <h2><?php _e('Rechnungsdetails', 'themisdb-order-request'); ?></h2>
+                            <h2><?php esc_html_e('Rechnungsdetails', 'themisdb-order-request'); ?></h2>
                         
                             <table>
                                 <tr>
-                                    <th><?php _e('Rechnungsnummer:', 'themisdb-order-request'); ?></th>
+                                    <th><?php esc_html_e('Rechnungsnummer:', 'themisdb-order-request'); ?></th>
                                     <td><?php echo esc_html($invoice_number); ?></td>
-                                    <th><?php _e('Bestellnummer:', 'themisdb-order-request'); ?></th>
+                                    <th><?php esc_html_e('Bestellnummer:', 'themisdb-order-request'); ?></th>
                                     <td><?php echo esc_html($order['order_number']); ?></td>
                                 </tr>
                                 <tr>
-                                    <th><?php _e('Rechnungsdatum:', 'themisdb-order-request'); ?></th>
+                                    <th><?php esc_html_e('Rechnungsdatum:', 'themisdb-order-request'); ?></th>
                                     <td><?php echo date_i18n('d.m.Y'); ?></td>
-                                    <th><?php _e('Bestelldatum:', 'themisdb-order-request'); ?></th>
+                                    <th><?php esc_html_e('Bestelldatum:', 'themisdb-order-request'); ?></th>
                                     <td><?php echo date_i18n('d.m.Y', strtotime($order['created_at'])); ?></td>
                                 </tr>
                                 <tr>
-                                    <th><?php _e('Kunde:', 'themisdb-order-request'); ?></th>
+                                    <th><?php esc_html_e('Kunde:', 'themisdb-order-request'); ?></th>
                                     <td>
                                         <?php echo esc_html($order['customer_name']); ?>
                                         <?php if (!empty($order['customer_company'])): ?>
                                             <br><?php echo esc_html($order['customer_company']); ?>
                                         <?php endif; ?>
                                     </td>
-                                    <th><?php _e('Fälligkeitsdatum:', 'themisdb-order-request'); ?></th>
+                                    <th><?php esc_html_e('Fälligkeitsdatum:', 'themisdb-order-request'); ?></th>
                                     <td><?php echo date_i18n('d.m.Y', strtotime('+14 days')); ?></td>
                                 </tr>
                             </table>
                         </div>
                     
                         <div class="invoice-details">
-                            <h2><?php _e('Leistungsübersicht', 'themisdb-order-request'); ?></h2>
+                            <h2><?php esc_html_e('Leistungsübersicht', 'themisdb-order-request'); ?></h2>
                             <table>
                                 <thead>
                                     <tr>
-                                        <th><?php _e('Position', 'themisdb-order-request'); ?></th>
-                                        <th class="amount"><?php _e('Menge', 'themisdb-order-request'); ?></th>
-                                        <th class="amount"><?php _e('Einzelpreis', 'themisdb-order-request'); ?></th>
-                                        <th class="amount"><?php _e('Gesamtpreis', 'themisdb-order-request'); ?></th>
+                                        <th><?php esc_html_e('Position', 'themisdb-order-request'); ?></th>
+                                        <th class="amount"><?php esc_html_e('Menge', 'themisdb-order-request'); ?></th>
+                                        <th class="amount"><?php esc_html_e('Einzelpreis', 'themisdb-order-request'); ?></th>
+                                        <th class="amount"><?php esc_html_e('Gesamtpreis', 'themisdb-order-request'); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -919,7 +893,7 @@ class ThemisDB_Email_Handler {
                                         <td class="amount"><?php echo number_format($order['total_amount'], 2, ',', '.'); ?> <?php echo esc_html($order['currency']); ?></td>
                                     </tr>
                                     <tr class="total-row">
-                                        <td colspan="3" class="amount"><?php _e('Gesamtsumme:', 'themisdb-order-request'); ?></td>
+                                        <td colspan="3" class="amount"><?php esc_html_e('Gesamtsumme:', 'themisdb-order-request'); ?></td>
                                         <td class="amount"><?php echo number_format($order['total_amount'], 2, ',', '.'); ?> <?php echo esc_html($order['currency']); ?></td>
                                     </tr>
                                 </tbody>
@@ -927,16 +901,16 @@ class ThemisDB_Email_Handler {
                         </div>
                     
                         <div class="payment-terms">
-                            <h3><?php _e('💳 Zahlungsinformationen', 'themisdb-order-request'); ?></h3>
-                            <p><strong><?php _e('Zahlungsart:', 'themisdb-order-request'); ?></strong> Banküberweisung oder Kreditkarte</p>
-                            <p><strong><?php _e('Verwendungszweck:', 'themisdb-order-request'); ?></strong> <code><?php echo esc_html($order['order_number']); ?></code></p>
-                            <p><?php _e('Die Zahlung ist innerhalb von 14 Tagen nach Rechnungsdatum fällig.', 'themisdb-order-request'); ?></p>
+                            <h3><?php esc_html_e('💳 Zahlungsinformationen', 'themisdb-order-request'); ?></h3>
+                            <p><strong><?php esc_html_e('Zahlungsart:', 'themisdb-order-request'); ?></strong> Banküberweisung oder Kreditkarte</p>
+                            <p><strong><?php esc_html_e('Verwendungszweck:', 'themisdb-order-request'); ?></strong> <code><?php echo esc_html($order['order_number']); ?></code></p>
+                            <p><?php esc_html_e('Die Zahlung ist innerhalb von 14 Tagen nach Rechnungsdatum fällig.', 'themisdb-order-request'); ?></p>
                         </div>
                     
-                        <p><?php _e('Für Fragen zu dieser Rechnung stehen wir Ihnen gerne zur Verfügung.', 'themisdb-order-request'); ?></p>
+                        <p><?php esc_html_e('Für Fragen zu dieser Rechnung stehen wir Ihnen gerne zur Verfügung.', 'themisdb-order-request'); ?></p>
                     
-                        <p><?php _e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br>
-                        <?php _e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
+                        <p><?php esc_html_e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br>
+                        <?php esc_html_e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
                     </div>
                 
                     <div class="footer">

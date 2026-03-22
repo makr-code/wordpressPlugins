@@ -64,10 +64,19 @@ add_action('wp_enqueue_scripts', 'themisdb_graph_navigation_enqueue_assets', 20)
 /**
  * Build graph data for visualization.
  *
+ * Results are cached in a Transient for one hour and invalidated automatically
+ * when posts or taxonomy terms are created/updated/deleted.
+ *
  * @return array{nodes: array, links: array}
  */
 function themisdb_graph_navigation_get_graph_data()
 {
+    $cache_key = 'themisdb_graph_nav_data';
+    $cached    = get_transient($cache_key);
+    if (false !== $cached) {
+        return $cached;
+    }
+
     $nodes = array();
     $links = array();
 
@@ -190,11 +199,25 @@ function themisdb_graph_navigation_get_graph_data()
         );
     }
 
-    return array(
+    $data = array(
         'nodes' => $nodes,
         'links' => $links,
     );
+    set_transient('themisdb_graph_nav_data', $data, HOUR_IN_SECONDS);
+    return $data;
 }
+
+/**
+ * Flush graph-data cache when content or taxonomy changes.
+ */
+function themisdb_graph_nav_flush_cache() {
+    delete_transient('themisdb_graph_nav_data');
+}
+add_action('save_post',    'themisdb_graph_nav_flush_cache');
+add_action('deleted_post', 'themisdb_graph_nav_flush_cache');
+add_action('created_term', 'themisdb_graph_nav_flush_cache');
+add_action('edited_term',  'themisdb_graph_nav_flush_cache');
+add_action('delete_term',  'themisdb_graph_nav_flush_cache');
 
 /**
  * Backward-compatible function name from theme implementation.

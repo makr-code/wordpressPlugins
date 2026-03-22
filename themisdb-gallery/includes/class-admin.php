@@ -72,7 +72,7 @@ class ThemisDB_Gallery_Admin {
             'themisdb-gallery'
         );
         
-        register_setting('themisdb_gallery_options', 'themisdb_gallery_unsplash_key');
+        register_setting('themisdb_gallery_options', 'themisdb_gallery_unsplash_key', array('sanitize_callback' => 'sanitize_text_field'));
         add_settings_field(
             'themisdb_gallery_unsplash_key',
             __('Unsplash Access Key', 'themisdb-gallery'),
@@ -82,7 +82,7 @@ class ThemisDB_Gallery_Admin {
             array('option' => 'themisdb_gallery_unsplash_key', 'description' => __('Erhalten Sie einen kostenlosen API-Schlüssel auf <a href="https://unsplash.com/developers" target="_blank">unsplash.com/developers</a>', 'themisdb-gallery'))
         );
         
-        register_setting('themisdb_gallery_options', 'themisdb_gallery_pexels_key');
+        register_setting('themisdb_gallery_options', 'themisdb_gallery_pexels_key', array('sanitize_callback' => 'sanitize_text_field'));
         add_settings_field(
             'themisdb_gallery_pexels_key',
             __('Pexels API Key', 'themisdb-gallery'),
@@ -92,7 +92,7 @@ class ThemisDB_Gallery_Admin {
             array('option' => 'themisdb_gallery_pexels_key', 'description' => __('Erhalten Sie einen kostenlosen API-Schlüssel auf <a href="https://www.pexels.com/api/" target="_blank">pexels.com/api</a>', 'themisdb-gallery'))
         );
         
-        register_setting('themisdb_gallery_options', 'themisdb_gallery_pixabay_key');
+        register_setting('themisdb_gallery_options', 'themisdb_gallery_pixabay_key', array('sanitize_callback' => 'sanitize_text_field'));
         add_settings_field(
             'themisdb_gallery_pixabay_key',
             __('Pixabay API Key', 'themisdb-gallery'),
@@ -102,7 +102,7 @@ class ThemisDB_Gallery_Admin {
             array('option' => 'themisdb_gallery_pixabay_key', 'description' => __('Erhalten Sie einen kostenlosen API-Schlüssel auf <a href="https://pixabay.com/api/docs/" target="_blank">pixabay.com/api</a>', 'themisdb-gallery'))
         );
         
-        register_setting('themisdb_gallery_options', 'themisdb_gallery_openai_key');
+        register_setting('themisdb_gallery_options', 'themisdb_gallery_openai_key', array('sanitize_callback' => 'sanitize_text_field'));
         add_settings_field(
             'themisdb_gallery_openai_key',
             __('OpenAI API Key (Optional)', 'themisdb-gallery'),
