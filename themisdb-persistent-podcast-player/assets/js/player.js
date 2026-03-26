@@ -7,6 +7,10 @@
     let playbackSpeed = 1;
     let volume = 1;
     let continuousPlay = true;
+    let autoMinimizeOnScroll = true;
+    let isMinimized = false;
+    let autoMinimizedByScroll = false;
+    let scrollTicking = false;
     
     // Initialize player on document ready
     $(document).ready(function() {
@@ -211,10 +215,41 @@
             continuousPlay = $(this).is(':checked');
             savePreferences();
         });
+
+        // Auto-minimize toggle
+        $('#ppp-auto-minimize').on('change', function() {
+            autoMinimizeOnScroll = $(this).is(':checked');
+            if (!autoMinimizeOnScroll) {
+                autoMinimizedByScroll = false;
+            }
+            savePreferences();
+        });
         
         // Playlist toggle
         $('#ppp-toggle-playlist').on('click', function() {
             $('#ppp-playlist').toggle();
+        });
+
+        // Minimize toggle
+        $('#ppp-toggle-minimize').on('click', function() {
+            toggleMinimize();
+        });
+
+        // Scroll-based auto minimize
+        $(window).on('scroll', function() {
+            if (!autoMinimizeOnScroll) {
+                return;
+            }
+
+            if (scrollTicking) {
+                return;
+            }
+
+            scrollTicking = true;
+            window.requestAnimationFrame(function() {
+                handleAutoMinimizeOnScroll();
+                scrollTicking = false;
+            });
         });
         
         // Playlist item click (delegated event)
@@ -595,6 +630,8 @@
                 localStorage.setItem('ppp_volume', volume);
                 localStorage.setItem('ppp_speed', playbackSpeed);
                 localStorage.setItem('ppp_continuous_play', continuousPlay);
+                localStorage.setItem('ppp_auto_minimize', autoMinimizeOnScroll);
+                localStorage.setItem('ppp_minimized', isMinimized);
             } catch (e) {
                 // localStorage might be disabled
             }
@@ -610,6 +647,8 @@
                 const savedVolume = localStorage.getItem('ppp_volume');
                 const savedSpeed = localStorage.getItem('ppp_speed');
                 const savedContinuous = localStorage.getItem('ppp_continuous_play');
+                const savedAutoMinimize = localStorage.getItem('ppp_auto_minimize');
+                const savedMinimized = localStorage.getItem('ppp_minimized');
                 
                 if (savedVolume !== null) {
                     setVolume(parseFloat(savedVolume));
@@ -624,9 +663,76 @@
                     continuousPlay = savedContinuous === 'true' || savedContinuous === true;
                     $('#ppp-continuous-play').prop('checked', continuousPlay);
                 }
+
+                if (savedAutoMinimize !== null) {
+                    autoMinimizeOnScroll = savedAutoMinimize === 'true' || savedAutoMinimize === true;
+                    $('#ppp-auto-minimize').prop('checked', autoMinimizeOnScroll);
+                }
+
+                if (savedMinimized !== null) {
+                    isMinimized = savedMinimized === 'true' || savedMinimized === true;
+                    applyMinimizeState();
+                }
+
+                handleAutoMinimizeOnScroll();
             } catch (e) {
                 // localStorage might be disabled
             }
+        }
+    }
+
+    /**
+     * Toggle minimized player state
+     */
+    function toggleMinimize() {
+        isMinimized = !isMinimized;
+        autoMinimizedByScroll = false;
+        applyMinimizeState();
+        savePreferences();
+    }
+
+    /**
+     * Auto minimize or restore based on scroll position.
+     */
+    function handleAutoMinimizeOnScroll() {
+        if (!autoMinimizeOnScroll) {
+            return;
+        }
+
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+
+        if (scrollTop > 300 && !isMinimized) {
+            isMinimized = true;
+            autoMinimizedByScroll = true;
+            applyMinimizeState();
+            return;
+        }
+
+        if (scrollTop < 120 && isMinimized && autoMinimizedByScroll) {
+            isMinimized = false;
+            autoMinimizedByScroll = false;
+            applyMinimizeState();
+        }
+    }
+
+    /**
+     * Apply minimized state to DOM
+     */
+    function applyMinimizeState() {
+        const player = $('#ppp-player');
+        const button = $('#ppp-toggle-minimize');
+
+        if (isMinimized) {
+            player.addClass('ppp-minimized');
+            $('#ppp-playlist').hide();
+            button.text('▴');
+            button.attr('aria-label', 'Player maximieren');
+            button.attr('title', 'Player maximieren');
+        } else {
+            player.removeClass('ppp-minimized');
+            button.text('▾');
+            button.attr('aria-label', 'Player minimieren');
+            button.attr('title', 'Player minimieren');
         }
     }
     

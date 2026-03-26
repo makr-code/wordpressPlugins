@@ -266,6 +266,9 @@
 /* Options */
 .ppp-options {
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .ppp-checkbox-label {
@@ -420,6 +423,10 @@
     flex-shrink: 0;
 }
 
+.ppp-minimize-toggle {
+    flex-shrink: 0;
+}
+
 .ppp-btn-toggle {
     background: rgba(255, 255, 255, 0.2);
     color: #ffffff;
@@ -438,6 +445,19 @@
     border-color: rgba(255, 255, 255, 0.5);
 }
 
+.ppp-btn-minimize {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    padding: 0;
+    font-size: 18px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
 /* Playlist */
 .ppp-playlist {
     background: #f8f9fa;
@@ -445,6 +465,56 @@
     max-height: 400px;
     overflow-y: auto;
     backdrop-filter: blur(20px);
+}
+
+/* Minimized player state */
+.ppp-player.ppp-minimized .ppp-player-container {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    gap: 10px;
+}
+
+.ppp-player.ppp-minimized .ppp-progress-container,
+.ppp-player.ppp-minimized .ppp-time-display,
+.ppp-player.ppp-minimized .ppp-volume-container,
+.ppp-player.ppp-minimized .ppp-speed-container,
+.ppp-player.ppp-minimized .ppp-link-container,
+.ppp-player.ppp-minimized .ppp-options,
+.ppp-player.ppp-minimized .ppp-playlist-toggle,
+.ppp-player.ppp-minimized .ppp-excerpt {
+    display: none;
+}
+
+.ppp-player.ppp-minimized .ppp-controls > :not(#ppp-play-pause) {
+    display: none;
+}
+
+.ppp-player.ppp-minimized #ppp-play-pause {
+    width: 42px;
+    height: 42px;
+    font-size: 16px;
+}
+
+.ppp-player.ppp-minimized .ppp-info {
+    flex: 1;
+}
+
+.ppp-player.ppp-minimized .ppp-title {
+    margin-bottom: 0;
+    font-size: 14px;
+}
+
+.ppp-player.ppp-minimized .ppp-controls {
+    gap: 0;
+    flex: 0 0 auto;
+}
+
+.ppp-player.ppp-minimized .ppp-minimize-toggle {
+    margin-left: auto;
+}
+
+.ppp-player.ppp-minimized #ppp-playlist {
+    display: none !important;
 }
 
 .ppp-playlist-items {
@@ -647,6 +717,10 @@
     }
     
     .ppp-playlist-toggle {
+        order: 4;
+    }
+
+    .ppp-minimize-toggle {
         order: 4;
     }
     

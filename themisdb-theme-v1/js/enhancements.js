@@ -633,12 +633,31 @@
             }
         });
 
-        // Prefer the left sidebar; fall back to before the content if no sidebar exists.
-        var sidebarInner = document.querySelector('.sidebar-inner') || document.querySelector('#secondary');
-        if (sidebarInner) {
-            sidebarInner.insertBefore(toc, sidebarInner.firstChild);
-        } else {
-            content.parentNode.insertBefore(toc, content);
+        function placeToc() {
+            var isDesktopLayout = window.matchMedia('(min-width: 1025px)').matches;
+            var sidebarInner = document.querySelector('.single-post .sidebar-inner') || document.querySelector('.sidebar-inner');
+
+            if (isDesktopLayout && sidebarInner) {
+                toc.classList.add('toc-in-sidebar');
+                toc.classList.remove('toc-inline');
+                sidebarInner.insertBefore(toc, sidebarInner.firstChild);
+                return;
+            }
+
+            if (content.parentNode) {
+                toc.classList.add('toc-inline');
+                toc.classList.remove('toc-in-sidebar');
+                content.parentNode.insertBefore(toc, content);
+            }
+        }
+
+        placeToc();
+
+        var tocLayoutMedia = window.matchMedia('(min-width: 1025px)');
+        if (typeof tocLayoutMedia.addEventListener === 'function') {
+            tocLayoutMedia.addEventListener('change', placeToc);
+        } else if (typeof tocLayoutMedia.addListener === 'function') {
+            tocLayoutMedia.addListener(placeToc);
         }
     }
 

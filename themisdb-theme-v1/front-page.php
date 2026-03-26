@@ -99,11 +99,28 @@ $show_intro_section = (bool) get_theme_mod( 'themisdb_home_show_intro_section', 
 $intro_eyebrow      = get_theme_mod( 'themisdb_home_intro_eyebrow', esc_html__( 'Einleitung', 'themisdb' ) );
 $intro_title        = get_theme_mod( 'themisdb_home_intro_title', esc_html__( 'Was diese Seite bietet', 'themisdb' ) );
 
-$latest_section_eyebrow   = get_theme_mod( 'themisdb_home_latest_eyebrow', esc_html__( 'Aktuell', 'themisdb' ) );
+$latest_section_eyebrow   = get_theme_mod( 'themisdb_home_latest_eyebrow', esc_html__( 'Magazin', 'themisdb' ) );
 $latest_section_title     = get_theme_mod( 'themisdb_home_latest_title', esc_html__( 'Neueste Artikel', 'themisdb' ) );
 $latest_section_link_text = get_theme_mod( 'themisdb_home_latest_link_label', esc_html__( 'Alle Artikel ansehen', 'themisdb' ) );
 $latest_card_cta_label    = get_theme_mod( 'themisdb_home_latest_lead_cta_label', esc_html__( 'Artikel lesen', 'themisdb' ) );
 $latest_card_words        = 24;
+$slider_variant           = get_theme_mod( 'themisdb_home_slider_variant', 'standard' );
+
+if ( ! in_array( $slider_variant, array( 'standard', 'magazine', 'editorial' ), true ) ) {
+    $slider_variant = 'standard';
+}
+
+// Keep the section hierarchy distinct when old defaults are still stored.
+$latest_eyebrow_normalized = function_exists( 'mb_strtolower' )
+    ? mb_strtolower( trim( (string) $latest_section_eyebrow ) )
+    : strtolower( trim( (string) $latest_section_eyebrow ) );
+$latest_title_normalized = function_exists( 'mb_strtolower' )
+    ? mb_strtolower( trim( (string) $latest_section_title ) )
+    : strtolower( trim( (string) $latest_section_title ) );
+
+if ( 'aktuell' === $latest_eyebrow_normalized && false !== strpos( $latest_title_normalized, 'neueste artikel' ) ) {
+    $latest_section_eyebrow = esc_html__( 'Magazin', 'themisdb' );
+}
 
 $latest_query = new WP_Query( array(
     'posts_per_page'      => $latest_query_limit,
@@ -149,9 +166,11 @@ wp_reset_postdata();
     $intro_teaser        = '';
     $intro_full_content  = '';
     $show_intro_toggle   = false;
+    $front_page_content_raw = '';
 
     if ( $front_page_has_post ) {
         $intro_full_content = (string) get_post_field( 'post_content', get_the_ID() );
+        $front_page_content_raw = $intro_full_content;
         $intro_plain_text   = trim( wp_strip_all_tags( $intro_full_content ) );
 
         if ( '' !== $intro_plain_text ) {
@@ -160,14 +179,262 @@ wp_reset_postdata();
             $show_intro_toggle = $intro_word_count > $intro_preview_words;
         }
     }
+
+    // Resolve latest podcast episode smarttags if the podcast CPT exists.
+    $latest_podcast_title        = '';
+    $latest_podcast_excerpt      = '';
+    $latest_podcast_url          = '';
+    $latest_podcast_audio_url    = '';
+    $latest_podcast_date         = '';
+    $latest_podcast_related_url  = '';
+    $latest_podcast_related_title = '';
+
+    if ( post_type_exists( 'pod_episode' ) ) {
+        $latest_podcast_query = new WP_Query( array(
+            'post_type'           => 'pod_episode',
+            'post_status'         => 'publish',
+            'posts_per_page'      => 1,
+            'ignore_sticky_posts' => true,
+            'no_found_rows'       => true,
+        ) );
+
+        if ( $latest_podcast_query->have_posts() ) {
+            $latest_podcast_post = $latest_podcast_query->posts[0];
+            $latest_podcast_id   = (int) $latest_podcast_post->ID;
+            $latest_podcast_title = get_the_title( $latest_podcast_id );
+            $latest_podcast_excerpt_source = get_the_excerpt( $latest_podcast_id );
+
+            if ( '' === trim( (string) $latest_podcast_excerpt_source ) ) {
+                $latest_podcast_excerpt_source = wp_strip_all_tags( (string) get_post_field( 'post_content', $latest_podcast_id ) );
+            }
+
+            $latest_podcast_excerpt = wp_trim_words( (string) $latest_podcast_excerpt_source, 34 );
+            $latest_podcast_url = get_permalink( $latest_podcast_id );
+            $latest_podcast_date = get_the_date( '', $latest_podcast_id );
+            $latest_podcast_audio_url = (string) get_post_meta( $latest_podcast_id, 'audio_url', true );
+
+            $related_post_id = (int) get_post_meta( $latest_podcast_id, 'related_post_id', true );
+            if ( $related_post_id > 0 ) {
+                $latest_podcast_related_url = get_permalink( $related_post_id );
+                $latest_podcast_related_title = get_the_title( $related_post_id );
+            }
+        }
+
+        wp_reset_postdata();
+    }
+
+    // Pre-render slider HTML into a buffer so it can be injected via {{slider_output}} smarttag.
+    ob_start();
+    if ( ! empty( $latest_posts ) ) :
+        $slider_show_class = $show_latest_articles ? '' : 'homepage-hidden';
+        ?>
+        <section class="featured-slider-section homepage-latest-articles homepage-slider-variant-<?php echo esc_attr( $slider_variant ); ?> <?php echo esc_attr( $slider_show_class ); ?>" id="homepage-latest-articles">
+            <div class="homepage-section-header homepage-section-header-split">
+                <div>
+                    <span class="homepage-section-eyebrow" id="homepage-latest-eyebrow" data-default="<?php echo esc_attr( esc_html__( 'Magazin', 'themisdb' ) ); ?>"><?php echo esc_html( $latest_section_eyebrow ); ?></span>
+                    <h2 class="homepage-section-title" id="homepage-latest-title" data-default="<?php echo esc_attr( esc_html__( 'Neueste Artikel', 'themisdb' ) ); ?>"><?php echo esc_html( $latest_section_title ); ?></h2>
+                </div>
+                <?php if ( $has_posts_page ) : ?>
+                    <a id="homepage-latest-link" class="homepage-text-link" data-default="<?php echo esc_attr( esc_html__( 'Alle Artikel ansehen', 'themisdb' ) ); ?>" href="<?php echo esc_url( $posts_page_url ); ?>"><?php echo esc_html( $latest_section_link_text ); ?></a>
+                <?php endif; ?>
+            </div>
+
+            <div class="themisdb-slider-container homepage-slider">
+                <div class="themisdb-slider">
+                    <?php foreach ( $latest_posts as $post_item ) :
+                        $card_excerpt_source = get_the_excerpt( $post_item->ID ) ?: wp_strip_all_tags( get_post_field( 'post_content', $post_item->ID ) );
+                        $card_excerpt = wp_trim_words( $card_excerpt_source, $latest_card_words );
+                        $slider_content_variant_class = '';
+                        if ( 'magazine' === $slider_variant ) {
+                            $slider_content_variant_class = 'slider-content-glass';
+                        } elseif ( 'editorial' === $slider_variant ) {
+                            $slider_content_variant_class = 'slider-content-editorial';
+                        }
+                        ?>
+                        <article class="slider-item">
+                            <div class="slider-image">
+                                <a href="<?php echo esc_url( get_permalink( $post_item->ID ) ); ?>">
+                                    <?php
+                                    $card_image = get_the_post_thumbnail( $post_item->ID, 'themisdb-featured' );
+                                    if ( ! empty( $card_image ) ) {
+                                        echo $card_image;
+                                    } else {
+                                        echo '<span class="homepage-image-fallback" aria-hidden="true"><span>Kein Bild</span></span>';
+                                    }
+                                    ?>
+                                </a>
+                                <?php
+                                if ( 'magazine' === $slider_variant ) {
+                                    $post_categories = get_the_category( $post_item->ID );
+                                    if ( ! empty( $post_categories ) && isset( $post_categories[0]->name ) ) {
+                                        echo '<span class="slider-badge">' . esc_html( $post_categories[0]->name ) . '</span>';
+                                    }
+                                }
+                                ?>
+                            </div>
+                            <div class="slider-content <?php echo esc_attr( $slider_content_variant_class ); ?>">
+                                <h3 class="slider-title">
+                                    <a href="<?php echo esc_url( get_permalink( $post_item->ID ) ); ?>"><?php echo esc_html( get_the_title( $post_item->ID ) ); ?></a>
+                                </h3>
+                                <div class="slider-meta">
+                                    <span class="slider-date"><?php echo esc_html( get_the_date( '', $post_item->ID ) ); ?></span>
+                                    <?php
+                                    $card_category_list = get_the_category_list( ', ', '', $post_item->ID );
+                                    if ( $card_category_list ) :
+                                        ?>
+                                        <span class="slider-category"> &bull; <?php echo wp_kses_post( $card_category_list ); ?></span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="slider-excerpt"><?php echo esc_html( $card_excerpt ); ?></div>
+                                <a class="slider-readmore" data-default="<?php echo esc_attr( esc_html__( 'Artikel lesen', 'themisdb' ) ); ?>" href="<?php echo esc_url( get_permalink( $post_item->ID ) ); ?>"><?php echo esc_html( $latest_card_cta_label ); ?> &rarr;</a>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+
+                <?php if ( count( $latest_posts ) > 1 ) : ?>
+                    <button class="slider-nav slider-prev" aria-label="<?php esc_attr_e( 'Vorheriger Artikel', 'themisdb' ); ?>">&#8249;</button>
+                    <button class="slider-nav slider-next" aria-label="<?php esc_attr_e( 'Naechster Artikel', 'themisdb' ); ?>">&#8250;</button>
+                    <div class="slider-dots"></div>
+                <?php endif; ?>
+            </div>
+        </section>
+    <?php endif;
+    $slider_output_html = ob_get_clean();
+
+    // Smarttags for dynamic front page content authored in WordPress.
+    $frontpage_smarttags = array(
+        '{{site_name}}'                => esc_html( get_bloginfo( 'name' ) ),
+        '{{site_description}}'         => esc_html( get_bloginfo( 'description' ) ),
+        '{{hero_kicker}}'              => esc_html( $hero_kicker ),
+        '{{hero_subtitle}}'            => esc_html( $hero_subtitle ),
+        '{{latest_cta_label}}'         => esc_html( $latest_cta_label ),
+        '{{blog_cta_label}}'           => esc_html( $blog_cta_label ),
+        '{{latest_section_eyebrow}}'   => esc_html( $latest_section_eyebrow ),
+        '{{latest_section_title}}'     => esc_html( $latest_section_title ),
+        '{{latest_section_link_text}}' => esc_html( $latest_section_link_text ),
+        '{{stat_posts}}'               => esc_html( number_format_i18n( (int) $published_posts->publish ) ),
+        '{{stat_pages}}'               => esc_html( number_format_i18n( (int) $published_pages->publish ) ),
+        '{{stat_categories}}'          => esc_html( number_format_i18n( max( 0, $category_total ) ) ),
+        '{{stat_tags}}'                => esc_html( number_format_i18n( max( 0, $tag_total ) ) ),
+        '{{url_home}}'                 => esc_url( home_url( '/' ) ),
+        '{{url_posts_page}}'           => esc_url( $posts_page_url ),
+        '{{url_blog_cta}}'             => esc_url( $hero_blog_cta_url ),
+        '{{url_dokumentation}}'        => esc_url( $url_dokumentation ),
+        '{{url_downloads}}'            => esc_url( $downloads_url ),
+        '{{url_support}}'              => esc_url( $url_support ),
+        '{{url_features}}'             => esc_url( $url_features ),
+        '{{url_roadmap}}'              => esc_url( $url_roadmap ),
+        '{{url_blog}}'                 => esc_url( $url_blog ),
+        '{{url_plugins}}'              => esc_url( $url_plugins ),
+        '{{url_integrations}}'         => esc_url( $url_integrations ),
+        '{{url_performance}}'          => esc_url( $url_performance ),
+        '{{url_security}}'             => esc_url( $url_security ),
+        '{{url_pricing}}'              => esc_url( $url_pricing ),
+        '{{url_community}}'            => esc_url( $url_community ),
+        '{{url_releases}}'             => esc_url( $url_releases ),
+        '{{podcast_latest_title}}'     => esc_html( $latest_podcast_title ),
+        '{{podcast_latest_excerpt}}'   => esc_html( $latest_podcast_excerpt ),
+        '{{podcast_latest_url}}'       => esc_url( $latest_podcast_url ),
+        '{{podcast_latest_audio_url}}' => esc_url( $latest_podcast_audio_url ),
+        '{{podcast_latest_date}}'      => esc_html( $latest_podcast_date ),
+        '{{podcast_related_url}}'      => esc_url( $latest_podcast_related_url ),
+        '{{podcast_related_title}}'    => esc_html( $latest_podcast_related_title ),
+        '{{slider_output}}'            => $slider_output_html,
+    );
+
+    // Allow tolerant matching (e.g. {{ hero_kicker }}) and legacy aliases.
+    $frontpage_smarttags_loose = array();
+    foreach ( $frontpage_smarttags as $tag => $replacement ) {
+        $normalized_tag = strtolower( trim( (string) $tag, "{} \t\n\r\0\x0B" ) );
+        if ( '' !== $normalized_tag ) {
+            $frontpage_smarttags_loose[ $normalized_tag ] = $replacement;
+        }
+    }
+
+    // Backward-compatible aliases used in older drafts/templates.
+    $frontpage_smarttags_loose['hero'] = $frontpage_smarttags['{{site_name}}'];
+    $frontpage_smarttags_loose['hero_title'] = $frontpage_smarttags['{{site_name}}'];
+
+    if ( '' !== trim( $front_page_content_raw ) ) {
+        // Handle block-editor encoded content (&lt;section&gt;, &#123;&#123;tag&#125;&#125;) before rendering.
+        $front_page_content_source = html_entity_decode( (string) $front_page_content_raw, ENT_QUOTES, 'UTF-8' );
+        $frontpage_smarttags_expanded = $frontpage_smarttags;
+
+        foreach ( $frontpage_smarttags as $tag => $replacement ) {
+            $tag_escaped_numeric = strtr(
+                $tag,
+                array(
+                    '{' => '&#123;',
+                    '}' => '&#125;',
+                )
+            );
+            $tag_escaped_hex = strtr(
+                $tag,
+                array(
+                    '{' => '&#x7B;',
+                    '}' => '&#x7D;',
+                )
+            );
+            $tag_escaped_hex_lower = strtr(
+                $tag,
+                array(
+                    '{' => '&#x7b;',
+                    '}' => '&#x7d;',
+                )
+            );
+            $tag_url_encoded = rawurlencode( $tag );
+
+            $frontpage_smarttags_expanded[ $tag_escaped_numeric ] = $replacement;
+            $frontpage_smarttags_expanded[ $tag_escaped_hex ] = $replacement;
+            $frontpage_smarttags_expanded[ $tag_escaped_hex_lower ] = $replacement;
+            $frontpage_smarttags_expanded[ $tag_url_encoded ] = $replacement;
+        }
+
+        $front_page_content_processed = strtr( $front_page_content_source, $frontpage_smarttags_expanded );
+        $front_page_content_processed = preg_replace_callback(
+            '/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/',
+            static function( $matches ) use ( $frontpage_smarttags_loose ) {
+                $loose_key = strtolower( (string) $matches[1] );
+                if ( isset( $frontpage_smarttags_loose[ $loose_key ] ) ) {
+                    return $frontpage_smarttags_loose[ $loose_key ];
+                }
+
+                return $matches[0];
+            },
+            $front_page_content_processed
+        );
+        ?>
+        <section class="homepage-content-block homepage-dynamic-content">
+            <?php echo apply_filters( 'the_content', $front_page_content_processed ); ?>
+        </section>
+
+        <?php if ( is_active_sidebar( 'frontpage-content' ) ) : ?>
+            <section class="homepage-widget-area homepage-widget-area-content" aria-label="<?php esc_attr_e( 'Front Page Content Widgets', 'themisdb' ); ?>">
+                <?php dynamic_sidebar( 'frontpage-content' ); ?>
+            </section>
+        <?php endif; ?>
+
+        <?php
+        if ( $front_page_has_post && ( comments_open() || get_comments_number() ) ) :
+            comments_template();
+        endif;
+        ?>
+        </main>
+
+        <?php
+        get_sidebar();
+        get_footer();
+        return;
+    }
     ?>
 
         <!-- SLIDER: Latest Articles – Top of Page -->
         <?php if ( ! empty( $latest_posts ) ) : ?>
-            <section class="featured-slider-section homepage-latest-articles <?php echo $show_latest_articles ? '' : 'homepage-hidden'; ?>" id="homepage-latest-articles">
+            <section class="featured-slider-section homepage-latest-articles homepage-slider-variant-<?php echo esc_attr( $slider_variant ); ?> <?php echo $show_latest_articles ? '' : 'homepage-hidden'; ?>" id="homepage-latest-articles">
                 <div class="homepage-section-header homepage-section-header-split">
                     <div>
-                        <span class="homepage-section-eyebrow" id="homepage-latest-eyebrow" data-default="<?php echo esc_attr( esc_html__( 'Aktuell', 'themisdb' ) ); ?>"><?php echo esc_html( $latest_section_eyebrow ); ?></span>
+                        <span class="homepage-section-eyebrow" id="homepage-latest-eyebrow" data-default="<?php echo esc_attr( esc_html__( 'Magazin', 'themisdb' ) ); ?>"><?php echo esc_html( $latest_section_eyebrow ); ?></span>
                         <h2 class="homepage-section-title" id="homepage-latest-title" data-default="<?php echo esc_attr( esc_html__( 'Neueste Artikel', 'themisdb' ) ); ?>"><?php echo esc_html( $latest_section_title ); ?></h2>
                     </div>
                     <?php if ( $has_posts_page ) : ?>
@@ -181,6 +448,13 @@ wp_reset_postdata();
                             <?php
                             $card_excerpt_source = get_the_excerpt( $post_item->ID ) ?: wp_strip_all_tags( get_post_field( 'post_content', $post_item->ID ) );
                             $card_excerpt = wp_trim_words( $card_excerpt_source, $latest_card_words );
+                            $slider_content_variant_class = '';
+
+                            if ( 'magazine' === $slider_variant ) {
+                                $slider_content_variant_class = 'slider-content-glass';
+                            } elseif ( 'editorial' === $slider_variant ) {
+                                $slider_content_variant_class = 'slider-content-editorial';
+                            }
                             ?>
                             <article class="slider-item">
                                 <div class="slider-image">
@@ -194,8 +468,17 @@ wp_reset_postdata();
                                         }
                                         ?>
                                     </a>
+                                    <?php
+                                    if ( 'magazine' === $slider_variant ) {
+                                        $post_categories = get_the_category( $post_item->ID );
+
+                                        if ( ! empty( $post_categories ) && isset( $post_categories[0]->name ) ) {
+                                            echo '<span class="slider-badge">' . esc_html( $post_categories[0]->name ) . '</span>';
+                                        }
+                                    }
+                                    ?>
                                 </div>
-                                <div class="slider-content">
+                                <div class="slider-content <?php echo esc_attr( $slider_content_variant_class ); ?>">
                                     <h3 class="slider-title">
                                         <a href="<?php echo esc_url( get_permalink( $post_item->ID ) ); ?>"><?php echo esc_html( get_the_title( $post_item->ID ) ); ?></a>
                                     </h3>

@@ -299,8 +299,8 @@
     border-color: var(--themisdb-primary);
 }
 
-/* Fullscreen */
-.themisdb-rt-fullscreen {
+/* Fullscreen (container-only) */
+.themisdb-rt-container.themisdb-rt-fullscreen {
     position: fixed;
     top: 0;
     left: 0;

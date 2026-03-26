@@ -1,0 +1,141 @@
+<!--
+Startseite Template fuer ThemisDB Theme v1
+Einsetzen in WordPress Seite (Frontend-Startseite) im Code-Editor.
+Wichtig: Als "Custom HTML" Block oder im Editor-Modus "Code-Editor" einfuegen (nicht in einem normalen Absatzblock).
+
+Verfuegbare Smarttags:
+{{site_name}}, {{site_description}}, {{hero_kicker}}, {{hero_subtitle}}
+{{latest_cta_label}}, {{blog_cta_label}}
+{{latest_section_eyebrow}}, {{latest_section_title}}, {{latest_section_link_text}}
+{{stat_posts}}, {{stat_pages}}, {{stat_categories}}, {{stat_tags}}
+{{url_home}}, {{url_posts_page}}, {{url_blog_cta}}
+{{url_dokumentation}}, {{url_downloads}}, {{url_support}}, {{url_features}}, {{url_roadmap}}, {{url_blog}}
+{{url_plugins}}, {{url_integrations}}, {{url_performance}}, {{url_security}}, {{url_pricing}}, {{url_community}}, {{url_releases}}
+{{podcast_latest_title}}, {{podcast_latest_excerpt}}, {{podcast_latest_url}}, {{podcast_latest_audio_url}}, {{podcast_latest_date}}
+{{podcast_related_url}}, {{podcast_related_title}}
+{{slider_output}} - rendert den kompletten Artikel-Slider inkl. Variant (standard/magazine/editorial)
+-->
+
+<section class="hero homepage-hero">
+  <div class="hero-content homepage-hero-content">
+    <span class="homepage-kicker">{{hero_kicker}}</span>
+    <h1>{{site_name}}</h1>
+    <p>{{hero_subtitle}}</p>
+    <div class="homepage-hero-actions">
+      <a class="button button-primary" href="#homepage-latest">{{latest_cta_label}}</a>
+      <a class="button homepage-secondary-button" href="{{url_blog_cta}}">{{blog_cta_label}}</a>
+    </div>
+  </div>
+</section>
+
+{{slider_output}}
+
+<section class="homepage-content-block">
+  <div class="homepage-section-header">
+    <span class="homepage-section-eyebrow">Podcast</span>
+    <h2 class="homepage-section-title">Neueste Episode</h2>
+  </div>
+  <article class="homepage-intro-article">
+    <h3>{{podcast_latest_title}}</h3>
+    <p>{{podcast_latest_excerpt}}</p>
+    <p>
+      <strong>Datum:</strong> {{podcast_latest_date}}
+    </p>
+    <p>
+      <a class="button button-primary" href="{{podcast_latest_url}}">Episode ansehen</a>
+      <a class="button homepage-secondary-button" href="{{podcast_latest_audio_url}}">Audio direkt</a>
+    </p>
+    <p>
+      <a class="homepage-text-link" href="{{podcast_related_url}}">Verwandter Artikel: {{podcast_related_title}}</a>
+    </p>
+  </article>
+</section>
+
+<section class="stats-section homepage-stats" aria-label="Website Kennzahlen">
+  <div class="stat-box">
+    <div class="stat-number">{{stat_posts}}</div>
+    <div class="stat-label">Artikel</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-number">{{stat_pages}}</div>
+    <div class="stat-label">Seiten</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-number">{{stat_categories}}</div>
+    <div class="stat-label">Kategorien</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-number">{{stat_tags}}</div>
+    <div class="stat-label">Tags</div>
+  </div>
+</section>
+
+<section class="homepage-main-navigation">
+  <div class="homepage-section-header">
+    <span class="homepage-section-eyebrow">Navigation</span>
+    <h2 class="homepage-section-title">Direkter Einstieg</h2>
+  </div>
+  <div class="horizontal-container">
+    <div class="main-nav-grid">
+      <a href="{{url_dokumentation}}" class="main-nav-card">
+        <h3>Dokumentation</h3>
+        <p>Guides und API Referenz</p>
+      </a>
+      <a href="{{url_downloads}}" class="main-nav-card">
+        <h3>Download</h3>
+        <p>Themes und Plugins</p>
+      </a>
+      <a href="{{url_support}}" class="main-nav-card">
+        <h3>Support</h3>
+        <p>Hilfe und Kontakt</p>
+      </a>
+      <a href="{{url_features}}" class="main-nav-card">
+        <h3>Features</h3>
+        <p>Uebersicht der Funktionen</p>
+      </a>
+      <a href="{{url_roadmap}}" class="main-nav-card">
+        <h3>Roadmap</h3>
+        <p>Was als naechstes kommt</p>
+      </a>
+      <a href="{{url_blog}}" class="main-nav-card">
+        <h3>Blog</h3>
+        <p>News und Artikel</p>
+      </a>
+      <a href="{{url_plugins}}" class="main-nav-card">
+        <h3>Plugins</h3>
+        <p>Alle Erweiterungen</p>
+      </a>
+      <a href="{{url_integrations}}" class="main-nav-card">
+        <h3>Integrationen</h3>
+        <p>Verbindungen zu Drittsystemen</p>
+      </a>
+      <a href="{{url_releases}}" class="main-nav-card">
+        <h3>Releases</h3>
+        <p>Versionen und Changelog</p>
+      </a>
+      <a href="{{url_security}}" class="main-nav-card">
+        <h3>Sicherheit</h3>
+        <p>Security und Compliance</p>
+      </a>
+      <a href="{{url_pricing}}" class="main-nav-card">
+        <h3>Pricing</h3>
+        <p>Plaene und Lizenzen</p>
+      </a>
+      <a href="{{url_community}}" class="main-nav-card">
+        <h3>Community</h3>
+        <p>Austausch und Mitwirkung</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="homepage-cta homepage-cta-dark">
+  <div class="horizontal-container">
+    <h2>Bereit fuer den naechsten Schritt?</h2>
+    <p>{{site_name}} verbindet WordPress Workflows mit produktionsreifen Plugin-Prozessen.</p>
+    <div class="cta-buttons">
+      <a href="{{url_downloads}}" class="btn btn-primary">Download starten</a>
+      <a href="{{url_dokumentation}}" class="btn btn-outline-light">Dokumentation lesen</a>
+    </div>
+  </div>
+</section>

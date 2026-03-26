@@ -833,10 +833,18 @@ JS;
                         <input type="checkbox" id="ppp-continuous-play" checked>
                         <span>Continuous Play</span>
                     </label>
+                    <label class="ppp-checkbox-label" title="Automatically minimize player while scrolling down">
+                        <input type="checkbox" id="ppp-auto-minimize" checked>
+                        <span>Auto-Minimize</span>
+                    </label>
                 </div>
                 
                 <div class="ppp-playlist-toggle">
                     <button id="ppp-toggle-playlist" class="ppp-btn-toggle" aria-label="Toggle Playlist">Playlist</button>
+                </div>
+
+                <div class="ppp-minimize-toggle">
+                    <button id="ppp-toggle-minimize" class="ppp-btn-toggle ppp-btn-minimize" aria-label="Player minimieren" title="Player minimieren">▾</button>
                 </div>
             </div>
             

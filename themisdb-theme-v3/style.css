@@ -597,8 +597,7 @@ tr:hover td { background: var(--tv3-gray-50); }
 /* ============================================================
    Buttons
    ============================================================ */
-.tv3-btn,
-.wp-block-button__link {
+.tv3-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1143,6 +1142,7 @@ tr:hover td { background: var(--tv3-gray-50); }
     display: grid;
     grid-template-columns: var(--tv3-sidebar-width) 1fr;
     gap: var(--tv3-space-8);
+    column-gap: max(1px, var(--tv3-space-8));
     align-items: start;
 }
 
@@ -1716,8 +1716,11 @@ tr:hover td { background: var(--tv3-gray-50); }
     box-shadow: var(--tv3-shadow-lg);
 }
 
-.wp-block-navigation .wp-block-navigation-item__content { color: rgba(255, 255, 255, 0.85); }
-.wp-block-navigation .wp-block-navigation-item__content:hover { color: var(--tv3-cyan); }
+.tv3-header .wp-block-navigation .wp-block-navigation-item__content,
+.tv3-header-docs .wp-block-navigation .wp-block-navigation-item__content { color: rgba(255, 255, 255, 0.85); }
+
+.tv3-header .wp-block-navigation .wp-block-navigation-item__content:hover,
+.tv3-header-docs .wp-block-navigation .wp-block-navigation-item__content:hover { color: var(--tv3-cyan); }
 
 .wp-block-query-pagination {
     display: flex;
@@ -2010,7 +2013,7 @@ tr:hover td { background: var(--tv3-gray-50); }
     .tv3-testimonial-grid { grid-template-columns: repeat(2, 1fr); }
     .tv3-footer-grid { grid-template-columns: 1fr 1fr; }
     .tv3-pricing-grid { grid-template-columns: 1fr 1fr; }
-    .tv3-docs-layout { grid-template-columns: 260px 1fr; }
+    .tv3-docs-layout { grid-template-columns: 260px 1fr; column-gap: max(1px, var(--tv3-space-8)); }
     .tv3-stats-grid { grid-template-columns: repeat(2, 1fr); }
     .tv3-stat-item:nth-child(2) { border-right: none; }
     .tv3-stat-item:nth-child(3) { border-top: 1px solid var(--tv3-border); }
@@ -2137,5 +2140,69 @@ tr:hover td { background: var(--tv3-gray-50); }
 @media (prefers-color-scheme: dark) {
     .tv3-single-header .wp-block-post-featured-image {
         box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+    }
+}
+
+/* ============================================================
+   Gutenberg/Core-first compatibility layer
+   ============================================================ */
+.wp-block-post-content :where(.wp-block-image, .wp-block-gallery, .wp-block-embed, .wp-block-table, .wp-block-quote, .wp-block-pullquote, .wp-block-media-text, .wp-block-cover, .wp-block-file, .wp-block-details, .wp-block-code, .wp-block-preformatted, .wp-block-separator) {
+    margin-block: var(--wp--style--block-gap, var(--tv3-space-6));
+}
+
+.wp-block-post-content :where(.wp-block-columns) {
+    column-gap: max(1px, var(--wp--style--block-gap, var(--tv3-space-6)));
+}
+
+.wp-block-post-content :where(.wp-block-table) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.wp-block-post-content :where(.wp-block-table table) {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+.wp-block-post-content :where(.wp-block-table th, .wp-block-table td) {
+    font-size: inherit;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.wp-block-post-content :where(.wp-block-button__link) {
+    transform: none;
+    box-shadow: none;
+}
+
+.wp-block-post-content :where(.wp-block-button__link:hover, .wp-block-button__link:focus, .wp-block-button__link:active) {
+    transform: none;
+    box-shadow: none;
+}
+
+.wp-block-post-content :where(.wp-block-cover, .wp-block-cover-image) {
+    border-radius: 0;
+}
+
+.wp-block-post-content :where(.wp-block-cover__inner-container) {
+    padding: initial;
+}
+
+.wp-site-blocks .wp-block-post-content > :where(.alignwide) {
+    max-width: var(--wp--style--global--wide-size, var(--tv3-wide-width));
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.wp-site-blocks .wp-block-post-content > :where(.alignfull) {
+    max-width: none;
+}
+
+@media (max-width: 782px) {
+    .wp-block-post-content :where(.alignleft, .alignright) {
+        float: none;
+        margin-left: auto;
+        margin-right: auto;
     }
 }

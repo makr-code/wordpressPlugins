@@ -27,7 +27,7 @@
  * Plugin Name: ThemisDB Release Timeline Visualizer
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Description: Interactive release timeline visualization with Mermaid.js for ThemisDB versions, featuring GitHub API integration, CHANGELOG parsing, and multiple timeline views.
- * Version: 1.0.0
+ * Version: 1.0.2
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -40,7 +40,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Plugin constants
-define('THEMISDB_RT_VERSION', '1.0.0');
+define('THEMISDB_RT_VERSION', '1.0.2');
 define('THEMISDB_RT_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_RT_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_RT_PLUGIN_FILE', __FILE__);
@@ -122,7 +122,8 @@ function themisdb_rt_shortcode($atts) {
         'view' => 'chronological', // chronological, gantt, mindmap
         'theme' => 'neutral', // neutral, dark, forest
         'releases' => '10',
-        'source' => 'github', // github, changelog, manual
+        'source' => 'github', // github, github_milestones, changelog, manual
+        'render_mode' => 'auto', // auto, mermaid, list
         'show_breaking' => 'true',
         'show_features' => 'true',
         'interactive' => 'true'
@@ -159,6 +160,9 @@ function themisdb_rt_ajax_load_data() {
         case 'github':
             $data = themisdb_rt_fetch_github_releases($releases_count);
             break;
+        case 'github_milestones':
+            $data = themisdb_rt_fetch_github_milestones($releases_count);
+            break;
         case 'changelog':
             $data = themisdb_rt_parse_changelog($releases_count);
             break;
@@ -185,10 +189,7 @@ function themisdb_rt_fetch_github_releases($count = 10) {
     $api_url = "https://api.github.com/repos/{$github_repo}/releases?per_page={$count}";
     
     $response = wp_remote_get($api_url, array(
-        'headers' => array(
-            'Accept' => 'application/vnd.github.v3+json',
-            'User-Agent' => 'ThemisDB-Release-Timeline'
-        ),
+        'headers' => themisdb_rt_get_github_headers(),
         'timeout' => 15
     ));
     
@@ -217,6 +218,148 @@ function themisdb_rt_fetch_github_releases($count = 10) {
     }
     
     return $formatted;
+}
+
+/**
+ * Build GitHub API headers and attach token if configured.
+ */
+function themisdb_rt_get_github_headers() {
+    $headers = array(
+        'Accept' => 'application/vnd.github.v3+json',
+        'User-Agent' => 'ThemisDB-Release-Timeline'
+    );
+
+    $github_token = trim((string) get_option('themisdb_rt_github_token', ''));
+    if (!empty($github_token)) {
+        $headers['Authorization'] = 'Bearer ' . $github_token;
+    }
+
+    return $headers;
+}
+
+/**
+ * Fetch milestones from GitHub API and map them to timeline releases.
+ */
+function themisdb_rt_fetch_github_milestones($count = 10) {
+    $github_repo = get_option('themisdb_rt_github_repo', 'makr-code/wordpressPlugins');
+    $api_url = "https://api.github.com/repos/{$github_repo}/milestones?state=all&sort=due_on&direction=desc&per_page={$count}";
+
+    $response = wp_remote_get($api_url, array(
+        'headers' => themisdb_rt_get_github_headers(),
+        'timeout' => 15
+    ));
+
+    if (is_wp_error($response)) {
+        return themisdb_rt_get_default_releases();
+    }
+
+    $body = wp_remote_retrieve_body($response);
+    $milestones = json_decode($body, true);
+
+    if (!is_array($milestones) || empty($milestones)) {
+        return themisdb_rt_get_default_releases();
+    }
+
+    $formatted = array();
+
+    foreach ($milestones as $milestone) {
+        if (!isset($milestone['title'])) {
+            continue;
+        }
+
+        $milestone_title = (string) $milestone['title'];
+        $milestone_desc = (string) ($milestone['description'] ?? '');
+        $closed_issues = isset($milestone['closed_issues']) ? (int) $milestone['closed_issues'] : 0;
+        $open_issues = isset($milestone['open_issues']) ? (int) $milestone['open_issues'] : 0;
+
+        $date_source = '';
+        if (!empty($milestone['closed_at'])) {
+            $date_source = $milestone['closed_at'];
+        } elseif (!empty($milestone['due_on'])) {
+            $date_source = $milestone['due_on'];
+        } elseif (!empty($milestone['created_at'])) {
+            $date_source = $milestone['created_at'];
+        }
+
+        $milestone_date = !empty($date_source)
+            ? date('Y-m-d', strtotime($date_source))
+            : date('Y-m-d');
+
+        $features = array(
+            sprintf('Issues: %d closed / %d open', $closed_issues, $open_issues)
+        );
+
+        $issue_titles = themisdb_rt_fetch_milestone_issue_titles($github_repo, (int) ($milestone['number'] ?? 0), 4);
+        if (!empty($issue_titles)) {
+            $features = array_merge($features, $issue_titles);
+        } elseif (!empty($milestone_desc)) {
+            $features = array_merge($features, themisdb_rt_extract_features($milestone_desc));
+        }
+
+        $body_text = trim($milestone_desc);
+        if ('' !== $body_text) {
+            $body_text .= "\n\n";
+        }
+        $body_text .= sprintf('Issue summary: %d closed, %d open', $closed_issues, $open_issues);
+
+        $formatted[] = array(
+            'version' => $milestone_title,
+            'name' => 'Milestone ' . $milestone_title,
+            'date' => $milestone_date,
+            'body' => $body_text,
+            'breaking' => stripos($milestone_title . ' ' . $milestone_desc, 'breaking') !== false,
+            'features' => array_slice($features, 0, 5),
+            'url' => (string) ($milestone['html_url'] ?? '')
+        );
+    }
+
+    return !empty($formatted) ? $formatted : themisdb_rt_get_default_releases();
+}
+
+/**
+ * Fetch issue titles for a milestone (PRs excluded).
+ */
+function themisdb_rt_fetch_milestone_issue_titles($github_repo, $milestone_number, $limit = 4) {
+    if ($milestone_number <= 0) {
+        return array();
+    }
+
+    $api_url = "https://api.github.com/repos/{$github_repo}/issues?state=all&milestone={$milestone_number}&sort=updated&direction=desc&per_page={$limit}";
+    $response = wp_remote_get($api_url, array(
+        'headers' => themisdb_rt_get_github_headers(),
+        'timeout' => 15
+    ));
+
+    if (is_wp_error($response)) {
+        return array();
+    }
+
+    $issues = json_decode(wp_remote_retrieve_body($response), true);
+    if (!is_array($issues)) {
+        return array();
+    }
+
+    $titles = array();
+
+    foreach ($issues as $issue) {
+        if (isset($issue['pull_request'])) {
+            continue;
+        }
+
+        if (empty($issue['title'])) {
+            continue;
+        }
+
+        $state = isset($issue['state']) ? strtoupper((string) $issue['state']) : 'OPEN';
+        $number = isset($issue['number']) ? (int) $issue['number'] : 0;
+        $titles[] = sprintf('%s #%d %s', $state, $number, trim((string) $issue['title']));
+
+        if (count($titles) >= $limit) {
+            break;
+        }
+    }
+
+    return $titles;
 }
 
 /**

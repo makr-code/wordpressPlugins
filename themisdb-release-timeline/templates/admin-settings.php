@@ -273,6 +273,14 @@ $_trt_url = function ( $tab ) use ( $_trt_page ) {
                 <td><code>[themisdb_release_timeline source="changelog"]</code></td>
                 <td><?php _e( 'Daten aus CHANGELOG-Datei lesen', 'themisdb-release-timeline' ); ?></td>
             </tr>
+            <tr>
+                <td><code>[themisdb_release_timeline source="github_milestones" releases="8"]</code></td>
+                <td><?php _e( 'Daten aus GitHub Milestones + Issues lesen', 'themisdb-release-timeline' ); ?></td>
+            </tr>
+            <tr>
+                <td><code>[themisdb_release_timeline source="github_milestones" releases="8" render_mode="list" interactive="false"]</code></td>
+                <td><?php _e( 'Stabile Listenansicht ohne Mermaid (empfohlen fuer Startseite)', 'themisdb-release-timeline' ); ?></td>
+            </tr>
         </tbody>
     </table>
 

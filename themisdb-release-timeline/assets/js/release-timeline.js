@@ -7,19 +7,6 @@
 (function($) {
     'use strict';
     
-    // Initialize Mermaid
-    if (typeof mermaid !== 'undefined') {
-        mermaid.initialize({
-            startOnLoad: false,
-            theme: 'neutral',
-            securityLevel: 'loose',
-            flowchart: {
-                useMaxWidth: true,
-                htmlLabels: true
-            }
-        });
-    }
-    
     // Timeline Visualizer Class
     class ReleaseTimelineVisualizer {
         constructor(container) {
@@ -27,8 +14,11 @@
             this.currentView = container.dataset.view || 'chronological';
             this.currentTheme = container.dataset.theme || 'neutral';
             this.source = container.dataset.source || 'github';
+            this.renderMode = container.dataset.renderMode || 'auto';
             this.releases = [];
             this.zoomLevel = 1.0;
+            this.instanceId = `themisdb-rt-${Math.random().toString(36).slice(2, 10)}`;
+            this.renderToken = 0;
             
             this.init();
         }
@@ -54,9 +44,6 @@
             if (themeSelect) {
                 themeSelect.addEventListener('change', function() {
                     self.currentTheme = this.value;
-                    if (typeof mermaid !== 'undefined') {
-                        mermaid.initialize({ theme: self.currentTheme });
-                    }
                     self.render();
                 });
             }
@@ -132,6 +119,11 @@
         render() {
             const content = this.container.querySelector('.themisdb-rt-content');
             if (!content) return;
+
+            if (this.renderMode === 'list') {
+                this.renderFallbackList(content);
+                return;
+            }
             
             let diagram = '';
             
@@ -149,7 +141,12 @@
                     diagram = this.generateChronological();
             }
             
-            this.renderMermaid(content, diagram);
+            if (this.renderMode === 'mermaid') {
+                this.renderMermaid(content, diagram, false);
+                return;
+            }
+
+            this.renderMermaid(content, diagram, true);
         }
         
         generateChronological() {
@@ -157,11 +154,13 @@
             diagram += '    title ThemisDB Release Timeline\n';
             
             this.releases.forEach(release => {
-                const breaking = release.breaking ? ' ⚠️' : '';
-                diagram += `    ${release.date} : ${release.version}${breaking}\n`;
+                const breaking = release.breaking ? ' [breaking]' : '';
+                const safeVersion = this.sanitizeMermaidText(release.version, 80);
+                diagram += `    ${release.date} : ${safeVersion}${breaking}\n`;
                 
                 if (release.features && release.features.length > 0) {
-                    diagram += `                : ${release.features[0]}\n`;
+                    const safeFeature = this.sanitizeMermaidText(release.features[0], 120);
+                    diagram += `                : ${safeFeature}\n`;
                 }
             });
             
@@ -177,7 +176,8 @@
             this.releases.forEach((release, index) => {
                 const nextDate = this.releases[index + 1] ? this.releases[index + 1].date : release.date;
                 const status = release.breaking ? 'crit' : 'done';
-                diagram += `    ${release.version} : ${status}, ${release.date}, ${nextDate}\n`;
+                const safeVersion = this.sanitizeMermaidText(release.version, 60);
+                diagram += `    ${safeVersion} : ${status}, ${release.date}, ${nextDate}\n`;
             });
             
             return diagram;
@@ -188,11 +188,12 @@
             diagram += '  root((ThemisDB Releases))\n';
             
             this.releases.slice(0, 5).forEach(release => {
-                diagram += `    ${release.version}\n`;
+                const safeVersion = this.sanitizeMermaidText(release.version, 50);
+                diagram += `    ${safeVersion}\n`;
                 
                 if (release.features && release.features.length > 0) {
                     release.features.slice(0, 3).forEach(feature => {
-                        const cleanFeature = feature.replace(/[()]/g, '').substring(0, 30);
+                        const cleanFeature = this.sanitizeMermaidText(feature, 30);
                         diagram += `      ${cleanFeature}\n`;
                     });
                 }
@@ -200,15 +201,102 @@
             
             return diagram;
         }
+
+        sanitizeMermaidText(input, maxLength = 80) {
+            const value = String(input || '');
+            return value
+                .replace(/[\r\n\t]+/g, ' ')
+                .replace(/[^\w\s.,\-()/+#]/g, ' ')
+                .replace(/\s{2,}/g, ' ')
+                .trim()
+                .substring(0, maxLength);
+        }
+
+        renderFallbackList(container) {
+            const items = (this.releases || []).map(release => {
+                const title = this.escapeHtml(this.sanitizeMermaidText(release.version || release.name || 'Release', 120));
+                const date = this.escapeHtml(String(release.date || ''));
+                const feature = Array.isArray(release.features) && release.features.length > 0
+                    ? this.escapeHtml(this.sanitizeMermaidText(release.features[0], 180))
+                    : '';
+                const breaking = release.breaking ? ' <strong>(breaking)</strong>' : '';
+                return `<li><strong>${date}</strong> - ${title}${breaking}${feature ? `<br><span>${feature}</span>` : ''}</li>`;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="themisdb-rt-fallback">
+                    <h3 style="margin:0 0 0.75rem;">Release Uebersicht</h3>
+                    <ul style="margin:0; padding-left:1.25rem; line-height:1.5;">${items || '<li>Keine Daten vorhanden.</li>'}</ul>
+                </div>
+            `;
+        }
+
+        escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
         
-        renderMermaid(container, diagram) {
-            container.innerHTML = `<div class="themisdb-rt-diagram"><pre class="mermaid">${diagram}</pre></div>`;
-            
-            if (typeof mermaid !== 'undefined') {
-                mermaid.run({
-                    querySelector: '.themisdb-rt-diagram .mermaid'
-                });
+        renderMermaid(container, diagram, allowFallback = true) {
+            if (typeof mermaid === 'undefined' || typeof mermaid.render !== 'function') {
+                if (allowFallback) {
+                    this.renderFallbackList(container);
+                } else {
+                    this.showError('Mermaid library not available');
+                }
+                return;
             }
+
+            const currentToken = ++this.renderToken;
+            const diagramId = `${this.instanceId}-${currentToken}`;
+
+            container.innerHTML = `<div class="themisdb-rt-diagram themisdb-rt-diagram-loading">Rendering timeline...</div>`;
+
+            Promise.resolve()
+                .then(() => {
+                    mermaid.initialize({
+                        startOnLoad: false,
+                        theme: this.currentTheme || 'neutral',
+                        securityLevel: 'loose',
+                        deterministicIds: false,
+                        flowchart: {
+                            useMaxWidth: true,
+                            htmlLabels: true
+                        }
+                    });
+
+                    return mermaid.render(diagramId, diagram);
+                })
+                .then((result) => {
+                    if (currentToken !== this.renderToken) {
+                        return;
+                    }
+
+                    const svg = (result && result.svg) ? result.svg : '';
+                    if (!svg) {
+                        throw new Error('Mermaid render returned empty SVG');
+                    }
+
+                    container.innerHTML = `<div class="themisdb-rt-diagram">${svg}</div>`;
+
+                    if (result && typeof result.bindFunctions === 'function') {
+                        result.bindFunctions(container);
+                    }
+                })
+                .catch(() => {
+                    if (currentToken !== this.renderToken) {
+                        return;
+                    }
+
+                    if (allowFallback) {
+                        this.renderFallbackList(container);
+                    } else {
+                        this.showError('Mermaid render error');
+                    }
+                });
         }
         
         showLoading() {

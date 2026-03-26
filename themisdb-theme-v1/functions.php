@@ -582,6 +582,40 @@ function themisdb_sanitize_compact_excerpt_words( $value ) {
 }
 
 /**
+ * Sanitize front-page slider variant value.
+ *
+ * @param string $value Raw slider variant.
+ * @return string
+ */
+function themisdb_sanitize_slider_variant( $value ) {
+    $allowed = array( 'standard', 'magazine', 'editorial' );
+    $value   = sanitize_key( (string) $value );
+
+    if ( in_array( $value, $allowed, true ) ) {
+        return $value;
+    }
+
+    return 'standard';
+}
+
+/**
+ * Sanitize footer tone value.
+ *
+ * @param string $value Raw footer tone.
+ * @return string
+ */
+function themisdb_sanitize_footer_tone( $value ) {
+    $allowed = array( 'marketing', 'technical' );
+    $value   = sanitize_key( (string) $value );
+
+    if ( in_array( $value, $allowed, true ) ) {
+        return $value;
+    }
+
+    return 'marketing';
+}
+
+/**
  * Customizer control for resetting front page options.
  */
 if ( class_exists( 'WP_Customize_Control' ) && ! class_exists( 'ThemisDB_Reset_Customize_Control' ) ) {
@@ -831,7 +865,7 @@ function themisdb_customize_register( $wp_customize ) {
     ) );
 
     $wp_customize->add_setting( 'themisdb_home_latest_eyebrow', array(
-        'default'           => esc_html__( 'Aktuell', 'themisdb' ),
+        'default'           => esc_html__( 'Magazin', 'themisdb' ),
         'transport'         => 'postMessage',
         'sanitize_callback' => 'sanitize_text_field',
     ) );
@@ -914,6 +948,41 @@ function themisdb_customize_register( $wp_customize ) {
         ),
     ) );
 
+    $wp_customize->add_setting( 'themisdb_home_slider_variant', array(
+        'default'           => 'standard',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'themisdb_sanitize_slider_variant',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_home_slider_variant', array(
+        'label'       => esc_html__( 'Latest slider style', 'themisdb' ),
+        'description' => esc_html__( 'Switch between Standard, Magazine and Editorial Minimal look.', 'themisdb' ),
+        'section'     => 'themisdb_front_page',
+        'type'        => 'select',
+        'choices'     => array(
+            'standard' => esc_html__( 'Standard', 'themisdb' ),
+            'magazine' => esc_html__( 'Magazine', 'themisdb' ),
+            'editorial' => esc_html__( 'Editorial Minimal', 'themisdb' ),
+        ),
+    ) );
+
+    $wp_customize->add_setting( 'themisdb_footer_tone', array(
+        'default'           => 'marketing',
+        'transport'         => 'refresh',
+        'sanitize_callback' => 'themisdb_sanitize_footer_tone',
+    ) );
+
+    $wp_customize->add_control( 'themisdb_footer_tone', array(
+        'label'       => esc_html__( 'Footer text tone', 'themisdb' ),
+        'description' => esc_html__( 'Choose whether footer copy sounds technical or marketing-focused.', 'themisdb' ),
+        'section'     => 'themisdb_front_page',
+        'type'        => 'select',
+        'choices'     => array(
+            'marketing' => esc_html__( 'Marketing', 'themisdb' ),
+            'technical' => esc_html__( 'Technical', 'themisdb' ),
+        ),
+    ) );
+
     $wp_customize->add_setting( 'themisdb_home_reset_defaults', array(
         'default'           => '',
         'sanitize_callback' => 'sanitize_text_field',
@@ -982,12 +1051,14 @@ function themisdb_customize_controls_js() {
                 'themisdb_home_show_intro_section'           => true,
                 'themisdb_home_intro_eyebrow'                => esc_html__( 'Einleitung', 'themisdb' ),
                 'themisdb_home_intro_title'                  => esc_html__( 'Was diese Seite bietet', 'themisdb' ),
-                'themisdb_home_latest_eyebrow'               => esc_html__( 'Aktuell', 'themisdb' ),
+                'themisdb_home_latest_eyebrow'               => esc_html__( 'Magazin', 'themisdb' ),
                 'themisdb_home_latest_title'                 => esc_html__( 'Neueste Artikel', 'themisdb' ),
                 'themisdb_home_latest_link_label'            => esc_html__( 'Alle Artikel ansehen', 'themisdb' ),
                 'themisdb_home_latest_lead_cta_label'        => esc_html__( 'Artikel lesen', 'themisdb' ),
                 'themisdb_home_latest_lead_excerpt_words'    => 34,
                 'themisdb_home_latest_compact_excerpt_words' => 14,
+                'themisdb_home_slider_variant'               => 'standard',
+                'themisdb_footer_tone'                       => 'marketing',
             ),
         )
     );

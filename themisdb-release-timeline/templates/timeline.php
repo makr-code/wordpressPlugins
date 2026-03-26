@@ -39,6 +39,7 @@ $view = esc_attr($atts['view']);
 $theme = esc_attr($atts['theme']);
 $releases = esc_attr($atts['releases']);
 $source = esc_attr($atts['source']);
+$render_mode = esc_attr($atts['render_mode']);
 $show_breaking = filter_var($atts['show_breaking'], FILTER_VALIDATE_BOOLEAN);
 $show_features = filter_var($atts['show_features'], FILTER_VALIDATE_BOOLEAN);
 $interactive = filter_var($atts['interactive'], FILTER_VALIDATE_BOOLEAN);
@@ -48,6 +49,7 @@ $interactive = filter_var($atts['interactive'], FILTER_VALIDATE_BOOLEAN);
      data-view="<?php echo $view; ?>"
      data-theme="<?php echo $theme; ?>"
      data-source="<?php echo $source; ?>"
+    data-render-mode="<?php echo $render_mode; ?>"
      data-releases="<?php echo $releases; ?>">
     
     <div class="themisdb-rt-header">
