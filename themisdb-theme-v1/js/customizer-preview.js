@@ -318,4 +318,97 @@
             });
         });
     });
+
+    // ── Header live preview ───────────────────────────────────────────────────
+
+    var siteHeader = document.getElementById('masthead');
+    var navLinks   = document.querySelectorAll('.main-navigation a');
+    var siteNameLink = document.querySelector('.site-name-link');
+    var siteTagline  = document.querySelector('.site-tagline');
+    var logoInitial  = document.querySelector('.site-logo-initial');
+    var customLogo   = document.querySelector('.site-branding-group .custom-logo');
+    var headerIconBtns = document.querySelectorAll('.header-icon-btn');
+    var searchToggleBtn   = document.querySelector('.search-toggle');
+    var darkModeToggleBtn = document.querySelector('.dark-mode-toggle');
+
+    function applyHeaderStyle(style) {
+        if (!siteHeader) { return; }
+        siteHeader.classList.toggle('header-style-dark', style === 'dark');
+        siteHeader.classList.toggle('header-style-glass', style !== 'dark');
+    }
+
+    function applyNavAccent(color) {
+        var safeColor = (color || '').trim();
+        if (!safeColor) { return; }
+        document.querySelectorAll('.main-navigation a:hover, .main-navigation .current-menu-item > a').forEach(function (el) {
+            el.style.color = safeColor;
+        });
+        // Inject a style tag for pseudo-selectors (can't set via .style)
+        var styleId = 'themisdb-preview-nav-accent';
+        var existing = document.getElementById(styleId);
+        if (!existing) {
+            existing = document.createElement('style');
+            existing.id = styleId;
+            document.head.appendChild(existing);
+        }
+        existing.textContent =
+            '.main-navigation a:hover,' +
+            '.main-navigation .current-menu-item > a,' +
+            '.main-navigation .current_page_item > a { color: ' + safeColor + ' !important; }';
+    }
+
+    function applyLogoWidth(width) {
+        var w = parseInt(width, 10);
+        if (!Number.isFinite(w) || w < 40) { w = 40; }
+        if (w > 300) { w = 300; }
+        if (customLogo) {
+            customLogo.style.maxWidth = w + 'px';
+        }
+    }
+
+    function applyHeaderSticky(sticky) {
+        if (!siteHeader) { return; }
+        siteHeader.style.position = sticky ? 'sticky' : 'relative';
+    }
+
+    function applyHeaderShowSearch(show) {
+        if (!searchToggleBtn) { return; }
+        searchToggleBtn.style.display = show ? '' : 'none';
+    }
+
+    function applyHeaderShowDarkmode(show) {
+        if (!darkModeToggleBtn) { return; }
+        darkModeToggleBtn.style.display = show ? '' : 'none';
+    }
+
+    api('themisdb_header_style', function (value) {
+        applyHeaderStyle(value.get());
+        value.bind(applyHeaderStyle);
+    });
+
+    api('themisdb_header_accent_color', function (value) {
+        applyNavAccent(value.get());
+        value.bind(applyNavAccent);
+    });
+
+    api('themisdb_logo_width', function (value) {
+        applyLogoWidth(value.get());
+        value.bind(applyLogoWidth);
+    });
+
+    api('themisdb_header_sticky', function (value) {
+        applyHeaderSticky(value.get());
+        value.bind(applyHeaderSticky);
+    });
+
+    api('themisdb_header_show_search', function (value) {
+        applyHeaderShowSearch(!!value.get());
+        value.bind(function (v) { applyHeaderShowSearch(!!v); });
+    });
+
+    api('themisdb_header_show_darkmode', function (value) {
+        applyHeaderShowDarkmode(!!value.get());
+        value.bind(function (v) { applyHeaderShowDarkmode(!!v); });
+    });
+
 })(window.wp && window.wp.customize);

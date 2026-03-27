@@ -174,11 +174,23 @@ function themisdb_order_request_init() {
 
     // Ensure core public pages exist independently of the active theme.
     themisdb_order_ensure_contact_page();
+
+    // Ensure new scheduled jobs are present for already-installed instances.
+    themisdb_order_request_ensure_scheduled_events();
     
     // Load text domain for translations
     load_plugin_textdomain('themisdb-order-request', false, dirname(plugin_basename(__FILE__)) . '/languages');
 }
 add_action('plugins_loaded', 'themisdb_order_request_init');
+
+/**
+ * Ensure recurring cron events exist for operational maintenance.
+ */
+function themisdb_order_request_ensure_scheduled_events() {
+    if (!wp_next_scheduled('themisdb_support_github_status_refresh')) {
+        wp_schedule_event(time(), 'hourly', 'themisdb_support_github_status_refresh');
+    }
+}
 
 /**
  * Ensure a published /contact page exists.
@@ -312,6 +324,9 @@ function themisdb_order_request_activate() {
     if (!get_option('themisdb_support_github_labels')) {
         add_option('themisdb_support_github_labels', 'support,themisdb');
     }
+    if (!get_option('themisdb_support_github_manual_refresh_cooldown')) {
+        add_option('themisdb_support_github_manual_refresh_cooldown', '30');
+    }
 
     // Schedule daily renewal reminder cron job
     if (!wp_next_scheduled('themisdb_license_renewal_check')) {
@@ -326,6 +341,11 @@ function themisdb_order_request_activate() {
     // Schedule support benefits expiry check (daily)
     if (!wp_next_scheduled('themisdb_support_benefits_expiry_check')) {
         wp_schedule_event(time(), 'daily', 'themisdb_support_benefits_expiry_check');
+    }
+
+    // Schedule support ticket GitHub issue status refresh (hourly)
+    if (!wp_next_scheduled('themisdb_support_github_status_refresh')) {
+        wp_schedule_event(time(), 'hourly', 'themisdb_support_github_status_refresh');
     }
     
     // Flush rewrite rules
@@ -352,6 +372,11 @@ function themisdb_order_request_deactivate() {
     $timestamp = wp_next_scheduled('themisdb_support_benefits_expiry_check');
     if ($timestamp) {
         wp_unschedule_event($timestamp, 'themisdb_support_benefits_expiry_check');
+    }
+
+    $timestamp = wp_next_scheduled('themisdb_support_github_status_refresh');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'themisdb_support_github_status_refresh');
     }
     
     // Flush rewrite rules
@@ -390,10 +415,59 @@ function themisdb_run_support_benefits_expiry_check() {
 }
 
 /**
+ * Support ticket GitHub issue status refresh cron hook.
+ */
+add_action('themisdb_support_github_status_refresh', 'themisdb_run_support_github_status_refresh');
+function themisdb_run_support_github_status_refresh() {
+    $last_run = time();
+
+    if (!class_exists('ThemisDB_Order_Support_Ticket_Manager')) {
+        update_option('themisdb_support_github_status_refresh_last_run', $last_run, false);
+        update_option('themisdb_support_github_status_refresh_last_result', array(
+            'processed' => 0,
+            'updated' => 0,
+            'failed' => 1,
+            'skipped' => 0,
+            'message' => 'support_ticket_manager_missing',
+        ), false);
+        return;
+    }
+
+    $result = ThemisDB_Order_Support_Ticket_Manager::refresh_github_issue_statuses_batch(array(
+        'limit' => 30,
+        'ticket_statuses' => array('open', 'in_progress'),
+    ));
+
+    update_option('themisdb_support_github_status_refresh_last_run', $last_run, false);
+    update_option('themisdb_support_github_status_refresh_last_result', array(
+        'processed' => isset($result['processed']) ? absint($result['processed']) : 0,
+        'updated' => isset($result['updated']) ? absint($result['updated']) : 0,
+        'failed' => isset($result['failed']) ? absint($result['failed']) : 0,
+        'skipped' => isset($result['skipped']) ? absint($result['skipped']) : 0,
+        'message' => isset($result['message']) ? sanitize_text_field((string) $result['message']) : '',
+    ), false);
+}
+
+/**
  * Enqueue frontend scripts and styles
  */
 function themisdb_order_request_enqueue_scripts() {
-    wp_enqueue_style('themisdb-order-request-style', THEMISDB_ORDER_PLUGIN_URL . 'assets/css/order-request.css', array(), THEMISDB_ORDER_VERSION);
+    // Theme-first presentation: ThemisDB themes own frontend visuals.
+    $theme_controls_presentation =
+        wp_style_is('themisdb-style', 'enqueued') ||
+        wp_style_is('themisdb-style', 'registered') ||
+        wp_style_is('lis-a-style', 'enqueued') ||
+        wp_style_is('lis-a-style', 'registered');
+
+    $should_enqueue_plugin_style = apply_filters(
+        'themisdb_order_request_enqueue_frontend_style',
+        ! $theme_controls_presentation
+    );
+
+    if ($should_enqueue_plugin_style) {
+        wp_enqueue_style('themisdb-order-request-style', THEMISDB_ORDER_PLUGIN_URL . 'assets/css/order-request.css', array(), THEMISDB_ORDER_VERSION);
+    }
+
     wp_enqueue_script('themisdb-order-request-script', THEMISDB_ORDER_PLUGIN_URL . 'assets/js/order-request.js', array('jquery'), THEMISDB_ORDER_VERSION, true);
 
     // Product detail page assets (loaded globally; the shortcode guard via wp_enqueue is idempotent).

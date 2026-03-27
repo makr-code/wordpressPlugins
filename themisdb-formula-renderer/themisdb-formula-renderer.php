@@ -137,6 +137,12 @@ function themisdb_formula_enqueue_scripts() {
     if (!$has_formula) {
         return;
     }
+
+    $theme_controls_presentation =
+        wp_style_is('themisdb-style', 'enqueued') ||
+        wp_style_is('themisdb-style', 'registered') ||
+        wp_style_is('lis-a-style', 'enqueued') ||
+        wp_style_is('lis-a-style', 'registered');
     
     // Enqueue KaTeX CSS
     wp_enqueue_style(
@@ -146,13 +152,19 @@ function themisdb_formula_enqueue_scripts() {
         '0.16.9'
     );
     
-    // Enqueue plugin custom styles
-    wp_enqueue_style(
-        'themisdb-formula-style',
-        THEMISDB_FORMULA_PLUGIN_URL . 'assets/css/style.css',
-        array('katex-style'),
-        THEMISDB_FORMULA_VERSION
+    $should_enqueue_formula_style = apply_filters(
+        'themisdb_formula_enqueue_frontend_style',
+        ! $theme_controls_presentation
     );
+
+    if ($should_enqueue_formula_style) {
+        wp_enqueue_style(
+            'themisdb-formula-style',
+            THEMISDB_FORMULA_PLUGIN_URL . 'assets/css/style.css',
+            array('katex-style'),
+            THEMISDB_FORMULA_VERSION
+        );
+    }
     
     // Enqueue KaTeX JS
     wp_enqueue_script(

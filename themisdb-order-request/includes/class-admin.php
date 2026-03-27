@@ -274,6 +274,7 @@ class ThemisDB_Order_Admin {
         register_setting('themisdb_order_settings', 'themisdb_support_github_token');
         register_setting('themisdb_order_settings', 'themisdb_support_github_repository');
         register_setting('themisdb_order_settings', 'themisdb_support_github_labels');
+        register_setting('themisdb_order_settings', 'themisdb_support_github_manual_refresh_cooldown');
         register_setting('themisdb_order_settings', 'themisdb_order_page_url', array(
             'sanitize_callback' => array($this, 'sanitize_order_page_reference'),
         ));
@@ -8475,6 +8476,15 @@ document.addEventListener("DOMContentLoaded", function() {
                         </td>
                     </tr>
                     <tr>
+                        <th><label for="themisdb_support_github_manual_refresh_cooldown"><?php esc_html_e('Manueller Refresh Cooldown (Sekunden)', 'themisdb-order-request'); ?></label></th>
+                        <td>
+                            <input type="number" id="themisdb_support_github_manual_refresh_cooldown" name="themisdb_support_github_manual_refresh_cooldown"
+                                   value="<?php echo esc_attr(get_option('themisdb_support_github_manual_refresh_cooldown', '30')); ?>"
+                                   min="5" max="300" step="1" class="small-text" />
+                            <p class="description"><?php esc_html_e('Sperrzeit zwischen zwei manuellen "Auto-Refresh jetzt ausfuehren" Klicks.', 'themisdb-order-request'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
                         <th></th>
                         <td>
                             <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-license-audit')); ?>" class="button">
@@ -8895,6 +8905,130 @@ document.addEventListener("DOMContentLoaded", function() {
                 wp_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
                 exit;
             }
+
+            if ($post_action === 'themisdb_refresh_github_issue_status') {
+                check_admin_referer('themisdb_refresh_github_issue_status');
+
+                $ticket_id = isset($_POST['ticket_id']) ? intval($_POST['ticket_id']) : 0;
+                $result = ThemisDB_Order_Support_Ticket_Manager::refresh_github_issue_status($ticket_id);
+
+                if (!empty($result['success'])) {
+                    $redirect_args = array(
+                        'page' => 'themisdb-support-tickets',
+                        'message' => 'github_status_updated',
+                        'ticket_id' => $ticket_id,
+                    );
+                } else {
+                    $redirect_args = array(
+                        'page' => 'themisdb-support-tickets',
+                        'message' => 'github_status_error',
+                        'error' => rawurlencode((string) ($result['message'] ?? 'Unknown error')),
+                    );
+                }
+
+                $redirect_args['support_tab'] = $redirect_support_tab !== '' ? $redirect_support_tab : 'tickets';
+                if ($redirect_status_tab !== '') {
+                    $redirect_args['status_tab'] = $redirect_status_tab;
+                }
+
+                wp_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+                exit;
+            }
+
+            if ($post_action === 'themisdb_refresh_github_issue_status_bulk') {
+                check_admin_referer('themisdb_refresh_github_issue_status_bulk');
+
+                $bulk_status_filter = isset($_POST['status_tab']) ? sanitize_key(wp_unslash($_POST['status_tab'])) : 'all';
+                if (!in_array($bulk_status_filter, array('all', 'open', 'in_progress', 'resolved', 'closed'), true)) {
+                    $bulk_status_filter = 'all';
+                }
+
+                $bulk_tickets = ThemisDB_Order_Support_Ticket_Manager::get_tickets(array(
+                    'status' => $bulk_status_filter === 'all' ? '' : $bulk_status_filter,
+                    'limit' => 500,
+                    'offset' => 0,
+                ));
+
+                $updated_count = 0;
+                $failed_count = 0;
+
+                foreach ($bulk_tickets as $bulk_ticket) {
+                    if (empty($bulk_ticket['github_issue_number'])) {
+                        continue;
+                    }
+
+                    $result = ThemisDB_Order_Support_Ticket_Manager::refresh_github_issue_status(intval($bulk_ticket['id']));
+                    if (!empty($result['success'])) {
+                        $updated_count++;
+                    } else {
+                        $failed_count++;
+                    }
+                }
+
+                $redirect_args = array(
+                    'page' => 'themisdb-support-tickets',
+                    'support_tab' => $redirect_support_tab !== '' ? $redirect_support_tab : 'tickets',
+                    'status_tab' => $bulk_status_filter,
+                    'message' => 'github_bulk_status_done',
+                    'bulk_updated' => $updated_count,
+                    'bulk_failed' => $failed_count,
+                );
+
+                wp_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+                exit;
+            }
+
+            if ($post_action === 'themisdb_run_github_status_refresh_now') {
+                check_admin_referer('themisdb_run_github_status_refresh_now');
+
+                $cooldown_seconds = intval(get_option('themisdb_support_github_manual_refresh_cooldown', 30));
+                if ($cooldown_seconds < 5) {
+                    $cooldown_seconds = 5;
+                } elseif ($cooldown_seconds > 300) {
+                    $cooldown_seconds = 300;
+                }
+                $now = time();
+                $lock_until = intval(get_option('themisdb_support_github_manual_refresh_lock_until', 0));
+
+                if ($now < $lock_until) {
+                    $redirect_args = array(
+                        'page' => 'themisdb-support-tickets',
+                        'support_tab' => $redirect_support_tab !== '' ? $redirect_support_tab : 'tickets',
+                        'status_tab' => $redirect_status_tab !== '' ? $redirect_status_tab : 'all',
+                        'message' => 'github_cron_manual_cooldown',
+                        'cooldown_remaining' => max(1, $lock_until - $now),
+                    );
+
+                    wp_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+                    exit;
+                }
+
+                update_option('themisdb_support_github_manual_refresh_lock_until', $now + $cooldown_seconds, false);
+
+                if (function_exists('themisdb_run_support_github_status_refresh')) {
+                    themisdb_run_support_github_status_refresh();
+                } elseif (class_exists('ThemisDB_Order_Support_Ticket_Manager')) {
+                    ThemisDB_Order_Support_Ticket_Manager::refresh_github_issue_statuses_batch(array(
+                        'limit' => 30,
+                        'ticket_statuses' => array('open', 'in_progress'),
+                    ));
+                }
+
+                $last_result = get_option('themisdb_support_github_status_refresh_last_result', array());
+
+                $redirect_args = array(
+                    'page' => 'themisdb-support-tickets',
+                    'support_tab' => $redirect_support_tab !== '' ? $redirect_support_tab : 'tickets',
+                    'status_tab' => $redirect_status_tab !== '' ? $redirect_status_tab : 'all',
+                    'message' => 'github_cron_manual_done',
+                    'bulk_updated' => isset($last_result['updated']) ? absint($last_result['updated']) : 0,
+                    'bulk_failed' => isset($last_result['failed']) ? absint($last_result['failed']) : 0,
+                    'bulk_processed' => isset($last_result['processed']) ? absint($last_result['processed']) : 0,
+                );
+
+                wp_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+                exit;
+            }
         }
 
         $active_tab = isset($_GET['support_tab'])
@@ -8941,6 +9075,20 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
         $github_sync_enabled = get_option('themisdb_support_github_enabled', '0') === '1';
+        $github_cron_next = wp_next_scheduled('themisdb_support_github_status_refresh');
+        $github_cron_last_run = intval(get_option('themisdb_support_github_status_refresh_last_run', 0));
+        $github_cron_last_result = get_option('themisdb_support_github_status_refresh_last_result', array());
+        $github_cron_last_processed = isset($github_cron_last_result['processed']) ? absint($github_cron_last_result['processed']) : 0;
+        $github_cron_last_updated = isset($github_cron_last_result['updated']) ? absint($github_cron_last_result['updated']) : 0;
+        $github_cron_last_failed = isset($github_cron_last_result['failed']) ? absint($github_cron_last_result['failed']) : 0;
+        $github_manual_refresh_cooldown = intval(get_option('themisdb_support_github_manual_refresh_cooldown', 30));
+        if ($github_manual_refresh_cooldown < 5) {
+            $github_manual_refresh_cooldown = 5;
+        } elseif ($github_manual_refresh_cooldown > 300) {
+            $github_manual_refresh_cooldown = 300;
+        }
+        $github_manual_refresh_lock_until = intval(get_option('themisdb_support_github_manual_refresh_lock_until', 0));
+        $github_manual_refresh_remaining = max(0, $github_manual_refresh_lock_until - time());
 
         if (isset($_GET['message']) && $_GET['message'] === 'ticket_created') {
             echo '<div class="notice notice-success"><p>' . esc_html__('Support-Ticket wurde erstellt.', 'themisdb-order-request') . '</p></div>';
@@ -8963,6 +9111,47 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         if (isset($_GET['message']) && $_GET['message'] === 'github_error') {
             echo '<div class="notice notice-error"><p>' . esc_html__('GitHub-Issue konnte nicht erstellt werden.', 'themisdb-order-request') . ' ' . esc_html(rawurldecode(wp_unslash($_GET['error'] ?? ''))) . '</p></div>';
+        }
+        if (isset($_GET['message']) && $_GET['message'] === 'github_status_updated') {
+            echo '<div class="notice notice-success"><p>' . esc_html__('GitHub-Issue-Status wurde aktualisiert.', 'themisdb-order-request') . '</p></div>';
+        }
+        if (isset($_GET['message']) && $_GET['message'] === 'github_status_error') {
+            echo '<div class="notice notice-error"><p>' . esc_html__('GitHub-Issue-Status konnte nicht aktualisiert werden.', 'themisdb-order-request') . ' ' . esc_html(rawurldecode(wp_unslash($_GET['error'] ?? ''))) . '</p></div>';
+        }
+        if (isset($_GET['message']) && $_GET['message'] === 'github_bulk_status_done') {
+            $updated = isset($_GET['bulk_updated']) ? absint($_GET['bulk_updated']) : 0;
+            $failed = isset($_GET['bulk_failed']) ? absint($_GET['bulk_failed']) : 0;
+
+            if ($updated > 0 || $failed === 0) {
+                echo '<div class="notice notice-success"><p>' .
+                    esc_html(sprintf(__('GitHub-Status aktualisiert: %1$d erfolgreich, %2$d fehlgeschlagen.', 'themisdb-order-request'), $updated, $failed)) .
+                    '</p></div>';
+            } else {
+                echo '<div class="notice notice-warning"><p>' .
+                    esc_html(sprintf(__('GitHub-Status konnte nicht aktualisiert werden: %1$d erfolgreich, %2$d fehlgeschlagen.', 'themisdb-order-request'), $updated, $failed)) .
+                    '</p></div>';
+            }
+        }
+        if (isset($_GET['message']) && $_GET['message'] === 'github_cron_manual_done') {
+            $processed = isset($_GET['bulk_processed']) ? absint($_GET['bulk_processed']) : 0;
+            $updated = isset($_GET['bulk_updated']) ? absint($_GET['bulk_updated']) : 0;
+            $failed = isset($_GET['bulk_failed']) ? absint($_GET['bulk_failed']) : 0;
+
+            if ($failed === 0) {
+                echo '<div class="notice notice-success"><p>' .
+                    esc_html(sprintf(__('Auto-Refresh manuell ausgefuehrt: %1$d bearbeitet, %2$d aktualisiert, %3$d Fehler.', 'themisdb-order-request'), $processed, $updated, $failed)) .
+                    '</p></div>';
+            } else {
+                echo '<div class="notice notice-warning"><p>' .
+                    esc_html(sprintf(__('Auto-Refresh manuell ausgefuehrt: %1$d bearbeitet, %2$d aktualisiert, %3$d Fehler.', 'themisdb-order-request'), $processed, $updated, $failed)) .
+                    '</p></div>';
+            }
+        }
+        if (isset($_GET['message']) && $_GET['message'] === 'github_cron_manual_cooldown') {
+            $remaining = isset($_GET['cooldown_remaining']) ? absint($_GET['cooldown_remaining']) : 0;
+            echo '<div class="notice notice-info"><p>' .
+                esc_html(sprintf(__('Bitte kurz warten: Der manuelle Auto-Refresh ist in %d Sekunden wieder verfuegbar.', 'themisdb-order-request'), max(1, $remaining))) .
+                '</p></div>';
         }
 
         $priorities = ThemisDB_Order_Support_Ticket_Manager::get_priorities();
@@ -9006,11 +9195,72 @@ document.addEventListener("DOMContentLoaded", function() {
                                 <td><?php echo esc_html($github_sync_enabled ? __('Aktiv', 'themisdb-order-request') : __('Deaktiviert', 'themisdb-order-request')); ?></td>
                             </tr>
                             <tr>
+                                <td><?php esc_html_e('Manueller Refresh Cooldown', 'themisdb-order-request'); ?></td>
+                                <td>
+                                    <?php
+                                    echo esc_html(sprintf(__('%d Sekunden', 'themisdb-order-request'), $github_manual_refresh_cooldown));
+                                    if ($github_manual_refresh_remaining > 0) {
+                                        echo '<br><span style="color:#646970;">' .
+                                            esc_html(sprintf(__('Aktuell gesperrt fuer %d Sekunden.', 'themisdb-order-request'), $github_manual_refresh_remaining)) .
+                                            '</span>';
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
+                            <tr>
                                 <td><?php esc_html_e('Aktiver Filter', 'themisdb-order-request'); ?></td>
                                 <td><?php echo esc_html($status_buttons[$status_filter]); ?></td>
                             </tr>
+                            <tr>
+                                <td><?php esc_html_e('Naechster Auto-Refresh', 'themisdb-order-request'); ?></td>
+                                <td>
+                                    <?php
+                                    if (!empty($github_cron_next)) {
+                                        echo esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), intval($github_cron_next)));
+                                    } else {
+                                        esc_html_e('Nicht geplant', 'themisdb-order-request');
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><?php esc_html_e('Letzter Auto-Refresh', 'themisdb-order-request'); ?></td>
+                                <td>
+                                    <?php
+                                    if ($github_cron_last_run > 0) {
+                                        echo esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $github_cron_last_run));
+                                        echo '<br><span style="color:#646970;">';
+                                        echo esc_html(sprintf(__('Bearbeitet: %1$d, aktualisiert: %2$d, Fehler: %3$d', 'themisdb-order-request'), $github_cron_last_processed, $github_cron_last_updated, $github_cron_last_failed));
+                                        echo '</span>';
+                                    } else {
+                                        esc_html_e('Noch kein Lauf', 'themisdb-order-request');
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
+                    <form method="post" style="margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <?php wp_nonce_field('themisdb_run_github_status_refresh_now'); ?>
+                        <input type="hidden" name="action" value="themisdb_run_github_status_refresh_now">
+                        <input type="hidden" name="support_tab" value="<?php echo esc_attr($active_tab); ?>">
+                        <input type="hidden" name="status_tab" value="<?php echo esc_attr($status_filter); ?>">
+                        <?php if ($github_manual_refresh_remaining > 0): ?>
+                            <button type="submit" class="button" disabled>
+                                <?php esc_html_e('Auto-Refresh jetzt ausfuehren', 'themisdb-order-request'); ?>
+                            </button>
+                        <?php else: ?>
+                            <button type="submit" class="button">
+                                <?php esc_html_e('Auto-Refresh jetzt ausfuehren', 'themisdb-order-request'); ?>
+                            </button>
+                        <?php endif; ?>
+                        <span style="color:#646970;">
+                            <?php esc_html_e('Startet denselben GitHub-Statuslauf wie der stundliche Cron.', 'themisdb-order-request'); ?>
+                            <?php if ($github_manual_refresh_remaining > 0): ?>
+                                <?php echo ' ' . esc_html(sprintf(__('Cooldown aktiv (%d s).', 'themisdb-order-request'), $github_manual_refresh_remaining)); ?>
+                            <?php endif; ?>
+                        </span>
+                    </form>
                 </div>
             </div>
 
@@ -9078,6 +9328,18 @@ document.addEventListener("DOMContentLoaded", function() {
             <?php $this->render_detail_tab_pane('tickets', ($active_tab === 'tickets')); ?>
             <div class="card" style="max-width:none;">
                 <h2><?php esc_html_e('Tickets', 'themisdb-order-request'); ?></h2>
+                <form method="post" style="margin:0 0 10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <?php wp_nonce_field('themisdb_refresh_github_issue_status_bulk'); ?>
+                    <input type="hidden" name="action" value="themisdb_refresh_github_issue_status_bulk">
+                    <input type="hidden" name="support_tab" value="tickets">
+                    <input type="hidden" name="status_tab" value="<?php echo esc_attr($status_filter); ?>">
+                    <button type="submit" class="button">
+                        <?php esc_html_e('GitHub-Status (gefilterte Tickets) aktualisieren', 'themisdb-order-request'); ?>
+                    </button>
+                    <span style="color:#646970;">
+                        <?php esc_html_e('Aktualisiert alle bereits verknuepften GitHub-Issues im aktuellen Filter.', 'themisdb-order-request'); ?>
+                    </span>
+                </form>
                 <?php
                 $this->render_filter_button_bar(
                     'status_tab',
@@ -9117,6 +9379,26 @@ document.addEventListener("DOMContentLoaded", function() {
                                 <td>
                                     <?php if (!empty($ticket['github_issue_number']) && !empty($ticket['github_issue_url'])): ?>
                                         <a href="<?php echo esc_url($ticket['github_issue_url']); ?>" target="_blank" rel="noopener noreferrer">#<?php echo absint($ticket['github_issue_number']); ?></a>
+                                        <?php if (!empty($ticket['github_issue_state'])): ?>
+                                            <div style="margin-top:4px;color:#2c3338;">
+                                                <?php
+                                                printf(
+                                                    esc_html__('Status: %s', 'themisdb-order-request'),
+                                                    esc_html(sanitize_text_field((string) $ticket['github_issue_state']))
+                                                );
+                                                ?>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($ticket['github_synced_at'])): ?>
+                                            <div style="margin-top:2px;color:#666;">
+                                                <?php
+                                                printf(
+                                                    esc_html__('Letzter Sync: %s', 'themisdb-order-request'),
+                                                    esc_html((string) $ticket['github_synced_at'])
+                                                );
+                                                ?>
+                                            </div>
+                                        <?php endif; ?>
                                     <?php elseif (!empty($ticket['github_sync_error'])): ?>
                                         <span style="color:#b32d2e;"><?php esc_html_e('Fehler', 'themisdb-order-request'); ?></span>
                                     <?php else: ?>
@@ -9135,7 +9417,14 @@ document.addEventListener("DOMContentLoaded", function() {
                                             <button type="submit" class="button button-small"><?php esc_html_e('GitHub-Issue erstellen', 'themisdb-order-request'); ?></button>
                                         </form>
                                     <?php else: ?>
-                                        <span>&mdash;</span>
+                                        <form method="post" style="display:inline;">
+                                            <?php wp_nonce_field('themisdb_refresh_github_issue_status'); ?>
+                                            <input type="hidden" name="action" value="themisdb_refresh_github_issue_status">
+                                            <input type="hidden" name="ticket_id" value="<?php echo absint($ticket['id']); ?>">
+                                            <input type="hidden" name="support_tab" value="tickets">
+                                            <input type="hidden" name="status_tab" value="<?php echo esc_attr($status_filter); ?>">
+                                            <button type="submit" class="button button-small"><?php esc_html_e('Status aktualisieren', 'themisdb-order-request'); ?></button>
+                                        </form>
                                     <?php endif; ?>
                                 </td>
                             </tr>

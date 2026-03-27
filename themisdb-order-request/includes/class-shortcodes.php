@@ -58,15 +58,44 @@ class ThemisDB_Order_Shortcodes {
         add_action('wp_ajax_themisdb_cart_clear',         array($this, 'ajax_cart_clear'));
         add_action('wp_ajax_nopriv_themisdb_cart_clear',  array($this, 'ajax_cart_clear'));
     }
+
+    /**
+     * Build normalized shortcode data and pass it through the shared hook pipeline.
+     */
+    private function prepare_shortcode_context($shortcode_tag, $raw_atts, $default_atts, $payload = array()) {
+        $atts = shortcode_atts($default_atts, (array) $raw_atts);
+        $atts = apply_filters($shortcode_tag . '_shortcode_atts', $atts, (array) $raw_atts);
+
+        if (!is_array($payload)) {
+            $payload = array();
+        }
+
+        return array($atts, $payload);
+    }
+
+    /**
+     * Allow a theme to fully override plugin HTML for a shortcode.
+     */
+    private function resolve_shortcode_html_override($shortcode_tag, $payload, $atts) {
+        $html = apply_filters($shortcode_tag . '_shortcode_html', null, $payload, $atts);
+        return (null !== $html) ? (string) $html : null;
+    }
+
+    /**
+     * Final pass for post-processing plugin HTML.
+     */
+    private function finalize_shortcode_html($shortcode_tag, $html, $payload, $atts) {
+        return apply_filters($shortcode_tag . '_shortcode_html_output', (string) $html, $payload, $atts);
+    }
     
     /**
      * Order flow shortcode - Dialog-based order process
      */
     public function order_flow_shortcode($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_order_flow', $atts, array(
             'step' => 1,
             'product' => '',
-        ), $atts);
+        ));
 
         $preset_product = $this->get_requested_product_edition($atts['product']);
         $available_modules = ThemisDB_Order_Manager::get_modules();
@@ -85,14 +114,28 @@ class ThemisDB_Order_Shortcodes {
 
             $this->bootstrap_preset_order($preset_product, $target_step, $preset_modules, $preset_training);
         }
+
+        $payload = array_merge($payload, array(
+            'step' => intval($atts['step']),
+            'flow_mode' => 'default',
+            'preset_product' => $preset_product,
+            'preset_modules' => $preset_modules,
+            'preset_training' => $preset_training,
+        ));
+
+        $payload = apply_filters('themisdb_order_flow_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_order_flow', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
         
         ob_start();
-        $this->render_order_flow(intval($atts['step']), array(
+        $this->render_order_flow((int) $payload['step'], array(
             'flow_mode' => 'default',
             'skip_modules' => false,
             'skip_training' => false,
         ));
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_order_flow', ob_get_clean(), $payload, $atts);
     }
 
     /**
@@ -100,12 +143,12 @@ class ThemisDB_Order_Shortcodes {
      * Usage: [themisdb_express_checkout product="community" show_modules="false" show_training="false"]
      */
     public function express_checkout_shortcode($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_express_checkout', $atts, array(
             'product' => '',
             'show_modules' => 'false',
             'show_training' => 'false',
             'step' => 1,
-        ), $atts);
+        ));
 
         $show_modules = sanitize_text_field($atts['show_modules']) === 'true';
         $show_training = sanitize_text_field($atts['show_training']) === 'true';
@@ -127,15 +170,34 @@ class ThemisDB_Order_Shortcodes {
             $preset_modules = $this->get_requested_code_list(array('modules', 'module'), array_column($available_modules, 'module_code'));
             $preset_training = $this->get_requested_code_list(array('training', 'trainings'), array_column($available_trainings, 'training_code'));
             $this->bootstrap_preset_order($preset_product, 4, $preset_modules, $preset_training);
+        } else {
+            $preset_modules = array();
+            $preset_training = array();
+        }
+
+        $payload = array_merge($payload, array(
+            'step' => $start_step,
+            'flow_mode' => 'express',
+            'preset_product' => $preset_product,
+            'preset_modules' => $preset_modules,
+            'preset_training' => $preset_training,
+            'show_modules' => $show_modules,
+            'show_training' => $show_training,
+        ));
+
+        $payload = apply_filters('themisdb_express_checkout_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_express_checkout', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
         }
 
         ob_start();
-        $this->render_order_flow($start_step, array(
+        $this->render_order_flow((int) $payload['step'], array(
             'flow_mode' => 'express',
             'skip_modules' => true,
             'skip_training' => true,
         ));
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_express_checkout', ob_get_clean(), $payload, $atts);
     }
 
     /**
@@ -974,13 +1036,33 @@ class ThemisDB_Order_Shortcodes {
     /**
      * My orders shortcode
      */
-    public function my_orders_shortcode() {
-        if (!is_user_logged_in()) {
-            return '<p>' . __('Bitte melden Sie sich an, um Ihre Bestellungen zu sehen.', 'themisdb-order-request') . '</p>';
+    public function my_orders_shortcode($atts = array()) {
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_my_orders', $atts, array());
+
+        $payload = array_merge($payload, array(
+            'is_logged_in' => is_user_logged_in(),
+        ));
+
+        if (!$payload['is_logged_in']) {
+            $payload['message'] = __('Bitte melden Sie sich an, um Ihre Bestellungen zu sehen.', 'themisdb-order-request');
+            $override_html = $this->resolve_shortcode_html_override('themisdb_my_orders', $payload, $atts);
+            if (null !== $override_html) {
+                return $override_html;
+            }
+
+            return $this->finalize_shortcode_html('themisdb_my_orders', '<p>' . esc_html($payload['message']) . '</p>', $payload, $atts);
         }
-        
+
         $user_id = get_current_user_id();
         $orders = ThemisDB_Order_Manager::get_customer_orders($user_id);
+
+        $payload['user_id'] = $user_id;
+        $payload['orders'] = $orders;
+        $payload = apply_filters('themisdb_my_orders_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_my_orders', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
         
         ob_start();
         ?>
@@ -1015,19 +1097,39 @@ class ThemisDB_Order_Shortcodes {
             <?php endif; ?>
         </div>
         <?php
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_my_orders', ob_get_clean(), $payload, $atts);
     }
     
     /**
      * My contracts shortcode
      */
-    public function my_contracts_shortcode() {
-        if (!is_user_logged_in()) {
-            return '<p>' . __('Bitte melden Sie sich an, um Ihre Verträge zu sehen.', 'themisdb-order-request') . '</p>';
+    public function my_contracts_shortcode($atts = array()) {
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_my_contracts', $atts, array());
+
+        $payload = array_merge($payload, array(
+            'is_logged_in' => is_user_logged_in(),
+        ));
+
+        if (!$payload['is_logged_in']) {
+            $payload['message'] = __('Bitte melden Sie sich an, um Ihre Verträge zu sehen.', 'themisdb-order-request');
+            $override_html = $this->resolve_shortcode_html_override('themisdb_my_contracts', $payload, $atts);
+            if (null !== $override_html) {
+                return $override_html;
+            }
+
+            return $this->finalize_shortcode_html('themisdb_my_contracts', '<p>' . esc_html($payload['message']) . '</p>', $payload, $atts);
         }
-        
+
         $user_id = get_current_user_id();
         $contracts = ThemisDB_Contract_Manager::get_customer_contracts($user_id);
+
+        $payload['user_id'] = $user_id;
+        $payload['contracts'] = $contracts;
+        $payload = apply_filters('themisdb_my_contracts_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_my_contracts', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
         
         ob_start();
         ?>
@@ -1060,7 +1162,7 @@ class ThemisDB_Order_Shortcodes {
             <?php endif; ?>
         </div>
         <?php
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_my_contracts', ob_get_clean(), $payload, $atts);
     }
 
     /**
@@ -1516,19 +1618,31 @@ class ThemisDB_Order_Shortcodes {
      * Usage: [themisdb_pricing] or [themisdb_pricing format="cards"]
      */
     public function pricing_shortcode($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_pricing', $atts, array(
             'format' => 'cards', // cards, table, comparison
             'currency' => 'EUR',
             'show_features' => 'yes'
-        ), $atts);
+        ));
+
+        $payload = array_merge($payload, array(
+            'format' => sanitize_text_field($atts['format']),
+            'currency' => sanitize_text_field($atts['currency']),
+            'show_features' => sanitize_text_field($atts['show_features']) === 'yes',
+        ));
+
+        $payload = apply_filters('themisdb_pricing_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_pricing', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
         
         ob_start();
         $this->render_pricing(
-            sanitize_text_field($atts['format']),
-            sanitize_text_field($atts['currency']),
-            sanitize_text_field($atts['show_features']) === 'yes'
+            (string) $payload['format'],
+            (string) $payload['currency'],
+            !empty($payload['show_features'])
         );
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_pricing', ob_get_clean(), $payload, $atts);
     }
     
     /**
@@ -1536,9 +1650,22 @@ class ThemisDB_Order_Shortcodes {
      * Usage: [themisdb_pricing_table]
      */
     public function pricing_table_shortcode($atts) {
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_pricing_table', $atts, array());
+        $payload = array_merge($payload, array(
+            'format' => 'table',
+            'currency' => 'EUR',
+            'show_features' => true,
+        ));
+
+        $payload = apply_filters('themisdb_pricing_table_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_pricing_table', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
         ob_start();
         $this->render_pricing('table', 'EUR', true);
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_pricing_table', ob_get_clean(), $payload, $atts);
     }
     
     /**
@@ -1867,21 +1994,36 @@ class ThemisDB_Order_Shortcodes {
      *   currency           - currency symbol displayed (default: '€')
      */
     public function product_detail_shortcode($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_product_detail', $atts, array(
             'edition'            => '',
             'order_url'          => '',
             'show_support_table' => 'yes',
             'currency'           => '€',
-        ), $atts);
+        ));
 
         $requested_edition = $this->get_requested_product_edition($atts['edition']);
 
-        wp_enqueue_style(
-            'themisdb-product-detail-style',
-            THEMISDB_ORDER_PLUGIN_URL . 'assets/css/product-detail.css',
-            array(),
-            THEMISDB_ORDER_VERSION
+        $theme_controls_presentation =
+            wp_style_is('themisdb-style', 'enqueued') ||
+            wp_style_is('themisdb-style', 'registered') ||
+            wp_style_is('lis-a-style', 'enqueued') ||
+            wp_style_is('lis-a-style', 'registered');
+
+        $should_enqueue_product_detail_style = apply_filters(
+            'themisdb_product_detail_enqueue_frontend_style',
+            ! $theme_controls_presentation,
+            $atts
         );
+
+        if ($should_enqueue_product_detail_style) {
+            wp_enqueue_style(
+                'themisdb-product-detail-style',
+                THEMISDB_ORDER_PLUGIN_URL . 'assets/css/product-detail.css',
+                array(),
+                THEMISDB_ORDER_VERSION
+            );
+        }
+
         wp_enqueue_script(
             'themisdb-product-selector',
             THEMISDB_ORDER_PLUGIN_URL . 'assets/js/product-selector.js',
@@ -1935,6 +2077,24 @@ class ThemisDB_Order_Shortcodes {
             );
         }
 
+        $payload = array_merge($payload, array(
+            'requested_edition' => $requested_edition,
+            'products' => $products_raw,
+            'modules' => $modules_raw,
+            'trainings' => $trainings_raw,
+            'order_url' => $order_url,
+            'default_modules' => $default_modules,
+            'default_training' => $default_training,
+            'show_support_table' => $atts['show_support_table'] === 'yes',
+            'currency' => sanitize_text_field($atts['currency']),
+        ));
+
+        $payload = apply_filters('themisdb_product_detail_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_product_detail', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
         wp_localize_script('themisdb-product-selector', 'themisdbProductSelector', array(
             'products'       => $products_map,
             'modules'        => $modules_map,
@@ -1953,14 +2113,14 @@ class ThemisDB_Order_Shortcodes {
 
         ob_start();
         $this->render_product_detail(
-            $products_raw,
-            $modules_raw,
-            $trainings_raw,
-            $requested_edition,
-            $order_url,
-            $atts['show_support_table'] === 'yes'
+            $payload['products'],
+            $payload['modules'],
+            $payload['trainings'],
+            (string) $payload['requested_edition'],
+            (string) $payload['order_url'],
+            !empty($payload['show_support_table'])
         );
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_product_detail', ob_get_clean(), $payload, $atts);
     }
 
     /**
@@ -2211,7 +2371,7 @@ class ThemisDB_Order_Shortcodes {
      *   enterprise_email - Contact email for enterprise inquiries
      */
     public function shop_shortcode($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_shop', $atts, array(
             'order_url' => '',
             'product_url' => '',
             'preferred_edition' => '',
@@ -2220,7 +2380,7 @@ class ThemisDB_Order_Shortcodes {
             'sales_email' => 'sales@themisdb.org',
             'training_email' => 'training@themisdb.org',
             'enterprise_email' => 'enterprise@themisdb.org',
-        ), $atts);
+        ));
 
         $order_url = esc_url_raw($atts['order_url']);
         if ($order_url === '') {
@@ -2253,22 +2413,43 @@ class ThemisDB_Order_Shortcodes {
         $modules = ThemisDB_Order_Manager::get_modules();
         $trainings = ThemisDB_Order_Manager::get_training_modules();
 
+        $payload = array_merge($payload, array(
+            'products' => $products,
+            'modules' => $modules,
+            'trainings' => $trainings,
+            'license_prices' => $license_prices,
+            'license_features' => $license_features,
+            'show_features' => $show_features,
+            'preferred_edition' => sanitize_key($atts['preferred_edition']),
+            'order_url' => $order_url,
+            'product_url' => $product_url,
+            'sales_email' => sanitize_email($atts['sales_email']),
+            'training_email' => sanitize_email($atts['training_email']),
+            'enterprise_email' => sanitize_email($atts['enterprise_email']),
+        ));
+
+        $payload = apply_filters('themisdb_shop_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_shop', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
         ob_start();
         $this->render_shop_page(
-            $products,
-            $modules,
-            $trainings,
-            $license_prices,
-            $license_features,
-            $show_features,
-            sanitize_key($atts['preferred_edition']),
-            $order_url,
-            $product_url,
-            sanitize_email($atts['sales_email']),
-            sanitize_email($atts['training_email']),
-            sanitize_email($atts['enterprise_email'])
+            $payload['products'],
+            $payload['modules'],
+            $payload['trainings'],
+            $payload['license_prices'],
+            $payload['license_features'],
+            !empty($payload['show_features']),
+            (string) $payload['preferred_edition'],
+            (string) $payload['order_url'],
+            (string) $payload['product_url'],
+            (string) $payload['sales_email'],
+            (string) $payload['training_email'],
+            (string) $payload['enterprise_email']
         );
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_shop', ob_get_clean(), $payload, $atts);
     }
 
     /**
@@ -3114,18 +3295,33 @@ class ThemisDB_Order_Shortcodes {
      *   currency      - currency symbol (default: '€')
      */
     public function shopping_cart_shortcode($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_shopping_cart', $atts, array(
             'checkout_url' => '',
             'show_tax_note' => 'yes',
             'currency'     => '€',
-        ), $atts);
+        ));
 
-        wp_enqueue_style(
-            'themisdb-shopping-cart-style',
-            THEMISDB_ORDER_PLUGIN_URL . 'assets/css/shopping-cart.css',
-            array(),
-            THEMISDB_ORDER_VERSION
+        $theme_controls_presentation =
+            wp_style_is('themisdb-style', 'enqueued') ||
+            wp_style_is('themisdb-style', 'registered') ||
+            wp_style_is('lis-a-style', 'enqueued') ||
+            wp_style_is('lis-a-style', 'registered');
+
+        $should_enqueue_cart_style = apply_filters(
+            'themisdb_shopping_cart_enqueue_frontend_style',
+            ! $theme_controls_presentation,
+            $atts
         );
+
+        if ($should_enqueue_cart_style) {
+            wp_enqueue_style(
+                'themisdb-shopping-cart-style',
+                THEMISDB_ORDER_PLUGIN_URL . 'assets/css/shopping-cart.css',
+                array(),
+                THEMISDB_ORDER_VERSION
+            );
+        }
+
         wp_enqueue_script(
             'themisdb-shopping-cart',
             THEMISDB_ORDER_PLUGIN_URL . 'assets/js/shopping-cart.js',
@@ -3143,11 +3339,23 @@ class ThemisDB_Order_Shortcodes {
             );
         }
 
+        $payload = array_merge($payload, array(
+            'checkout_url' => $checkout_url,
+            'show_tax_note' => $atts['show_tax_note'] === 'yes',
+            'currency' => sanitize_text_field($atts['currency']),
+        ));
+
+        $payload = apply_filters('themisdb_shopping_cart_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_shopping_cart', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
         wp_localize_script('themisdb-shopping-cart', 'themisdbCart', array(
             'ajaxUrl'     => admin_url('admin-ajax.php'),
             'nonce'       => wp_create_nonce('themisdb_order_nonce'),
-            'checkoutUrl' => $checkout_url,
-            'currency'    => sanitize_text_field($atts['currency']),
+            'checkoutUrl' => (string) $payload['checkout_url'],
+            'currency'    => (string) $payload['currency'],
             'i18n'        => array(
                 'empty'         => __('Ihr Warenkorb ist leer.', 'themisdb-order-request'),
                 'removing'      => __('Wird entfernt…', 'themisdb-order-request'),
@@ -3159,11 +3367,11 @@ class ThemisDB_Order_Shortcodes {
 
         ob_start();
         $this->render_shopping_cart(
-            $checkout_url,
-            $atts['show_tax_note'] === 'yes',
-            sanitize_text_field($atts['currency'])
+            (string) $payload['checkout_url'],
+            !empty($payload['show_tax_note']),
+            (string) $payload['currency']
         );
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_shopping_cart', ob_get_clean(), $payload, $atts);
     }
 
     /**

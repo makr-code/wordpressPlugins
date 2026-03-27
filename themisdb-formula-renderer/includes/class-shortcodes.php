@@ -45,6 +45,35 @@ class ThemisDB_Formula_Shortcodes {
         add_shortcode('latex', array($this, 'render_formula_shortcode'));
         add_shortcode('math', array($this, 'render_formula_shortcode'));
     }
+
+    /**
+     * Build normalized shortcode data and pass it through a shared hook pipeline.
+     */
+    private function prepare_shortcode_context($shortcode_tag, $raw_atts, $default_atts, $payload = array()) {
+        $atts = shortcode_atts($default_atts, (array) $raw_atts, $shortcode_tag);
+        $atts = apply_filters($shortcode_tag . '_shortcode_atts', $atts, (array) $raw_atts);
+
+        if (!is_array($payload)) {
+            $payload = array();
+        }
+
+        return array($atts, $payload);
+    }
+
+    /**
+     * Allow themes to fully override plugin HTML for a shortcode.
+     */
+    private function resolve_shortcode_html_override($shortcode_tag, $payload, $atts) {
+        $html = apply_filters($shortcode_tag . '_shortcode_html', null, $payload, $atts);
+        return (null !== $html) ? (string) $html : null;
+    }
+
+    /**
+     * Final pass for post-processing plugin HTML.
+     */
+    private function finalize_shortcode_html($shortcode_tag, $html, $payload, $atts) {
+        return apply_filters($shortcode_tag . '_shortcode_html_output', (string) $html, $payload, $atts);
+    }
     
     /**
      * Render formula shortcode
@@ -54,11 +83,10 @@ class ThemisDB_Formula_Shortcodes {
      * @return string Rendered HTML
      */
     public function render_formula_shortcode($atts, $content = null) {
-        // Parse attributes
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_formula', $atts, array(
             'display' => 'block', // 'block' or 'inline'
             'class' => '',
-        ), $atts, 'themisdb_formula');
+        ));
         
         if (empty($content)) {
             return '';
@@ -74,6 +102,18 @@ class ThemisDB_Formula_Shortcodes {
         // Add delimiters if not already present
         if (!$this->starts_with($content, '$')) {
             $content = $delimiter . $content . $delimiter;
+        }
+
+        $payload = array_merge($payload, array(
+            'display' => $atts['display'],
+            'class' => $atts['class'],
+            'formula' => $content,
+            'is_block' => $is_block,
+        ));
+        $payload = apply_filters('themisdb_formula_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_formula', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
         }
         
         // Build CSS classes
@@ -92,10 +132,12 @@ class ThemisDB_Formula_Shortcodes {
         
         // Return wrapped content
         if ($is_block) {
-            return '<div class="' . esc_attr($class_attr) . '">' . esc_html($content) . '</div>';
+            $html = '<div class="' . esc_attr($class_attr) . '">' . esc_html($content) . '</div>';
         } else {
-            return '<span class="' . esc_attr($class_attr) . '">' . esc_html($content) . '</span>';
+            $html = '<span class="' . esc_attr($class_attr) . '">' . esc_html($content) . '</span>';
         }
+
+        return $this->finalize_shortcode_html('themisdb_formula', $html, $payload, $atts);
     }
     
     /**

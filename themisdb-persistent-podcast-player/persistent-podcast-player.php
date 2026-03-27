@@ -106,6 +106,36 @@ class Persistent_Podcast_Player {
         add_filter('redirect_post_location', array($this, 'add_audio_notice_redirect_arg'), 10, 2);
         add_action('admin_notices', array($this, 'render_audio_admin_notice'));
     }
+
+    /**
+     * Build normalized payload for theme adapter hooks.
+     */
+    private function get_player_payload() {
+        $payload = array(
+            'player_id' => 'ppp-player',
+            'audio_id' => 'ppp-audio',
+            'playlist_id' => 'ppp-playlist',
+            'rest_url' => rest_url('persistent-player/v1/episodes'),
+            'nonce' => wp_create_nonce('wp_rest'),
+        );
+
+        return apply_filters('themisdb_persistent_podcast_player_payload', $payload);
+    }
+
+    /**
+     * Resolve optional full HTML override from theme.
+     */
+    private function resolve_player_html_override($payload) {
+        $html = apply_filters('themisdb_persistent_podcast_player_html', null, $payload);
+        return (null !== $html) ? (string) $html : null;
+    }
+
+    /**
+     * Final output hook for post-processing player HTML.
+     */
+    private function finalize_player_html($html, $payload) {
+        return apply_filters('themisdb_persistent_podcast_player_html_output', (string) $html, $payload);
+    }
     
     /**
      * Plugin activation
@@ -725,13 +755,25 @@ JS;
      * Enqueue assets
      */
     public function enqueue_assets() {
-        // Plugin CSS
-        wp_enqueue_style(
-            'ppp-player-style',
-            PPP_PLUGIN_URL . 'assets/css/player.css',
-            array(),
-            PPP_VERSION
+        $theme_controls_presentation =
+            wp_style_is('themisdb-style', 'enqueued') ||
+            wp_style_is('themisdb-style', 'registered') ||
+            wp_style_is('lis-a-style', 'enqueued') ||
+            wp_style_is('lis-a-style', 'registered');
+
+        $should_enqueue_frontend_style = apply_filters(
+            'themisdb_persistent_podcast_player_enqueue_frontend_style',
+            !$theme_controls_presentation
         );
+
+        if ($should_enqueue_frontend_style) {
+            wp_enqueue_style(
+                'ppp-player-style',
+                PPP_PLUGIN_URL . 'assets/css/player.css',
+                array(),
+                PPP_VERSION
+            );
+        }
         
         // Plugin JS
         wp_enqueue_script(
@@ -757,6 +799,14 @@ JS;
      * Render player HTML
      */
     public function render_player() {
+        $payload = $this->get_player_payload();
+        $override_html = $this->resolve_player_html_override($payload);
+        if (null !== $override_html) {
+            echo $override_html;
+            return;
+        }
+
+        ob_start();
         ?>
         <div id="ppp-player" class="ppp-player">
             <div class="ppp-player-container">
@@ -867,6 +917,7 @@ JS;
             <audio id="ppp-audio" preload="metadata"></audio>
         </div>
         <?php
+        echo $this->finalize_player_html(ob_get_clean(), $payload);
     }
 }
 

@@ -345,6 +345,15 @@ function themisdb_body_classes( $classes ) {
         $classes[] = 'singular';
     }
 
+    // Header style class (used by CSS + Customizer preview JS)
+    $header_style = get_theme_mod( 'themisdb_header_style', 'glass' );
+    $classes[]    = 'header-style-' . sanitize_key( $header_style );
+
+    // Sticky header class
+    if ( (bool) get_theme_mod( 'themisdb_header_sticky', true ) ) {
+        $classes[] = 'header-is-sticky';
+    }
+
     return $classes;
 }
 add_filter( 'body_class', 'themisdb_body_classes' );
@@ -596,6 +605,31 @@ function themisdb_sanitize_slider_variant( $value ) {
     }
 
     return 'standard';
+}
+
+/**
+ * Sanitize header style value.
+ *
+ * @param string $value Raw header style.
+ * @return string
+ */
+function themisdb_sanitize_header_style( $value ) {
+    $allowed = array( 'glass', 'dark' );
+    $value   = sanitize_key( (string) $value );
+    return in_array( $value, $allowed, true ) ? $value : 'glass';
+}
+
+/**
+ * Sanitize header logo width value.
+ *
+ * @param mixed $value Raw logo width.
+ * @return int
+ */
+function themisdb_sanitize_logo_width( $value ) {
+    $value = absint( $value );
+    if ( $value < 40 )  { return 40; }
+    if ( $value > 300 ) { return 300; }
+    return $value;
 }
 
 /**
@@ -993,8 +1027,92 @@ function themisdb_customize_register( $wp_customize ) {
         'settings' => 'themisdb_home_reset_defaults',
         'priority' => 999,
     ) ) );
+
+    // ── Header Section ────────────────────────────────────────────────────────
+    $wp_customize->add_section( 'themisdb_header', array(
+        'title'       => esc_html__( 'Header', 'themisdb' ),
+        'priority'    => 29,
+        'description' => esc_html__( 'Navigation bar appearance and behaviour.', 'themisdb' ),
+    ) );
+
+    // Header style: glass (light) or dark (gradient)
+    $wp_customize->add_setting( 'themisdb_header_style', array(
+        'default'           => 'glass',
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'themisdb_sanitize_header_style',
+    ) );
+    $wp_customize->add_control( 'themisdb_header_style', array(
+        'label'       => esc_html__( 'Header-Stil', 'themisdb' ),
+        'description' => esc_html__( 'Glass = weißer Glasmorphismus, Dark = dunkler Gradient.', 'themisdb' ),
+        'section'     => 'themisdb_header',
+        'type'        => 'select',
+        'choices'     => array(
+            'glass' => esc_html__( 'Glass (hell)', 'themisdb' ),
+            'dark'  => esc_html__( 'Dark (Gradient)', 'themisdb' ),
+        ),
+    ) );
+
+    // Header accent color (link hover + current item)
+    $wp_customize->add_setting( 'themisdb_header_accent_color', array(
+        'default'           => '#0284c7',
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'sanitize_hex_color',
+    ) );
+    $wp_customize->add_control( new WP_Customize_Color_Control( $wp_customize, 'themisdb_header_accent_color', array(
+        'label'   => esc_html__( 'Navigations-Akzentfarbe', 'themisdb' ),
+        'section' => 'themisdb_header',
+    ) ) );
+
+    // Logo max-width (px)
+    $wp_customize->add_setting( 'themisdb_logo_width', array(
+        'default'           => 160,
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'themisdb_sanitize_logo_width',
+    ) );
+    $wp_customize->add_control( 'themisdb_logo_width', array(
+        'label'       => esc_html__( 'Logo-Breite (px)', 'themisdb' ),
+        'description' => esc_html__( 'Maximale Breite des Custom-Logos. Bereich: 40–300 px.', 'themisdb' ),
+        'section'     => 'themisdb_header',
+        'type'        => 'number',
+        'input_attrs' => array( 'min' => 40, 'max' => 300, 'step' => 4 ),
+    ) );
+
+    // Show search button in header
+    $wp_customize->add_setting( 'themisdb_header_show_search', array(
+        'default'           => true,
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'themisdb_sanitize_checkbox',
+    ) );
+    $wp_customize->add_control( 'themisdb_header_show_search', array(
+        'label'   => esc_html__( 'Suchbutton anzeigen', 'themisdb' ),
+        'section' => 'themisdb_header',
+        'type'    => 'checkbox',
+    ) );
+
+    // Show dark-mode toggle in header
+    $wp_customize->add_setting( 'themisdb_header_show_darkmode', array(
+        'default'           => true,
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'themisdb_sanitize_checkbox',
+    ) );
+    $wp_customize->add_control( 'themisdb_header_show_darkmode', array(
+        'label'   => esc_html__( 'Dark-Mode-Button anzeigen', 'themisdb' ),
+        'section' => 'themisdb_header',
+        'type'    => 'checkbox',
+    ) );
+
+    // Sticky header
+    $wp_customize->add_setting( 'themisdb_header_sticky', array(
+        'default'           => true,
+        'transport'         => 'postMessage',
+        'sanitize_callback' => 'themisdb_sanitize_checkbox',
+    ) );
+    $wp_customize->add_control( 'themisdb_header_sticky', array(
+        'label'   => esc_html__( 'Header sticky (fixiert beim Scrollen)', 'themisdb' ),
+        'section' => 'themisdb_header',
+        'type'    => 'checkbox',
+    ) );
 }
-add_action( 'customize_register', 'themisdb_customize_register' );
 
 /**
  * Enqueue Customizer preview logic for front-page blocks.
@@ -1010,7 +1128,7 @@ function themisdb_customize_preview_js() {
         true
     );
 }
-add_action( 'customize_preview_init', 'themisdb_customize_preview_js' );
+add_action( 'customize_register', 'themisdb_customize_register' );
 
 /**
  * Enqueue Customizer controls script for reset button behavior.
@@ -1032,6 +1150,7 @@ function themisdb_customize_controls_js() {
         array(
             'confirmMessage' => esc_html__( 'Alle Front-Page-Einstellungen auf Standardwerte zuruecksetzen?', 'themisdb' ),
             'settings'       => array(
+                // Front page
                 'themisdb_home_show_latest_articles'         => true,
                 'themisdb_home_latest_articles_count'        => 4,
                 'themisdb_home_hero_kicker'                  => esc_html__( 'ThemisDB Startseite', 'themisdb' ),
@@ -1059,6 +1178,13 @@ function themisdb_customize_controls_js() {
                 'themisdb_home_latest_compact_excerpt_words' => 14,
                 'themisdb_home_slider_variant'               => 'standard',
                 'themisdb_footer_tone'                       => 'marketing',
+                // Header
+                'themisdb_header_style'                      => 'glass',
+                'themisdb_header_accent_color'               => '#0284c7',
+                'themisdb_logo_width'                        => 160,
+                'themisdb_header_show_search'                => true,
+                'themisdb_header_show_darkmode'              => true,
+                'themisdb_header_sticky'                     => true,
             ),
         )
     );
@@ -1069,17 +1195,120 @@ add_action( 'customize_controls_enqueue_scripts', 'themisdb_customize_controls_j
  * Output custom colors CSS
  */
 function themisdb_custom_colors_css() {
-    $primary_color   = get_theme_mod( 'themisdb_primary_color', '#1a2e52' );
-    $secondary_color = get_theme_mod( 'themisdb_secondary_color', '#1e6fba' );
-    $accent_color    = get_theme_mod( 'themisdb_accent_color', '#1ab5c8' );
+    $primary_color        = get_theme_mod( 'themisdb_primary_color', '#1a2e52' );
+    $secondary_color      = get_theme_mod( 'themisdb_secondary_color', '#1e6fba' );
+    $accent_color         = get_theme_mod( 'themisdb_accent_color', '#1ab5c8' );
+    $header_style         = get_theme_mod( 'themisdb_header_style', 'glass' );
+    $header_accent        = get_theme_mod( 'themisdb_header_accent_color', '#0284c7' );
+    $logo_width           = (int) get_theme_mod( 'themisdb_logo_width', 160 );
+    $header_sticky        = (bool) get_theme_mod( 'themisdb_header_sticky', true );
+    $show_search          = (bool) get_theme_mod( 'themisdb_header_show_search', true );
+    $show_darkmode        = (bool) get_theme_mod( 'themisdb_header_show_darkmode', true );
+
+    // Derived header background / text based on style
+    if ( 'dark' === $header_style ) {
+        $header_bg          = 'linear-gradient(160deg, #0d1f3c 0%, ' . sanitize_hex_color( $primary_color ) . ' 60%, #2d5496 100%)';
+        $header_border      = 'transparent';
+        $nav_link_color     = 'rgba(255,255,255,0.85)';
+        $nav_link_hover     = '#ffffff';
+        $name_link_color    = 'rgba(255,255,255,0.95)';
+        $tagline_color      = 'rgba(255,255,255,0.55)';
+        $icon_btn_color     = 'rgba(255,255,255,0.75)';
+        $icon_btn_hover_bg  = 'rgba(255,255,255,0.12)';
+        $icon_btn_hover_fg  = '#ffffff';
+        $logo_initial_bg    = 'rgba(0,0,0,0.25)';
+        $logo_initial_color = '#ffffff';
+        $hamburger_bg       = 'rgba(255,255,255,0.12)';
+        $hamburger_border   = 'rgba(255,255,255,0.25)';
+        $hamburger_bar_bg   = '#ffffff';
+    } else {
+        $header_bg          = 'rgba(255,255,255,0.92)';
+        $header_border      = '#e2e8f0';
+        $nav_link_color     = '#64748b';
+        $nav_link_hover     = sanitize_hex_color( $header_accent );
+        $name_link_color    = sanitize_hex_color( $primary_color );
+        $tagline_color      = '#94a3b8';
+        $icon_btn_color     = '#64748b';
+        $icon_btn_hover_bg  = '#f1f5f9';
+        $icon_btn_hover_fg  = sanitize_hex_color( $primary_color );
+        $logo_initial_bg    = sanitize_hex_color( $primary_color );
+        $logo_initial_color = '#ffffff';
+        $hamburger_bg       = 'transparent';
+        $hamburger_border   = '#e2e8f0';
+        $hamburger_bar_bg   = '#475569';
+    }
+
+    $sticky_css = $header_sticky ? 'sticky' : 'relative';
 
     $css = "
         :root {
-            --primary-color: {$primary_color};
+            --primary-color:   {$primary_color};
             --secondary-color: {$secondary_color};
-            --accent-purple: {$accent_color};
+            --accent-purple:   {$accent_color};
+            --tv3-navy:        {$primary_color};
+            --tv3-azure:       {$secondary_color};
+            --tv3-cyan:        {$accent_color};
+        }
+
+        .site-header {
+            background:    {$header_bg};
+            border-bottom: 1px solid {$header_border};
+            position:      {$sticky_css};
+        }
+
+        .site-logo-initial {
+            background: {$logo_initial_bg};
+            color:      {$logo_initial_color};
+        }
+
+        .site-name-link {
+            color: {$name_link_color};
+        }
+
+        .site-tagline {
+            color: {$tagline_color};
+        }
+
+        .main-navigation a {
+            color: {$nav_link_color};
+        }
+
+        .main-navigation a:hover,
+        .main-navigation .current-menu-item > a,
+        .main-navigation .current_page_item > a {
+            color: {$nav_link_hover};
+        }
+
+        .header-icon-btn {
+            color: {$icon_btn_color};
+        }
+
+        .header-icon-btn:hover {
+            background: {$icon_btn_hover_bg};
+            color:      {$icon_btn_hover_fg};
+        }
+
+        .menu-toggle {
+            background:   {$hamburger_bg};
+            border-color: {$hamburger_border};
+        }
+
+        .hamburger-bar {
+            background: {$hamburger_bar_bg};
+        }
+
+        .site-branding-group .custom-logo-link img {
+            max-width: {$logo_width}px;
         }
     ";
+
+    if ( ! $show_search ) {
+        $css .= ' .search-toggle { display: none !important; }';
+    }
+
+    if ( ! $show_darkmode ) {
+        $css .= ' .dark-mode-toggle { display: none !important; }';
+    }
 
     wp_add_inline_style( 'themisdb-style', $css );
 }

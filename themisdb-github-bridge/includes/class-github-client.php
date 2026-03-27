@@ -7,6 +7,84 @@ if (!defined('ABSPATH')) {
 class ThemisDB_GitHub_Client {
 
     /**
+     * Build base request headers for GitHub API calls.
+     *
+     * @param string $token Optional token override.
+     * @return array
+     */
+    public static function get_base_headers($token = '') {
+        $headers = array(
+            'Accept' => 'application/vnd.github+json',
+            'X-GitHub-Api-Version' => '2022-11-28',
+            'User-Agent' => 'ThemisDB-GitHub-Bridge/' . THEMISDB_GITHUB_BRIDGE_VERSION,
+        );
+
+        $resolved_token = trim((string) $token);
+        if ('' === $resolved_token) {
+            $resolved_token = trim((string) get_option('themisdb_github_bridge_token', ''));
+        }
+
+        if ('' !== $resolved_token) {
+            $headers['Authorization'] = 'Bearer ' . $resolved_token;
+        }
+
+        return $headers;
+    }
+
+    /**
+     * Execute a GitHub API request.
+     *
+     * @param string $method HTTP method.
+     * @param string $url Full GitHub API URL.
+     * @param array  $args Request options.
+     * @return array|WP_Error ['status_code' => int, 'body' => string, 'json' => mixed, 'headers' => array]
+     */
+    public static function request($method, $url, $args = array()) {
+        $method = strtoupper((string) $method);
+        $url = trim((string) $url);
+
+        if ('' === $url) {
+            return new WP_Error('invalid_url', 'GitHub URL fehlt.');
+        }
+
+        $request_args = array_merge(array(
+            'timeout' => 25,
+            'headers' => array(),
+        ), (array) $args);
+
+        $token = '';
+        if (isset($request_args['token'])) {
+            $token = (string) $request_args['token'];
+            unset($request_args['token']);
+        }
+
+        $base_headers = self::get_base_headers($token);
+        $request_args['headers'] = array_merge($base_headers, (array) $request_args['headers']);
+
+        $response = wp_remote_request($url, array_merge($request_args, array('method' => $method)));
+
+        if (is_wp_error($response)) {
+            return $response;
+        }
+
+        $body = (string) wp_remote_retrieve_body($response);
+        $json = null;
+        if ('' !== $body) {
+            $decoded = json_decode($body, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $json = $decoded;
+            }
+        }
+
+        return array(
+            'status_code' => (int) wp_remote_retrieve_response_code($response),
+            'body' => $body,
+            'json' => $json,
+            'headers' => (array) wp_remote_retrieve_headers($response),
+        );
+    }
+
+    /**
      * Create one GitHub issue.
      *
      * @param string $repository owner/repo
@@ -39,14 +117,8 @@ class ThemisDB_GitHub_Client {
             rawurlencode($repo)
         );
 
-        $response = wp_remote_post($url, array(
-            'timeout' => 25,
-            'headers' => array(
-                'Accept' => 'application/vnd.github+json',
-                'Authorization' => 'Bearer ' . $token,
-                'X-GitHub-Api-Version' => '2022-11-28',
-                'User-Agent' => 'ThemisDB-GitHub-Bridge/' . THEMISDB_GITHUB_BRIDGE_VERSION,
-            ),
+        $response = self::request('POST', $url, array(
+            'token' => $token,
             'body' => wp_json_encode(array(
                 'title' => sanitize_text_field($title),
                 'body' => (string) $body,
@@ -58,9 +130,9 @@ class ThemisDB_GitHub_Client {
             return $response;
         }
 
-        $status_code = wp_remote_retrieve_response_code($response);
-        $raw_body = (string) wp_remote_retrieve_body($response);
-        $payload = json_decode($raw_body, true);
+        $status_code = (int) ($response['status_code'] ?? 0);
+        $raw_body = (string) ($response['body'] ?? '');
+        $payload = is_array($response['json']) ? $response['json'] : null;
 
         if ($status_code < 200 || $status_code >= 300) {
             $message = isset($payload['message']) ? (string) $payload['message'] : $raw_body;

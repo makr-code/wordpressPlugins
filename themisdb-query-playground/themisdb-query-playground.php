@@ -245,13 +245,26 @@ class ThemisDB_Query_Playground {
             true
         );
         
-        // Plugin CSS
-        wp_enqueue_style(
-            'themisdb-qp-style',
-            THEMISDB_QP_PLUGIN_URL . 'assets/css/query-playground.css',
-            array(),
-            THEMISDB_QP_VERSION
+        // Theme-first presentation: ThemisDB themes own frontend visuals.
+        $theme_controls_presentation =
+            wp_style_is('themisdb-style', 'enqueued') ||
+            wp_style_is('themisdb-style', 'registered') ||
+            wp_style_is('lis-a-style', 'enqueued') ||
+            wp_style_is('lis-a-style', 'registered');
+
+        $should_enqueue_plugin_style = apply_filters(
+            'themisdb_query_playground_enqueue_frontend_style',
+            ! $theme_controls_presentation
         );
+
+        if ($should_enqueue_plugin_style) {
+            wp_enqueue_style(
+                'themisdb-qp-style',
+                THEMISDB_QP_PLUGIN_URL . 'assets/css/query-playground.css',
+                array(),
+                THEMISDB_QP_VERSION
+            );
+        }
         
         // Plugin JS
         wp_enqueue_script(
@@ -306,14 +319,30 @@ class ThemisDB_Query_Playground {
             'theme' => get_option('themisdb_qp_theme', 'monokai'),
             'default_query' => '',
         ), $atts, 'themisdb_query_playground');
+
+        $atts = apply_filters('themisdb_query_playground_shortcode_atts', $atts);
         
         // Check if client is available
         $client_available = ($this->client !== null);
+
+        $payload = array(
+            'client_available' => (bool) $client_available,
+        );
+
+        $payload = apply_filters('themisdb_query_playground_shortcode_payload', $payload, $atts);
+
+        // Allow themes to fully own markup while plugin keeps data logic.
+        $custom_html = apply_filters('themisdb_query_playground_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
         
         // Load template
         ob_start();
         include THEMISDB_QP_PLUGIN_DIR . 'templates/playground.php';
-        return ob_get_clean();
+
+        $html = ob_get_clean();
+        return apply_filters('themisdb_query_playground_shortcode_html_output', $html, $payload, $atts);
     }
     
     /**

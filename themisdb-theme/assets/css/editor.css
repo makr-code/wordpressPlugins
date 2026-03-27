@@ -1,0 +1,73 @@
+/**
+ * ThemisDB Theme – editor.css
+ * Stile für den WordPress-Block-Editor (Gutenberg)
+ */
+
+/* Google Fonts im Editor */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;900&display=swap');
+
+body.block-editor-page {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* Farbige Heading-Vorzuschau */
+.wp-block[data-type="core/heading"] h1,
+.wp-block[data-type="core/heading"] h2,
+.wp-block[data-type="core/heading"] h3 {
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+}
+
+/* Paragraph-Lesbarkeit */
+.wp-block[data-type="core/paragraph"] p {
+    line-height: 1.65;
+    color: #475569;
+}
+
+/* Button-Vorzuschau */
+.wp-block-button .wp-block-button__link {
+    border-radius: 0.75rem;
+    font-weight: 700;
+    padding: 0.875rem 1.75rem;
+}
+
+/* Test-Placeholder-Marker im Editor */
+.themisdb-test-placeholder {
+    border: 2px dashed #f59e0b;
+    background: repeating-linear-gradient(
+        -45deg,
+        #fffbeb,
+        #fffbeb 8px,
+        #fef3c7 8px,
+        #fef3c7 16px
+    );
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    color: #92400e;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+/* Mermaid-Wrap im Editor */
+.themisdb-mermaid-wrap pre.mermaid {
+    white-space: pre;
+    overflow-x: auto;
+    background: #f8fafc;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    font-size: 0.875rem;
+    border: 1px solid #e2e8f0;
+}
+
+/* Gallery-Grid im Editor */
+.themisdb-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+/* Stat-Cards im Editor */
+.themisdb-stat-card {
+    transition: none !important;
+}

@@ -35,6 +35,31 @@ if (!defined('ABSPATH')) {
 class ThemisDB_Wiki_GitHub_Sync {
     
     private $api_url = 'https://api.github.com';
+
+    /**
+     * Execute GitHub request via central bridge when available.
+     */
+    private function request($method, $url, $args = array()) {
+        if (!function_exists('themisdb_github_bridge_request')) {
+            return new WP_Error('bridge_required', __('ThemisDB GitHub Bridge is required', 'themisdb-wiki'));
+        }
+
+        return themisdb_github_bridge_request($method, $url, $args);
+    }
+
+    /**
+     * Normalize status code for bridge and core HTTP responses.
+     */
+    private function response_code($response) {
+        return is_array($response) ? (int) ($response['status_code'] ?? 0) : (int) wp_remote_retrieve_response_code($response);
+    }
+
+    /**
+     * Normalize body for bridge and core HTTP responses.
+     */
+    private function response_body($response) {
+        return is_array($response) ? (string) ($response['body'] ?? '') : (string) wp_remote_retrieve_body($response);
+    }
     
     /**
      * Constructor
@@ -97,7 +122,8 @@ class ThemisDB_Wiki_GitHub_Sync {
         }
         
         // Make API request
-        $response = wp_remote_post(
+        $response = $this->request(
+            'POST',
             "{$this->api_url}/repos/{$config['repo']}/contents/wiki/{$github_path}",
             array(
                 'headers' => array(
@@ -114,10 +140,10 @@ class ThemisDB_Wiki_GitHub_Sync {
             return $response;
         }
         
-        $status_code = wp_remote_retrieve_response_code($response);
+        $status_code = $this->response_code($response);
         
         if ($status_code !== 200 && $status_code !== 201) {
-            $body = json_decode(wp_remote_retrieve_body($response), true);
+            $body = json_decode($this->response_body($response), true);
             return new WP_Error('github_api_error', 
                 isset($body['message']) ? $body['message'] : __('GitHub API error', 'themisdb-wiki')
             );
@@ -140,7 +166,8 @@ class ThemisDB_Wiki_GitHub_Sync {
         }
         
         // Fetch file from GitHub
-        $response = wp_remote_get(
+        $response = $this->request(
+            'GET',
             "{$this->api_url}/repos/{$config['repo']}/contents/wiki/{$github_path}",
             array(
                 'headers' => array(
@@ -156,13 +183,13 @@ class ThemisDB_Wiki_GitHub_Sync {
             return $response;
         }
         
-        $status_code = wp_remote_retrieve_response_code($response);
+        $status_code = $this->response_code($response);
         
         if ($status_code !== 200) {
             return new WP_Error('github_api_error', __('Failed to fetch file from GitHub', 'themisdb-wiki'));
         }
         
-        $data = json_decode(wp_remote_retrieve_body($response), true);
+        $data = json_decode($this->response_body($response), true);
         $markdown = base64_decode($data['content']);
         
         // Find or create WordPress post
@@ -203,7 +230,8 @@ class ThemisDB_Wiki_GitHub_Sync {
      * Get File SHA from GitHub (needed for updates)
      */
     private function get_file_sha($config, $github_path) {
-        $response = wp_remote_get(
+        $response = $this->request(
+            'GET',
             "{$this->api_url}/repos/{$config['repo']}/contents/wiki/{$github_path}",
             array(
                 'headers' => array(
@@ -215,11 +243,11 @@ class ThemisDB_Wiki_GitHub_Sync {
             )
         );
         
-        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+        if (is_wp_error($response) || $this->response_code($response) !== 200) {
             return null;
         }
         
-        $data = json_decode(wp_remote_retrieve_body($response), true);
+        $data = json_decode($this->response_body($response), true);
         return isset($data['sha']) ? $data['sha'] : null;
     }
     
@@ -234,7 +262,8 @@ class ThemisDB_Wiki_GitHub_Sync {
         }
         
         // Get all GitHub wiki files
-        $response = wp_remote_get(
+        $response = $this->request(
+            'GET',
             "{$this->api_url}/repos/{$config['repo']}/contents/wiki",
             array(
                 'headers' => array(
@@ -250,13 +279,13 @@ class ThemisDB_Wiki_GitHub_Sync {
             return $response;
         }
         
-        $status_code = wp_remote_retrieve_response_code($response);
+        $status_code = $this->response_code($response);
         
         if ($status_code !== 200) {
             return new WP_Error('github_api_error', __('Failed to list GitHub wiki files', 'themisdb-wiki'));
         }
         
-        $files = json_decode(wp_remote_retrieve_body($response), true);
+        $files = json_decode($this->response_body($response), true);
         $synced = 0;
         $errors = array();
         

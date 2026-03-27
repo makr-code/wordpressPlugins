@@ -191,18 +191,22 @@ class ThemisDB_Downloads_GitHub_API {
             );
         }
         
-        $response = wp_remote_get($url, $args);
+        if (!function_exists('themisdb_github_bridge_request')) {
+            return new WP_Error('bridge_required', 'ThemisDB GitHub Bridge ist erforderlich.');
+        }
+
+        $response = themisdb_github_bridge_request('GET', $url, $args);
         
         if (is_wp_error($response)) {
             return $response;
         }
         
-        $code = wp_remote_retrieve_response_code($response);
+        $code = is_array($response) ? (int) ($response['status_code'] ?? 0) : wp_remote_retrieve_response_code($response);
         if ($code !== 200) {
             return new WP_Error('download_failed', 'Failed to download file');
         }
         
-        return wp_remote_retrieve_body($response);
+        return is_array($response) ? (string) ($response['body'] ?? '') : wp_remote_retrieve_body($response);
     }
     
     /**
@@ -254,18 +258,22 @@ class ThemisDB_Downloads_GitHub_API {
             $args['headers']['Authorization'] = 'Bearer ' . $this->token;
         }
         
-        $response = wp_remote_get($url, $args);
+        if (!function_exists('themisdb_github_bridge_request')) {
+            return new WP_Error('bridge_required', 'ThemisDB GitHub Bridge ist erforderlich.');
+        }
+
+        $response = themisdb_github_bridge_request('GET', $url, $args);
         
         if (is_wp_error($response)) {
             return $response;
         }
         
-        $code = wp_remote_retrieve_response_code($response);
+        $code = is_array($response) ? (int) ($response['status_code'] ?? 0) : wp_remote_retrieve_response_code($response);
         if ($code !== 200) {
             return new WP_Error('api_error', 'GitHub API returned error code: ' . $code);
         }
         
-        $body = wp_remote_retrieve_body($response);
+        $body = is_array($response) ? (string) ($response['body'] ?? '') : wp_remote_retrieve_body($response);
         $data = json_decode($body);
         
         if (json_last_error() !== JSON_ERROR_NONE) {

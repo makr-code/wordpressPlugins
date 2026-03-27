@@ -166,6 +166,12 @@ class ThemisDB_Benchmark_Visualizer {
         if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'themisdb_benchmark_visualizer')) {
             return;
         }
+
+        $theme_controls_presentation =
+            wp_style_is('themisdb-style', 'enqueued') ||
+            wp_style_is('themisdb-style', 'registered') ||
+            wp_style_is('lis-a-style', 'enqueued') ||
+            wp_style_is('lis-a-style', 'registered');
         
         // Chart.js from CDN (same version as TCO Calculator)
         wp_enqueue_script(
@@ -176,13 +182,19 @@ class ThemisDB_Benchmark_Visualizer {
             true
         );
         
-        // Plugin CSS
-        wp_enqueue_style(
-            'themisdb-bv-style',
-            THEMISDB_BV_PLUGIN_URL . 'assets/css/benchmark-visualizer.css',
-            array(),
-            THEMISDB_BV_VERSION
+        $should_enqueue_frontend_style = apply_filters(
+            'themisdb_benchmark_visualizer_enqueue_frontend_style',
+            ! $theme_controls_presentation
         );
+
+        if ($should_enqueue_frontend_style) {
+            wp_enqueue_style(
+                'themisdb-bv-style',
+                THEMISDB_BV_PLUGIN_URL . 'assets/css/benchmark-visualizer.css',
+                array(),
+                THEMISDB_BV_VERSION
+            );
+        }
         
         // Plugin JS
         wp_enqueue_script(
@@ -220,17 +232,35 @@ class ThemisDB_Benchmark_Visualizer {
      * Render benchmark visualizer
      */
     public function render_visualizer($atts) {
-        $atts = shortcode_atts(array(
+		$raw_atts = (array) $atts;
+		$atts = shortcode_atts(array(
             'category' => get_option('themisdb_bv_default_category', 'all'),
             'compare' => get_option('themisdb_bv_default_comparison_dbs', 'postgresql,mongodb'),
             'metric' => get_option('themisdb_bv_default_metric', 'latency'),
             'chart_type' => 'bar',
-        ), $atts, 'themisdb_benchmark_visualizer');
-        
-        // Load template
+        ), $raw_atts, 'themisdb_benchmark_visualizer');
+
+		$atts = apply_filters('themisdb_benchmark_visualizer_shortcode_atts', $atts, $raw_atts);
+
+		$payload = array(
+			'category' => isset($atts['category']) ? sanitize_key($atts['category']) : 'all',
+			'compare' => isset($atts['compare']) ? sanitize_text_field($atts['compare']) : '',
+			'metric' => isset($atts['metric']) ? sanitize_key($atts['metric']) : 'latency',
+			'chart_type' => isset($atts['chart_type']) ? sanitize_key($atts['chart_type']) : 'bar',
+			'chart_theme' => get_option('themisdb_bv_chart_theme', 'light'),
+		);
+
+		$payload = apply_filters('themisdb_benchmark_visualizer_shortcode_payload', $payload, $atts);
+		$custom_html = apply_filters('themisdb_benchmark_visualizer_shortcode_html', null, $payload, $atts);
+		if (null !== $custom_html) {
+			return (string) $custom_html;
+		}
+
         ob_start();
         include THEMISDB_BV_PLUGIN_DIR . 'templates/visualizer.php';
-        return ob_get_clean();
+        $html = ob_get_clean();
+
+        return apply_filters('themisdb_benchmark_visualizer_shortcode_html_output', $html, $payload, $atts);
     }
     
     /**

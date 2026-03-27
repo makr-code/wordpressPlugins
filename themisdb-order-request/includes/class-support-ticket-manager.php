@@ -211,7 +211,7 @@ class ThemisDB_Order_Support_Ticket_Manager {
         $labels[] = 'priority:' . sanitize_key($ticket['priority']);
         $labels = array_values(array_unique($labels));
 
-        $response = wp_remote_post($url, array(
+        $request_args = array(
             'timeout' => 20,
             'headers' => array(
                 'Accept' => 'application/vnd.github+json',
@@ -224,7 +224,18 @@ class ThemisDB_Order_Support_Ticket_Manager {
                 'body' => $body,
                 'labels' => $labels,
             )),
-        ));
+        );
+
+        if (!function_exists('themisdb_github_bridge_request')) {
+            $error_message = __('ThemisDB GitHub Bridge ist erforderlich.', 'themisdb-order-request');
+            self::set_sync_error($table, $ticket_id, $error_message);
+            return array(
+                'success' => false,
+                'message' => $error_message,
+            );
+        }
+
+        $response = themisdb_github_bridge_request('POST', $url, $request_args);
 
         if (is_wp_error($response)) {
             $error_message = $response->get_error_message();
@@ -235,8 +246,8 @@ class ThemisDB_Order_Support_Ticket_Manager {
             );
         }
 
-        $status_code = wp_remote_retrieve_response_code($response);
-        $response_body = (string) wp_remote_retrieve_body($response);
+        $status_code = is_array($response) ? (int) ($response['status_code'] ?? 0) : wp_remote_retrieve_response_code($response);
+        $response_body = is_array($response) ? (string) ($response['body'] ?? '') : (string) wp_remote_retrieve_body($response);
 
         if ($status_code < 200 || $status_code >= 300) {
             $error_message = $response_body !== '' ? $response_body : __('GitHub-Issue konnte nicht erstellt werden.', 'themisdb-order-request');
@@ -273,6 +284,212 @@ class ThemisDB_Order_Support_Ticket_Manager {
             'issue_url' => $issue_url,
             'message' => __('GitHub-Issue erfolgreich erstellt.', 'themisdb-order-request'),
         );
+    }
+
+    public static function refresh_github_issue_status($ticket_id) {
+        global $wpdb;
+
+        $table = self::get_table_name();
+        $ticket = self::get_ticket($ticket_id);
+
+        if (!$ticket) {
+            return array(
+                'success' => false,
+                'message' => __('Ticket nicht gefunden.', 'themisdb-order-request'),
+            );
+        }
+
+        $issue_number = isset($ticket['github_issue_number']) ? intval($ticket['github_issue_number']) : 0;
+        if ($issue_number <= 0) {
+            return array(
+                'success' => false,
+                'message' => __('Ticket ist noch nicht mit einem GitHub-Issue verknupft.', 'themisdb-order-request'),
+            );
+        }
+
+        if (!function_exists('themisdb_github_bridge_request')) {
+            $error_message = __('ThemisDB GitHub Bridge ist erforderlich.', 'themisdb-order-request');
+            self::set_sync_error($table, $ticket_id, $error_message);
+            return array(
+                'success' => false,
+                'message' => $error_message,
+            );
+        }
+
+        $settings = self::get_github_settings();
+        $issue_url = self::build_github_issue_api_url($settings['repository'], $issue_number);
+        if ($issue_url === '') {
+            return array(
+                'success' => false,
+                'message' => __('GitHub Repository muss im Format owner/repo angegeben sein.', 'themisdb-order-request'),
+            );
+        }
+
+        $request_args = array(
+            'timeout' => 20,
+            'headers' => array(
+                'Accept' => 'application/vnd.github+json',
+            ),
+        );
+
+        if ($settings['token'] !== '') {
+            $request_args['headers']['Authorization'] = 'Bearer ' . $settings['token'];
+        }
+
+        $response = themisdb_github_bridge_request('GET', $issue_url, $request_args);
+
+        if (is_wp_error($response)) {
+            $error_message = $response->get_error_message();
+            self::set_sync_error($table, $ticket_id, $error_message);
+            return array(
+                'success' => false,
+                'message' => $error_message,
+            );
+        }
+
+        $status_code = is_array($response) ? (int) ($response['status_code'] ?? 0) : wp_remote_retrieve_response_code($response);
+        $response_body = is_array($response) ? (string) ($response['body'] ?? '') : (string) wp_remote_retrieve_body($response);
+
+        if ($status_code < 200 || $status_code >= 300) {
+            $error_message = $response_body !== '' ? $response_body : __('GitHub-Issue-Status konnte nicht geladen werden.', 'themisdb-order-request');
+            self::set_sync_error($table, $ticket_id, $error_message);
+            return array(
+                'success' => false,
+                'status_code' => intval($status_code),
+                'message' => $error_message,
+            );
+        }
+
+        $payload = json_decode($response_body, true);
+        $issue_state = isset($payload['state']) ? sanitize_key($payload['state']) : '';
+        $issue_html_url = isset($payload['html_url']) ? esc_url_raw($payload['html_url']) : '';
+
+        if ($issue_state === '') {
+            $error_message = __('GitHub-Issue-Status konnte nicht ausgelesen werden.', 'themisdb-order-request');
+            self::set_sync_error($table, $ticket_id, $error_message);
+            return array(
+                'success' => false,
+                'message' => $error_message,
+            );
+        }
+
+        $wpdb->update(
+            $table,
+            array(
+                'github_issue_state' => $issue_state,
+                'github_issue_url' => $issue_html_url !== '' ? $issue_html_url : (string) ($ticket['github_issue_url'] ?? ''),
+                'github_synced_at' => current_time('mysql'),
+                'github_sync_error' => '',
+            ),
+            array('id' => intval($ticket_id)),
+            array('%s', '%s', '%s', '%s'),
+            array('%d')
+        );
+
+        return array(
+            'success' => true,
+            'state' => $issue_state,
+            'issue_url' => $issue_html_url,
+            'message' => __('GitHub-Issue-Status aktualisiert.', 'themisdb-order-request'),
+        );
+    }
+
+    public static function refresh_github_issue_statuses_batch($args = array()) {
+        global $wpdb;
+
+        $defaults = array(
+            'limit' => 25,
+            'ticket_statuses' => array('open', 'in_progress'),
+        );
+        $args = wp_parse_args($args, $defaults);
+
+        $settings = self::get_github_settings();
+        if (!$settings['enabled']) {
+            return array(
+                'processed' => 0,
+                'updated' => 0,
+                'failed' => 0,
+                'skipped' => 0,
+                'message' => __('GitHub-Sync ist deaktiviert.', 'themisdb-order-request'),
+            );
+        }
+
+        $ticket_statuses = array_values(array_filter(array_map('sanitize_key', (array) $args['ticket_statuses'])));
+        if (empty($ticket_statuses)) {
+            $ticket_statuses = array('open', 'in_progress');
+        }
+
+        $limit = max(1, min(200, intval($args['limit'])));
+        $table = self::get_table_name();
+
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+            return array(
+                'processed' => 0,
+                'updated' => 0,
+                'failed' => 0,
+                'skipped' => 0,
+                'message' => __('Interner Tabellenname ist ungueltig.', 'themisdb-order-request'),
+            );
+        }
+
+        $status_placeholders = implode(',', array_fill(0, count($ticket_statuses), '%s'));
+        $sql = "SELECT id FROM {$table}
+                WHERE github_issue_number IS NOT NULL
+                  AND github_issue_number > 0
+                  AND status IN ({$status_placeholders})
+                ORDER BY github_synced_at ASC, updated_at ASC
+                LIMIT %d";
+
+        $query_params = array_merge($ticket_statuses, array($limit));
+        $ticket_ids = $wpdb->get_col($wpdb->prepare($sql, $query_params));
+
+        $result = array(
+            'processed' => 0,
+            'updated' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+        );
+
+        foreach ((array) $ticket_ids as $ticket_id_raw) {
+            $ticket_id = intval($ticket_id_raw);
+            if ($ticket_id <= 0) {
+                $result['skipped']++;
+                continue;
+            }
+
+            $result['processed']++;
+            $refresh = self::refresh_github_issue_status($ticket_id);
+            if (!empty($refresh['success'])) {
+                $result['updated']++;
+            } else {
+                $result['failed']++;
+            }
+        }
+
+        return $result;
+    }
+
+    private static function build_github_issue_api_url($repository, $issue_number) {
+        $repository = trim((string) $repository);
+        $issue_number = intval($issue_number);
+
+        if ($issue_number <= 0) {
+            return '';
+        }
+
+        $repo_parts = explode('/', $repository);
+        if (count($repo_parts) !== 2 || trim($repo_parts[0]) === '' || trim($repo_parts[1]) === '') {
+            return '';
+        }
+
+        if (function_exists('themisdb_github_bridge_build_repo_api_url')) {
+            return themisdb_github_bridge_build_repo_api_url($repository, '/issues/' . $issue_number);
+        }
+
+        $repo_owner = rawurlencode(trim($repo_parts[0]));
+        $repo_name = rawurlencode(trim($repo_parts[1]));
+
+        return "https://api.github.com/repos/{$repo_owner}/{$repo_name}/issues/{$issue_number}";
     }
 
     private static function build_github_issue_body($ticket) {

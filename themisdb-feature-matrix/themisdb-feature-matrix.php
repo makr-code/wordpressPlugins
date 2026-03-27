@@ -161,17 +161,30 @@ function themisdb_matrix_enqueue_assets() {
         return;
     }
     
-    // Plugin CSS
-    wp_enqueue_style(
-        'themisdb-fm-style',
-        THEMISDB_FM_PLUGIN_URL . 'assets/css/feature-matrix.css',
-        array(),
-        THEMISDB_FM_VERSION
+    // Theme-first presentation: ThemisDB themes own frontend visuals.
+    $theme_controls_presentation =
+        wp_style_is('themisdb-style', 'enqueued') ||
+        wp_style_is('themisdb-style', 'registered') ||
+        wp_style_is('lis-a-style', 'enqueued') ||
+        wp_style_is('lis-a-style', 'registered');
+
+    $should_enqueue_plugin_style = apply_filters(
+        'themisdb_feature_matrix_enqueue_frontend_style',
+        ! $theme_controls_presentation
     );
+
+    if ($should_enqueue_plugin_style) {
+        wp_enqueue_style(
+            'themisdb-fm-style',
+            THEMISDB_FM_PLUGIN_URL . 'assets/css/feature-matrix.css',
+            array(),
+            THEMISDB_FM_VERSION
+        );
+    }
     
     // Dark mode CSS if enabled
     $color_scheme = themisdb_matrix_get_color_scheme();
-    if ($color_scheme === 'dark') {
+    if ($should_enqueue_plugin_style && $color_scheme === 'dark') {
         wp_enqueue_style(
             'themisdb-fm-dark-style',
             THEMISDB_FM_PLUGIN_URL . 'assets/css/feature-matrix-dark.css',

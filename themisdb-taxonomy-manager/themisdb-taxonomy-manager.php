@@ -329,11 +329,20 @@ class ThemisDB_Taxonomy_Manager_Plugin {
      * [themisdb_taxonomy_info term_id="123"]
      */
     public function taxonomy_info_shortcode($atts) {
+        $raw_atts = (array) $atts;
+
         $atts = shortcode_atts(array(
             'term_id' => 0
-        ), $atts);
+        ), $atts, 'themisdb_taxonomy_info');
+
+        $atts = apply_filters('themisdb_taxonomy_info_shortcode_atts', $atts, $raw_atts);
+
+        $term_id = absint($atts['term_id']);
+        if ($term_id <= 0) {
+            return '';
+        }
         
-        $term = get_term($atts['term_id']);
+        $term = get_term($term_id);
         
         if (is_wp_error($term) || !$term) {
             return '';
@@ -341,6 +350,21 @@ class ThemisDB_Taxonomy_Manager_Plugin {
         
         $icon = get_term_meta($term->term_id, 'icon', true);
         $color = get_term_meta($term->term_id, 'color', true);
+
+        $payload = array(
+            'term_id' => (int) $term->term_id,
+            'name' => (string) $term->name,
+            'description' => (string) $term->description,
+            'count' => (int) $term->count,
+            'icon' => (string) $icon,
+            'color' => (string) $color,
+        );
+        $payload = apply_filters('themisdb_taxonomy_info_shortcode_payload', $payload, $atts, $term);
+
+        $override_html = apply_filters('themisdb_taxonomy_info_shortcode_html', null, $payload, $atts);
+        if (null !== $override_html) {
+            return (string) $override_html;
+        }
         
         ob_start();
         ?>
@@ -355,7 +379,7 @@ class ThemisDB_Taxonomy_Manager_Plugin {
             <span class="post-count"><?php echo $term->count; ?> posts</span>
         </div>
         <?php
-        return ob_get_clean();
+        return apply_filters('themisdb_taxonomy_info_shortcode_html_output', ob_get_clean(), $payload, $atts);
     }
     
     /**
@@ -709,8 +733,22 @@ function themisdb_taxonomy_enqueue_styles() {
         return;
     }
     
-    wp_enqueue_style('themisdb-taxonomy', THEMISDB_TAXONOMY_URL . 'assets/css/taxonomy-manager.css', array(), THEMISDB_TAXONOMY_VERSION);
-    wp_enqueue_style('themisdb-widget', THEMISDB_TAXONOMY_URL . 'assets/css/widget.css', array(), THEMISDB_TAXONOMY_VERSION);
+    // Theme-first presentation: ThemisDB themes own frontend visuals.
+    $theme_controls_presentation =
+        wp_style_is('themisdb-style', 'enqueued') ||
+        wp_style_is('themisdb-style', 'registered') ||
+        wp_style_is('lis-a-style', 'enqueued') ||
+        wp_style_is('lis-a-style', 'registered');
+
+    $should_enqueue_plugin_style = apply_filters(
+        'themisdb_taxonomy_enqueue_frontend_style',
+        ! $theme_controls_presentation
+    );
+
+    if ($should_enqueue_plugin_style) {
+        wp_enqueue_style('themisdb-taxonomy', THEMISDB_TAXONOMY_URL . 'assets/css/taxonomy-manager.css', array(), THEMISDB_TAXONOMY_VERSION);
+        wp_enqueue_style('themisdb-widget', THEMISDB_TAXONOMY_URL . 'assets/css/widget.css', array(), THEMISDB_TAXONOMY_VERSION);
+    }
 }
 add_action('wp_enqueue_scripts', 'themisdb_taxonomy_enqueue_styles');
 

@@ -60,6 +60,8 @@ class ThemisDB_Downloads_Shortcodes {
             'style' => 'default', // 'default', 'compact', 'table'
             'limit' => 10 // Number of releases to show
         ), $atts);
+
+        $atts = apply_filters('themisdb_downloads_shortcode_atts', $atts);
         
         // Get releases
         if ($atts['show'] === 'all') {
@@ -81,52 +83,107 @@ class ThemisDB_Downloads_Shortcodes {
         if (!empty($atts['platform'])) {
             $releases = $this->filter_by_platform($releases, $atts['platform']);
         }
+
+        $releases = apply_filters('themisdb_downloads_shortcode_releases', $releases, $atts);
+
+        // Allow themes to fully own markup while plugin keeps data logic.
+        $custom_html = apply_filters('themisdb_downloads_shortcode_html', null, $releases, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
         
         // Render based on style
+        $html = '';
         switch ($atts['style']) {
             case 'compact':
-                return $this->render_compact($releases);
+                $html = $this->render_compact($releases);
+                break;
             case 'table':
-                return $this->render_table($releases);
+                $html = $this->render_table($releases);
+                break;
             default:
-                return $this->render_default($releases);
+                $html = $this->render_default($releases);
+                break;
         }
+
+        return apply_filters('themisdb_downloads_shortcode_html_output', $html, $releases, $atts);
     }
     
     /**
      * Render latest release shortcode
      */
     public function render_latest($atts) {
+        $raw_atts = (array) $atts;
+
         $atts = shortcode_atts(array(
             'show' => 'version' // 'version', 'date', 'link'
-        ), $atts);
+        ), $atts, 'themisdb_latest');
+
+        $atts = apply_filters('themisdb_latest_shortcode_atts', $atts, $raw_atts);
         
         $latest = $this->api->get_latest_release();
         
         if (is_wp_error($latest)) {
             return '';
         }
+
+        $payload = array(
+            'show' => (string) $atts['show'],
+            'latest' => $latest,
+        );
+        $payload = apply_filters('themisdb_latest_shortcode_payload', $payload, $atts);
+
+        $custom_html = apply_filters('themisdb_latest_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
+
+        $html = '';
         
         switch ($atts['show']) {
             case 'version':
-                return '<span class="themisdb-version">' . esc_html($latest['version']) . '</span>';
+                $html = '<span class="themisdb-version">' . esc_html($latest['version']) . '</span>';
+                break;
             case 'date':
-                return '<span class="themisdb-date">' . date_i18n(get_option('date_format'), strtotime($latest['published_at'])) . '</span>';
+                $html = '<span class="themisdb-date">' . date_i18n(get_option('date_format'), strtotime($latest['published_at'])) . '</span>';
+                break;
             case 'link':
-                return '<a href="' . esc_url($latest['html_url']) . '" class="themisdb-link" target="_blank">Neueste Version: ' . esc_html($latest['version']) . '</a>';
+                $html = '<a href="' . esc_url($latest['html_url']) . '" class="themisdb-link" target="_blank">Neueste Version: ' . esc_html($latest['version']) . '</a>';
+                break;
             default:
-                return esc_html($latest['version']);
+                $html = esc_html($latest['version']);
+                break;
         }
+
+        return apply_filters('themisdb_latest_shortcode_html_output', $html, $payload, $atts);
     }
     
     /**
      * Render verification tool shortcode
      */
     public function render_verify_tool($atts) {
+        $raw_atts = (array) $atts;
+
+        $atts = shortcode_atts(array(
+            'title' => 'Download-Verifizierung'
+        ), $atts, 'themisdb_verify');
+
+        $atts = apply_filters('themisdb_verify_shortcode_atts', $atts, $raw_atts);
+
+        $payload = array(
+            'title' => sanitize_text_field($atts['title']),
+        );
+        $payload = apply_filters('themisdb_verify_shortcode_payload', $payload, $atts);
+
+        $custom_html = apply_filters('themisdb_verify_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
+
         ob_start();
         ?>
         <div class="themisdb-verify-tool">
-            <h3>Download-Verifizierung</h3>
+            <h3><?php echo esc_html($payload['title']); ?></h3>
             <p>Überprüfen Sie die Integrität Ihrer heruntergeladenen Datei mit dem SHA256-Checksum:</p>
             
             <div class="verify-input-group">
@@ -155,7 +212,7 @@ class ThemisDB_Downloads_Shortcodes {
             </div>
         </div>
         <?php
-        return ob_get_clean();
+        return apply_filters('themisdb_verify_shortcode_html_output', ob_get_clean(), $payload, $atts);
     }
     
     /**
@@ -408,27 +465,17 @@ class ThemisDB_Downloads_Shortcodes {
      * @return string HTML output
      */
     public function render_readme($atts) {
+        $raw_atts = (array) $atts;
+
         $atts = shortcode_atts(array(
             'version' => 'latest', // 'latest' or specific version tag
             'style' => 'default' // 'default' or 'raw'
-        ), $atts);
+        ), $atts, 'themisdb_readme');
+
+        $atts = apply_filters('themisdb_readme_shortcode_atts', $atts, $raw_atts);
         
         // Get release
-        if ($atts['version'] === 'latest') {
-            $release = $this->api->get_latest_release();
-        } else {
-            // For specific version, get all releases and find matching one
-            $all_releases = $this->api->get_all_releases(50);
-            $release = null;
-            if (!is_wp_error($all_releases)) {
-                foreach ($all_releases as $r) {
-                    if ($r['version'] === $atts['version'] || $r['version'] === 'v' . $atts['version']) {
-                        $release = $r;
-                        break;
-                    }
-                }
-            }
-        }
+        $release = $this->find_release_by_version($atts['version']);
         
         if (is_wp_error($release) || empty($release)) {
             return '<div class="themisdb-downloads-notice">README nicht verfügbar.</div>';
@@ -436,6 +483,19 @@ class ThemisDB_Downloads_Shortcodes {
         
         if (empty($release['readme'])) {
             return '<div class="themisdb-downloads-notice">Kein README für diese Version gefunden.</div>';
+        }
+
+        $payload = array(
+            'version' => (string) $atts['version'],
+            'style' => (string) $atts['style'],
+            'release' => $release,
+            'readme' => (string) $release['readme'],
+        );
+        $payload = apply_filters('themisdb_readme_shortcode_payload', $payload, $atts);
+
+        $custom_html = apply_filters('themisdb_readme_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
         }
         
         // Render README
@@ -457,7 +517,7 @@ class ThemisDB_Downloads_Shortcodes {
             </div>
         </div>
         <?php
-        return ob_get_clean();
+        return apply_filters('themisdb_readme_shortcode_html_output', ob_get_clean(), $payload, $atts);
     }
     
     /**
@@ -467,27 +527,17 @@ class ThemisDB_Downloads_Shortcodes {
      * @return string HTML output
      */
     public function render_changelog($atts) {
+        $raw_atts = (array) $atts;
+
         $atts = shortcode_atts(array(
             'version' => 'latest', // 'latest' or specific version tag
             'style' => 'default' // 'default' or 'raw'
-        ), $atts);
+        ), $atts, 'themisdb_changelog');
+
+        $atts = apply_filters('themisdb_changelog_shortcode_atts', $atts, $raw_atts);
         
         // Get release
-        if ($atts['version'] === 'latest') {
-            $release = $this->api->get_latest_release();
-        } else {
-            // For specific version, get all releases and find matching one
-            $all_releases = $this->api->get_all_releases(50);
-            $release = null;
-            if (!is_wp_error($all_releases)) {
-                foreach ($all_releases as $r) {
-                    if ($r['version'] === $atts['version'] || $r['version'] === 'v' . $atts['version']) {
-                        $release = $r;
-                        break;
-                    }
-                }
-            }
-        }
+        $release = $this->find_release_by_version($atts['version']);
         
         if (is_wp_error($release) || empty($release)) {
             return '<div class="themisdb-downloads-notice">CHANGELOG nicht verfügbar.</div>';
@@ -495,6 +545,19 @@ class ThemisDB_Downloads_Shortcodes {
         
         if (empty($release['changelog'])) {
             return '<div class="themisdb-downloads-notice">Kein CHANGELOG für diese Version gefunden.</div>';
+        }
+
+        $payload = array(
+            'version' => (string) $atts['version'],
+            'style' => (string) $atts['style'],
+            'release' => $release,
+            'changelog' => (string) $release['changelog'],
+        );
+        $payload = apply_filters('themisdb_changelog_shortcode_payload', $payload, $atts);
+
+        $custom_html = apply_filters('themisdb_changelog_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
         }
         
         // Render CHANGELOG
@@ -516,7 +579,32 @@ class ThemisDB_Downloads_Shortcodes {
             </div>
         </div>
         <?php
-        return ob_get_clean();
+        return apply_filters('themisdb_changelog_shortcode_html_output', ob_get_clean(), $payload, $atts);
+    }
+
+    /**
+     * Resolve latest or specific release version.
+     *
+     * @param string $version
+     * @return array|WP_Error|null
+     */
+    private function find_release_by_version($version) {
+        if ($version === 'latest') {
+            return $this->api->get_latest_release();
+        }
+
+        $all_releases = $this->api->get_all_releases(50);
+        if (is_wp_error($all_releases)) {
+            return $all_releases;
+        }
+
+        foreach ($all_releases as $release) {
+            if ($release['version'] === $version || $release['version'] === 'v' . $version) {
+                return $release;
+            }
+        }
+
+        return null;
     }
     
     /**

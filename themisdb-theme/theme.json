@@ -1,0 +1,188 @@
+{
+    "$schema": "https://schemas.wp.org/wp/6.7/theme.json",
+    "version": 2,
+    "settings": {
+        "appearanceTools": true,
+        "useRootPaddingAwareAlignments": true,
+        "layout": {
+            "contentSize": "800px",
+            "wideSize": "1200px"
+        },
+        "spacing": {
+            "spacingScale": {
+                "operator": "*",
+                "increment": 1.5,
+                "steps": 7,
+                "mediumStep": 1.5,
+                "unit": "rem"
+            },
+            "spacingSizes": [
+                { "name": "1 (4px)",   "slug": "1",  "size": "0.25rem" },
+                { "name": "2 (8px)",   "slug": "2",  "size": "0.5rem"  },
+                { "name": "3 (12px)",  "slug": "3",  "size": "0.75rem" },
+                { "name": "4 (16px)",  "slug": "4",  "size": "1rem"    },
+                { "name": "5 (20px)",  "slug": "5",  "size": "1.25rem" },
+                { "name": "6 (24px)",  "slug": "6",  "size": "1.5rem"  },
+                { "name": "8 (32px)",  "slug": "8",  "size": "2rem"    },
+                { "name": "10 (40px)", "slug": "10", "size": "2.5rem"  },
+                { "name": "12 (48px)", "slug": "12", "size": "3rem"    },
+                { "name": "16 (64px)", "slug": "16", "size": "4rem"    },
+                { "name": "20 (80px)", "slug": "20", "size": "5rem"    },
+                { "name": "24 (96px)", "slug": "24", "size": "6rem"    }
+            ],
+            "units": ["%", "px", "em", "rem", "vh", "vw"]
+        },
+        "color": {
+            "defaultDuotone":   false,
+            "defaultGradients": false,
+            "defaultPalette":   false,
+            "duotone": [],
+            "gradients": [
+                {
+                    "name":     "ThemisDB Gradient Text",
+                    "slug":     "themisdb-gradient-text",
+                    "gradient": "linear-gradient(135deg, #0c4a6e 0%, #0284c7 100%)"
+                },
+                {
+                    "name":     "ThemisDB Hero Bg",
+                    "slug":     "themisdb-gradient-hero",
+                    "gradient": "linear-gradient(160deg, #082f49 0%, #0c4a6e 45%, #0369a1 100%)"
+                },
+                {
+                    "name":     "ThemisDB Navy → Emerald",
+                    "slug":     "themisdb-gradient-action",
+                    "gradient": "linear-gradient(135deg, #0c4a6e 0%, #059669 100%)"
+                }
+            ],
+            "palette": [
+                { "name": "ThemisDB Navy",          "slug": "themisdb-navy",        "color": "#0c4a6e" },
+                { "name": "ThemisDB Navy Dark",     "slug": "themisdb-navy-dark",   "color": "#082f49" },
+                { "name": "ThemisDB Sky",           "slug": "themisdb-sky",         "color": "#0284c7" },
+                { "name": "ThemisDB Sky Light",     "slug": "themisdb-sky-light",   "color": "#38bdf8" },
+                { "name": "ThemisDB Sky Pale",      "slug": "themisdb-sky-pale",    "color": "#e0f2fe" },
+                { "name": "ThemisDB Emerald",       "slug": "themisdb-emerald",     "color": "#059669" },
+                { "name": "ThemisDB Emerald Light", "slug": "themisdb-emerald-lt",  "color": "#34d399" },
+                { "name": "ThemisDB Orange",        "slug": "themisdb-orange",      "color": "#ea580c" },
+                { "name": "ThemisDB White",         "slug": "themisdb-white",       "color": "#ffffff" },
+                { "name": "ThemisDB Slate 50",      "slug": "themisdb-slate-50",    "color": "#f8fafc" },
+                { "name": "ThemisDB Slate 100",     "slug": "themisdb-slate-100",   "color": "#f1f5f9" },
+                { "name": "ThemisDB Slate 200",     "slug": "themisdb-slate-200",   "color": "#e2e8f0" },
+                { "name": "ThemisDB Slate 400",     "slug": "themisdb-slate-400",   "color": "#94a3b8" },
+                { "name": "ThemisDB Slate 500",     "slug": "themisdb-slate-500",   "color": "#64748b" },
+                { "name": "ThemisDB Slate 600",     "slug": "themisdb-slate-600",   "color": "#475569" },
+                { "name": "ThemisDB Slate 700",     "slug": "themisdb-slate-700",   "color": "#334155" },
+                { "name": "ThemisDB Slate 800",     "slug": "themisdb-slate-800",   "color": "#1e293b" },
+                { "name": "ThemisDB Slate 900",     "slug": "themisdb-slate-900",   "color": "#0f172a" }
+            ]
+        },
+        "typography": {
+            "customFontSize": true,
+            "lineHeight":     true,
+            "dropCap":        false,
+            "fontSizes": [
+                { "name": "XS",  "slug": "xs",  "size": "0.75rem"  },
+                { "name": "SM",  "slug": "sm",  "size": "0.875rem" },
+                { "name": "MD",  "slug": "md",  "size": "1rem"     },
+                { "name": "LG",  "slug": "lg",  "size": "1.125rem" },
+                { "name": "XL",  "slug": "xl",  "size": "1.25rem"  },
+                { "name": "2XL", "slug": "2xl", "size": "1.5rem"   },
+                { "name": "3XL", "slug": "3xl", "size": "1.875rem" },
+                { "name": "4XL", "slug": "4xl", "size": "2.25rem"  },
+                { "name": "5XL", "slug": "5xl", "size": "3rem"     },
+                { "name": "6XL", "slug": "6xl", "size": "3.75rem"  }
+            ],
+            "fontFamilies": [
+                {
+                    "fontFamily": "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                    "slug":       "plus-jakarta-sans",
+                    "name":       "Plus Jakarta Sans"
+                },
+                {
+                    "fontFamily": "ui-monospace, 'Cascadia Code', 'Fira Code', Consolas, monospace",
+                    "slug":       "mono",
+                    "name":       "Monospace"
+                }
+            ]
+        },
+        "border": {
+            "color":  true,
+            "radius": true,
+            "style":  true,
+            "width":  true
+        },
+        "shadow": {
+            "presets": [
+                { "name": "Card",    "slug": "card",    "shadow": "0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05)" },
+                { "name": "Section", "slug": "section", "shadow": "0 20px 40px -10px rgba(0,0,0,0.08)" },
+                { "name": "Hero",    "slug": "hero",    "shadow": "0 25px 50px -12px rgba(0,0,0,0.15)" }
+            ]
+        },
+        "custom": {
+            "la": {
+                "navy":          "#0c4a6e",
+                "sky":           "#0284c7",
+                "emerald":       "#059669",
+                "sectionPy":     "6.25rem",
+                "sectionPySm":   "3.75rem",
+                "radiusCard":    "1.5rem",
+                "radiusHero":    "3rem"
+            }
+        }
+    },
+    "styles": {
+        "color": {
+            "background": "#ffffff",
+            "text":        "#1e293b"
+        },
+        "typography": {
+            "fontFamily":  "var(--wp--preset--font-family--plus-jakarta-sans)",
+            "fontSize":    "1rem",
+            "lineHeight":  "1.6"
+        },
+        "elements": {
+            "link": {
+                "color": {
+                    "text": "#0284c7"
+                },
+                ":hover": {
+                    "color": {
+                        "text": "#0c4a6e"
+                    }
+                }
+            },
+            "h1": {
+                "typography": {
+                    "fontWeight":    "900",
+                    "lineHeight":    "1.1",
+                    "letterSpacing": "-0.04em"
+                }
+            },
+            "h2": {
+                "typography": {
+                    "fontWeight":    "800",
+                    "lineHeight":    "1.2",
+                    "letterSpacing": "-0.03em"
+                }
+            },
+            "h3": {
+                "typography": {
+                    "fontWeight":    "800",
+                    "lineHeight":    "1.2",
+                    "letterSpacing": "-0.03em"
+                }
+            }
+        }
+    },
+    "templateParts": [
+        { "area": "header",       "name": "header",              "title": "Header" },
+        { "area": "footer",       "name": "footer",              "title": "Footer" },
+        { "area": "uncategorized","name": "sidebar",             "title": "Sidebar" },
+        { "area": "uncategorized","name": "hero-slider",         "title": "Hero Slider" },
+        { "area": "uncategorized","name": "legal-impressum",     "title": "Impressum" },
+        { "area": "uncategorized","name": "legal-datenschutz",   "title": "Datenschutz" }
+    ],
+    "customTemplates": [
+        { "name": "front-page",       "title": "Startseite (ThemisDB)",   "postTypes": ["page"] },
+        { "name": "page-full-width",  "title": "Vollbreite Seite",     "postTypes": ["page"] }
+    ]
+}

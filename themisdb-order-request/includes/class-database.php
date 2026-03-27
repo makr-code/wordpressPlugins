@@ -926,30 +926,43 @@ class ThemisDB_Order_Database {
             $column = $target['column'];
             $ref_sql = '`' . $ref_table . '`';
 
+            // Ensure both tables are InnoDB before adding foreign keys.
+            $wpdb->query("ALTER TABLE {$tickets_sql} ENGINE=InnoDB");
+            $wpdb->query("ALTER TABLE {$ref_sql} ENGINE=InnoDB");
+
             // Ensure the column exists in the table before touching rows or adding FK.
-            // This handles tables created before the column was added to the schema.
-            $col_exists = $wpdb->get_var( $wpdb->prepare(
+            $col_exists = $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM information_schema.COLUMNS
                  WHERE TABLE_SCHEMA = DATABASE()
                    AND TABLE_NAME = %s
                    AND COLUMN_NAME = %s",
                 $tickets,
                 $column
-            ) );
-            if ( ! intval( $col_exists ) ) {
-                $wpdb->query( "ALTER TABLE {$tickets_sql} ADD COLUMN `{$column}` bigint(20) DEFAULT NULL" );
-                // Add index for the new column if not already present.
-                $idx_exists = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT COUNT(*) FROM information_schema.STATISTICS
-                     WHERE TABLE_SCHEMA = DATABASE()
-                       AND TABLE_NAME = %s
-                       AND INDEX_NAME = %s",
-                    $tickets,
-                    $column
-                ) );
-                if ( ! intval( $idx_exists ) ) {
-                    $wpdb->query( "ALTER TABLE {$tickets_sql} ADD KEY `{$column}` (`{$column}`)" );
-                }
+            ));
+            if (!intval($col_exists)) {
+                $wpdb->query("ALTER TABLE {$tickets_sql} ADD COLUMN `{$column}` bigint(20) DEFAULT NULL");
+            }
+
+            // Ensure FK column uses same integer definition as referenced id column.
+            $ref_id_col = $wpdb->get_row($wpdb->prepare("SHOW COLUMNS FROM {$ref_sql} LIKE %s", 'id'), ARRAY_A);
+            $ref_id_type = isset($ref_id_col['Type']) ? strtoupper((string) $ref_id_col['Type']) : 'BIGINT(20)';
+            $ticket_col = $wpdb->get_row($wpdb->prepare("SHOW COLUMNS FROM {$tickets_sql} LIKE %s", $column), ARRAY_A);
+            $ticket_col_type = isset($ticket_col['Type']) ? strtoupper((string) $ticket_col['Type']) : '';
+            if ($ticket_col_type !== $ref_id_type) {
+                $wpdb->query("ALTER TABLE {$tickets_sql} MODIFY `{$column}` {$ref_id_type} NULL");
+            }
+
+            // Add index for FK column if missing.
+            $idx_exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM information_schema.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = %s
+                   AND INDEX_NAME = %s",
+                $tickets,
+                $column
+            ));
+            if (!intval($idx_exists)) {
+                $wpdb->query("ALTER TABLE {$tickets_sql} ADD KEY `{$column}` (`{$column}`)");
             }
 
             // Tickets use nullable refs; orphan links are neutralized before adding FK.

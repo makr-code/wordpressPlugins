@@ -287,23 +287,29 @@ class ThemisDB_Plugin_Updater {
             $prefix = empty($path) ? '' : $path . '/';
             $metadata_url = "https://raw.githubusercontent.com/{$this->username}/{$this->repository}/{$this->repository_branch}/{$prefix}{$this->plugin_slug}/update-info.json";
 
-            $response = wp_remote_get($metadata_url, array(
+            $request_args = array(
                 'timeout' => 10,
                 'headers' => array(
                     'Accept' => 'application/json',
                 ),
-            ));
+            );
+
+            if (!function_exists('themisdb_github_bridge_request')) {
+                continue;
+            }
+
+            $response = themisdb_github_bridge_request('GET', $metadata_url, $request_args);
 
             if (is_wp_error($response)) {
                 continue;
             }
 
-            $status = wp_remote_retrieve_response_code($response);
+            $status = is_array($response) ? (int) ($response['status_code'] ?? 0) : wp_remote_retrieve_response_code($response);
             if ($status !== 200) {
                 continue;
             }
 
-            $body = wp_remote_retrieve_body($response);
+            $body = is_array($response) ? (string) ($response['body'] ?? '') : wp_remote_retrieve_body($response);
             $metadata = json_decode($body, true);
 
             if (is_array($metadata)) {
@@ -322,18 +328,24 @@ class ThemisDB_Plugin_Updater {
     private function fetch_latest_release() {
         $api_url = "{$this->github_api_url}/repos/{$this->username}/{$this->repository}/releases/latest";
         
-        $response = wp_remote_get($api_url, array(
+        $request_args = array(
             'timeout' => 10,
             'headers' => array(
                 'Accept' => 'application/vnd.github.v3+json',
             ),
-        ));
+        );
+
+        if (!function_exists('themisdb_github_bridge_request')) {
+            return false;
+        }
+
+        $response = themisdb_github_bridge_request('GET', $api_url, $request_args);
         
         if (is_wp_error($response)) {
             return false;
         }
         
-        $body = wp_remote_retrieve_body($response);
+        $body = is_array($response) ? (string) ($response['body'] ?? '') : wp_remote_retrieve_body($response);
         $release = json_decode($body);
         
         return (isset($release->tag_name)) ? $release : false;
@@ -347,18 +359,24 @@ class ThemisDB_Plugin_Updater {
     private function fetch_release_for_plugin() {
         $api_url = "{$this->github_api_url}/repos/{$this->username}/{$this->repository}/releases?per_page=30";
 
-        $response = wp_remote_get($api_url, array(
+        $request_args = array(
             'timeout' => 10,
             'headers' => array(
                 'Accept' => 'application/vnd.github.v3+json',
             ),
-        ));
+        );
+
+        if (!function_exists('themisdb_github_bridge_request')) {
+            return $this->fetch_latest_release();
+        }
+
+        $response = themisdb_github_bridge_request('GET', $api_url, $request_args);
 
         if (is_wp_error($response)) {
             return $this->fetch_latest_release();
         }
 
-        $body = wp_remote_retrieve_body($response);
+        $body = is_array($response) ? (string) ($response['body'] ?? '') : wp_remote_retrieve_body($response);
         $releases = json_decode($body);
 
         if (!is_array($releases)) {

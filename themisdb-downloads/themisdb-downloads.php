@@ -178,13 +178,27 @@ function themisdb_downloads_enqueue_scripts() {
     )) {
         return;
     }
-    
-    wp_enqueue_style(
-        'themisdb-downloads-style',
-        THEMISDB_DOWNLOADS_PLUGIN_URL . 'assets/css/style.css',
-        array(),
-        THEMISDB_DOWNLOADS_VERSION
+
+    // Theme-first presentation: ThemisDB themes own frontend visuals.
+    $theme_controls_presentation =
+        wp_style_is('themisdb-style', 'enqueued') ||
+        wp_style_is('themisdb-style', 'registered') ||
+        wp_style_is('lis-a-style', 'enqueued') ||
+        wp_style_is('lis-a-style', 'registered');
+
+    $should_enqueue_plugin_style = apply_filters(
+        'themisdb_downloads_enqueue_frontend_style',
+        ! $theme_controls_presentation
     );
+    
+    if ($should_enqueue_plugin_style) {
+        wp_enqueue_style(
+            'themisdb-downloads-style',
+            THEMISDB_DOWNLOADS_PLUGIN_URL . 'assets/css/style.css',
+            array(),
+            THEMISDB_DOWNLOADS_VERSION
+        );
+    }
     
     // Enqueue Mermaid.js for diagram rendering
     wp_enqueue_script(

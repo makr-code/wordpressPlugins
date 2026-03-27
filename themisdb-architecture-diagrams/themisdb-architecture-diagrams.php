@@ -199,6 +199,12 @@ class ThemisDB_Architecture_Diagrams {
         if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'themisdb_architecture')) {
             return;
         }
+
+        $theme_controls_presentation =
+            wp_style_is('themisdb-style', 'enqueued') ||
+            wp_style_is('themisdb-style', 'registered') ||
+            wp_style_is('lis-a-style', 'enqueued') ||
+            wp_style_is('lis-a-style', 'registered');
         
         // Detect color scheme
         $color_scheme = themisdb_arch_get_color_scheme();
@@ -212,22 +218,28 @@ class ThemisDB_Architecture_Diagrams {
             false
         );
         
-        // Plugin CSS
-        wp_enqueue_style(
-            'themisdb-ad-style',
-            THEMISDB_AD_PLUGIN_URL . 'assets/css/architecture-diagrams.css',
-            array(),
-            THEMISDB_AD_VERSION
+        $should_enqueue_frontend_style = apply_filters(
+            'themisdb_architecture_enqueue_frontend_style',
+            ! $theme_controls_presentation,
+            $color_scheme
         );
-        
-        // Dark mode styles
-        if ($color_scheme === 'dark') {
+
+        if ($should_enqueue_frontend_style) {
             wp_enqueue_style(
-                'themisdb-ad-dark',
-                THEMISDB_AD_PLUGIN_URL . 'assets/css/architecture-diagrams-dark.css',
-                array('themisdb-ad-style'),
+                'themisdb-ad-style',
+                THEMISDB_AD_PLUGIN_URL . 'assets/css/architecture-diagrams.css',
+                array(),
                 THEMISDB_AD_VERSION
             );
+
+            if ($color_scheme === 'dark') {
+                wp_enqueue_style(
+                    'themisdb-ad-dark',
+                    THEMISDB_AD_PLUGIN_URL . 'assets/css/architecture-diagrams-dark.css',
+                    array('themisdb-ad-style'),
+                    THEMISDB_AD_VERSION
+                );
+            }
         }
         
         // Plugin JS
@@ -281,17 +293,36 @@ class ThemisDB_Architecture_Diagrams {
      * Render architecture diagram
      */
     public function render_diagram($atts) {
+        $raw_atts = (array) $atts;
         $atts = shortcode_atts(array(
             'view' => get_option('themisdb_ad_default_view', 'high_level'),
             'theme' => get_option('themisdb_ad_theme', 'neutral'),
             'interactive' => get_option('themisdb_ad_interactive', true),
             'show_controls' => 'true',
-        ), $atts, 'themisdb_architecture');
-        
-        // Load template
+        ), $raw_atts, 'themisdb_architecture');
+
+        $atts = apply_filters('themisdb_architecture_shortcode_atts', $atts, $raw_atts);
+
+        $payload = array(
+            'view' => isset($atts['view']) ? sanitize_key($atts['view']) : 'high_level',
+            'theme' => isset($atts['theme']) ? sanitize_key($atts['theme']) : 'neutral',
+            'interactive' => !empty($atts['interactive']),
+            'show_controls' => filter_var($atts['show_controls'], FILTER_VALIDATE_BOOLEAN),
+            'color_scheme' => themisdb_arch_get_color_scheme(),
+            'enable_export' => (bool) get_option('themisdb_ad_enable_export', true),
+            'show_descriptions' => (bool) get_option('themisdb_ad_show_descriptions', true),
+        );
+
+        $payload = apply_filters('themisdb_architecture_shortcode_payload', $payload, $atts);
+        $custom_html = apply_filters('themisdb_architecture_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
+
         ob_start();
         include THEMISDB_AD_PLUGIN_DIR . 'templates/diagram.php';
-        return ob_get_clean();
+        $html = ob_get_clean();
+        return apply_filters('themisdb_architecture_shortcode_html_output', $html, $payload, $atts);
     }
     
     /**

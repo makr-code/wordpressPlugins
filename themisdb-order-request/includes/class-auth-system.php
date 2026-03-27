@@ -54,13 +54,63 @@ class ThemisDB_Auth_System {
         add_rewrite_rule('^themisdb-login/?$', 'index.php?themisdb_login=1', 'top');
         add_rewrite_tag('%themisdb_login%', '1');
     }
+
+    /**
+     * Build normalized shortcode data and pass it through a shared hook pipeline.
+     */
+    private function prepare_shortcode_context($shortcode_tag, $raw_atts, $default_atts, $payload = array()) {
+        $atts = shortcode_atts($default_atts, (array) $raw_atts);
+        $atts = apply_filters($shortcode_tag . '_shortcode_atts', $atts, (array) $raw_atts);
+
+        if (!is_array($payload)) {
+            $payload = array();
+        }
+
+        return array($atts, $payload);
+    }
+
+    /**
+     * Allow themes to replace plugin HTML entirely.
+     */
+    private function resolve_shortcode_html_override($shortcode_tag, $payload, $atts) {
+        $html = apply_filters($shortcode_tag . '_shortcode_html', null, $payload, $atts);
+        return (null !== $html) ? (string) $html : null;
+    }
+
+    /**
+     * Final pass for post-processing plugin HTML.
+     */
+    private function finalize_shortcode_html($shortcode_tag, $html, $payload, $atts) {
+        return apply_filters($shortcode_tag . '_shortcode_html_output', (string) $html, $payload, $atts);
+    }
     
     /**
      * Login form shortcode
      */
     public function login_form_shortcode($atts) {
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_login', $atts, array());
+        $payload = array_merge($payload, array(
+            'is_logged_in' => is_user_logged_in(),
+            'login_url' => wp_login_url(),
+            'logout_url' => wp_logout_url(),
+        ));
+
         if (is_user_logged_in()) {
-            return '<p>' . __('Sie sind bereits angemeldet.', 'themisdb-order-request') . ' <a href="' . wp_logout_url() . '">' . __('Abmelden', 'themisdb-order-request') . '</a></p>';
+            $payload['message'] = __('Sie sind bereits angemeldet.', 'themisdb-order-request');
+            $payload = apply_filters('themisdb_login_shortcode_payload', $payload, $atts);
+            $override_html = $this->resolve_shortcode_html_override('themisdb_login', $payload, $atts);
+            if (null !== $override_html) {
+                return $override_html;
+            }
+
+            $html = '<p>' . esc_html($payload['message']) . ' <a href="' . esc_url((string) $payload['logout_url']) . '">' . esc_html__('Abmelden', 'themisdb-order-request') . '</a></p>';
+            return $this->finalize_shortcode_html('themisdb_login', $html, $payload, $atts);
+        }
+
+        $payload = apply_filters('themisdb_login_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_login', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
         }
         
         ob_start();
@@ -336,19 +386,34 @@ class ThemisDB_Auth_System {
         });
         </script>
         <?php
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_login', ob_get_clean(), $payload, $atts);
     }
     
     /**
      * License upload form shortcode (alternative view)
      */
     public function license_upload_form_shortcode($atts) {
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_license_upload', $atts, array());
+        $payload = array_merge($payload, array(
+            'is_logged_in' => is_user_logged_in(),
+            'has_license' => false,
+        ));
+
         if (is_user_logged_in()) {
             $user = wp_get_current_user();
             $license_id = get_user_meta($user->ID, 'themisdb_license_id', true);
             
             if ($license_id) {
                 $license = ThemisDB_License_Manager::get_license($license_id);
+                $payload['user_id'] = $user->ID;
+                $payload['license_id'] = $license_id;
+                $payload['license'] = $license;
+                $payload['has_license'] = is_array($license);
+                $payload = apply_filters('themisdb_license_upload_shortcode_payload', $payload, $atts);
+                $override_html = $this->resolve_shortcode_html_override('themisdb_license_upload', $payload, $atts);
+                if (null !== $override_html) {
+                    return $override_html;
+                }
                 
                 ob_start();
                 ?>
@@ -364,11 +429,18 @@ class ThemisDB_Auth_System {
                     <p><a href="<?php echo wp_logout_url(); ?>" class="button"><?php esc_html_e('Abmelden', 'themisdb-order-request'); ?></a></p>
                 </div>
                 <?php
-                return ob_get_clean();
+                return $this->finalize_shortcode_html('themisdb_license_upload', ob_get_clean(), $payload, $atts);
             }
         }
-        
-        return $this->login_form_shortcode($atts);
+
+        $payload['fallback'] = 'themisdb_login';
+        $payload = apply_filters('themisdb_license_upload_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_license_upload', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
+        return $this->finalize_shortcode_html('themisdb_license_upload', $this->login_form_shortcode($atts), $payload, $atts);
     }
     
     /**

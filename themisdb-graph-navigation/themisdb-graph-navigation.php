@@ -49,6 +49,21 @@ function themisdb_graph_navigation_enqueue_assets()
         return;
     }
 
+    $theme_controls_graph_navigation =
+        wp_script_is('themisdb-graph-navigation-theme', 'enqueued') ||
+        wp_script_is('themisdb-graph-navigation-theme', 'registered') ||
+        wp_script_is('lis-a-graph-navigation', 'enqueued') ||
+        wp_script_is('lis-a-graph-navigation', 'registered');
+
+    $should_enqueue_frontend_script = apply_filters(
+        'themisdb_graph_navigation_enqueue_frontend_script',
+        !$theme_controls_graph_navigation
+    );
+
+    if (!$should_enqueue_frontend_script) {
+        return;
+    }
+
     wp_enqueue_script(
         'themisdb-graph-navigation',
         THEMISDB_GRAPH_NAV_PLUGIN_URL . 'assets/js/graph-navigation.js',
@@ -57,7 +72,10 @@ function themisdb_graph_navigation_enqueue_assets()
         true
     );
 
-    wp_localize_script('themisdb-graph-navigation', 'themisdbGraphData', themisdb_graph_navigation_get_graph_data());
+    $graph_payload = themisdb_graph_navigation_get_graph_data();
+    $graph_payload = apply_filters('themisdb_graph_navigation_js_payload', $graph_payload);
+
+    wp_localize_script('themisdb-graph-navigation', 'themisdbGraphData', $graph_payload);
 }
 add_action('wp_enqueue_scripts', 'themisdb_graph_navigation_enqueue_assets', 20);
 
@@ -74,7 +92,7 @@ function themisdb_graph_navigation_get_graph_data()
     $cache_key = 'themisdb_graph_nav_data';
     $cached    = get_transient($cache_key);
     if (false !== $cached) {
-        return $cached;
+        return apply_filters('themisdb_graph_navigation_data', $cached);
     }
 
     $nodes = array();
@@ -204,7 +222,7 @@ function themisdb_graph_navigation_get_graph_data()
         'links' => $links,
     );
     set_transient('themisdb_graph_nav_data', $data, HOUR_IN_SECONDS);
-    return $data;
+    return apply_filters('themisdb_graph_navigation_data', $data);
 }
 
 /**

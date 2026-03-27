@@ -340,8 +340,21 @@ class ThemisDB_Affiliate_Program {
      * Minimal affiliate dashboard shortcode.
      */
     public static function affiliate_dashboard_shortcode($atts) {
+        $atts = shortcode_atts(array(), $atts, 'themisdb_affiliate_dashboard');
+        $atts = apply_filters('themisdb_affiliate_dashboard_shortcode_atts', $atts, (array) $atts);
+
+        $payload = array(
+            'is_logged_in' => is_user_logged_in(),
+        );
+
         if (!is_user_logged_in()) {
-            return '<p>' . esc_html__('Bitte anmelden, um Affiliate-Daten zu sehen.', 'themisdb-order-request') . '</p>';
+            $payload['message'] = esc_html__('Bitte anmelden, um Affiliate-Daten zu sehen.', 'themisdb-order-request');
+            $payload = apply_filters('themisdb_affiliate_dashboard_shortcode_payload', $payload, $atts);
+            $custom_html = apply_filters('themisdb_affiliate_dashboard_shortcode_html', null, $payload, $atts);
+            if (null !== $custom_html) {
+                return (string) $custom_html;
+            }
+            return apply_filters('themisdb_affiliate_dashboard_shortcode_html_output', '<p>' . esc_html($payload['message']) . '</p>', $payload, $atts);
         }
 
         $user = wp_get_current_user();
@@ -357,6 +370,18 @@ class ThemisDB_Affiliate_Program {
         $ref_link = self::create_referral_link($affiliate['referral_code']);
         $pending_total = self::get_pending_total(intval($affiliate['id']));
 
+        $payload = array_merge($payload, array(
+            'affiliate' => $affiliate,
+            'ref_link' => $ref_link,
+            'pending_total' => $pending_total,
+        ));
+
+        $payload = apply_filters('themisdb_affiliate_dashboard_shortcode_payload', $payload, $atts);
+        $custom_html = apply_filters('themisdb_affiliate_dashboard_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
+
         ob_start();
         ?>
         <div class="themisdb-affiliate-dashboard">
@@ -367,7 +392,8 @@ class ThemisDB_Affiliate_Program {
             <p><strong><?php esc_html_e('Pending Commissions:', 'themisdb-order-request'); ?></strong> <?php echo esc_html(number_format($pending_total, 2, ',', '.')); ?> EUR</p>
         </div>
         <?php
-        return ob_get_clean();
+        $html = ob_get_clean();
+        return apply_filters('themisdb_affiliate_dashboard_shortcode_html_output', $html, $payload, $atts);
     }
 
     private static function get_pending_total($affiliate_id) {

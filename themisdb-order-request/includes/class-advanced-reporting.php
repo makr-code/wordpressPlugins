@@ -82,13 +82,32 @@ class ThemisDB_Advanced_Reporting {
     }
 
     public static function shortcode($atts) {
+        $atts = shortcode_atts(array(), $atts, 'themisdb_advanced_reporting');
+        $atts = apply_filters('themisdb_advanced_reporting_shortcode_atts', $atts, (array) $atts);
+
         ob_start();
         $cohort = self::get_cohort_analysis(12);
         $ltv_cac = self::get_ltv_cac_tracking(12);
         $churn = self::get_churn_analysis(6);
         $mix = self::get_product_mix_analysis(12);
+
+        $payload = array(
+            'cohort' => $cohort,
+            'ltv_cac' => $ltv_cac,
+            'churn' => $churn,
+            'mix' => $mix,
+            'is_admin' => false,
+        );
+
+        $payload = apply_filters('themisdb_advanced_reporting_shortcode_payload', $payload, $atts);
+        $custom_html = apply_filters('themisdb_advanced_reporting_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
+
         self::render_reports_content($cohort, $ltv_cac, $churn, $mix, false);
-        return ob_get_clean();
+        $html = ob_get_clean();
+        return apply_filters('themisdb_advanced_reporting_shortcode_html_output', $html, $payload, $atts);
     }
 
     private static function render_reports_content($cohort, $ltv_cac, $churn, $mix, $is_admin = true) {

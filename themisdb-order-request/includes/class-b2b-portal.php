@@ -311,11 +311,34 @@ class ThemisDB_B2B_Portal {
      * Minimal B2B portal shortcode output.
      */
     public static function b2b_portal_shortcode($atts) {
+        $atts = shortcode_atts(array(), $atts, 'themisdb_b2b_portal');
+        $atts = apply_filters('themisdb_b2b_portal_shortcode_atts', $atts, (array) $atts);
+
+        $payload = array(
+            'is_logged_in' => is_user_logged_in(),
+        );
+
         if (!is_user_logged_in()) {
-            return '<p>' . esc_html__('Bitte anmelden, um das B2B-Portal zu nutzen.', 'themisdb-order-request') . '</p>';
+            $payload['message'] = esc_html__('Bitte anmelden, um das B2B-Portal zu nutzen.', 'themisdb-order-request');
+            $payload = apply_filters('themisdb_b2b_portal_shortcode_payload', $payload, $atts);
+            $custom_html = apply_filters('themisdb_b2b_portal_shortcode_html', null, $payload, $atts);
+            if (null !== $custom_html) {
+                return (string) $custom_html;
+            }
+            return apply_filters('themisdb_b2b_portal_shortcode_html_output', '<p>' . esc_html($payload['message']) . '</p>', $payload, $atts);
         }
 
         $nonce = wp_create_nonce('themisdb_b2b_portal_nonce');
+
+        $payload = array_merge($payload, array(
+            'nonce' => $nonce,
+        ));
+
+        $payload = apply_filters('themisdb_b2b_portal_shortcode_payload', $payload, $atts);
+        $custom_html = apply_filters('themisdb_b2b_portal_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
 
         ob_start();
         ?>
@@ -325,7 +348,8 @@ class ThemisDB_B2B_Portal {
             <p style="font-size:12px;color:#64748b;">Nonce: <?php echo esc_html($nonce); ?></p>
         </div>
         <?php
-        return ob_get_clean();
+        $html = ob_get_clean();
+        return apply_filters('themisdb_b2b_portal_shortcode_html_output', $html, $payload, $atts);
     }
 
     public static function ajax_create_department() {

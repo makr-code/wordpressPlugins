@@ -176,12 +176,31 @@ register_deactivation_hook(__FILE__, 'themisdb_support_portal_deactivate');
  * Enqueue frontend assets (only on pages that need them).
  */
 function themisdb_support_enqueue_scripts() {
+    global $post;
+
+    if (!is_a($post, 'WP_Post') || (!has_shortcode($post->post_content, 'themisdb_support_portal') && !has_shortcode($post->post_content, 'themisdb_support_login'))) {
+        return;
+    }
+
+    $theme_controls_presentation =
+        wp_style_is('themisdb-style', 'enqueued') ||
+        wp_style_is('themisdb-style', 'registered') ||
+        wp_style_is('lis-a-style', 'enqueued') ||
+        wp_style_is('lis-a-style', 'registered');
+
+    $should_enqueue_frontend_style = apply_filters(
+        'themisdb_support_portal_enqueue_frontend_style',
+        !$theme_controls_presentation
+    );
+
+    if ($should_enqueue_frontend_style) {
     wp_enqueue_style(
         'themisdb-support-portal-style',
         THEMISDB_SUPPORT_PLUGIN_URL . 'assets/css/support-portal.css',
         array(),
         THEMISDB_SUPPORT_VERSION
     );
+    }
 
     wp_enqueue_script(
         'themisdb-support-portal-script',

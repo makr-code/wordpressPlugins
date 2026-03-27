@@ -123,6 +123,35 @@ class ThemisDB_TCO_Calculator {
         // The manual pre_set_site_transient_update_plugins / plugins_api filters below
         // were removed to avoid double API calls and inconsistent update data.
     }
+
+    /**
+     * Build normalized shortcode data and pass it through a shared hook pipeline.
+     */
+    private function prepare_shortcode_context($shortcode_tag, $raw_atts, $default_atts, $payload = array()) {
+        $atts = shortcode_atts($default_atts, (array) $raw_atts, $shortcode_tag);
+        $atts = apply_filters($shortcode_tag . '_shortcode_atts', $atts, (array) $raw_atts);
+
+        if (!is_array($payload)) {
+            $payload = array();
+        }
+
+        return array($atts, $payload);
+    }
+
+    /**
+     * Allow themes to fully override plugin HTML for a shortcode.
+     */
+    private function resolve_shortcode_html_override($shortcode_tag, $payload, $atts) {
+        $html = apply_filters($shortcode_tag . '_shortcode_html', null, $payload, $atts);
+        return (null !== $html) ? (string) $html : null;
+    }
+
+    /**
+     * Final pass for post-processing plugin HTML.
+     */
+    private function finalize_shortcode_html($shortcode_tag, $html, $payload, $atts) {
+        return apply_filters($shortcode_tag . '_shortcode_html_output', (string) $html, $payload, $atts);
+    }
     
     /**
      * Plugin activation
@@ -187,6 +216,12 @@ class ThemisDB_TCO_Calculator {
         }
         
         if ($has_tco_shortcode) {
+            $theme_controls_presentation =
+                wp_style_is('themisdb-style', 'enqueued') ||
+                wp_style_is('themisdb-style', 'registered') ||
+                wp_style_is('lis-a-style', 'enqueued') ||
+                wp_style_is('lis-a-style', 'registered');
+
             // Enqueue Chart.js from CDN
             wp_enqueue_script(
                 'chartjs',
@@ -211,13 +246,19 @@ class ThemisDB_TCO_Calculator {
                 'if (typeof mermaid !== "undefined") { mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "strict" }); }'
             );
             
-            // Enqueue plugin CSS
-            wp_enqueue_style(
-                'themisdb-tco-calculator-styles',
-                THEMISDB_TCO_PLUGIN_URL . 'assets/css/tco-calculator.css',
-                array(),
-                THEMISDB_TCO_VERSION
+            $should_enqueue_frontend_style = apply_filters(
+                'themisdb_tco_calculator_enqueue_frontend_style',
+                !$theme_controls_presentation
             );
+
+            if ($should_enqueue_frontend_style) {
+                wp_enqueue_style(
+                    'themisdb-tco-calculator-styles',
+                    THEMISDB_TCO_PLUGIN_URL . 'assets/css/tco-calculator.css',
+                    array(),
+                    THEMISDB_TCO_VERSION
+                );
+            }
             
             // Enqueue plugin JS
             wp_enqueue_script(
@@ -260,110 +301,181 @@ class ThemisDB_TCO_Calculator {
      * Render calculator HTML
      */
     public function render_calculator($atts) {
-        // Parse shortcode attributes
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_tco_calculator', $atts, array(
             'title' => 'ThemisDB TCO-Rechner',
             'show_intro' => 'yes',
-        ), $atts);
-        
-        // Start output buffering
+        ));
+
+        $payload = array_merge($payload, array(
+            'title' => sanitize_text_field($atts['title']),
+            'show_intro' => $atts['show_intro'] === 'yes',
+        ));
+        $payload = apply_filters('themisdb_tco_calculator_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_tco_calculator', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
         ob_start();
-        
-        // Include template
         include THEMISDB_TCO_PLUGIN_DIR . 'templates/calculator.php';
-        
-        // Return buffered content
-        return ob_get_clean();
+
+        return $this->finalize_shortcode_html('themisdb_tco_calculator', ob_get_clean(), $payload, $atts);
     }
     
     /**
      * Render workload section
      */
     public function render_workload_section($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_tco_workload', $atts, array(
             'scale' => '1',
             'animation' => 'fade-in',
             'delay' => '0',
-        ), $atts);
-        
+        ));
+
+        $payload = array_merge($payload, array(
+            'scale' => (string) $atts['scale'],
+            'animation' => sanitize_text_field($atts['animation']),
+            'delay' => sanitize_text_field($atts['delay']),
+        ));
+        $payload = apply_filters('themisdb_tco_workload_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_tco_workload', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
         ob_start();
         include THEMISDB_TCO_PLUGIN_DIR . 'templates/sections/workload.php';
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_tco_workload', ob_get_clean(), $payload, $atts);
     }
     
     /**
      * Render infrastructure section
      */
     public function render_infrastructure_section($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_tco_infrastructure', $atts, array(
             'scale' => '1',
             'animation' => 'fade-in',
             'delay' => '0',
-        ), $atts);
-        
+        ));
+
+        $payload = array_merge($payload, array(
+            'scale' => (string) $atts['scale'],
+            'animation' => sanitize_text_field($atts['animation']),
+            'delay' => sanitize_text_field($atts['delay']),
+        ));
+        $payload = apply_filters('themisdb_tco_infrastructure_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_tco_infrastructure', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
         ob_start();
         include THEMISDB_TCO_PLUGIN_DIR . 'templates/sections/infrastructure.php';
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_tco_infrastructure', ob_get_clean(), $payload, $atts);
     }
     
     /**
      * Render personnel section
      */
     public function render_personnel_section($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_tco_personnel', $atts, array(
             'scale' => '1',
             'animation' => 'fade-in',
             'delay' => '0',
-        ), $atts);
-        
+        ));
+
+        $payload = array_merge($payload, array(
+            'scale' => (string) $atts['scale'],
+            'animation' => sanitize_text_field($atts['animation']),
+            'delay' => sanitize_text_field($atts['delay']),
+        ));
+        $payload = apply_filters('themisdb_tco_personnel_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_tco_personnel', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
         ob_start();
         include THEMISDB_TCO_PLUGIN_DIR . 'templates/sections/personnel.php';
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_tco_personnel', ob_get_clean(), $payload, $atts);
     }
     
     /**
      * Render operations section
      */
     public function render_operations_section($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_tco_operations', $atts, array(
             'scale' => '1',
             'animation' => 'fade-in',
             'delay' => '0',
-        ), $atts);
-        
+        ));
+
+        $payload = array_merge($payload, array(
+            'scale' => (string) $atts['scale'],
+            'animation' => sanitize_text_field($atts['animation']),
+            'delay' => sanitize_text_field($atts['delay']),
+        ));
+        $payload = apply_filters('themisdb_tco_operations_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_tco_operations', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
         ob_start();
         include THEMISDB_TCO_PLUGIN_DIR . 'templates/sections/operations.php';
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_tco_operations', ob_get_clean(), $payload, $atts);
     }
     
     /**
      * Render AI section
      */
     public function render_ai_section($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_tco_ai', $atts, array(
             'scale' => '1',
             'animation' => 'fade-in',
             'delay' => '0',
-        ), $atts);
-        
+        ));
+
+        $payload = array_merge($payload, array(
+            'scale' => (string) $atts['scale'],
+            'animation' => sanitize_text_field($atts['animation']),
+            'delay' => sanitize_text_field($atts['delay']),
+        ));
+        $payload = apply_filters('themisdb_tco_ai_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_tco_ai', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
         ob_start();
         include THEMISDB_TCO_PLUGIN_DIR . 'templates/sections/ai.php';
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_tco_ai', ob_get_clean(), $payload, $atts);
     }
     
     /**
      * Render results section
      */
     public function render_results_section($atts) {
-        $atts = shortcode_atts(array(
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_tco_results', $atts, array(
             'scale' => '1',
             'animation' => 'fade-in',
             'delay' => '0',
-        ), $atts);
-        
+        ));
+
+        $payload = array_merge($payload, array(
+            'scale' => (string) $atts['scale'],
+            'animation' => sanitize_text_field($atts['animation']),
+            'delay' => sanitize_text_field($atts['delay']),
+        ));
+        $payload = apply_filters('themisdb_tco_results_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_tco_results', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
         ob_start();
         include THEMISDB_TCO_PLUGIN_DIR . 'templates/sections/results.php';
-        return ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_tco_results', ob_get_clean(), $payload, $atts);
     }
     
     /**
@@ -487,7 +599,11 @@ class ThemisDB_TCO_Calculator {
         
         $api_url = 'https://api.github.com/repos/' . THEMISDB_TCO_GITHUB_REPO . '/releases/latest';
         
-        $response = wp_remote_get($api_url, array(
+        if (!function_exists('themisdb_github_bridge_request')) {
+            return false;
+        }
+
+        $response = themisdb_github_bridge_request('GET', $api_url, array(
             'timeout' => 10,
             'headers' => array(
                 'Accept' => 'application/vnd.github+json',
@@ -500,12 +616,12 @@ class ThemisDB_TCO_Calculator {
         }
         
         // Check HTTP status code
-        $status_code = wp_remote_retrieve_response_code($response);
+        $status_code = is_array($response) ? (int) ($response['status_code'] ?? 0) : wp_remote_retrieve_response_code($response);
         if ($status_code !== 200) {
             return false;
         }
         
-        $body = wp_remote_retrieve_body($response);
+        $body = is_array($response) ? (string) ($response['body'] ?? '') : wp_remote_retrieve_body($response);
         
         // Validate JSON before decoding
         if (empty($body)) {

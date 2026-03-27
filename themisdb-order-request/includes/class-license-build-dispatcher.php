@@ -212,7 +212,7 @@ class ThemisDB_License_Build_Dispatcher {
      * Execute the GitHub API request.
      */
     private static function perform_dispatch_request($url, $token, $body) {
-        $response = wp_remote_post($url, array(
+        $request_args = array(
             'timeout' => 20,
             'headers' => array(
                 'Accept' => 'application/vnd.github+json',
@@ -221,7 +221,16 @@ class ThemisDB_License_Build_Dispatcher {
                 'User-Agent' => 'ThemisDB-Order-Request/' . (defined('THEMISDB_ORDER_VERSION') ? THEMISDB_ORDER_VERSION : '1.0.0'),
             ),
             'body' => wp_json_encode($body),
-        ));
+        );
+
+        if (!function_exists('themisdb_github_bridge_request')) {
+            return array(
+                'success' => false,
+                'message' => 'ThemisDB GitHub Bridge ist erforderlich.',
+            );
+        }
+
+        $response = themisdb_github_bridge_request('POST', $url, $request_args);
 
         if (is_wp_error($response)) {
             return array(
@@ -230,8 +239,8 @@ class ThemisDB_License_Build_Dispatcher {
             );
         }
 
-        $status_code = wp_remote_retrieve_response_code($response);
-        $response_body = wp_remote_retrieve_body($response);
+        $status_code = is_array($response) ? (int) ($response['status_code'] ?? 0) : wp_remote_retrieve_response_code($response);
+        $response_body = is_array($response) ? (string) ($response['body'] ?? '') : (string) wp_remote_retrieve_body($response);
 
         if ($status_code < 200 || $status_code >= 300) {
             return array(

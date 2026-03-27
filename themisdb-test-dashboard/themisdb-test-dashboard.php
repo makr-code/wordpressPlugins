@@ -68,6 +68,12 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
  * Enqueue plugin styles and scripts
  */
 function themisdb_test_dashboard_enqueue_assets() {
+    $theme_controls_presentation =
+        wp_style_is('themisdb-style', 'enqueued') ||
+        wp_style_is('themisdb-style', 'registered') ||
+        wp_style_is('lis-a-style', 'enqueued') ||
+        wp_style_is('lis-a-style', 'registered');
+
     // Enqueue Chart.js from CDN
     wp_enqueue_script(
         'chartjs',
@@ -77,13 +83,19 @@ function themisdb_test_dashboard_enqueue_assets() {
         true
     );
     
-    // Enqueue plugin styles
-    wp_enqueue_style(
-        'themisdb-test-dashboard-css',
-        THEMISDB_TEST_DASHBOARD_PLUGIN_URL . 'assets/css/test-dashboard.css',
-        array(),
-        THEMISDB_TEST_DASHBOARD_VERSION
+    $should_enqueue_frontend_style = apply_filters(
+        'themisdb_test_dashboard_enqueue_frontend_style',
+        !$theme_controls_presentation
     );
+
+    if ($should_enqueue_frontend_style) {
+        wp_enqueue_style(
+            'themisdb-test-dashboard-css',
+            THEMISDB_TEST_DASHBOARD_PLUGIN_URL . 'assets/css/test-dashboard.css',
+            array(),
+            THEMISDB_TEST_DASHBOARD_VERSION
+        );
+    }
     
     // Enqueue plugin script
     wp_enqueue_script(
@@ -119,17 +131,35 @@ add_filter('script_loader_tag', 'themisdb_test_dashboard_add_crossorigin_scripts
  * Register shortcode
  */
 function themisdb_test_dashboard_shortcode($atts) {
+    $raw_atts = (array) $atts;
+
     $atts = shortcode_atts(array(
         'view' => 'overview',
         'period' => '30',
         'repo' => get_option('themisdb_test_dashboard_repo', 'makr-code/wordpressPlugins'),
         'chart_type' => 'line',
         'height' => '600px'
-    ), $atts);
+    ), $atts, 'themisdb_test_dashboard');
+
+    $atts = apply_filters('themisdb_test_dashboard_shortcode_atts', $atts, $raw_atts);
+
+    $payload = array(
+        'view' => sanitize_key($atts['view']),
+        'period' => max(1, intval($atts['period'])),
+        'repo' => sanitize_text_field($atts['repo']),
+        'chart_type' => sanitize_key($atts['chart_type']),
+        'height' => sanitize_text_field($atts['height']),
+    );
+    $payload = apply_filters('themisdb_test_dashboard_shortcode_payload', $payload, $atts);
+
+    $override_html = apply_filters('themisdb_test_dashboard_shortcode_html', null, $payload, $atts);
+    if (null !== $override_html) {
+        return (string) $override_html;
+    }
     
     ob_start();
     include THEMISDB_TEST_DASHBOARD_PLUGIN_DIR . 'templates/dashboard.php';
-    return ob_get_clean();
+    return apply_filters('themisdb_test_dashboard_shortcode_html_output', ob_get_clean(), $payload, $atts);
 }
 add_shortcode('themisdb_test_dashboard', 'themisdb_test_dashboard_shortcode');
 

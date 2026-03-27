@@ -67,7 +67,11 @@ class ThemisDB_Compendium_Downloads {
         $repo = get_option('themisdb_compendium_github_repo', 'makr-code/wordpressPlugins');
         $api_url = "https://api.github.com/repos/{$repo}/releases/latest";
         
-        $response = wp_remote_get($api_url, array(
+        if (!function_exists('themisdb_github_bridge_request')) {
+            return false;
+        }
+
+        $response = themisdb_github_bridge_request('GET', $api_url, array(
             'timeout' => 10,
             'headers' => array(
                 'Accept' => 'application/vnd.github+json',
@@ -79,7 +83,7 @@ class ThemisDB_Compendium_Downloads {
             return false;
         }
         
-        $body = wp_remote_retrieve_body($response);
+        $body = is_array($response) ? (string) ($response['body'] ?? '') : wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
         
         if (!$data || !isset($data['assets'])) {
@@ -132,20 +136,39 @@ class ThemisDB_Compendium_Downloads {
      * @return string HTML output
      */
     public function render_downloads($atts) {
+        $raw_atts = (array) $atts;
+
         $atts = shortcode_atts(array(
             'style' => get_option('themisdb_compendium_button_style', 'modern'),
             'show_version' => 'yes',
             'show_date' => 'yes',
             'show_size' => get_option('themisdb_compendium_show_file_sizes', 1) ? 'yes' : 'no',
             'layout' => 'cards' // cards, list, compact
-        ), $atts);
+        ), $atts, 'themisdb_compendium_downloads');
+
+        $atts = apply_filters('themisdb_compendium_downloads_shortcode_atts', $atts, $raw_atts);
         
         $release_data = $this->get_release_data();
+
+        $release_data = apply_filters('themisdb_compendium_downloads_shortcode_release_data', $release_data, $atts);
+
+        $payload = array(
+            'release_data' => $release_data,
+            'atts' => $atts,
+        );
+        $payload = apply_filters('themisdb_compendium_downloads_shortcode_payload', $payload, $atts);
+        $release_data = isset($payload['release_data']) && is_array($payload['release_data']) ? $payload['release_data'] : $release_data;
         
         if (!$release_data || empty($release_data['assets'])) {
             return '<div class="themisdb-compendium-error">' . 
                    '<p>' . __('Keine Kompendium-Downloads verfügbar.', 'themisdb-compendium-downloads') . '</p>' .
                    '</div>';
+        }
+
+        // Allow themes to fully own markup while plugin keeps data logic.
+        $custom_html = apply_filters('themisdb_compendium_downloads_shortcode_html', null, $release_data, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
         }
         
         $output = '<div class="themisdb-compendium-downloads themisdb-style-' . esc_attr($atts['style']) . ' themisdb-layout-' . esc_attr($atts['layout']) . '">';
@@ -227,7 +250,7 @@ class ThemisDB_Compendium_Downloads {
         
         $output .= '</div>'; // themisdb-compendium-downloads
         
-        return $output;
+        return apply_filters('themisdb_compendium_downloads_shortcode_html_output', $output, $release_data, $atts);
     }
     
     /**

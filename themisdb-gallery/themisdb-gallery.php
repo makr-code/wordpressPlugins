@@ -150,12 +150,26 @@ register_deactivation_hook(__FILE__, 'themisdb_gallery_deactivate');
  * Enqueue frontend scripts and styles
  */
 function themisdb_gallery_enqueue_scripts() {
-    wp_enqueue_style(
-        'themisdb-gallery-style',
-        THEMISDB_GALLERY_PLUGIN_URL . 'assets/css/style.css',
-        array(),
-        THEMISDB_GALLERY_VERSION
+    // Theme-first presentation: ThemisDB themes own frontend visuals.
+    $theme_controls_presentation =
+        wp_style_is('themisdb-style', 'enqueued') ||
+        wp_style_is('themisdb-style', 'registered') ||
+        wp_style_is('lis-a-style', 'enqueued') ||
+        wp_style_is('lis-a-style', 'registered');
+
+    $should_enqueue_plugin_style = apply_filters(
+        'themisdb_gallery_enqueue_frontend_style',
+        ! $theme_controls_presentation
     );
+
+    if ($should_enqueue_plugin_style) {
+        wp_enqueue_style(
+            'themisdb-gallery-style',
+            THEMISDB_GALLERY_PLUGIN_URL . 'assets/css/style.css',
+            array(),
+            THEMISDB_GALLERY_VERSION
+        );
+    }
     
     wp_enqueue_script(
         'themisdb-gallery-script',

@@ -38,6 +38,35 @@ class ThemisDB_Support_Shortcodes {
         add_action('wp_ajax_themisdb_support_get_ticket', array($this, 'handle_get_ticket'));
     }
 
+    /**
+     * Build normalized shortcode data and pass it through the shared hook pipeline.
+     */
+    private function prepare_shortcode_context($shortcode_tag, $raw_atts, $default_atts, $payload = array()) {
+        $atts = shortcode_atts($default_atts, (array) $raw_atts, $shortcode_tag);
+        $atts = apply_filters($shortcode_tag . '_shortcode_atts', $atts, (array) $raw_atts);
+
+        if (!is_array($payload)) {
+            $payload = array();
+        }
+
+        return array($atts, $payload);
+    }
+
+    /**
+     * Allow themes to fully override plugin HTML for a shortcode.
+     */
+    private function resolve_shortcode_html_override($shortcode_tag, $payload, $atts) {
+        $html = apply_filters($shortcode_tag . '_shortcode_html', null, $payload, $atts);
+        return (null !== $html) ? (string) $html : null;
+    }
+
+    /**
+     * Final pass for post-processing plugin HTML.
+     */
+    private function finalize_shortcode_html($shortcode_tag, $html, $payload, $atts) {
+        return apply_filters($shortcode_tag . '_shortcode_html_output', (string) $html, $payload, $atts);
+    }
+
     // -------------------------------------------------------------------------
     // Shortcodes
     // -------------------------------------------------------------------------
@@ -49,11 +78,40 @@ class ThemisDB_Support_Shortcodes {
      * @return string HTML output
      */
     public function portal_shortcode($atts) {
-        if (!ThemisDB_Support_License_Auth::current_user_has_license()) {
-            return $this->render_login_form();
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_support_portal', $atts, array());
+        $payload = array_merge($payload, array(
+            'has_license' => ThemisDB_Support_License_Auth::current_user_has_license(),
+        ));
+
+        if (!$payload['has_license']) {
+            $payload['fallback'] = 'login_form';
+            $payload = apply_filters('themisdb_support_portal_shortcode_payload', $payload, $atts);
+            $override_html = $this->resolve_shortcode_html_override('themisdb_support_portal', $payload, $atts);
+            if (null !== $override_html) {
+                return $override_html;
+            }
+
+            return $this->finalize_shortcode_html('themisdb_support_portal', $this->render_login_form(), $payload, $atts);
         }
 
-        return $this->render_portal();
+        $user = wp_get_current_user();
+        $tickets = ThemisDB_SupportPortal_Ticket_Manager::get_user_tickets($user->ID);
+        $license_info = $this->get_current_user_license_info($user->ID);
+        $support_benefit_info = $this->get_current_user_support_benefit_info($user->ID);
+        $payload = array_merge($payload, array(
+            'user_id' => $user->ID,
+            'tickets' => $tickets,
+            'ticket_count' => is_array($tickets) ? count($tickets) : 0,
+            'license_info' => $license_info,
+            'support_benefit_info' => $support_benefit_info,
+        ));
+        $payload = apply_filters('themisdb_support_portal_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_support_portal', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
+        return $this->finalize_shortcode_html('themisdb_support_portal', $this->render_portal(), $payload, $atts);
     }
 
     /**
@@ -62,16 +120,37 @@ class ThemisDB_Support_Shortcodes {
      * @return string
      */
     public function login_shortcode($atts) {
-        if (ThemisDB_Support_License_Auth::current_user_has_license()) {
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_support_login', $atts, array());
+        $payload = array_merge($payload, array(
+            'has_license' => ThemisDB_Support_License_Auth::current_user_has_license(),
+            'redirect' => get_option('themisdb_support_redirect_url', home_url('/')),
+        ));
+
+        if ($payload['has_license']) {
             $redirect = get_option('themisdb_support_redirect_url', home_url('/'));
-            return '<p class="themisdb-support-notice themisdb-support-notice-info">'
+            $payload['message'] = __('Sie sind bereits angemeldet.', 'themisdb-support-portal');
+            $payload = apply_filters('themisdb_support_login_shortcode_payload', $payload, $atts);
+            $override_html = $this->resolve_shortcode_html_override('themisdb_support_login', $payload, $atts);
+            if (null !== $override_html) {
+                return $override_html;
+            }
+
+            $html = '<p class="themisdb-support-notice themisdb-support-notice-info">'
                 . esc_html__('Sie sind bereits angemeldet.', 'themisdb-support-portal')
                 . ' <a href="' . esc_url($redirect) . '">'
                 . esc_html__('Zum Support-Portal', 'themisdb-support-portal')
                 . '</a></p>';
+            return $this->finalize_shortcode_html('themisdb_support_login', $html, $payload, $atts);
         }
 
-        return $this->render_login_form();
+        $payload['fallback'] = 'login_form';
+        $payload = apply_filters('themisdb_support_login_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_support_login', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
+        return $this->finalize_shortcode_html('themisdb_support_login', $this->render_login_form(), $payload, $atts);
     }
 
     // -------------------------------------------------------------------------

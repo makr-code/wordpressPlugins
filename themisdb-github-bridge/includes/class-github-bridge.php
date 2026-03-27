@@ -54,9 +54,38 @@ class ThemisDB_GitHub_Bridge {
     private function __construct() {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
+        add_filter('http_request_args', array($this, 'filter_github_http_request_args'), 10, 2);
 
         add_action('themisdb_order_support_ticket_created', array($this, 'handle_order_ticket_created'), 10, 2);
         add_action('themisdb_support_portal_ticket_created', array($this, 'handle_support_portal_ticket_created'), 10, 3);
+    }
+
+    /**
+     * Centralize GitHub API headers for all plugin HTTP calls.
+     */
+    public function filter_github_http_request_args($args, $url) {
+        $url = (string) $url;
+        if ('' === $url || false === strpos($url, 'api.github.com/')) {
+            return $args;
+        }
+
+        $args = is_array($args) ? $args : array();
+        $headers = isset($args['headers']) && is_array($args['headers']) ? $args['headers'] : array();
+
+        $bridge_headers = ThemisDB_GitHub_Client::get_base_headers();
+
+        // Keep explicit per-plugin Authorization headers if they exist.
+        if (isset($headers['Authorization']) || isset($headers['authorization'])) {
+            unset($bridge_headers['Authorization']);
+        }
+
+        $args['headers'] = array_merge($bridge_headers, $headers);
+
+        if (!isset($args['timeout']) || (int) $args['timeout'] <= 0) {
+            $args['timeout'] = 25;
+        }
+
+        return $args;
     }
 
     public function add_admin_menu() {
@@ -85,6 +114,8 @@ class ThemisDB_GitHub_Bridge {
         }
 
         $links = $this->get_recent_links();
+        $health_report = $this->get_bridge_health_report();
+        $consumer_statuses = $this->get_bridge_consumer_statuses();
         $page_slug = 'themisdb-github-bridge';
         $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'settings';
         $allowed_tabs = array('settings', 'links');
@@ -107,6 +138,11 @@ class ThemisDB_GitHub_Bridge {
                 .themisdb-admin-modules { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin: 0 0 24px; }
                 .themisdb-admin-modules .card, .themisdb-tab-content .card { margin: 0; max-width: none; padding: 20px 24px; }
                 .themisdb-tab-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+                .themisdb-status-list { margin: 0; }
+                .themisdb-status-list li { margin: 0 0 8px; }
+                .themisdb-status-badge { border-radius: 999px; display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; line-height: 1; margin-right: 8px; padding: 5px 8px; text-transform: uppercase; }
+                .themisdb-status-ok { background: #e7f8ee; color: #146c2e; }
+                .themisdb-status-warning { background: #fff4e5; color: #8f4f00; }
             </style>
 
             <h1 class="wp-heading-inline"><?php esc_html_e('ThemisDB GitHub Bridge', 'themisdb-github-bridge'); ?></h1>
@@ -137,6 +173,32 @@ class ThemisDB_GitHub_Bridge {
                         <tr><th><?php esc_html_e('Repository', 'themisdb-github-bridge'); ?></th><td><?php echo esc_html((string) get_option('themisdb_github_bridge_repository', '')); ?></td></tr>
                         <tr><th><?php esc_html_e('Links', 'themisdb-github-bridge'); ?></th><td><?php echo esc_html((string) count($links)); ?></td></tr>
                     </tbody></table>
+                </div>
+                <div class="card">
+                    <h2><?php esc_html_e('Bridge-Health', 'themisdb-github-bridge'); ?></h2>
+                    <ul class="themisdb-status-list">
+                        <?php foreach ($health_report as $check) : ?>
+                            <li>
+                                <span class="themisdb-status-badge <?php echo $check['ok'] ? 'themisdb-status-ok' : 'themisdb-status-warning'; ?>">
+                                    <?php echo esc_html($check['ok'] ? __('OK', 'themisdb-github-bridge') : __('Pruefen', 'themisdb-github-bridge')); ?>
+                                </span>
+                                <strong><?php echo esc_html($check['label']); ?>:</strong>
+                                <?php echo esc_html($check['message']); ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <hr>
+                    <h3><?php esc_html_e('Abhaengige Plugins', 'themisdb-github-bridge'); ?></h3>
+                    <ul class="themisdb-status-list">
+                        <?php foreach ($consumer_statuses as $plugin) : ?>
+                            <li>
+                                <span class="themisdb-status-badge <?php echo $plugin['active'] ? 'themisdb-status-ok' : 'themisdb-status-warning'; ?>">
+                                    <?php echo esc_html($plugin['active'] ? __('Aktiv', 'themisdb-github-bridge') : __('Inaktiv', 'themisdb-github-bridge')); ?>
+                                </span>
+                                <?php echo esc_html($plugin['label']); ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
                 </div>
             </div>
 
@@ -358,6 +420,74 @@ class ThemisDB_GitHub_Bridge {
         }
 
         return $wpdb->get_results("SELECT * FROM $table ORDER BY created_at DESC LIMIT 20", ARRAY_A);
+    }
+
+    private function get_bridge_health_report() {
+        $enabled = get_option('themisdb_github_bridge_enabled', '0') === '1';
+        $repository = trim((string) get_option('themisdb_github_bridge_repository', ''));
+        $token = trim((string) get_option('themisdb_github_bridge_token', ''));
+
+        $repository_valid = (bool) preg_match('/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/', $repository);
+
+        return array(
+            array(
+                'label' => __('Bridge aktiviert', 'themisdb-github-bridge'),
+                'ok' => $enabled,
+                'message' => $enabled
+                    ? __('GitHub Bridge ist aktiv.', 'themisdb-github-bridge')
+                    : __('Bridge ist deaktiviert. GitHub-Sync und Datenabrufe sind dann nicht verfuegbar.', 'themisdb-github-bridge'),
+            ),
+            array(
+                'label' => __('Repository', 'themisdb-github-bridge'),
+                'ok' => $repository_valid,
+                'message' => $repository_valid
+                    ? sprintf(__('Konfiguriert als %s.', 'themisdb-github-bridge'), $repository)
+                    : __('Bitte im Format owner/repo konfigurieren.', 'themisdb-github-bridge'),
+            ),
+            array(
+                'label' => __('Token', 'themisdb-github-bridge'),
+                'ok' => $token !== '',
+                'message' => $token !== ''
+                    ? __('Token gesetzt.', 'themisdb-github-bridge')
+                    : __('Kein Token gesetzt. API-Aufrufe werden sehr schnell limitiert.', 'themisdb-github-bridge'),
+            ),
+        );
+    }
+
+    private function get_bridge_consumer_statuses() {
+        $known_plugins = array(
+            array('label' => 'ThemisDB Release Timeline', 'slug' => 'themisdb-release-timeline/themisdb-release-timeline.php'),
+            array('label' => 'ThemisDB Downloads', 'slug' => 'themisdb-downloads/themisdb-downloads.php'),
+            array('label' => 'ThemisDB Compendium Downloads', 'slug' => 'themisdb-compendium-downloads/themisdb-compendium-downloads.php'),
+            array('label' => 'ThemisDB Wiki Integration', 'slug' => 'themisdb-wiki-integration/themisdb-wiki-integration.php'),
+            array('label' => 'ThemisDB TCO Calculator', 'slug' => 'themisdb-tco-calculator/themisdb-tco-calculator.php'),
+            array('label' => 'ThemisDB Order Request', 'slug' => 'themisdb-order-request/themisdb-order-request.php'),
+            array('label' => 'ThemisDB Graph Navigation', 'slug' => 'themisdb-graph-navigation/themisdb-graph-navigation.php'),
+        );
+
+        $statuses = array();
+        foreach ($known_plugins as $plugin) {
+            $statuses[] = array(
+                'label' => $plugin['label'],
+                'active' => $this->is_plugin_active_by_slug($plugin['slug']),
+            );
+        }
+
+        return $statuses;
+    }
+
+    private function is_plugin_active_by_slug($slug) {
+        $active_plugins = (array) get_option('active_plugins', array());
+        if (in_array($slug, $active_plugins, true)) {
+            return true;
+        }
+
+        if (is_multisite()) {
+            $network_active = (array) get_site_option('active_sitewide_plugins', array());
+            return isset($network_active[$slug]);
+        }
+
+        return false;
     }
 
     private function parse_labels($csv) {

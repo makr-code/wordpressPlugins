@@ -65,12 +65,27 @@ class ThemisDB_License_Portal {
         if ( ! is_a( $post, 'WP_Post' ) || ! has_shortcode( $post->post_content, 'themisdb_license_portal' ) ) {
             return;
         }
-        wp_enqueue_style(
-            'themisdb-portal',
-            THEMISDB_ORDER_PLUGIN_URL . 'assets/css/license-portal.css',
-            array(),
-            THEMISDB_ORDER_VERSION
+
+        $theme_controls_presentation =
+            wp_style_is('themisdb-style', 'enqueued') ||
+            wp_style_is('themisdb-style', 'registered') ||
+            wp_style_is('lis-a-style', 'enqueued') ||
+            wp_style_is('lis-a-style', 'registered');
+
+        $should_enqueue_portal_style = apply_filters(
+            'themisdb_license_portal_enqueue_frontend_style',
+            ! $theme_controls_presentation
         );
+
+        if ($should_enqueue_portal_style) {
+            wp_enqueue_style(
+                'themisdb-portal',
+                THEMISDB_ORDER_PLUGIN_URL . 'assets/css/license-portal.css',
+                array(),
+                THEMISDB_ORDER_VERSION
+            );
+        }
+
         wp_enqueue_script(
             'themisdb-portal',
             THEMISDB_ORDER_PLUGIN_URL . 'assets/js/license-portal.js',
@@ -94,22 +109,59 @@ class ThemisDB_License_Portal {
     // -------------------------------------------------------------------------
 
     public function render_portal( $atts ) {
+        $raw_atts = (array) $atts;
         $atts = shortcode_atts( array(
             'mode' => 'full',
             'key'  => '',
-        ), $atts, 'themisdb_license_portal' );
+        ), $raw_atts, 'themisdb_license_portal' );
+
+        $atts = apply_filters('themisdb_license_portal_shortcode_atts', $atts, $raw_atts);
+
+        $payload = array(
+            'mode' => isset($atts['mode']) ? (string) $atts['mode'] : 'full',
+            'key' => isset($atts['key']) ? (string) $atts['key'] : '',
+            'is_logged_in' => is_user_logged_in(),
+        );
 
         if ( ! is_user_logged_in() ) {
-            return $this->render_login_notice();
+            $payload['login_url'] = wp_login_url( get_permalink() );
+            $payload = apply_filters('themisdb_license_portal_shortcode_payload', $payload, $atts);
+            $custom_html = apply_filters('themisdb_license_portal_shortcode_html', null, $payload, $atts);
+            if (null !== $custom_html) {
+                return (string) $custom_html;
+            }
+
+            return apply_filters('themisdb_license_portal_shortcode_html_output', $this->render_login_notice(), $payload, $atts);
         }
 
         $customer_id = $this->get_current_customer_id();
+        $payload['customer_id'] = $customer_id;
 
         if ( $atts['mode'] === 'download' && ! empty( $atts['key'] ) ) {
-            return $this->render_single_download( $atts['key'], $customer_id );
+            $license = ThemisDB_License_Manager::get_license_by_key( $atts['key'] );
+            $payload['license'] = $license;
+            $payload = apply_filters('themisdb_license_portal_shortcode_payload', $payload, $atts);
+            $custom_html = apply_filters('themisdb_license_portal_shortcode_html', null, $payload, $atts);
+            if (null !== $custom_html) {
+                return (string) $custom_html;
+            }
+
+            $html = $this->render_single_download( $atts['key'], $customer_id );
+            return apply_filters('themisdb_license_portal_shortcode_html_output', $html, $payload, $atts);
         }
 
-        return $this->render_full_portal( $customer_id );
+        $licenses = $customer_id
+            ? ThemisDB_License_Manager::get_customer_licenses( $customer_id )
+            : array();
+        $payload['licenses'] = $licenses;
+        $payload = apply_filters('themisdb_license_portal_shortcode_payload', $payload, $atts);
+        $custom_html = apply_filters('themisdb_license_portal_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
+
+        $html = $this->render_full_portal( $customer_id );
+        return apply_filters('themisdb_license_portal_shortcode_html_output', $html, $payload, $atts);
     }
 
     // -------------------------------------------------------------------------

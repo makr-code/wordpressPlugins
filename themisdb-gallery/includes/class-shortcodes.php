@@ -53,6 +53,8 @@ class ThemisDB_Gallery_Shortcodes {
      * @return string HTML output
      */
     public function gallery_shortcode($atts) {
+        $raw_atts = is_array($atts) ? $atts : array();
+
         $atts = shortcode_atts(array(
             'ids' => '',
             'search' => '',
@@ -60,37 +62,123 @@ class ThemisDB_Gallery_Shortcodes {
             'columns' => 3,
             'limit' => 12,
             'show_attribution' => 'yes',
-        ), $atts, 'themisdb_gallery');
-        
-        $html = '<div class="themisdb-gallery themisdb-gallery-columns-' . esc_attr($atts['columns']) . '">';
-        
-        // Display by IDs
+        ), $raw_atts, 'themisdb_gallery');
+
+        $atts = apply_filters('themisdb_gallery_shortcode_atts', $atts, $raw_atts);
+
+        $items = array();
+        $mode = 'empty';
+
+        // Build a normalized payload that themes can reuse for custom markup.
         if (!empty($atts['ids'])) {
+            $mode = 'ids';
             $ids = array_map('intval', explode(',', $atts['ids']));
             foreach ($ids as $attachment_id) {
-                $html .= $this->render_gallery_item($attachment_id, $atts['show_attribution']);
+                if ($attachment_id <= 0) {
+                    continue;
+                }
+
+                $image_url = wp_get_attachment_image_url($attachment_id, 'medium');
+                $image_full = wp_get_attachment_image_url($attachment_id, 'full');
+                if (empty($image_url) || empty($image_full)) {
+                    continue;
+                }
+
+                $title = get_the_title($attachment_id);
+                $attribution = '';
+                if ($atts['show_attribution'] === 'yes') {
+                    $attribution = ThemisDB_Gallery_Media_Handler::get_attribution_html($attachment_id);
+                }
+
+                $items[] = array(
+                    'type' => 'attachment',
+                    'id' => $attachment_id,
+                    'title' => (string) $title,
+                    'thumb' => (string) $image_url,
+                    'url' => (string) $image_full,
+                    'attribution' => (string) $attribution,
+                );
             }
-        }
-        // Display by search
-        elseif (!empty($atts['search'])) {
+        } elseif (!empty($atts['search'])) {
+            $mode = 'search';
             $results = ThemisDB_Gallery_Image_API::search_images(
                 $atts['search'],
                 $atts['provider'],
                 1,
                 intval($atts['limit'])
             );
-            
+
             if (!is_wp_error($results) && !empty($results)) {
                 foreach ($results as $image) {
-                    $html .= $this->render_search_result_item($image, $atts['show_attribution']);
+                    $attribution = '';
+                    if ($atts['show_attribution'] === 'yes') {
+                        $attribution = ThemisDB_Gallery_Media_Handler::generate_attribution_text($image);
+                    }
+
+                    $items[] = array(
+                        'type' => 'search',
+                        'title' => isset($image['title']) ? (string) $image['title'] : '',
+                        'thumb' => isset($image['thumb']) ? (string) $image['thumb'] : '',
+                        'url' => isset($image['url']) ? (string) $image['url'] : '',
+                        'attribution' => (string) $attribution,
+                    );
                 }
-            } else {
-                $html .= '<p>' . __('Keine Bilder gefunden.', 'themisdb-gallery') . '</p>';
             }
+        }
+
+        $payload = array(
+            'mode' => $mode,
+            'items' => $items,
+        );
+
+        $payload = apply_filters('themisdb_gallery_shortcode_payload', $payload, $atts);
+
+        // Allow themes to fully own markup while plugin keeps data logic.
+        $custom_html = apply_filters('themisdb_gallery_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
+        
+        $html = '<div class="themisdb-gallery themisdb-gallery-columns-' . esc_attr($atts['columns']) . '">';
+
+        if (!empty($payload['items']) && is_array($payload['items'])) {
+            foreach ($payload['items'] as $item) {
+                $html .= $this->render_payload_item($item, $atts['show_attribution']);
+            }
+        } elseif ($mode === 'search') {
+            $html .= '<p>' . __('Keine Bilder gefunden.', 'themisdb-gallery') . '</p>';
         }
         
         $html .= '</div>';
-        
+
+        return apply_filters('themisdb_gallery_shortcode_html_output', $html, $payload, $atts);
+    }
+
+    private function render_payload_item($item, $show_attribution) {
+        if (!is_array($item)) {
+            return '';
+        }
+
+        $thumb = isset($item['thumb']) ? (string) $item['thumb'] : '';
+        $url = isset($item['url']) ? (string) $item['url'] : '';
+        $title = isset($item['title']) ? (string) $item['title'] : '';
+        $attribution = isset($item['attribution']) ? (string) $item['attribution'] : '';
+
+        if ('' === $thumb || '' === $url) {
+            return '';
+        }
+
+        $html = '<div class="themisdb-gallery-item">';
+        $html .= '<a href="' . esc_url($url) . '" data-lightbox="themisdb-gallery">';
+        $html .= '<img src="' . esc_url($thumb) . '" alt="' . esc_attr($title) . '" />';
+        $html .= '</a>';
+
+        if ($show_attribution === 'yes' && !empty($attribution)) {
+            $html .= '<div class="themisdb-gallery-attribution">' . $attribution . '</div>';
+        }
+
+        $html .= '</div>';
+
         return $html;
     }
     

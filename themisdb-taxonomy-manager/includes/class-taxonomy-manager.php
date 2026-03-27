@@ -280,6 +280,8 @@ class ThemisDB_Taxonomy_Manager {
             'orderby' => 'name',
             'order' => 'ASC'
         ), $atts);
+
+        $atts = apply_filters('themisdb_taxonomy_shortcode_atts', $atts);
         
         $args = array(
             'taxonomy' => $atts['taxonomy'],
@@ -295,6 +297,32 @@ class ThemisDB_Taxonomy_Manager {
         if (is_wp_error($terms) || empty($terms)) {
             return '';
         }
+
+        $payload_terms = array();
+        foreach ($terms as $term) {
+            $payload_terms[] = array(
+                'term_id' => (int) $term->term_id,
+                'name' => (string) $term->name,
+                'description' => (string) $term->description,
+                'count' => (int) $term->count,
+                'taxonomy' => (string) $term->taxonomy,
+                'link' => esc_url(get_term_link($term)),
+                'icon' => (string) get_term_meta($term->term_id, 'icon', true),
+                'color' => (string) get_term_meta($term->term_id, 'color', true),
+            );
+        }
+
+        $payload = array(
+            'terms' => $payload_terms,
+        );
+
+        $payload = apply_filters('themisdb_taxonomy_shortcode_payload', $payload, $atts);
+
+        // Allow themes to fully own markup while plugin keeps data logic.
+        $custom_html = apply_filters('themisdb_taxonomy_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
         
         ob_start();
         
@@ -306,7 +334,8 @@ class ThemisDB_Taxonomy_Manager {
             $this->render_grid_style($terms, $atts);
         }
         
-        return ob_get_clean();
+        $html = ob_get_clean();
+        return apply_filters('themisdb_taxonomy_shortcode_html_output', $html, $payload, $atts);
     }
     
     /**
@@ -408,6 +437,8 @@ class ThemisDB_Taxonomy_Manager {
             'show_description' => 'yes',
             'show_posts' => 'yes'
         ), $atts);
+
+        $atts = apply_filters('themisdb_term_card_shortcode_atts', $atts);
         
         if (!$atts['term_id']) {
             return '';
@@ -422,6 +453,27 @@ class ThemisDB_Taxonomy_Manager {
         $icon = get_term_meta($term->term_id, 'icon', true);
         $color = get_term_meta($term->term_id, 'color', true);
         $link = get_term_link($term);
+
+        $payload = array(
+            'term' => array(
+                'term_id' => (int) $term->term_id,
+                'name' => (string) $term->name,
+                'description' => (string) $term->description,
+                'count' => (int) $term->count,
+                'taxonomy' => (string) $term->taxonomy,
+                'link' => esc_url($link),
+                'icon' => (string) $icon,
+                'color' => (string) $color,
+            ),
+        );
+
+        $payload = apply_filters('themisdb_term_card_shortcode_payload', $payload, $atts);
+
+        // Allow themes to fully own markup while plugin keeps data logic.
+        $custom_html = apply_filters('themisdb_term_card_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
         
         ob_start();
         ?>
@@ -443,7 +495,8 @@ class ThemisDB_Taxonomy_Manager {
             <?php endif; ?>
         </div>
         <?php
-        return ob_get_clean();
+        $html = ob_get_clean();
+        return apply_filters('themisdb_term_card_shortcode_html_output', $html, $payload, $atts);
     }
     
     /**

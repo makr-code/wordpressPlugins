@@ -192,12 +192,25 @@ class ThemisDB_Wiki_Integration {
             has_shortcode($post->post_content, 'themisdb_docs') ||
             has_shortcode($post->post_content, 'themisdb_wiki_nav')
         )) {
-            wp_enqueue_style(
-                'themisdb-wiki-style',
-                THEMISDB_WIKI_PLUGIN_URL . 'assets/css/wiki-integration.css',
-                array(),
-                THEMISDB_WIKI_VERSION
+            $theme_controls_presentation =
+                wp_style_is('themisdb-style', 'enqueued') ||
+                wp_style_is('themisdb-style', 'registered') ||
+                wp_style_is('lis-a-style', 'enqueued') ||
+                wp_style_is('lis-a-style', 'registered');
+
+            $should_enqueue_frontend_style = apply_filters(
+                'themisdb_wiki_enqueue_frontend_style',
+                !$theme_controls_presentation
             );
+
+            if ($should_enqueue_frontend_style) {
+                wp_enqueue_style(
+                    'themisdb-wiki-style',
+                    THEMISDB_WIKI_PLUGIN_URL . 'assets/css/wiki-integration.css',
+                    array(),
+                    THEMISDB_WIKI_VERSION
+                );
+            }
             
             // Enqueue Mermaid.js for diagram rendering
             wp_enqueue_script(
@@ -279,7 +292,11 @@ class ThemisDB_Wiki_Integration {
         }
         
         // Fetch from GitHub
-        $response = wp_remote_get($api_url, array(
+        if (!function_exists('themisdb_github_bridge_request')) {
+            return new WP_Error('bridge_required', __('ThemisDB GitHub Bridge is required', 'themisdb-wiki-integration'));
+        }
+
+        $response = themisdb_github_bridge_request('GET', $api_url, array(
             'headers' => $headers,
             'timeout' => 30
         ));
@@ -288,13 +305,13 @@ class ThemisDB_Wiki_Integration {
             return new WP_Error('github_fetch_error', $response->get_error_message());
         }
         
-        $status_code = wp_remote_retrieve_response_code($response);
+        $status_code = is_array($response) ? (int) ($response['status_code'] ?? 0) : wp_remote_retrieve_response_code($response);
         
         if ($status_code !== 200) {
             return new WP_Error('github_api_error', sprintf(__('GitHub API returned status code %d', 'themisdb-wiki-integration'), $status_code));
         }
         
-        $content = wp_remote_retrieve_body($response);
+        $content = is_array($response) ? (string) ($response['body'] ?? '') : wp_remote_retrieve_body($response);
         
         // Cache the content
         set_transient($cache_key, $content, THEMISDB_WIKI_CACHE_EXPIRATION);
@@ -346,7 +363,11 @@ class ThemisDB_Wiki_Integration {
         }
         
         // Fetch from GitHub
-        $response = wp_remote_get($api_url, array(
+        if (!function_exists('themisdb_github_bridge_request')) {
+            return array();
+        }
+
+        $response = themisdb_github_bridge_request('GET', $api_url, array(
             'headers' => $headers,
             'timeout' => 30
         ));
@@ -355,13 +376,14 @@ class ThemisDB_Wiki_Integration {
             return array();
         }
         
-        $status_code = wp_remote_retrieve_response_code($response);
+        $status_code = is_array($response) ? (int) ($response['status_code'] ?? 0) : wp_remote_retrieve_response_code($response);
         
         if ($status_code !== 200) {
             return array();
         }
         
-        $content = json_decode(wp_remote_retrieve_body($response), true);
+        $list_body = is_array($response) ? (string) ($response['body'] ?? '') : wp_remote_retrieve_body($response);
+        $content = json_decode($list_body, true);
         
         // Filter for directories and .md files
         $files = array();
@@ -391,53 +413,99 @@ class ThemisDB_Wiki_Integration {
      * Wiki shortcode
      */
     public function wiki_shortcode($atts) {
+        $raw_atts = (array) $atts;
         $atts = shortcode_atts(array(
             'file' => 'README.md',
             'lang' => get_option('themisdb_wiki_default_lang', 'de'),
             'show_toc' => 'no'
-        ), $atts);
+        ), $raw_atts);
+
+        $atts = apply_filters('themisdb_wiki_shortcode_atts', $atts, $raw_atts);
         
         $content = $this->fetch_github_file($atts['file'], $atts['lang']);
+
+        $payload = array(
+            'file' => sanitize_text_field($atts['file']),
+            'lang' => sanitize_key($atts['lang']),
+            'show_toc' => $atts['show_toc'] === 'yes',
+        );
         
         if (is_wp_error($content)) {
-            return '<div class="themisdb-wiki-error">' . esc_html($content->get_error_message()) . '</div>';
+            $payload['error'] = $content->get_error_message();
+            $payload = apply_filters('themisdb_wiki_shortcode_payload', $payload, $atts);
+            $custom_html = apply_filters('themisdb_wiki_shortcode_html', null, $payload, $atts);
+            if (null !== $custom_html) {
+                return (string) $custom_html;
+            }
+            return apply_filters('themisdb_wiki_shortcode_html_output', '<div class="themisdb-wiki-error">' . esc_html($content->get_error_message()) . '</div>', $payload, $atts);
         }
         
         $html = $this->markdown_to_html($content);
+
+        $payload['content'] = $content;
+        $payload['html'] = $html;
+        $payload['toc_html'] = $atts['show_toc'] === 'yes' ? $this->generate_toc($html) : '';
+        $payload = apply_filters('themisdb_wiki_shortcode_payload', $payload, $atts);
+        $custom_html = apply_filters('themisdb_wiki_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
         
         $output = '<div class="themisdb-wiki-container">';
         
         if ($atts['show_toc'] === 'yes') {
-            $output .= $this->generate_toc($html);
+            $output .= $payload['toc_html'];
         }
         
-        $output .= '<div class="themisdb-wiki-content">' . $html . '</div>';
+        $output .= '<div class="themisdb-wiki-content">' . $payload['html'] . '</div>';
         $output .= '</div>';
         
-        return $output;
+        return apply_filters('themisdb_wiki_shortcode_html_output', $output, $payload, $atts);
     }
     
     /**
      * Docs shortcode (lists available docs)
      */
     public function docs_shortcode($atts) {
+        $raw_atts = (array) $atts;
         $atts = shortcode_atts(array(
             'lang' => get_option('themisdb_wiki_default_lang', 'de'),
             'category' => '',
             'layout' => 'list'
-        ), $atts);
+        ), $raw_atts);
+
+        $atts = apply_filters('themisdb_docs_shortcode_atts', $atts, $raw_atts);
         
         $files = $this->list_docs_files($atts['lang']);
+
+        $payload = array(
+            'lang' => sanitize_key($atts['lang']),
+            'category' => sanitize_text_field($atts['category']),
+            'layout' => sanitize_key($atts['layout']),
+            'files' => $files,
+        );
         
         if (empty($files)) {
-            return '<div class="themisdb-docs-error">' . __('No documentation files found.', 'themisdb-wiki-integration') . '</div>';
+            $payload['error'] = __('No documentation files found.', 'themisdb-wiki-integration');
+            $payload = apply_filters('themisdb_docs_shortcode_payload', $payload, $atts);
+            $custom_html = apply_filters('themisdb_docs_shortcode_html', null, $payload, $atts);
+            if (null !== $custom_html) {
+                return (string) $custom_html;
+            }
+            return apply_filters('themisdb_docs_shortcode_html_output', '<div class="themisdb-docs-error">' . __('No documentation files found.', 'themisdb-wiki-integration') . '</div>', $payload, $atts);
+        }
+
+        $payload = apply_filters('themisdb_docs_shortcode_payload', $payload, $atts);
+        $custom_html = apply_filters('themisdb_docs_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
         }
         
         $output = '<div class="themisdb-docs-list">';
         
         if ($atts['layout'] === 'grid') {
             $output .= '<div class="themisdb-docs-grid">';
-            foreach ($files as $file) {
+            foreach ($payload['files'] as $file) {
                 $output .= '<div class="themisdb-doc-item">';
                 $output .= '<h3>' . esc_html($file['name']) . '</h3>';
                 $output .= '<p>' . esc_html($file['type']) . '</p>';
@@ -446,7 +514,7 @@ class ThemisDB_Wiki_Integration {
             $output .= '</div>';
         } else {
             $output .= '<ul>';
-            foreach ($files as $file) {
+            foreach ($payload['files'] as $file) {
                 $icon = $file['type'] === 'dir' ? '📁' : '📄';
                 $output .= '<li>' . $icon . ' ' . esc_html($file['name']) . '</li>';
             }
@@ -455,33 +523,55 @@ class ThemisDB_Wiki_Integration {
         
         $output .= '</div>';
         
-        return $output;
+        return apply_filters('themisdb_docs_shortcode_html_output', $output, $payload, $atts);
     }
     
     /**
      * Wiki Navigation shortcode (from _Sidebar.md)
      */
     public function wiki_nav_shortcode($atts) {
+        $raw_atts = (array) $atts;
         $atts = shortcode_atts(array(
             'lang' => get_option('themisdb_wiki_default_lang', 'de'),
             'style' => 'sidebar' // sidebar, horizontal, accordion
-        ), $atts);
+        ), $raw_atts);
+
+        $atts = apply_filters('themisdb_wiki_nav_shortcode_atts', $atts, $raw_atts);
         
         // Fetch _Sidebar.md file
         $sidebar_content = $this->fetch_github_file('_Sidebar.md', null); // Sidebar is in root docs/
+
+        $payload = array(
+            'lang' => sanitize_key($atts['lang']),
+            'style' => sanitize_key($atts['style']),
+        );
         
         if (is_wp_error($sidebar_content)) {
-            return '<div class="themisdb-wiki-nav-error">' . __('Navigation could not be loaded.', 'themisdb-wiki-integration') . '</div>';
+            $payload['error'] = __('Navigation could not be loaded.', 'themisdb-wiki-integration');
+            $payload = apply_filters('themisdb_wiki_nav_shortcode_payload', $payload, $atts);
+            $custom_html = apply_filters('themisdb_wiki_nav_shortcode_html', null, $payload, $atts);
+            if (null !== $custom_html) {
+                return (string) $custom_html;
+            }
+            return apply_filters('themisdb_wiki_nav_shortcode_html_output', '<div class="themisdb-wiki-nav-error">' . __('Navigation could not be loaded.', 'themisdb-wiki-integration') . '</div>', $payload, $atts);
         }
         
         // Parse the sidebar markdown to create navigation
         $nav_html = $this->parse_sidebar_to_nav($sidebar_content, $atts['lang'], $atts['style']);
+
+        $payload['sidebar_content'] = $sidebar_content;
+        $payload['nav_html'] = $nav_html;
+        $payload = apply_filters('themisdb_wiki_nav_shortcode_payload', $payload, $atts);
+        $custom_html = apply_filters('themisdb_wiki_nav_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
         
         $output = '<nav class="themisdb-wiki-nav themisdb-wiki-nav-' . esc_attr($atts['style']) . '">';
-        $output .= $nav_html;
+        $output .= $payload['nav_html'];
         $output .= '</nav>';
         
-        return $output;
+        return apply_filters('themisdb_wiki_nav_shortcode_html_output', $output, $payload, $atts);
     }
     
     /**

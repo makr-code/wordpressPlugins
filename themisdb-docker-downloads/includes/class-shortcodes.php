@@ -46,12 +46,16 @@ class ThemisDB_Docker_Downloads_Shortcodes {
      * @return string HTML output
      */
     public function render_docker_tags($atts) {
+        $raw_atts = (array) $atts;
+
         $atts = shortcode_atts(array(
             'show' => 'latest',      // 'latest' or 'all'
             'limit' => 10,           // Number of tags to show
             'style' => 'default',    // 'default', 'compact', 'table'
             'architecture' => '',    // Filter by architecture (amd64, arm64, etc.)
-        ), $atts);
+        ), $atts, 'themisdb_docker_tags');
+
+        $atts = apply_filters('themisdb_docker_downloads_shortcode_atts', $atts, $raw_atts);
         
         $api = new ThemisDB_Docker_Downloads_DockerHub_API();
         
@@ -72,16 +76,37 @@ class ThemisDB_Docker_Downloads_Shortcodes {
         if (!empty($atts['architecture'])) {
             $tags = $this->filter_by_architecture($tags, $atts['architecture']);
         }
+
+        $tags = apply_filters('themisdb_docker_downloads_shortcode_tags', $tags, $atts);
+
+        $payload = array(
+            'tags' => $tags,
+            'atts' => $atts,
+        );
+        $payload = apply_filters('themisdb_docker_downloads_shortcode_payload', $payload, $atts);
+        $tags = isset($payload['tags']) && is_array($payload['tags']) ? $payload['tags'] : $tags;
+
+        // Allow themes to fully own markup while plugin keeps data logic.
+        $custom_html = apply_filters('themisdb_docker_downloads_shortcode_html', null, $tags, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
         
         // Render based on style
+        $html = '';
         switch ($atts['style']) {
             case 'compact':
-                return $this->render_compact_style($tags);
+                $html = $this->render_compact_style($tags);
+                break;
             case 'table':
-                return $this->render_table_style($tags);
+                $html = $this->render_table_style($tags);
+                break;
             default:
-                return $this->render_default_style($tags);
+                $html = $this->render_default_style($tags);
+                break;
         }
+
+        return apply_filters('themisdb_docker_downloads_shortcode_html_output', $html, $tags, $atts);
     }
     
     /**
@@ -90,14 +115,40 @@ class ThemisDB_Docker_Downloads_Shortcodes {
      * @return string Tag name or error
      */
     public function render_latest_tag() {
+        $raw_atts = array();
+
+        $atts = shortcode_atts(array(
+            'show' => 'name', // 'name' or 'pull_command'
+        ), $raw_atts, 'themisdb_docker_latest');
+
+        $atts = apply_filters('themisdb_docker_latest_shortcode_atts', $atts, $raw_atts);
+
         $api = new ThemisDB_Docker_Downloads_DockerHub_API();
         $tag = $api->get_latest_tag();
         
         if (is_wp_error($tag)) {
             return 'Error: ' . esc_html($tag->get_error_message());
         }
+
+        $payload = array(
+            'tag' => $tag,
+            'show' => (string) $atts['show'],
+        );
+        $payload = apply_filters('themisdb_docker_latest_shortcode_payload', $payload, $atts);
+
+        $custom_html = apply_filters('themisdb_docker_latest_shortcode_html', null, $payload, $atts);
+        if (null !== $custom_html) {
+            return (string) $custom_html;
+        }
+
+        $html = '';
+        if ($payload['show'] === 'pull_command' && !empty($payload['tag']['pull_command'])) {
+            $html = esc_html($payload['tag']['pull_command']);
+        } else {
+            $html = esc_html($payload['tag']['name']);
+        }
         
-        return esc_html($tag['name']);
+        return apply_filters('themisdb_docker_latest_shortcode_html_output', $html, $payload, $atts);
     }
     
     /**

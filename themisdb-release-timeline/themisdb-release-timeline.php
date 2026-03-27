@@ -77,13 +77,26 @@ function themisdb_rt_enqueue_scripts() {
         true
     );
     
-    // Plugin CSS
-    wp_enqueue_style(
-        'themisdb-release-timeline-css',
-        THEMISDB_RT_PLUGIN_URL . 'assets/css/release-timeline.css',
-        array(),
-        THEMISDB_RT_VERSION
+    // Theme-first presentation: ThemisDB themes own frontend visuals.
+    $theme_controls_presentation =
+        wp_style_is('themisdb-style', 'enqueued') ||
+        wp_style_is('themisdb-style', 'registered') ||
+        wp_style_is('lis-a-style', 'enqueued') ||
+        wp_style_is('lis-a-style', 'registered');
+
+    $should_enqueue_plugin_style = apply_filters(
+        'themisdb_release_timeline_enqueue_frontend_style',
+        ! $theme_controls_presentation
     );
+
+    if ($should_enqueue_plugin_style) {
+        wp_enqueue_style(
+            'themisdb-release-timeline-css',
+            THEMISDB_RT_PLUGIN_URL . 'assets/css/release-timeline.css',
+            array(),
+            THEMISDB_RT_VERSION
+        );
+    }
     
     // Plugin JS
     wp_enqueue_script(
@@ -118,20 +131,58 @@ add_filter('script_loader_tag', 'themisdb_rt_add_crossorigin_scripts', 10, 3);
  * Register shortcode
  */
 function themisdb_rt_shortcode($atts) {
+    $raw_atts = is_array($atts) ? $atts : array();
+
     $atts = shortcode_atts(array(
         'view' => 'chronological', // chronological, gantt, mindmap
         'theme' => 'neutral', // neutral, dark, forest
         'releases' => '10',
-        'source' => 'github', // github, github_milestones, changelog, manual
+        'source' => 'github', // github, github_tags, github_milestones, changelog, manual
         'render_mode' => 'auto', // auto, mermaid, list
         'show_breaking' => 'true',
         'show_features' => 'true',
         'interactive' => 'true'
-    ), $atts);
+    ), $raw_atts, 'themisdb_release_timeline');
+
+    $atts = apply_filters('themisdb_release_timeline_shortcode_atts', $atts, $raw_atts);
+
+    $source = isset($atts['source']) ? sanitize_text_field($atts['source']) : 'github';
+    $releases_count = isset($atts['releases']) ? intval($atts['releases']) : 10;
+
+    switch ($source) {
+        case 'github':
+            $timeline_data = themisdb_rt_fetch_github_releases($releases_count);
+            break;
+        case 'github_tags':
+            $timeline_data = themisdb_rt_fetch_github_tags($releases_count);
+            break;
+        case 'github_milestones':
+            $timeline_data = themisdb_rt_fetch_github_milestones($releases_count);
+            break;
+        case 'changelog':
+            $timeline_data = themisdb_rt_parse_changelog($releases_count);
+            break;
+        case 'manual':
+            $timeline_data = themisdb_rt_get_manual_releases($releases_count);
+            break;
+        default:
+            $timeline_data = themisdb_rt_get_default_releases();
+            break;
+    }
+
+    $timeline_data = apply_filters('themisdb_release_timeline_shortcode_data', $timeline_data, $atts);
+
+    // Allow themes to fully own markup while plugin keeps data logic.
+    $custom_html = apply_filters('themisdb_release_timeline_shortcode_html', null, $timeline_data, $atts);
+    if (null !== $custom_html) {
+        return (string) $custom_html;
+    }
     
     ob_start();
     include THEMISDB_RT_PLUGIN_DIR . 'templates/timeline.php';
-    return ob_get_clean();
+
+    $html = ob_get_clean();
+    return apply_filters('themisdb_release_timeline_shortcode_html_output', $html, $timeline_data, $atts);
 }
 add_shortcode('themisdb_release_timeline', 'themisdb_rt_shortcode');
 
@@ -160,6 +211,9 @@ function themisdb_rt_ajax_load_data() {
         case 'github':
             $data = themisdb_rt_fetch_github_releases($releases_count);
             break;
+        case 'github_tags':
+            $data = themisdb_rt_fetch_github_tags($releases_count);
+            break;
         case 'github_milestones':
             $data = themisdb_rt_fetch_github_milestones($releases_count);
             break;
@@ -186,21 +240,13 @@ add_action('wp_ajax_nopriv_themisdb_rt_load_data', 'themisdb_rt_ajax_load_data')
  */
 function themisdb_rt_fetch_github_releases($count = 10) {
     $github_repo = get_option('themisdb_rt_github_repo', 'makr-code/wordpressPlugins');
-    $api_url = "https://api.github.com/repos/{$github_repo}/releases?per_page={$count}";
-    
-    $response = wp_remote_get($api_url, array(
-        'headers' => themisdb_rt_get_github_headers(),
-        'timeout' => 15
-    ));
-    
-    if (is_wp_error($response)) {
+    if (!function_exists('themisdb_github_bridge_fetch_releases')) {
         return themisdb_rt_get_default_releases();
     }
+
+    $releases = themisdb_github_bridge_fetch_releases($github_repo, $count);
     
-    $body = wp_remote_retrieve_body($response);
-    $releases = json_decode($body, true);
-    
-    if (!is_array($releases)) {
+    if (is_wp_error($releases) || !is_array($releases)) {
         return themisdb_rt_get_default_releases();
     }
     
@@ -221,20 +267,52 @@ function themisdb_rt_fetch_github_releases($count = 10) {
 }
 
 /**
- * Build GitHub API headers and attach token if configured.
+ * Fetch tags from GitHub API and map them to timeline entries.
  */
-function themisdb_rt_get_github_headers() {
-    $headers = array(
-        'Accept' => 'application/vnd.github.v3+json',
-        'User-Agent' => 'ThemisDB-Release-Timeline'
-    );
+function themisdb_rt_fetch_github_tags($count = 10) {
+    $github_repo = get_option('themisdb_rt_github_repo', 'makr-code/wordpressPlugins');
 
-    $github_token = trim((string) get_option('themisdb_rt_github_token', ''));
-    if (!empty($github_token)) {
-        $headers['Authorization'] = 'Bearer ' . $github_token;
+    if (!function_exists('themisdb_github_bridge_fetch_tags')) {
+        return themisdb_rt_get_default_releases();
     }
 
-    return $headers;
+    $tags = themisdb_github_bridge_fetch_tags($github_repo, $count);
+
+    if (is_wp_error($tags) || !is_array($tags) || empty($tags)) {
+        return themisdb_rt_get_default_releases();
+    }
+
+    $formatted = array();
+    foreach ($tags as $tag) {
+        $tag_name = isset($tag['name']) ? (string) $tag['name'] : '';
+        if ($tag_name === '') {
+            continue;
+        }
+
+        $commit = isset($tag['commit']) && is_array($tag['commit']) ? $tag['commit'] : array();
+        $commit_sha = isset($commit['sha']) ? (string) $commit['sha'] : '';
+        $commit_url = isset($commit['url']) ? (string) $commit['url'] : '';
+
+        $features = array();
+        if ($commit_sha !== '') {
+            $features[] = 'Commit: ' . substr($commit_sha, 0, 12);
+        }
+        if ($commit_url !== '') {
+            $features[] = 'API: ' . $commit_url;
+        }
+
+        $formatted[] = array(
+            'version' => $tag_name,
+            'name' => 'Tag ' . $tag_name,
+            'date' => date('Y-m-d'),
+            'body' => 'Imported from GitHub Tags via Bridge.',
+            'breaking' => stripos($tag_name, 'breaking') !== false,
+            'features' => $features,
+            'url' => isset($tag['zipball_url']) ? (string) $tag['zipball_url'] : '',
+        );
+    }
+
+    return !empty($formatted) ? $formatted : themisdb_rt_get_default_releases();
 }
 
 /**
@@ -242,21 +320,13 @@ function themisdb_rt_get_github_headers() {
  */
 function themisdb_rt_fetch_github_milestones($count = 10) {
     $github_repo = get_option('themisdb_rt_github_repo', 'makr-code/wordpressPlugins');
-    $api_url = "https://api.github.com/repos/{$github_repo}/milestones?state=all&sort=due_on&direction=desc&per_page={$count}";
-
-    $response = wp_remote_get($api_url, array(
-        'headers' => themisdb_rt_get_github_headers(),
-        'timeout' => 15
-    ));
-
-    if (is_wp_error($response)) {
+    if (!function_exists('themisdb_github_bridge_fetch_milestones')) {
         return themisdb_rt_get_default_releases();
     }
 
-    $body = wp_remote_retrieve_body($response);
-    $milestones = json_decode($body, true);
+    $milestones = themisdb_github_bridge_fetch_milestones($github_repo, array('per_page' => $count));
 
-    if (!is_array($milestones) || empty($milestones)) {
+    if (is_wp_error($milestones) || !is_array($milestones) || empty($milestones)) {
         return themisdb_rt_get_default_releases();
     }
 
@@ -324,18 +394,16 @@ function themisdb_rt_fetch_milestone_issue_titles($github_repo, $milestone_numbe
         return array();
     }
 
-    $api_url = "https://api.github.com/repos/{$github_repo}/issues?state=all&milestone={$milestone_number}&sort=updated&direction=desc&per_page={$limit}";
-    $response = wp_remote_get($api_url, array(
-        'headers' => themisdb_rt_get_github_headers(),
-        'timeout' => 15
-    ));
-
-    if (is_wp_error($response)) {
+    if (!function_exists('themisdb_github_bridge_fetch_issues')) {
         return array();
     }
 
-    $issues = json_decode(wp_remote_retrieve_body($response), true);
-    if (!is_array($issues)) {
+    $issues = themisdb_github_bridge_fetch_issues($github_repo, array(
+        'milestone' => $milestone_number,
+        'per_page' => $limit,
+    ));
+
+    if (is_wp_error($issues) || !is_array($issues)) {
         return array();
     }
 

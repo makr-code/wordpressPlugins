@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 2,
+  "name": "themisdb/front-slider",
+  "version": "1.1.0",
+  "title": "ThemisDB Front Slider",
+  "category": "widgets",
+  "icon": "images-alt2",
+  "description": "Konfigurierbarer Beitrags-Slider mit Timer und Autoplay.",
+  "keywords": ["slider", "hero", "posts", "themisdb"],
+  "textdomain": "themisdb-front-slider",
+  "editorScript": "themisdb-front-slider-block-editor",
+  "attributes": {
+    "posts": {
+      "type": "number",
+      "default": 5
+    },
+    "interval": {
+      "type": "number",
+      "default": 5000
+    },
+    "category": {
+      "type": "string",
+      "default": ""
+    },
+    "excerpt": {
+      "type": "boolean",
+      "default": true
+    },
+    "date": {
+      "type": "boolean",
+      "default": true
+    },
+    "cat_label": {
+      "type": "boolean",
+      "default": true
+    },
+    "autoplay": {
+      "type": "boolean",
+      "default": true
+    },
+    "accent_color": {
+      "type": "string",
+      "default": "#0284c7"
+    },
+    "readmore_text": {
+      "type": "string",
+      "default": "Weiterlesen \u2192"
+    },
+    "img_size": {
+      "type": "string",
+      "default": "large"
+    },
+    "layout_preset": {
+      "type": "string",
+      "default": "clean"
+    }
+  },
+  "supports": {
+    "html": false,
+    "anchor": true,
+    "align": ["wide", "full"]
+  }
+}
