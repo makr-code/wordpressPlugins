@@ -26,6 +26,8 @@ class ThemisDB_Support_Admin {
         // AJAX handlers for admin actions
         add_action('wp_ajax_themisdb_support_admin_reply', array($this, 'handle_admin_reply'));
         add_action('wp_ajax_themisdb_support_admin_status', array($this, 'handle_status_change'));
+        add_action('wp_ajax_themisdb_support_admin_assign', array($this, 'handle_quick_assign_ajax'));
+        add_action('wp_ajax_themisdb_support_admin_bulk', array($this, 'handle_bulk_action_ajax'));
     }
 
     // -------------------------------------------------------------------------
@@ -79,6 +81,12 @@ class ThemisDB_Support_Admin {
         register_setting('themisdb_support_settings', 'themisdb_support_email_notifications', array(
             'sanitize_callback' => 'absint',
         ));
+        register_setting('themisdb_support_settings', 'themisdb_support_status_email_notifications', array(
+            'sanitize_callback' => 'absint',
+        ));
+        register_setting('themisdb_support_settings', 'themisdb_support_assignee_email_notifications', array(
+            'sanitize_callback' => 'absint',
+        ));
         register_setting('themisdb_support_settings', 'themisdb_support_email_from', array(
             'sanitize_callback' => 'sanitize_email',
         ));
@@ -87,6 +95,9 @@ class ThemisDB_Support_Admin {
         ));
         register_setting('themisdb_support_settings', 'themisdb_support_admin_email', array(
             'sanitize_callback' => 'sanitize_email',
+        ));
+        register_setting('themisdb_support_settings', 'themisdb_support_default_assignee_user_id', array(
+            'sanitize_callback' => 'absint',
         ));
     }
 
@@ -123,15 +134,17 @@ class ThemisDB_Support_Admin {
         }
 
         // Build filter arguments from GET params
-        $status   = isset($_GET['status'])   ? sanitize_text_field($_GET['status'])   : '';
-        $priority = isset($_GET['priority']) ? sanitize_text_field($_GET['priority']) : '';
-        $paged    = isset($_GET['paged'])    ? max(1, intval($_GET['paged']))          : 1;
+        $status           = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
+        $priority         = isset($_GET['priority']) ? sanitize_text_field($_GET['priority']) : '';
+        $assignee_user_id = isset($_GET['assignee_user_id']) ? max(0, intval($_GET['assignee_user_id'])) : 0;
+        $paged            = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
 
         $result = ThemisDB_SupportPortal_Ticket_Manager::get_tickets(array(
-            'status'   => $status,
-            'priority' => $priority,
-            'per_page' => 20,
-            'page'     => $paged,
+            'status'           => $status,
+            'priority'         => $priority,
+            'assignee_user_id' => $assignee_user_id,
+            'per_page'         => 20,
+            'page'             => $paged,
         ));
 
         $tickets        = $result['tickets'];
@@ -140,8 +153,41 @@ class ThemisDB_Support_Admin {
         $status_labels  = ThemisDB_SupportPortal_Ticket_Manager::get_status_labels();
         $priority_labels = ThemisDB_SupportPortal_Ticket_Manager::get_priority_labels();
         $status_counts = $this->get_ticket_status_counts();
+        $quick_filter_counts = $this->get_quick_filter_counts();
+        $assignable_agents = $this->get_assignable_agents();
 
         include THEMISDB_SUPPORT_PLUGIN_DIR . 'templates/admin-tickets.php';
+    }
+
+    /**
+     * Return assignable WordPress editors/admins for ticket ownership.
+     *
+     * @return array[]
+     */
+    private function get_assignable_agents() {
+        $users = get_users(array(
+            'role__in' => array('administrator', 'editor'),
+            'orderby'  => 'display_name',
+            'order'    => 'ASC',
+            'fields'   => array('ID', 'display_name', 'user_email'),
+        ));
+
+        $agents = array();
+        foreach ((array) $users as $user) {
+            if (!($user instanceof WP_User)) {
+                continue;
+            }
+            if (!user_can($user, 'edit_posts')) {
+                continue;
+            }
+
+            $agents[] = array(
+                'id'    => intval($user->ID),
+                'label' => sprintf('%s (%s)', $user->display_name, $user->user_email),
+            );
+        }
+
+        return $agents;
     }
 
     /**
@@ -230,6 +276,45 @@ class ThemisDB_Support_Admin {
     }
 
     /**
+     * Get counts for quick-filter combinations.
+     *
+     * @return array
+     */
+    private function get_quick_filter_counts() {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'themisdb_support_tickets';
+        
+        return array(
+            'open_high' => intval($wpdb->get_var(
+                "SELECT COUNT(*) FROM $table WHERE status = 'open' AND priority = 'high'"
+            )),
+            'open_urgent' => intval($wpdb->get_var(
+                "SELECT COUNT(*) FROM $table WHERE status = 'open' AND priority = 'urgent'"
+            )),
+            'progress_high' => intval($wpdb->get_var(
+                "SELECT COUNT(*) FROM $table WHERE status = 'in_progress' AND priority = 'high'"
+            )),
+        );
+    }
+
+    /**
+     * Build status and total count summary for admin list UI refreshes.
+     *
+     * @return array
+     */
+    private function get_ticket_count_summary() {
+        $status_counts = $this->get_ticket_status_counts();
+        $quick_filter_counts = $this->get_quick_filter_counts();
+
+        return array(
+            'status_counts' => $status_counts,
+            'quick_filter_counts' => $quick_filter_counts,
+            'total_count' => array_sum(array_map('intval', $status_counts)),
+        );
+    }
+
+    /**
      * Build list-state args from current GET query.
      *
      * @return array
@@ -241,6 +326,7 @@ class ThemisDB_Support_Admin {
 
         $status = isset($_GET['status']) ? sanitize_key(wp_unslash($_GET['status'])) : '';
         $priority = isset($_GET['priority']) ? sanitize_key(wp_unslash($_GET['priority'])) : '';
+        $assignee_user_id = isset($_GET['assignee_user_id']) ? max(0, intval($_GET['assignee_user_id'])) : 0;
         $paged = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
 
         if ($status !== '') {
@@ -249,6 +335,10 @@ class ThemisDB_Support_Admin {
 
         if ($priority !== '') {
             $args['priority'] = $priority;
+        }
+
+        if ($assignee_user_id > 0) {
+            $args['assignee_user_id'] = $assignee_user_id;
         }
 
         if ($paged > 1) {
@@ -278,6 +368,9 @@ class ThemisDB_Support_Admin {
             case 'bulk_tickets':
                 $this->handle_bulk_ticket_action();
                 break;
+            case 'quick_assign_ticket':
+                $this->handle_quick_assign_ticket_action();
+                break;
             case 'update_ticket':
                 $this->handle_update_ticket_action();
                 break;
@@ -302,6 +395,7 @@ class ThemisDB_Support_Admin {
             'customer_company' => isset($_POST['customer_company']) ? sanitize_text_field(wp_unslash($_POST['customer_company'])) : '',
             'license_key' => isset($_POST['license_key']) ? sanitize_text_field(wp_unslash($_POST['license_key'])) : '',
             'user_id' => isset($_POST['user_id']) ? intval($_POST['user_id']) : 0,
+            'assignee_user_id' => isset($_POST['assignee_user_id']) ? intval($_POST['assignee_user_id']) : 0,
         );
 
         if ($data['subject'] === '' || trim(wp_strip_all_tags($data['message'])) === '' || !is_email($data['customer_email'])) {
@@ -335,16 +429,7 @@ class ThemisDB_Support_Admin {
     private function handle_bulk_ticket_action() {
         check_admin_referer('themisdb_support_bulk_tickets', 'themisdb_support_nonce');
 
-        $bulk_action = '';
-        if (isset($_POST['bulk_action_top'])) {
-            $bulk_action = sanitize_key(wp_unslash($_POST['bulk_action_top']));
-        }
-        if ($bulk_action === '' && isset($_POST['bulk_action_bottom'])) {
-            $bulk_action = sanitize_key(wp_unslash($_POST['bulk_action_bottom']));
-        }
-        if ($bulk_action === '' && isset($_POST['bulk_action'])) {
-            $bulk_action = sanitize_key(wp_unslash($_POST['bulk_action']));
-        }
+        $bulk_action = $this->get_bulk_action_from_request($_POST);
         $ticket_ids = isset($_POST['ticket_ids']) ? array_map('intval', (array) $_POST['ticket_ids']) : array();
         $list_state_args = $this->get_list_state_args_from_post();
 
@@ -355,6 +440,42 @@ class ThemisDB_Support_Admin {
             )));
         }
 
+        $result = $this->process_bulk_ticket_action($bulk_action, $ticket_ids);
+        $this->redirect_to_tickets(array_merge($list_state_args, array(
+            'support_notice' => $result['message'],
+            'support_notice_type' => $result['notice_type'],
+        )));
+    }
+
+    /**
+     * Normalize bulk action from POST payload.
+     *
+     * @param array $request
+     * @return string
+     */
+    private function get_bulk_action_from_request($request) {
+        $bulk_action = '';
+        if (isset($request['bulk_action_top'])) {
+            $bulk_action = sanitize_key(wp_unslash($request['bulk_action_top']));
+        }
+        if ($bulk_action === '' && isset($request['bulk_action_bottom'])) {
+            $bulk_action = sanitize_key(wp_unslash($request['bulk_action_bottom']));
+        }
+        if ($bulk_action === '' && isset($request['bulk_action'])) {
+            $bulk_action = sanitize_key(wp_unslash($request['bulk_action']));
+        }
+
+        return $bulk_action;
+    }
+
+    /**
+     * Execute bulk ticket action and return structured result.
+     *
+     * @param string $bulk_action
+     * @param array  $ticket_ids
+     * @return array
+     */
+    private function process_bulk_ticket_action($bulk_action, $ticket_ids) {
         $status_actions = array(
             'status_open' => ThemisDB_SupportPortal_Ticket_Manager::STATUS_OPEN,
             'status_in_progress' => ThemisDB_SupportPortal_Ticket_Manager::STATUS_IN_PROGRESS,
@@ -364,24 +485,62 @@ class ThemisDB_Support_Admin {
 
         if (isset($status_actions[$bulk_action])) {
             $count = ThemisDB_SupportPortal_Ticket_Manager::bulk_update_status($ticket_ids, $status_actions[$bulk_action]);
-            $this->redirect_to_tickets(array_merge($list_state_args, array(
-                'support_notice' => sprintf(__('Status bei %d Ticket(s) aktualisiert.', 'themisdb-support-portal'), $count),
-                'support_notice_type' => $count > 0 ? 'success' : 'warning',
-            )));
+            return array(
+                'message' => sprintf(__('Status bei %d Ticket(s) aktualisiert.', 'themisdb-support-portal'), $count),
+                'notice_type' => $count > 0 ? 'success' : 'warning',
+                'effect' => 'status',
+                'status' => $status_actions[$bulk_action],
+                'count' => $count,
+            );
+        }
+
+        if ($bulk_action === 'assign_none') {
+            $count = ThemisDB_SupportPortal_Ticket_Manager::bulk_update_assignee($ticket_ids, null);
+            return array(
+                'message' => sprintf(__('Zuweisung bei %d Ticket(s) entfernt.', 'themisdb-support-portal'), $count),
+                'notice_type' => $count > 0 ? 'success' : 'warning',
+                'effect' => 'assign',
+                'assignee_user_id' => 0,
+                'count' => $count,
+            );
+        }
+
+        if (strpos($bulk_action, 'assign_user_') === 0) {
+            $assignee_user_id = intval(substr($bulk_action, strlen('assign_user_')));
+            if ($assignee_user_id <= 0) {
+                return array(
+                    'message' => __('Ungueltiger Bearbeiter fuer Bulk-Zuweisung.', 'themisdb-support-portal'),
+                    'notice_type' => 'error',
+                    'effect' => 'assign',
+                );
+            }
+
+            $count = ThemisDB_SupportPortal_Ticket_Manager::bulk_update_assignee($ticket_ids, $assignee_user_id);
+            return array(
+                'message' => sprintf(__('Bearbeiter bei %d Ticket(s) aktualisiert.', 'themisdb-support-portal'), $count),
+                'notice_type' => $count > 0 ? 'success' : 'warning',
+                'effect' => 'assign',
+                'assignee_user_id' => $assignee_user_id,
+                'count' => $count,
+            );
         }
 
         if ($bulk_action === 'delete') {
             $count = ThemisDB_SupportPortal_Ticket_Manager::bulk_delete_tickets($ticket_ids);
-            $this->redirect_to_tickets(array_merge($list_state_args, array(
-                'support_notice' => sprintf(__('%d Ticket(s) geloescht.', 'themisdb-support-portal'), $count),
-                'support_notice_type' => $count > 0 ? 'success' : 'warning',
-            )));
+            return array(
+                'message' => sprintf(__('%d Ticket(s) geloescht.', 'themisdb-support-portal'), $count),
+                'notice_type' => $count > 0 ? 'success' : 'warning',
+                'effect' => 'delete',
+                'count' => $count,
+            );
         }
 
-        $this->redirect_to_tickets(array_merge($list_state_args, array(
-            'support_notice' => __('Unbekannte Bulk-Aktion.', 'themisdb-support-portal'),
-            'support_notice_type' => 'error',
-        )));
+        return array(
+            'message' => __('Unbekannte Bulk-Aktion.', 'themisdb-support-portal'),
+            'notice_type' => 'error',
+            'effect' => 'unknown',
+            'count' => 0,
+        );
     }
 
     /**
@@ -396,6 +555,7 @@ class ThemisDB_Support_Admin {
 
         $status = isset($_POST['current_status']) ? sanitize_key($_POST['current_status']) : '';
         $priority = isset($_POST['current_priority']) ? sanitize_key($_POST['current_priority']) : '';
+        $assignee_user_id = isset($_POST['current_assignee_user_id']) ? max(0, intval($_POST['current_assignee_user_id'])) : 0;
         $paged = isset($_POST['current_paged']) ? max(1, intval($_POST['current_paged'])) : 1;
 
         if ($status !== '') {
@@ -406,11 +566,44 @@ class ThemisDB_Support_Admin {
             $args['priority'] = $priority;
         }
 
+        if ($assignee_user_id > 0) {
+            $args['assignee_user_id'] = $assignee_user_id;
+        }
+
         if ($paged > 1) {
             $args['paged'] = $paged;
         }
 
         return $args;
+    }
+
+    /**
+     * Handle per-row quick assignee update from the ticket list.
+     */
+    private function handle_quick_assign_ticket_action() {
+        check_admin_referer('themisdb_support_quick_assign_ticket', 'themisdb_support_nonce');
+
+        $ticket_id = isset($_POST['ticket_id']) ? intval($_POST['ticket_id']) : 0;
+        $assignee_user_id = isset($_POST['assignee_user_id']) ? intval($_POST['assignee_user_id']) : 0;
+        $list_state_args = $this->get_list_state_args_from_post();
+
+        if ($ticket_id <= 0) {
+            $this->redirect_to_tickets(array_merge($list_state_args, array(
+                'support_notice' => __('Ungueltige Ticket-ID fuer Schnellzuweisung.', 'themisdb-support-portal'),
+                'support_notice_type' => 'error',
+            )));
+        }
+
+        $updated = ThemisDB_SupportPortal_Ticket_Manager::update_ticket($ticket_id, array(
+            'assignee_user_id' => $assignee_user_id,
+        ));
+
+        $this->redirect_to_tickets(array_merge($list_state_args, array(
+            'support_notice' => $updated
+                ? __('Bearbeiter erfolgreich aktualisiert.', 'themisdb-support-portal')
+                : __('Bearbeiter konnte nicht aktualisiert werden.', 'themisdb-support-portal'),
+            'support_notice_type' => $updated ? 'success' : 'error',
+        )));
     }
 
     /**
@@ -435,6 +628,7 @@ class ThemisDB_Support_Admin {
             'customer_email' => isset($_POST['customer_email']) ? sanitize_email(wp_unslash($_POST['customer_email'])) : '',
             'customer_company' => isset($_POST['customer_company']) ? sanitize_text_field(wp_unslash($_POST['customer_company'])) : '',
             'license_key' => isset($_POST['license_key']) ? sanitize_text_field(wp_unslash($_POST['license_key'])) : '',
+            'assignee_user_id' => isset($_POST['assignee_user_id']) ? intval($_POST['assignee_user_id']) : 0,
         );
 
         $updated = ThemisDB_SupportPortal_Ticket_Manager::update_ticket($ticket_id, $data);
@@ -511,6 +705,7 @@ class ThemisDB_Support_Admin {
 
         $status_labels   = ThemisDB_SupportPortal_Ticket_Manager::get_status_labels();
         $priority_labels = ThemisDB_SupportPortal_Ticket_Manager::get_priority_labels();
+        $assignable_agents = $this->get_assignable_agents();
         $support_context = $this->resolve_support_context_for_ticket($ticket);
         $support_license = isset($support_context['license']) ? $support_context['license'] : null;
         $support_benefit = isset($support_context['benefit']) ? $support_context['benefit'] : null;
@@ -545,6 +740,11 @@ class ThemisDB_Support_Admin {
         if (!empty($list_state_args['priority'])) {
             $where[] = 'priority = %s';
             $params[] = sanitize_key($list_state_args['priority']);
+        }
+
+        if (!empty($list_state_args['assignee_user_id'])) {
+            $where[] = 'assignee_user_id = %d';
+            $params[] = intval($list_state_args['assignee_user_id']);
         }
 
         $sql = "SELECT id FROM $table WHERE " . implode(' AND ', $where) . ' ORDER BY created_at DESC, id DESC';
@@ -625,6 +825,8 @@ class ThemisDB_Support_Admin {
             wp_die(__('Keine Berechtigung', 'themisdb-support-portal'));
         }
 
+        $assignable_agents = $this->get_assignable_agents();
+
         include THEMISDB_SUPPORT_PLUGIN_DIR . 'templates/admin-settings.php';
     }
 
@@ -702,11 +904,95 @@ class ThemisDB_Support_Admin {
         }
 
         $status_labels = ThemisDB_SupportPortal_Ticket_Manager::get_status_labels();
+        $count_summary = $this->get_ticket_count_summary();
 
         wp_send_json_success(array(
             'message'      => __('Status aktualisiert', 'themisdb-support-portal'),
             'status'       => $status,
             'status_label' => isset($status_labels[$status]) ? $status_labels[$status] : $status,
+            'count_summary' => $count_summary,
         ));
+    }
+
+    /**
+     * Handle AJAX quick assignee update from admin ticket list.
+     */
+    public function handle_quick_assign_ajax() {
+        check_ajax_referer('themisdb_support_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Keine Berechtigung', 'themisdb-support-portal')));
+        }
+
+        $ticket_id = isset($_POST['ticket_id']) ? intval($_POST['ticket_id']) : 0;
+        $assignee_user_id = isset($_POST['assignee_user_id']) ? intval($_POST['assignee_user_id']) : 0;
+
+        if ($ticket_id <= 0) {
+            wp_send_json_error(array('message' => __('Ungueltige Ticket-ID', 'themisdb-support-portal')));
+        }
+
+        $updated = ThemisDB_SupportPortal_Ticket_Manager::update_ticket($ticket_id, array(
+            'assignee_user_id' => $assignee_user_id,
+        ));
+
+        if (!$updated) {
+            wp_send_json_error(array('message' => __('Bearbeiter konnte nicht aktualisiert werden', 'themisdb-support-portal')));
+        }
+
+        $ticket = ThemisDB_SupportPortal_Ticket_Manager::get_ticket($ticket_id);
+        $assignee_label = __('Nicht zugewiesen', 'themisdb-support-portal');
+        if ($ticket && !empty($ticket['assignee_user_id'])) {
+            $assignee_user = get_user_by('id', intval($ticket['assignee_user_id']));
+            if ($assignee_user instanceof WP_User) {
+                $assignee_label = sprintf('%s (%s)', $assignee_user->display_name, $assignee_user->user_email);
+            }
+        }
+
+        wp_send_json_success(array(
+            'message' => __('Bearbeiter aktualisiert', 'themisdb-support-portal'),
+            'assignee_label' => $assignee_label,
+            'assignee_user_id' => $ticket && isset($ticket['assignee_user_id']) ? intval($ticket['assignee_user_id']) : 0,
+        ));
+    }
+
+    /**
+     * Handle bulk ticket actions via AJAX.
+     */
+    public function handle_bulk_action_ajax() {
+        check_ajax_referer('themisdb_support_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Keine Berechtigung', 'themisdb-support-portal')));
+        }
+
+        $bulk_action = $this->get_bulk_action_from_request($_POST);
+        $ticket_ids = isset($_POST['ticket_ids']) ? array_map('intval', (array) $_POST['ticket_ids']) : array();
+
+        if ($bulk_action === '' || empty($ticket_ids)) {
+            wp_send_json_error(array('message' => __('Bitte Aktion und mindestens ein Ticket auswaehlen.', 'themisdb-support-portal')));
+        }
+
+        $result = $this->process_bulk_ticket_action($bulk_action, $ticket_ids);
+        $response = array(
+            'message' => $result['message'],
+            'notice_type' => $result['notice_type'],
+            'effect' => $result['effect'],
+            'count' => $result['count'],
+            'ticket_ids' => array_values(array_map('intval', $ticket_ids)),
+        );
+
+        if (isset($result['status'])) {
+            $response['status'] = $result['status'];
+        }
+        if (isset($result['assignee_user_id'])) {
+            $response['assignee_user_id'] = intval($result['assignee_user_id']);
+        }
+        $response['count_summary'] = $this->get_ticket_count_summary();
+
+        if ($result['notice_type'] === 'error') {
+            wp_send_json_error($response);
+        }
+
+        wp_send_json_success($response);
     }
 }

@@ -331,9 +331,14 @@
    "No posts" message
    ========================================================= */
 .themisdb-fs-no-posts {
-    color: #64748b;
-    font-style: italic;
-    padding: 1rem 0;
+    margin: 0;
+    padding: 1rem 1.1rem;
+    border: 1px dashed #cbd5e1;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    color: #475569;
+    font-style: normal;
+    font-weight: 600;
 }
 
 /* =========================================================
@@ -354,6 +359,95 @@
 @media (max-width: 639px) {
     .themisdb-fs-btn {
         display: none;
+    }
+}
+
+/* =========================================================
+   Layout Presets
+   ========================================================= */
+
+/* Compact: Nur Text, kein Bild, dafür größer */
+.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-slide-inner {
+    grid-template-columns: 1fr;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-slide-image {
+    display: none !important;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-slide-content {
+    padding: 4rem 3rem;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-title {
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+}
+
+.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-excerpt {
+    font-size: 1rem;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-meta {
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+/* Magazine: Vollbreite, Bild oben über Text */
+.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-slide-inner {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-slide-image {
+    order: -1;
+    width: 100%;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-image-card {
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-image-card img {
+    border-radius: 0;
+    aspect-ratio: 21 / 9;
+    object-fit: cover;
+    width: 100%;
+    height: auto;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-slide-content {
+    padding: 2rem 2.5rem 3rem;
+    background: rgba(255, 255, 255, 0.98);
+}
+
+.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-title {
+    font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+}
+
+.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-blob-1,
+.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-blob-2 {
+    display: none;
+}
+
+@media (max-width: 1023px) {
+    /* Compact und Magazine auf Mobile */
+    .themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-slide-content {
+        padding: 2.5rem 1.5rem;
+    }
+
+    .themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-slide-content {
+        padding: 1.5rem 1.5rem 2rem;
+    }
+
+    .themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-image-card img {
+        aspect-ratio: 16 / 10;
     }
 }
 

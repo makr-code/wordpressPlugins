@@ -90,6 +90,24 @@ if (!defined('ABSPATH')) {
                         <td><?php echo esc_html($ticket['customer_name']); ?></td>
                     </tr>
                     <tr>
+                        <th><?php esc_html_e('Bearbeiter', 'themisdb-support-portal'); ?></th>
+                        <td>
+                            <?php
+                            $assignee_user_id = isset($ticket['assignee_user_id']) ? intval($ticket['assignee_user_id']) : 0;
+                            if ($assignee_user_id > 0) {
+                                $assignee_user = get_user_by('id', $assignee_user_id);
+                                if ($assignee_user instanceof WP_User) {
+                                    echo esc_html($assignee_user->display_name . ' (' . $assignee_user->user_email . ')');
+                                } else {
+                                    esc_html_e('Nicht zugewiesen', 'themisdb-support-portal');
+                                }
+                            } else {
+                                esc_html_e('Nicht zugewiesen', 'themisdb-support-portal');
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                    <tr>
                         <th><?php esc_html_e('Letzte Aktualisierung', 'themisdb-support-portal'); ?></th>
                         <td><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($ticket['updated_at']))); ?></td>
                     </tr>
@@ -152,10 +170,13 @@ if (!defined('ABSPATH')) {
                 <!-- Messages thread -->
                 <div class="themisdb-support-admin-messages" id="themisdb-support-admin-messages">
                     <?php foreach ($messages as $msg): ?>
-                        <div class="themisdb-support-admin-message <?php echo $msg['is_admin_reply'] ? 'themisdb-support-admin-message-admin' : 'themisdb-support-admin-message-customer'; ?>">
+                        <?php $is_system_message = ThemisDB_SupportPortal_Ticket_Manager::is_system_message($msg); ?>
+                        <div class="themisdb-support-admin-message <?php echo $is_system_message ? 'themisdb-support-admin-message-system' : ($msg['is_admin_reply'] ? 'themisdb-support-admin-message-admin' : 'themisdb-support-admin-message-customer'); ?>">
                             <div class="themisdb-support-admin-message-header">
                                 <strong><?php echo esc_html($msg['author_name']); ?></strong>
-                                <?php if ($msg['is_admin_reply']): ?>
+                                <?php if ($is_system_message): ?>
+                                    <span class="themisdb-support-admin-badge themisdb-support-admin-badge-system"><?php esc_html_e('System', 'themisdb-support-portal'); ?></span>
+                                <?php elseif ($msg['is_admin_reply']): ?>
                                     <span class="themisdb-support-admin-badge"><?php esc_html_e('Support-Team', 'themisdb-support-portal'); ?></span>
                                 <?php endif; ?>
                                 <span class="themisdb-support-admin-message-date">
@@ -334,6 +355,19 @@ if (!defined('ABSPATH')) {
                     <div class="themisdb-support-form-group">
                         <label for="themisdb-edit-license-key"><?php esc_html_e('Lizenzschlüssel', 'themisdb-support-portal'); ?></label>
                         <input type="text" id="themisdb-edit-license-key" name="license_key" value="<?php echo esc_attr($ticket['license_key']); ?>">
+                    </div>
+
+                    <div class="themisdb-support-form-group">
+                        <label for="themisdb-edit-assignee-user-id"><?php esc_html_e('Bearbeiter zuweisen', 'themisdb-support-portal'); ?></label>
+                        <select id="themisdb-edit-assignee-user-id" name="assignee_user_id">
+                            <option value="0"><?php esc_html_e('Nicht zugewiesen', 'themisdb-support-portal'); ?></option>
+                            <?php foreach ((array) $assignable_agents as $agent): ?>
+                                <option value="<?php echo esc_attr($agent['id']); ?>" <?php selected(intval($ticket['assignee_user_id']), intval($agent['id'])); ?>>
+                                    <?php echo esc_html($agent['label']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description"><?php esc_html_e('Neue Ticket- und Status-Mails gehen bevorzugt an diesen Bearbeiter.', 'themisdb-support-portal'); ?></p>
                     </div>
 
                     <div class="themisdb-support-form-actions">

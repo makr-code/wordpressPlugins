@@ -8,6 +8,21 @@
 if (!defined('ABSPATH')) {
     exit;
 }
+
+$assignee_labels = array();
+foreach ((array) $assignable_agents as $agent) {
+    $assignee_labels[intval($agent['id'])] = $agent['label'];
+}
+
+$render_bulk_assignment_options = static function ($assignable_agents) {
+    ?>
+    <option value="assign_none"><?php esc_html_e('Zuweisung entfernen', 'themisdb-support-portal'); ?></option>
+    <?php foreach ((array) $assignable_agents as $agent): ?>
+        <option value="<?php echo esc_attr('assign_user_' . intval($agent['id'])); ?>">
+            <?php echo esc_html(sprintf(__('Bearbeiter: %s', 'themisdb-support-portal'), $agent['label'])); ?>
+        </option>
+    <?php endforeach;
+};
 ?>
 <div class="wrap themisdb-support-admin-wrap">
     <h1 class="wp-heading-inline">
@@ -65,15 +80,15 @@ if (!defined('ABSPATH')) {
                     <tbody>
                         <tr>
                             <th><?php esc_html_e('Alle Tickets', 'themisdb-support-portal'); ?></th>
-                            <td><?php echo esc_html($all_count); ?></td>
+                            <td><span data-dashboard-count="all"><?php echo esc_html($all_count); ?></span></td>
                         </tr>
                         <tr>
                             <th><?php esc_html_e('Offen', 'themisdb-support-portal'); ?></th>
-                            <td><?php echo esc_html($open_count); ?></td>
+                            <td><span data-dashboard-count="open"><?php echo esc_html($open_count); ?></span></td>
                         </tr>
                         <tr>
                             <th><?php esc_html_e('In Bearbeitung', 'themisdb-support-portal'); ?></th>
-                            <td><?php echo esc_html($in_progress_count); ?></td>
+                            <td><span data-dashboard-count="in_progress"><?php echo esc_html($in_progress_count); ?></span></td>
                         </tr>
                     </tbody>
                 </table>
@@ -126,6 +141,18 @@ if (!defined('ABSPATH')) {
                             <th scope="row"><label for="themisdb-user-id"><?php esc_html_e('WordPress User-ID', 'themisdb-support-portal'); ?></label></th>
                             <td><input type="number" name="user_id" id="themisdb-user-id" class="small-text" min="0" step="1"></td>
                         </tr>
+                        <tr>
+                            <th scope="row"><label for="themisdb-assignee-user-id"><?php esc_html_e('Bearbeiter zuweisen', 'themisdb-support-portal'); ?></label></th>
+                            <td>
+                                <select name="assignee_user_id" id="themisdb-assignee-user-id">
+                                    <option value="0"><?php esc_html_e('Nicht zugewiesen', 'themisdb-support-portal'); ?></option>
+                                    <?php foreach ((array) $assignable_agents as $agent): ?>
+                                        <option value="<?php echo esc_attr($agent['id']); ?>"><?php echo esc_html($agent['label']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description"><?php esc_html_e('Benachrichtigungen werden bevorzugt an den zugewiesenen Bearbeiter versendet.', 'themisdb-support-portal'); ?></p>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
 
@@ -149,46 +176,33 @@ if (!defined('ABSPATH')) {
                     <tbody>
                         <tr>
                             <th><?php esc_html_e('Alle Tickets', 'themisdb-support-portal'); ?></th>
-                            <td><?php echo esc_html($all_count); ?></td>
+                            <td><span data-dashboard-count="all"><?php echo esc_html($all_count); ?></span></td>
                         </tr>
                         <tr>
                             <th><?php esc_html_e('Offen', 'themisdb-support-portal'); ?></th>
-                            <td><?php echo esc_html($open_count); ?></td>
+                            <td><span data-dashboard-count="open"><?php echo esc_html($open_count); ?></span></td>
                         </tr>
                         <tr>
                             <th><?php esc_html_e('In Bearbeitung', 'themisdb-support-portal'); ?></th>
-                            <td><?php echo esc_html($in_progress_count); ?></td>
+                            <td><span data-dashboard-count="in_progress"><?php echo esc_html($in_progress_count); ?></span></td>
                         </tr>
                         <tr>
                             <th><?php esc_html_e('Geloest', 'themisdb-support-portal'); ?></th>
-                            <td><?php echo esc_html($resolved_count); ?></td>
+                            <td><span data-dashboard-count="resolved"><?php echo esc_html($resolved_count); ?></span></td>
                         </tr>
                         <tr>
                             <th><?php esc_html_e('Geschlossen', 'themisdb-support-portal'); ?></th>
-                            <td><?php echo esc_html($closed_count); ?></td>
+                            <td><span data-dashboard-count="closed"><?php echo esc_html($closed_count); ?></span></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <?php
-        $status_tab_links = array(
-            '' => sprintf(__('Alle <span class="count">(%d)</span>', 'themisdb-support-portal'), $all_count),
-        );
-
-        foreach ($status_labels as $status_key => $status_label) {
-            $status_tab_links[$status_key] = sprintf(
-                '%s <span class="count">(%d)</span>',
-                esc_html($status_label),
-                isset($status_counts[$status_key]) ? intval($status_counts[$status_key]) : 0
-            );
-        }
-        ?>
-
         <ul class="subsubsub themisdb-support-status-tabs">
+            <?php $status_tab_keys = array_merge(array(''), array_keys($status_labels)); ?>
             <?php $status_tab_index = 0; ?>
-            <?php foreach ($status_tab_links as $status_key => $status_label_html): ?>
+            <?php foreach ($status_tab_keys as $status_key): ?>
                 <?php
                 $status_url_args = array(
                     'page' => 'themisdb-support',
@@ -200,15 +214,24 @@ if (!defined('ABSPATH')) {
                 if (!empty($priority)) {
                     $status_url_args['priority'] = $priority;
                 }
+                if (!empty($assignee_user_id)) {
+                    $status_url_args['assignee_user_id'] = intval($assignee_user_id);
+                }
 
                 $is_current_status = ($status_key === '' && $status === '') || ($status_key !== '' && $status === $status_key);
+                $status_count_value = $status_key === ''
+                    ? $all_count
+                    : (isset($status_counts[$status_key]) ? intval($status_counts[$status_key]) : 0);
+                $status_label_text = $status_key === ''
+                    ? __('Alle', 'themisdb-support-portal')
+                    : $status_labels[$status_key];
                 ?>
                 <li class="<?php echo $is_current_status ? 'current' : ''; ?>">
                     <a class="<?php echo $is_current_status ? 'current' : ''; ?>"
                        href="<?php echo esc_url(add_query_arg($status_url_args, admin_url('admin.php'))); ?>">
-                        <?php echo wp_kses($status_label_html, array('span' => array('class' => array()))); ?>
+                        <?php echo esc_html($status_label_text); ?> <span class="count" data-status-tab-count="<?php echo esc_attr($status_key === '' ? 'all' : $status_key); ?>">(<?php echo esc_html($status_count_value); ?>)</span>
                     </a>
-                    <?php if ($status_tab_index < count($status_tab_links) - 1): ?> | <?php endif; ?>
+                    <?php if ($status_tab_index < count($status_tab_keys) - 1): ?> | <?php endif; ?>
                 </li>
                 <?php $status_tab_index++; ?>
             <?php endforeach; ?>
@@ -235,17 +258,26 @@ if (!defined('ABSPATH')) {
         ?>
         <ul class="subsubsub themisdb-support-quick-tabs">
             <?php $quick_tab_index = 0; ?>
-            <?php foreach ($quick_filter_links as $quick_link): ?>
+            <?php foreach ($quick_filter_links as $quick_filter_key => $quick_link): ?>
                 <?php
                 $quick_args = array_merge(
                     array('page' => 'themisdb-support', 'tab' => 'list'),
                     $quick_link['args']
                 );
+                if (!empty($assignee_user_id)) {
+                    $quick_args['assignee_user_id'] = intval($assignee_user_id);
+                }
+                $quick_filter_count = isset($quick_filter_counts[$quick_filter_key]) 
+                    ? intval($quick_filter_counts[$quick_filter_key]) 
+                    : 0;
                 ?>
-                <li class="<?php echo !empty($quick_link['active']) ? 'current' : ''; ?>">
+                <li class="<?php echo !empty($quick_link['active']) ? 'current' : ''; ?>" data-quick-filter-key="<?php echo esc_attr($quick_filter_key); ?>">
                     <a class="<?php echo !empty($quick_link['active']) ? 'current' : ''; ?>"
                        href="<?php echo esc_url(add_query_arg($quick_args, admin_url('admin.php'))); ?>">
                         <?php echo esc_html($quick_link['label']); ?>
+                        <span class="themisdb-support-quick-filter-count">
+                            (<?php echo $quick_filter_count; ?>)
+                        </span>
                     </a>
                     <?php if ($quick_tab_index < count($quick_filter_links) - 1): ?> | <?php endif; ?>
                 </li>
@@ -278,28 +310,44 @@ if (!defined('ABSPATH')) {
                     <?php endforeach; ?>
                 </select>
 
+                <label for="filter-assignee" class="screen-reader-text"><?php esc_html_e('Bearbeiter', 'themisdb-support-portal'); ?></label>
+                <select id="filter-assignee" name="assignee_user_id">
+                    <option value="0"><?php esc_html_e('Alle Bearbeiter', 'themisdb-support-portal'); ?></option>
+                    <?php foreach ((array) $assignable_agents as $agent): ?>
+                        <option value="<?php echo esc_attr($agent['id']); ?>" <?php selected(intval($assignee_user_id), intval($agent['id'])); ?>>
+                            <?php echo esc_html($agent['label']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
                 <button type="submit" class="button"><?php esc_html_e('Filtern', 'themisdb-support-portal'); ?></button>
 
-                <?php if ($status || $priority): ?>
+                <?php if ($status || $priority || !empty($assignee_user_id)): ?>
                     <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support&tab=list')); ?>" class="button button-secondary">
                         <?php esc_html_e('Alle Filter zuruecksetzen', 'themisdb-support-portal'); ?>
                     </a>
                 <?php endif; ?>
 
                 <?php if ($status): ?>
-                    <a href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-support', 'tab' => 'list', 'priority' => $priority), admin_url('admin.php'))); ?>" class="button button-link">
+                    <a href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-support', 'tab' => 'list', 'priority' => $priority, 'assignee_user_id' => intval($assignee_user_id)), admin_url('admin.php'))); ?>" class="button button-link">
                         <?php esc_html_e('Nur Status zuruecksetzen', 'themisdb-support-portal'); ?>
                     </a>
                 <?php endif; ?>
 
                 <?php if ($priority): ?>
-                    <a href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-support', 'tab' => 'list', 'status' => $status), admin_url('admin.php'))); ?>" class="button button-link">
+                    <a href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-support', 'tab' => 'list', 'status' => $status, 'assignee_user_id' => intval($assignee_user_id)), admin_url('admin.php'))); ?>" class="button button-link">
                         <?php esc_html_e('Nur Prioritaet zuruecksetzen', 'themisdb-support-portal'); ?>
+                    </a>
+                <?php endif; ?>
+
+                <?php if (!empty($assignee_user_id)): ?>
+                    <a href="<?php echo esc_url(add_query_arg(array('page' => 'themisdb-support', 'tab' => 'list', 'status' => $status, 'priority' => $priority), admin_url('admin.php'))); ?>" class="button button-link">
+                        <?php esc_html_e('Nur Bearbeiter zuruecksetzen', 'themisdb-support-portal'); ?>
                     </a>
                 <?php endif; ?>
             </form>
 
-            <span class="themisdb-support-ticket-count-total">
+            <span class="themisdb-support-ticket-count-total" data-visible-ticket-count>
                 <?php echo esc_html(sprintf(_n('%d Ticket', '%d Tickets', $total, 'themisdb-support-portal'), $total)); ?>
             </span>
         </div>
@@ -321,6 +369,9 @@ if (!defined('ABSPATH')) {
             if (!empty($priority)) {
                 $ticket_link_base_args['priority'] = $priority;
             }
+            if (!empty($assignee_user_id)) {
+                $ticket_link_base_args['assignee_user_id'] = intval($assignee_user_id);
+            }
             if (!empty($paged) && intval($paged) > 1) {
                 $ticket_link_base_args['paged'] = intval($paged);
             }
@@ -331,6 +382,7 @@ if (!defined('ABSPATH')) {
                 <input type="hidden" name="bulk_action" value="">
                 <input type="hidden" name="current_status" value="<?php echo esc_attr($status); ?>">
                 <input type="hidden" name="current_priority" value="<?php echo esc_attr($priority); ?>">
+                <input type="hidden" name="current_assignee_user_id" value="<?php echo esc_attr(intval($assignee_user_id)); ?>">
                 <input type="hidden" name="current_paged" value="<?php echo esc_attr($paged); ?>">
 
                 <div class="tablenav top">
@@ -342,6 +394,7 @@ if (!defined('ABSPATH')) {
                             <option value="status_in_progress"><?php esc_html_e('Status auf In Bearbeitung setzen', 'themisdb-support-portal'); ?></option>
                             <option value="status_resolved"><?php esc_html_e('Status auf Geloest setzen', 'themisdb-support-portal'); ?></option>
                             <option value="status_closed"><?php esc_html_e('Status auf Geschlossen setzen', 'themisdb-support-portal'); ?></option>
+                            <?php $render_bulk_assignment_options($assignable_agents); ?>
                             <option value="delete"><?php esc_html_e('Loeschen', 'themisdb-support-portal'); ?></option>
                         </select>
                         <button type="submit" class="button action themisdb-support-bulk-apply" data-bulk-source="top"><?php esc_html_e('Uebernehmen', 'themisdb-support-portal'); ?></button>
@@ -370,6 +423,7 @@ if (!defined('ABSPATH')) {
                             <th scope="col" class="column-customer"><?php esc_html_e('Kunde', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-status"><?php esc_html_e('Status', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-priority"><?php esc_html_e('Prioritaet', 'themisdb-support-portal'); ?></th>
+                            <th scope="col" class="column-assignee"><?php esc_html_e('Bearbeiter', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-date"><?php esc_html_e('Datum', 'themisdb-support-portal'); ?></th>
                         </tr>
                     </thead>
@@ -379,18 +433,6 @@ if (!defined('ABSPATH')) {
                                 <?php
                                 $ticket_link_args = array_merge($ticket_link_base_args, array('ticket_id' => intval($ticket['id'])));
                                 $ticket_detail_url = add_query_arg($ticket_link_args, admin_url('admin.php'));
-
-                                $quick_action_base_args = array_merge($ticket_link_base_args, array(
-                                    'ticket_id' => intval($ticket['id']),
-                                    'themisdb_support_action' => 'quick_status',
-                                ));
-
-                                $quick_status_urls = array(
-                                    'open' => wp_nonce_url(add_query_arg(array_merge($quick_action_base_args, array('target_status' => 'open')), admin_url('admin.php')), 'themisdb_support_quick_status'),
-                                    'in_progress' => wp_nonce_url(add_query_arg(array_merge($quick_action_base_args, array('target_status' => 'in_progress')), admin_url('admin.php')), 'themisdb_support_quick_status'),
-                                    'resolved' => wp_nonce_url(add_query_arg(array_merge($quick_action_base_args, array('target_status' => 'resolved')), admin_url('admin.php')), 'themisdb_support_quick_status'),
-                                    'closed' => wp_nonce_url(add_query_arg(array_merge($quick_action_base_args, array('target_status' => 'closed')), admin_url('admin.php')), 'themisdb_support_quick_status'),
-                                );
                                 ?>
                                 <th scope="row" class="check-column">
                                     <input type="checkbox" name="ticket_ids[]" value="<?php echo esc_attr($ticket['id']); ?>" class="themisdb-support-ticket-checkbox">
@@ -407,21 +449,9 @@ if (!defined('ABSPATH')) {
                                         <?php echo esc_html($ticket['subject']); ?>
                                     </a>
                                     <div class="row-actions">
-                                        <span class="view"><a href="<?php echo esc_url($ticket_detail_url); ?>"><?php esc_html_e('Ansehen', 'themisdb-support-portal'); ?></a></span> |
-                                        <?php if ($ticket['status'] !== 'in_progress'): ?>
-                                            <span class="edit"><a href="<?php echo esc_url($quick_status_urls['in_progress']); ?>"><?php esc_html_e('In Bearbeitung', 'themisdb-support-portal'); ?></a></span> |
-                                        <?php endif; ?>
-                                        <?php if ($ticket['status'] !== 'resolved'): ?>
-                                            <span class="edit"><a href="<?php echo esc_url($quick_status_urls['resolved']); ?>"><?php esc_html_e('Als gelöst markieren', 'themisdb-support-portal'); ?></a></span> |
-                                        <?php endif; ?>
-                                        <?php if ($ticket['status'] !== 'closed'): ?>
-                                            <span class="trash"><a href="<?php echo esc_url($quick_status_urls['closed']); ?>"><?php esc_html_e('Schließen', 'themisdb-support-portal'); ?></a></span>
-                                        <?php else: ?>
-                                            <span class="edit"><a href="<?php echo esc_url($quick_status_urls['open']); ?>"><?php esc_html_e('Wieder öffnen', 'themisdb-support-portal'); ?></a></span>
-                                        <?php endif; ?>
+                                        <span class="view"><a href="<?php echo esc_url($ticket_detail_url); ?>"><?php esc_html_e('Ansehen', 'themisdb-support-portal'); ?></a></span>
                                     </div>
-                                </td>
-                                <td class="column-customer">
+                                </td>                                <td class="column-customer">
                                     <?php echo esc_html($ticket['customer_name']); ?><br>
                                     <small><a href="mailto:<?php echo esc_attr($ticket['customer_email']); ?>"><?php echo esc_html($ticket['customer_email']); ?></a></small>
                                     <?php if ($ticket['customer_company']): ?>
@@ -429,14 +459,49 @@ if (!defined('ABSPATH')) {
                                     <?php endif; ?>
                                 </td>
                                 <td class="column-status">
-                                    <span class="themisdb-support-admin-status themisdb-support-status-<?php echo esc_attr($ticket['status']); ?>">
-                                        <?php echo esc_html(isset($status_labels[$ticket['status']]) ? $status_labels[$ticket['status']] : $ticket['status']); ?>
-                                    </span>
+                                    <div class="themisdb-support-inline-status-control" data-ticket-id="<?php echo esc_attr(intval($ticket['id'])); ?>">
+                                        <select class="themisdb-support-inline-status-select" data-ticket-id="<?php echo esc_attr(intval($ticket['id'])); ?>">
+                                            <?php foreach ($status_labels as $value => $label): ?>
+                                                <option value="<?php echo esc_attr($value); ?>" <?php selected($ticket['status'], $value); ?>>
+                                                    <?php echo esc_html($label); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="themisdb-support-inline-status-message" data-ticket-id="<?php echo esc_attr(intval($ticket['id'])); ?>"></div>
+                                    </div>
                                 </td>
                                 <td class="column-priority">
                                     <span class="themisdb-support-admin-priority themisdb-support-priority-<?php echo esc_attr($ticket['priority']); ?>">
                                         <?php echo esc_html(isset($priority_labels[$ticket['priority']]) ? $priority_labels[$ticket['priority']] : $ticket['priority']); ?>
                                     </span>
+                                </td>
+                                <td class="column-assignee">
+                                    <?php
+                                    $ticket_assignee_user_id = isset($ticket['assignee_user_id']) ? intval($ticket['assignee_user_id']) : 0;
+                                    $quick_assign_form_id = 'themisdb-quick-assign-' . intval($ticket['id']);
+                                    ?>
+                                    <select
+                                        name="assignee_user_id"
+                                        form="<?php echo esc_attr($quick_assign_form_id); ?>"
+                                        class="themisdb-support-quick-assign-select"
+                                        data-ticket-id="<?php echo esc_attr(intval($ticket['id'])); ?>"
+                                        data-form-id="<?php echo esc_attr($quick_assign_form_id); ?>">
+                                        <option value="0"><?php esc_html_e('Nicht zugewiesen', 'themisdb-support-portal'); ?></option>
+                                        <?php foreach ((array) $assignable_agents as $agent): ?>
+                                            <option value="<?php echo esc_attr($agent['id']); ?>" <?php selected($ticket_assignee_user_id, intval($agent['id'])); ?>>
+                                                <?php echo esc_html($agent['label']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <button
+                                        type="submit"
+                                        class="button button-small themisdb-support-quick-assign-button"
+                                        form="<?php echo esc_attr($quick_assign_form_id); ?>"
+                                        data-ticket-id="<?php echo esc_attr(intval($ticket['id'])); ?>"
+                                        data-form-id="<?php echo esc_attr($quick_assign_form_id); ?>">
+                                        <?php esc_html_e('Speichern', 'themisdb-support-portal'); ?>
+                                    </button>
+                                    <div class="themisdb-support-quick-assign-message" data-ticket-id="<?php echo esc_attr(intval($ticket['id'])); ?>"></div>
                                 </td>
                                 <td class="column-date">
                                     <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($ticket['created_at']))); ?>
@@ -455,6 +520,7 @@ if (!defined('ABSPATH')) {
                             <th scope="col" class="column-customer"><?php esc_html_e('Kunde', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-status"><?php esc_html_e('Status', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-priority"><?php esc_html_e('Prioritaet', 'themisdb-support-portal'); ?></th>
+                            <th scope="col" class="column-assignee"><?php esc_html_e('Bearbeiter', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-date"><?php esc_html_e('Datum', 'themisdb-support-portal'); ?></th>
                         </tr>
                     </tfoot>
@@ -469,6 +535,7 @@ if (!defined('ABSPATH')) {
                             <option value="status_in_progress"><?php esc_html_e('Status auf In Bearbeitung setzen', 'themisdb-support-portal'); ?></option>
                             <option value="status_resolved"><?php esc_html_e('Status auf Geloest setzen', 'themisdb-support-portal'); ?></option>
                             <option value="status_closed"><?php esc_html_e('Status auf Geschlossen setzen', 'themisdb-support-portal'); ?></option>
+                            <?php $render_bulk_assignment_options($assignable_agents); ?>
                             <option value="delete"><?php esc_html_e('Loeschen', 'themisdb-support-portal'); ?></option>
                         </select>
                         <button type="submit" class="button action themisdb-support-bulk-apply" data-bulk-source="bottom"><?php esc_html_e('Uebernehmen', 'themisdb-support-portal'); ?></button>
@@ -485,6 +552,18 @@ if (!defined('ABSPATH')) {
                     <br class="clear">
                 </div>
             </form>
+
+            <?php foreach ($tickets as $ticket): ?>
+                <form method="post" id="<?php echo esc_attr('themisdb-quick-assign-' . intval($ticket['id'])); ?>" class="themisdb-support-quick-assign-form">
+                    <?php wp_nonce_field('themisdb_support_quick_assign_ticket', 'themisdb_support_nonce'); ?>
+                    <input type="hidden" name="themisdb_support_action" value="quick_assign_ticket">
+                    <input type="hidden" name="ticket_id" value="<?php echo esc_attr(intval($ticket['id'])); ?>">
+                    <input type="hidden" name="current_status" value="<?php echo esc_attr($status); ?>">
+                    <input type="hidden" name="current_priority" value="<?php echo esc_attr($priority); ?>">
+                    <input type="hidden" name="current_assignee_user_id" value="<?php echo esc_attr(intval($assignee_user_id)); ?>">
+                    <input type="hidden" name="current_paged" value="<?php echo esc_attr($paged); ?>">
+                </form>
+            <?php endforeach; ?>
 
             <?php if ($total_pages > 1): ?>
                 <div class="tablenav bottom">

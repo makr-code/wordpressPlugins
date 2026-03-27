@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
  */
 class ThemisDB_Support_Database {
 
-    const DB_VERSION = '1.0.1';
+    const DB_VERSION = '1.0.2';
 
     /**
      * Called on plugins_loaded – runs a schema upgrade if needed.
@@ -54,12 +54,14 @@ class ThemisDB_Support_Database {
             license_key varchar(100) DEFAULT NULL,
             benefit_id bigint(20) unsigned DEFAULT NULL,
             user_id bigint(20) unsigned DEFAULT NULL,
+            assignee_user_id bigint(20) unsigned DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             UNIQUE KEY ticket_number (ticket_number),
             KEY status (status),
             KEY user_id (user_id),
+            KEY assignee_user_id (assignee_user_id),
             KEY benefit_id (benefit_id),
             KEY license_key (license_key)
         ) $charset_collate;

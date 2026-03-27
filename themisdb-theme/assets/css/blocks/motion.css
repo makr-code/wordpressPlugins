@@ -1,0 +1,179 @@
+/* ============================================================================
+   DYNAMIC SECTION SHORTCODES
+   ============================================================================ */
+
+.themisdb-section-shell {
+    width: 100%;
+}
+
+.themisdb-motion-target {
+    --themisdb-motion-distance: 28px;
+    --themisdb-motion-scale: 0.96;
+    --themisdb-motion-duration: 680ms;
+    --themisdb-motion-delay: 0ms;
+    opacity: 0;
+    will-change: opacity, transform, filter;
+    transition:
+        opacity var(--themisdb-motion-duration) cubic-bezier(0.22, 1, 0.36, 1) var(--themisdb-motion-delay),
+        transform var(--themisdb-motion-duration) cubic-bezier(0.22, 1, 0.36, 1) var(--themisdb-motion-delay),
+        filter var(--themisdb-motion-duration) ease var(--themisdb-motion-delay);
+}
+
+.themisdb-motion-target[data-motion="fade-up"] {
+    transform: translate3d(0, var(--themisdb-motion-distance), 0);
+}
+
+.themisdb-motion-target[data-motion="slide-left"] {
+    transform: translate3d(36px, 0, 0);
+}
+
+.themisdb-motion-target[data-motion="slide-right"] {
+    transform: translate3d(-36px, 0, 0);
+}
+
+.themisdb-motion-target[data-motion="zoom-in"] {
+    transform: translate3d(0, 18px, 0) scale(var(--themisdb-motion-scale));
+    filter: saturate(0.8);
+}
+
+.themisdb-motion-target[data-motion="pop-in"] {
+    transform: scale(0.92) translate3d(0, 14px, 0);
+}
+
+.themisdb-motion-target.is-visible {
+    opacity: 1;
+    transform: none;
+    filter: none;
+}
+
+.themisdb-motion-target.is-visible.themisdb-gallery-item,
+.themisdb-motion-target.is-visible.themisdb-land-link,
+.themisdb-motion-target.is-visible.themisdb-section-card,
+.themisdb-motion-target.is-visible.themisdb-faq-item,
+.themisdb-motion-target.is-visible.themisdb-timeline-entry,
+.themisdb-motion-target.is-visible.themisdb-timeline > article {
+    backface-visibility: hidden;
+}
+
+.themisdb-reduced-motion .themisdb-motion-target {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    .themisdb-navbar,
+    .themisdb-nav-links a,
+    .themisdb-hamburger,
+    .themisdb-stat-card,
+    .themisdb-land-link,
+    .themisdb-module-card,
+    .themisdb-gallery-item,
+    .themisdb-gallery-item img,
+    .themisdb-gallery-overlay,
+    .themisdb-gallery-zoom-icon,
+    .themisdb-gallery-filter-btn,
+    .themisdb-lightbox,
+    .themisdb-lb-close,
+    .themisdb-lb-nav,
+    .themisdb-faq-toggle,
+    .themisdb-faq-icon,
+    .themisdb-faq-answer,
+    .themisdb-legal-block,
+    .themisdb-legal-toggle,
+    .themisdb-motion-target {
+        transition: none !important;
+        animation: none !important;
+    }
+
+    .themisdb-motion-target {
+        opacity: 1;
+        transform: none;
+        filter: none;
+        transition: none;
+    }
+
+    .themisdb-gallery-item.is-media-loading::before,
+    .themisdb-section-card.is-media-loading::before,
+    .themisdb-feature.is-media-loading::before {
+        animation: none;
+    }
+}
+
+.themisdb-section-cards {
+    width: 100%;
+}
+
+@media (max-width: 1023px) {
+    .themisdb-section-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .themisdb-button-box-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 639px) {
+    .themisdb-section-cards {
+        grid-template-columns: 1fr !important;
+    }
+
+    .themisdb-button-box-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .themisdb-feature {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+.themisdb-section-header {
+    display: block;
+}
+
+.themisdb-section-title {
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+
+.themisdb-section-description {
+    max-width: 70ch;
+}
+
+.themisdb-button-box-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(var(--lis-button-cols, 3), minmax(0, 1fr));
+}
+
+.themisdb-button-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 88px;
+    text-align: center;
+    text-decoration: none;
+    padding: 1rem;
+    border: 1px solid var(--themisdb-slate-200);
+    border-radius: 1rem;
+    background: #ffffff;
+    color: var(--themisdb-slate-800);
+    font-weight: 800;
+    line-height: 1.35;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.themisdb-button-box:hover {
+    transform: translateY(-2px);
+    border-color: var(--themisdb-sky);
+    color: var(--themisdb-navy);
+    box-shadow: 0 10px 22px -14px rgba(2, 132, 199, 0.5);
+}

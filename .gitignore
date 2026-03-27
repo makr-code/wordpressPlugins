@@ -1,0 +1,12 @@
+# Local WordPress runtime artifacts
+wp-local-env/node_modules/
+wp-local-env/galaxy-smoke.png
+wp-local-env/heartbeat-smoke.png
+wp-local-env/playwright-report/
+wp-local-env/test-results/
+wp-local-env/.wp-env.override.json
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+*.tmp

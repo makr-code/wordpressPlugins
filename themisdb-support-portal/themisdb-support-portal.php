@@ -150,6 +150,12 @@ function themisdb_support_portal_activate() {
     if (!get_option('themisdb_support_email_notifications')) {
         add_option('themisdb_support_email_notifications', '1');
     }
+    if (!get_option('themisdb_support_status_email_notifications')) {
+        add_option('themisdb_support_status_email_notifications', '1');
+    }
+    if (!get_option('themisdb_support_assignee_email_notifications')) {
+        add_option('themisdb_support_assignee_email_notifications', '1');
+    }
     if (!get_option('themisdb_support_email_from')) {
         add_option('themisdb_support_email_from', get_option('admin_email'));
     }
@@ -158,6 +164,9 @@ function themisdb_support_portal_activate() {
     }
     if (!get_option('themisdb_support_admin_email')) {
         add_option('themisdb_support_admin_email', get_option('admin_email'));
+    }
+    if (!get_option('themisdb_support_default_assignee_user_id')) {
+        add_option('themisdb_support_default_assignee_user_id', 0);
     }
 
     flush_rewrite_rules();
@@ -255,9 +264,15 @@ function themisdb_support_admin_enqueue_scripts($hook) {
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce'   => wp_create_nonce('themisdb_support_admin_nonce'),
         'strings' => array(
-            'replying'      => __('Antwort wird gesendet...', 'themisdb-support-portal'),
-            'send_reply'    => __('Antwort senden', 'themisdb-support-portal'),
-            'confirm_close' => __('Ticket wirklich schließen?', 'themisdb-support-portal'),
+            'replying'         => __('Antwort wird gesendet...', 'themisdb-support-portal'),
+            'send_reply'       => __('Antwort senden', 'themisdb-support-portal'),
+            'confirm_close'    => __('Ticket wirklich schließen?', 'themisdb-support-portal'),
+            'saving_assignment' => __('Speichert...', 'themisdb-support-portal'),
+            'save_assignment'   => __('Speichern', 'themisdb-support-portal'),
+            'processing_bulk'   => __('Bulk-Aktion wird ausgefuehrt...', 'themisdb-support-portal'),
+            'ticket_singular'   => __('%d Ticket', 'themisdb-support-portal'),
+            'ticket_plural'     => __('%d Tickets', 'themisdb-support-portal'),
+            'error'             => __('Ein Fehler ist aufgetreten', 'themisdb-support-portal'),
         ),
     ));
 }

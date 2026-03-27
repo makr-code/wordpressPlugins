@@ -1,0 +1,273 @@
+/* ============================================================================
+   HERO SLIDER
+   ============================================================================ */
+
+.themisdb-hero-slider {
+    position: relative;
+    overflow: hidden;
+    background: var(--themisdb-slate-50);
+}
+
+.themisdb-hero-track {
+    display: flex;
+    transition: transform 0.65s cubic-bezier(0.77, 0, 0.175, 1);
+    will-change: transform;
+}
+
+.themisdb-hero-slide {
+    min-width: 100%;
+    opacity: 0;
+    transition: opacity 0.65s ease;
+    pointer-events: none;
+}
+
+.themisdb-hero-slide.is-active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.themisdb-slider-dynamic-wrap.alignfull {
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+}
+
+@media (max-width: 900px) {
+    .themisdb-slider-dynamic-wrap.alignfull {
+        margin-left: calc(50% - 50vw);
+        margin-right: calc(50% - 50vw);
+    }
+}
+
+.themisdb-hero-progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 0%;
+    background: linear-gradient(90deg, #0284c7, #34d399);
+    transition: width linear;
+    z-index: 20;
+}
+
+.themisdb-slider-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--themisdb-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--themisdb-navy);
+    font-size: 0.85rem;
+    backdrop-filter: blur(6px);
+}
+
+.themisdb-slider-arrow:hover {
+    background: var(--themisdb-navy);
+    color: white;
+    border-color: var(--themisdb-navy);
+    box-shadow: 0 8px 20px rgba(12,74,110,0.25);
+}
+
+.themisdb-slider-arrow-prev { left: 1.5rem; }
+.themisdb-slider-arrow-next { right: 1.5rem; }
+
+@media (max-width: 640px) {
+    .themisdb-slider-arrow { display: none; }
+}
+
+.themisdb-slider-dots {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+.themisdb-slider-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 99px;
+    background: var(--themisdb-slate-300);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+.themisdb-slider-dot.is-active {
+    width: 28px;
+    background: var(--themisdb-sky);
+}
+
+@keyframes laSlideIn {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.themisdb-hero-slide.is-active .themisdb-slide-content {
+    animation: laSlideIn 0.55s ease 0.15s both;
+}
+
+/*
+    WordPress Guardrails (Slider)
+    - Diese Regeln gelten NUR für den Theme-Fallback-Slider.
+    - Plugin-Markup (z. B. .la-hero-slider) wird hier bewusst nicht gestylt.
+    - Ziel: index.html Grunddesign bleibt führend, Theme ergänzt nur Integration.
+*/
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback {
+    width: 100%;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+    background: var(--themisdb-slate-50);
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-slide {
+    min-height: 540px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-slide-overlay {
+    display: none;
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-slide-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 540px;
+    max-width: 760px;
+    padding: 3.25rem 3rem 5.5rem;
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-category {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-bottom: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--themisdb-slate-600);
+    border: 1px solid var(--themisdb-border);
+    border-radius: 999px;
+    font-size: 0.625rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 0.35rem 0.75rem;
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-title,
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-title a {
+    color: var(--themisdb-slate-900);
+    text-decoration: none;
+    font-size: clamp(1.95rem, 3.6vw, 3.05rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    margin: 0;
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-title a:hover {
+    color: var(--themisdb-sky);
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-excerpt {
+    margin: 1rem 0 1.5rem;
+    color: var(--themisdb-slate-600);
+    font-size: 1rem;
+    line-height: 1.65;
+    max-width: 64ch;
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-date {
+    color: var(--themisdb-slate-500);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-readmore {
+    display: inline-flex;
+    align-items: center;
+    background: #ffffff;
+    color: var(--themisdb-navy);
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-radius: 0.7rem;
+    padding: 0.65rem 0.9rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-readmore:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(12,74,110,0.25);
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-dots {
+    position: absolute;
+    left: 50%;
+    bottom: 1.45rem;
+    transform: translateX(-50%);
+    z-index: 15;
+}
+
+.themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-timer-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 14;
+    height: 3px;
+    background: rgba(148, 163, 184, 0.2);
+}
+
+@media (max-width: 900px) {
+    .themisdb-fs-wrapper.themisdb-hero-slider--fallback,
+    .themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-slide {
+        min-height: 450px;
+    }
+
+    .themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-slide-content {
+        min-height: 450px;
+        padding: 2.15rem 1.4rem 4.55rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .themisdb-fs-wrapper.themisdb-hero-slider--fallback,
+    .themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-slide {
+        min-height: 410px;
+    }
+
+    .themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-slide-content {
+        min-height: 410px;
+        padding: 1.35rem 1rem 4.1rem;
+    }
+
+    .themisdb-fs-wrapper.themisdb-hero-slider--fallback .themisdb-fs-dots {
+        bottom: 1.2rem;
+    }
+}

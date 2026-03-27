@@ -43,17 +43,13 @@
       "type": "string",
       "default": "#0284c7"
     },
-    "readmore_text": {
-      "type": "string",
-      "default": "Weiterlesen \u2192"
-    },
     "img_size": {
       "type": "string",
       "default": "large"
     },
     "layout_preset": {
       "type": "string",
-      "default": "clean"
+      "default": "standard"
     }
   },
   "supports": {

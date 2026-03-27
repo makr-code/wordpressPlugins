@@ -8,6 +8,7 @@
     const NAV     = document.getElementById('themisdb-navbar');
     const BURGER  = document.getElementById('themisdb-hamburger');
     const MOBILE  = document.getElementById('themisdb-mobile-menu');
+    const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     /* ── Mobile Menu ── */
     if (BURGER && MOBILE) {
@@ -45,7 +46,7 @@
 
             const offset = (NAV ? NAV.offsetHeight : 0) + 16;
             const top    = target.getBoundingClientRect().top + window.scrollY - offset;
-            window.scrollTo({ top: top, behavior: 'smooth' });
+            window.scrollTo({ top: top, behavior: REDUCED ? 'auto' : 'smooth' });
         });
     });
 

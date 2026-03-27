@@ -23,9 +23,12 @@ $themisdb_support_tab_url = static function ($tab) use ($themisdb_support_page) 
 
 $themisdb_support_redirect_url = get_option('themisdb_support_redirect_url', home_url('/'));
 $themisdb_support_email_notifications = get_option('themisdb_support_email_notifications', '1');
+$themisdb_support_status_email_notifications = get_option('themisdb_support_status_email_notifications', '1');
+$themisdb_support_assignee_email_notifications = get_option('themisdb_support_assignee_email_notifications', '1');
 $themisdb_support_admin_email = get_option('themisdb_support_admin_email', get_option('admin_email'));
 $themisdb_support_email_from_name = get_option('themisdb_support_email_from_name', get_option('blogname'));
 $themisdb_support_email_from = get_option('themisdb_support_email_from', get_option('admin_email'));
+$themisdb_support_default_assignee_user_id = intval(get_option('themisdb_support_default_assignee_user_id', 0));
 ?>
 <div class="wrap themisdb-support-admin-wrap">
     <style>
@@ -111,12 +114,35 @@ $themisdb_support_email_from = get_option('themisdb_support_email_from', get_opt
                                 <td><?php echo esc_html($themisdb_support_email_notifications === '1' ? 'Aktiv' : 'Inaktiv'); ?></td>
                             </tr>
                             <tr>
+                                <th><?php esc_html_e('Status-Benachrichtigungen', 'themisdb-support-portal'); ?></th>
+                                <td><?php echo esc_html($themisdb_support_status_email_notifications === '1' ? 'Aktiv' : 'Inaktiv'); ?></td>
+                            </tr>
+                            <tr>
+                                <th><?php esc_html_e('Bearbeiter-Benachrichtigungen', 'themisdb-support-portal'); ?></th>
+                                <td><?php echo esc_html($themisdb_support_assignee_email_notifications === '1' ? 'Aktiv' : 'Inaktiv'); ?></td>
+                            </tr>
+                            <tr>
                                 <th><?php esc_html_e('Admin-E-Mail', 'themisdb-support-portal'); ?></th>
                                 <td><?php echo esc_html($themisdb_support_admin_email); ?></td>
                             </tr>
                             <tr>
                                 <th><?php esc_html_e('Absender', 'themisdb-support-portal'); ?></th>
                                 <td><?php echo esc_html($themisdb_support_email_from_name . ' <' . $themisdb_support_email_from . '>'); ?></td>
+                            </tr>
+                            <tr>
+                                <th><?php esc_html_e('Standard-Bearbeiter', 'themisdb-support-portal'); ?></th>
+                                <td>
+                                    <?php
+                                    $default_assignee_label = __('Nicht zugewiesen', 'themisdb-support-portal');
+                                    if ($themisdb_support_default_assignee_user_id > 0) {
+                                        $default_assignee_user = get_user_by('id', $themisdb_support_default_assignee_user_id);
+                                        if ($default_assignee_user instanceof WP_User) {
+                                            $default_assignee_label = $default_assignee_user->display_name . ' (' . $default_assignee_user->user_email . ')';
+                                        }
+                                    }
+                                    echo esc_html($default_assignee_label);
+                                    ?>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -162,6 +188,34 @@ $themisdb_support_email_from = get_option('themisdb_support_email_from', get_opt
 
                     <tr valign="top">
                         <th scope="row">
+                            <?php esc_html_e('Statusänderungs-Mails', 'themisdb-support-portal'); ?>
+                        </th>
+                        <td>
+                            <label>
+                                <input type="checkbox" id="themisdb_support_status_email_notifications"
+                                    name="themisdb_support_status_email_notifications" value="1"
+                                    <?php checked('1', $themisdb_support_status_email_notifications); ?>>
+                                <?php esc_html_e('Statuswechsel von Tickets per E-Mail benachrichtigen', 'themisdb-support-portal'); ?>
+                            </label>
+                        </td>
+                    </tr>
+
+                    <tr valign="top">
+                        <th scope="row">
+                            <?php esc_html_e('Bearbeiter-Mails', 'themisdb-support-portal'); ?>
+                        </th>
+                        <td>
+                            <label>
+                                <input type="checkbox" id="themisdb_support_assignee_email_notifications"
+                                    name="themisdb_support_assignee_email_notifications" value="1"
+                                    <?php checked('1', $themisdb_support_assignee_email_notifications); ?>>
+                                <?php esc_html_e('Zuweisungen und neue Kunden-Nachrichten an Bearbeiter per E-Mail senden', 'themisdb-support-portal'); ?>
+                            </label>
+                        </td>
+                    </tr>
+
+                    <tr valign="top">
+                        <th scope="row">
                             <label for="themisdb_support_admin_email">
                                 <?php esc_html_e('Admin-E-Mail für Benachrichtigungen', 'themisdb-support-portal'); ?>
                             </label>
@@ -172,6 +226,27 @@ $themisdb_support_email_from = get_option('themisdb_support_email_from', get_opt
                                 class="regular-text">
                             <p class="description">
                                 <?php esc_html_e('An diese E-Mail-Adresse werden Benachrichtigungen über neue Tickets gesendet.', 'themisdb-support-portal'); ?>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <tr valign="top">
+                        <th scope="row">
+                            <label for="themisdb_support_default_assignee_user_id">
+                                <?php esc_html_e('Standard-Bearbeiter für neue Tickets', 'themisdb-support-portal'); ?>
+                            </label>
+                        </th>
+                        <td>
+                            <select id="themisdb_support_default_assignee_user_id" name="themisdb_support_default_assignee_user_id">
+                                <option value="0"><?php esc_html_e('Nicht zugewiesen', 'themisdb-support-portal'); ?></option>
+                                <?php foreach ((array) $assignable_agents as $agent): ?>
+                                    <option value="<?php echo esc_attr($agent['id']); ?>" <?php selected($themisdb_support_default_assignee_user_id, intval($agent['id'])); ?>>
+                                        <?php echo esc_html($agent['label']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description">
+                                <?php esc_html_e('Neue Tickets ohne explizite Zuweisung werden automatisch diesem Bearbeiter zugeordnet.', 'themisdb-support-portal'); ?>
                             </p>
                         </td>
                     </tr>

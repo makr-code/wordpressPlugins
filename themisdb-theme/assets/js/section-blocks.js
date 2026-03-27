@@ -10,6 +10,7 @@
     var TextControl = wp.components.TextControl;
     var SelectControl = wp.components.SelectControl;
     var ToggleControl = wp.components.ToggleControl;
+    var Spinner = wp.components.Spinner;
     var ServerSideRender = wp.serverSideRender;
     var useSelect = wp.data && wp.data.useSelect ? wp.data.useSelect : null;
 
@@ -138,12 +139,93 @@
         );
     }
 
-    function blockPreview( name, attrs ) {
-        return el( ServerSideRender, {
-            key: 'preview',
-            block: name,
-            attributes: attrs
-        } );
+    function previewMetaItems( attrs ) {
+        var items = [];
+
+        if ( attrs.section ) {
+            items.push( __( 'Kategorie', 'themisdb-theme' ) + ': ' + attrs.section );
+        }
+
+        if ( typeof attrs.perPage !== 'undefined' ) {
+            items.push( __( 'Einträge', 'themisdb-theme' ) + ': ' + attrs.perPage );
+        }
+
+        if ( typeof attrs.columns !== 'undefined' ) {
+            items.push( __( 'Spalten', 'themisdb-theme' ) + ': ' + attrs.columns );
+        }
+
+        if ( typeof attrs.excerptWords !== 'undefined' ) {
+            items.push( __( 'Wörter', 'themisdb-theme' ) + ': ' + attrs.excerptWords );
+        }
+
+        return items;
+    }
+
+    function previewHeader( title, attrs ) {
+        var meta = previewMetaItems( attrs );
+
+        return el(
+            'div',
+            { className: 'themisdb-editor-preview-header' },
+            el(
+                'div',
+                { className: 'themisdb-editor-preview-heading' },
+                el( 'strong', null, title ),
+                el( 'span', { className: 'themisdb-editor-preview-subtitle' }, __( 'Serverseitige Vorschau', 'themisdb-theme' ) )
+            ),
+            meta.length ? el(
+                'div',
+                { className: 'themisdb-editor-preview-meta' },
+                meta.map( function( item, index ) {
+                    return el( 'span', { key: index, className: 'themisdb-editor-preview-chip' }, item );
+                } )
+            ) : null
+        );
+    }
+
+    function loadingPreview() {
+        return el(
+            'div',
+            { className: 'themisdb-editor-preview-loading' },
+            el( Spinner, null ),
+            el( 'span', null, __( 'Vorschau wird aktualisiert…', 'themisdb-theme' ) )
+        );
+    }
+
+    function errorPreview( message ) {
+        return el(
+            'div',
+            { className: 'themisdb-editor-preview-error' },
+            el( 'strong', null, __( 'Vorschau konnte nicht geladen werden', 'themisdb-theme' ) ),
+            el( 'p', null, message || __( 'Bitte Attribute prüfen oder später erneut laden.', 'themisdb-theme' ) )
+        );
+    }
+
+    function blockPreview( name, attrs, title ) {
+        return el(
+            'div',
+            { className: 'themisdb-editor-preview-shell', key: 'preview-shell' },
+            previewHeader( title || name, attrs ),
+            el(
+                'div',
+                { className: 'themisdb-editor-preview-body' },
+                el( ServerSideRender, {
+                    key: 'preview',
+                    block: name,
+                    attributes: attrs,
+                    LoadingResponsePlaceholder: loadingPreview,
+                    EmptyResponsePlaceholder: function () {
+                        return errorPreview( __( 'Die Vorschau hat keine Ausgabe geliefert.', 'themisdb-theme' ) );
+                    },
+                    ErrorResponsePlaceholder: function ( response ) {
+                        var message = response && response.responseJSON && response.responseJSON.message
+                            ? response.responseJSON.message
+                            : '';
+                        return errorPreview( message );
+                    }
+                } )
+            )
+        );
     }
 
     registerBlockType( 'themisdb/gallery-grid', {
@@ -172,7 +254,7 @@
                         columnsDefault: 3
                     } )
                 ),
-                blockPreview( 'themisdb/gallery-grid', attrs )
+                blockPreview( 'themisdb/gallery-grid', attrs, __( 'Galerie Grid', 'themisdb-theme' ) )
             ];
         },
         save: function() {
@@ -207,7 +289,7 @@
                         excerptWordsDefault: 20
                     } )
                 ),
-                blockPreview( 'themisdb/three-row-grid', attrs )
+                blockPreview( 'themisdb/three-row-grid', attrs, __( '3-Row Grid', 'themisdb-theme' ) )
             ];
         },
         save: function() {
@@ -241,7 +323,7 @@
                         columnsDefault: 3
                     } )
                 ),
-                blockPreview( 'themisdb/button-box-grid', attrs )
+                blockPreview( 'themisdb/button-box-grid', attrs, __( 'Button Box Grid', 'themisdb-theme' ) )
             ];
         },
         save: function() {
@@ -281,7 +363,7 @@
                         excerptWordsDefault: 20
                     } )
                 ),
-                blockPreview( 'themisdb/section-cards', attrs )
+                blockPreview( 'themisdb/section-cards', attrs, __( 'Section Cards', 'themisdb-theme' ) )
             ];
         },
         save: function() {
@@ -312,7 +394,7 @@
                         excerptWordsDefault: 36
                     } )
                 ),
-                blockPreview( 'themisdb/section-feature', attrs )
+                blockPreview( 'themisdb/section-feature', attrs, __( 'Section Feature', 'themisdb-theme' ) )
             ];
         },
         save: function() {
@@ -340,7 +422,7 @@
                     controlsCommon( attrs, props.setAttributes, { defaultSection: 'aktuelles', defaultPerPage: 4 } ),
                     layoutToggles( attrs, props.setAttributes, {} )
                 ),
-                blockPreview( 'themisdb/section-timeline', attrs )
+                blockPreview( 'themisdb/section-timeline', attrs, __( 'Timeline', 'themisdb-theme' ) )
             ];
         },
         save: function() {
@@ -368,7 +450,7 @@
                     controlsCommon( attrs, props.setAttributes, { defaultSection: 'faq', defaultPerPage: 6 } ),
                     layoutToggles( attrs, props.setAttributes, {} )
                 ),
-                blockPreview( 'themisdb/section-faq', attrs )
+                blockPreview( 'themisdb/section-faq', attrs, __( 'FAQ', 'themisdb-theme' ) )
             ];
         },
         save: function() {
@@ -384,7 +466,7 @@
         description: __( 'Systemzugang-Anfrageformular des Themes.', 'themisdb-theme' ),
         attributes: {},
         edit: function() {
-            return blockPreview( 'themisdb/contact-form', {} );
+            return blockPreview( 'themisdb/contact-form', {}, __( 'Kontaktformular', 'themisdb-theme' ) );
         },
         save: function() {
             return null;
@@ -408,7 +490,7 @@
                 el( InspectorControls, { key: 'inspector' },
                     layoutToggles( attrs, props.setAttributes, {} )
                 ),
-                blockPreview( 'themisdb/state-grid', attrs )
+                blockPreview( 'themisdb/state-grid', attrs, __( 'State Grid', 'themisdb-theme' ) )
             ];
         },
         save: function() {
@@ -497,7 +579,7 @@
                             } )
                         )
                     ),
-                    blockPreview( 'themisdb/front-slider', attrs )
+                    blockPreview( 'themisdb/front-slider', attrs, __( 'Front Slider', 'themisdb-theme' ) )
                 ];
             },
             save: function() {

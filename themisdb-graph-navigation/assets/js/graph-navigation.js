@@ -335,6 +335,302 @@
     /**
      * Create Neo4j Bloom-inspired force-directed graph
      */
+    /**
+     * Create galaxy (radial/orbital) layout
+     */
+    function createGalaxyLayout(container, graphData, panelContainer) {
+        if (!d3) {
+            console.error('D3.js not loaded');
+            return;
+        }
+
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        // Find center node (most connections)
+        const linkCounts = new Map(graphData.nodes.map(n => [n.id, 0]));
+        graphData.links.forEach(link => {
+            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+            linkCounts.set(sourceId, (linkCounts.get(sourceId) || 0) + 1);
+            linkCounts.set(targetId, (linkCounts.get(targetId) || 0) + 1);
+        });
+
+        const centerNode = graphData.nodes.reduce((max, n) => 
+            (linkCounts.get(n.id) || 0) > (linkCounts.get(max.id) || 0) ? n : max
+        );
+        const maxLinkCount = Math.max(1, ...Array.from(linkCounts.values()));
+
+        function getHeatColorFromCount(count) {
+            const normalized = Math.max(0, Math.min(1, count / maxLinkCount));
+            return d3.interpolateTurbo(0.08 + normalized * 0.84);
+        }
+
+        // Calculate distances from center using BFS
+        const distances = new Map([[centerNode.id, 0]]);
+        const queue = [centerNode.id];
+        
+        while (queue.length > 0) {
+            const nodeId = queue.shift();
+            const dist = distances.get(nodeId);
+
+            graphData.links.forEach(link => {
+                const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+
+                if (sourceId === nodeId && !distances.has(targetId)) {
+                    distances.set(targetId, dist + 1);
+                    queue.push(targetId);
+                } else if (targetId === nodeId && !distances.has(sourceId)) {
+                    distances.set(sourceId, dist + 1);
+                    queue.push(sourceId);
+                }
+            });
+        }
+
+        // Clear container
+        container.innerHTML = '';
+
+        // Create SVG
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .attr('class', 'bloom-graph galaxy-layout');
+
+        // Add zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on('zoom', (event) => {
+                g.attr('transform', event.transform);
+            });
+
+        svg.call(zoom);
+        const g = svg.append('g');
+
+        // Defs for filters and gradients
+        const defs = svg.append('defs');
+        const filter = defs.append('filter')
+            .attr('id', 'glow')
+            .attr('x', '-50%')
+            .attr('y', '-50%')
+            .attr('width', '200%')
+            .attr('height', '200%');
+        filter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'coloredBlur');
+        const feMerge = filter.append('feMerge');
+        feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+        feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+        // Create links
+        const link = g.append('g')
+            .attr('class', 'links')
+            .selectAll('line')
+            .data(graphData.links)
+            .enter()
+            .append('line')
+            .attr('stroke', d => {
+                const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
+                const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+                const sourceCount = linkCounts.get(sourceId) || 0;
+                const targetCount = linkCounts.get(targetId) || 0;
+                return getHeatColorFromCount((sourceCount + targetCount) / 2);
+            })
+            .attr('stroke-width', d => {
+                const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
+                const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+                const sourceCount = linkCounts.get(sourceId) || 0;
+                const targetCount = linkCounts.get(targetId) || 0;
+                return 0.8 + ((sourceCount + targetCount) / (2 * maxLinkCount)) * 2.4;
+            })
+            .attr('stroke-opacity', 0.4);
+
+        // Position links
+        link.attr('x1', d => {
+            const s = typeof d.source === 'object' ? d.source : graphData.nodes.find(n => n.id === d.source);
+            return s.x || 0;
+        })
+        .attr('y1', d => {
+            const s = typeof d.source === 'object' ? d.source : graphData.nodes.find(n => n.id === d.source);
+            return s.y || 0;
+        })
+        .attr('x2', d => {
+            const t = typeof d.target === 'object' ? d.target : graphData.nodes.find(n => n.id === d.target);
+            return t.x || 0;
+        })
+        .attr('y2', d => {
+            const t = typeof d.target === 'object' ? d.target : graphData.nodes.find(n => n.id === d.target);
+            return t.y || 0;
+        });
+
+        // Position nodes in concentric circles
+        const maxDist = Math.max(...Array.from(distances.values()));
+        const ringRadius = Math.min(width, height) / 2 - 100;
+
+        graphData.nodes.forEach(node => {
+            const dist = distances.get(node.id) || 0;
+            const angle = Math.random() * Math.PI * 2; // Random angle per node
+            
+            if (dist === 0) {
+                // Center node
+                node.x = width / 2;
+                node.y = height / 2;
+            } else {
+                // Orbital position
+                const r = (dist / maxDist) * ringRadius;
+                node.x = width / 2 + r * Math.cos(angle);
+                node.y = height / 2 + r * Math.sin(angle);
+            }
+        });
+
+        // Create nodes
+        const nodeGroup = g.append('g')
+            .attr('class', 'nodes')
+            .selectAll('g')
+            .data(graphData.nodes)
+            .enter()
+            .append('g')
+            .attr('class', d => `graph-node ${distances.get(d.id) === 0 ? 'center-node' : ''} galaxy-mode rotating`)
+            .attr('transform', d => `translate(${d.x},${d.y})`)
+            .attr('tabindex', 0);
+
+        nodeGroup.append('circle')
+            .attr('r', d => d.size)
+            .attr('fill', d => getHeatColorFromCount(linkCounts.get(d.id) || 0))
+            .attr('stroke', d => d3.color(getHeatColorFromCount(linkCounts.get(d.id) || 0)).darker(0.8))
+            .attr('stroke-width', 2)
+            .attr('filter', 'url(#glow)');
+
+        nodeGroup.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('dy', '.3em')
+            .attr('font-size', '14px')
+            .attr('fill', '#fff')
+            .attr('pointer-events', 'none')
+            .text(d => d.label);
+
+        // Update link positions on tick
+        const ticker = () => {
+            link.attr('x1', d => {
+                const s = typeof d.source === 'object' ? d.source : graphData.nodes.find(n => n.id === d.source);
+                return s.x || 0;
+            })
+            .attr('y1', d => {
+                const s = typeof d.source === 'object' ? d.source : graphData.nodes.find(n => n.id === d.source);
+                return s.y || 0;
+            })
+            .attr('x2', d => {
+                const t = typeof d.target === 'object' ? d.target : graphData.nodes.find(n => n.id === d.target);
+                return t.x || 0;
+            })
+            .attr('y2', d => {
+                const t = typeof d.target === 'object' ? d.target : graphData.nodes.find(n => n.id === d.target);
+                return t.y || 0;
+            });
+
+            nodeGroup.attr('transform', d => `translate(${d.x},${d.y})`);
+        };
+
+        ticker();
+
+        // Particle system for galaxy layout
+        const particleContainer = g.append('g').attr('class', 'particle-container');
+        let activeParticles = [];
+
+        function createParticlesGalaxy(x, y, count = 8) {
+            const particles = [];
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const speed = 2 + Math.random() * 2;
+                const life = 0.6 + Math.random() * 0.4;
+                
+                const particle = {
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: life,
+                    maxLife: life,
+                    element: null,
+                    startTime: performance.now()
+                };
+
+                particle.element = particleContainer.append('circle')
+                    .attr('cx', x)
+                    .attr('cy', y)
+                    .attr('r', 3)
+                    .attr('class', 'particle-spark')
+                    .attr('fill', '#7c4dff')
+                    .attr('opacity', 0.8);
+
+                activeParticles.push(particle);
+                particles.push(particle);
+            }
+            return particles;
+        }
+
+        function animateParticlesGalaxy(currentTime) {
+            activeParticles = activeParticles.filter(p => {
+                const elapsed = (currentTime - p.startTime) / 1000;
+                const progress = elapsed / p.maxLife;
+                
+                if (progress >= 1) {
+                    p.element.remove();
+                    return false;
+                }
+
+                p.vy += 0.3;
+                p.x += p.vx;
+                p.y += p.vy;
+
+                p.element
+                    .attr('cx', p.x)
+                    .attr('cy', p.y)
+                    .attr('opacity', 0.8 * (1 - progress));
+
+                return true;
+            });
+
+            if (activeParticles.length > 0) {
+                requestAnimationFrame(animateParticlesGalaxy);
+            }
+        }
+
+        let particleAnimationFrame = null;
+        function scheduleParticleAnimationGalaxy() {
+            if (!particleAnimationFrame) {
+                particleAnimationFrame = requestAnimationFrame((t) => {
+                    animateParticlesGalaxy(t);
+                    particleAnimationFrame = null;
+                });
+            }
+        }
+
+        // Tooltip support (similar to force layout)
+        nodeGroup.on('mouseover', function(event, d) {
+            d3.select(this).select('circle').classed('heartbeat', true);
+            createParticlesGalaxy(d.x, d.y, 12);
+            scheduleParticleAnimationGalaxy();
+        })
+        .on('mouseout', function(event, d) {
+            d3.select(this).select('circle').classed('heartbeat', false);
+        })
+        .on('click', function(event, d) {
+            if (d.url) {
+                window.location.href = d.url;
+            }
+        })
+        .on('focus', function(event, d) {
+            d3.select(this).select('circle').classed('heartbeat', true);
+            createParticlesGalaxy(d.x, d.y, 10);
+            scheduleParticleAnimationGalaxy();
+        })
+        .on('blur', function(event, d) {
+            d3.select(this).select('circle').classed('heartbeat', false);
+        });
+
+        return { svg, g, graphData };
+    }
+
     function createForceDirectedGraph(container, graphData, panelContainer) {
         if (!d3) {
             console.error('D3.js not loaded');
@@ -536,11 +832,56 @@
                 connectionCount.set(targetId, connectionCount.get(targetId) + 1);
             }
         });
+        const maxConnectionCount = Math.max(1, ...Array.from(connectionCount.values()));
+
+        function getHeatColorFromCount(count) {
+            const normalized = Math.max(0, Math.min(1, count / maxConnectionCount));
+            return d3.interpolateTurbo(0.08 + normalized * 0.84);
+        }
+
+        function applyHeatMapStyles() {
+            if (panelState.heatMapEnabled) {
+                node.select('circle')
+                    .attr('fill', d => getHeatColorFromCount(connectionCount.get(d.id) || 0))
+                    .attr('stroke', d => d3.color(getHeatColorFromCount(connectionCount.get(d.id) || 0)).darker(0.8));
+
+                link
+                    .attr('stroke', l => {
+                        const sourceId = resolveNodeId(l.source);
+                        const targetId = resolveNodeId(l.target);
+                        const sourceCount = connectionCount.get(sourceId) || 0;
+                        const targetCount = connectionCount.get(targetId) || 0;
+                        return getHeatColorFromCount((sourceCount + targetCount) / 2);
+                    })
+                    .attr('stroke-width', l => {
+                        const sourceId = resolveNodeId(l.source);
+                        const targetId = resolveNodeId(l.target);
+                        const sourceCount = connectionCount.get(sourceId) || 0;
+                        const targetCount = connectionCount.get(targetId) || 0;
+                        const intensity = (sourceCount + targetCount) / (2 * maxConnectionCount);
+                        return 1.2 + intensity * 2.8;
+                    })
+                    .attr('stroke-opacity', 0.78);
+                return;
+            }
+
+            node.select('circle')
+                .attr('fill', d => d.color)
+                .attr('stroke', d => d3.rgb(d.color).darker(1));
+
+            link
+                .attr('stroke', '#3498db')
+                .attr('stroke-width', 2)
+                .attr('stroke-opacity', 0.6);
+        }
 
         const panelState = {
             search: '',
             type: 'all',
             sort: 'label_asc',
+            layoutMode: 'force',
+            heatMapEnabled: false,
+            clusterMode: 'none',
             selectedIds: new Set(),
             selectedOnly: false,
             filterMode: 'hide',
@@ -556,6 +897,58 @@
             searchDebounceTimer: null,
             isListScrollBound: false
         };
+
+        function getClusterKey(node) {
+            if (panelState.clusterMode === 'type') {
+                return node.type || 'unknown';
+            }
+            if (panelState.clusterMode === 'level') {
+                return String(Number.isFinite(node.level) ? node.level : 0);
+            }
+            return 'all';
+        }
+
+        function applyClusterForces() {
+            if (!simulation) {
+                return;
+            }
+
+            if (panelState.clusterMode === 'none') {
+                simulation
+                    .force('x', d3.forceX(width / 2).strength(0.02))
+                    .force('y', d3.forceY(height / 2).strength(0.02));
+                simulation.alpha(0.45).restart();
+                return;
+            }
+
+            const keys = [...new Set(graphData.nodes.map(getClusterKey))];
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = Math.min(width, height) * 0.28;
+
+            const centers = new Map(keys.map((key, index) => {
+                const angle = (index / Math.max(1, keys.length)) * Math.PI * 2;
+                return [
+                    key,
+                    {
+                        x: centerX + radius * Math.cos(angle),
+                        y: centerY + radius * Math.sin(angle)
+                    }
+                ];
+            }));
+
+            simulation
+                .force('x', d3.forceX(d => {
+                    const cluster = centers.get(getClusterKey(d));
+                    return cluster ? cluster.x : centerX;
+                }).strength(0.16))
+                .force('y', d3.forceY(d => {
+                    const cluster = centers.get(getClusterKey(d));
+                    return cluster ? cluster.y : centerY;
+                }).strength(0.16));
+
+            simulation.alpha(0.72).restart();
+        }
 
         const panelStorageKey = 'themisdbGraphPanelStateV2';
         const panelFloatPosKey = 'themisdbGraphPanelPosV1';
@@ -574,6 +967,9 @@
             searchInput: panelContainer.querySelector('#graph-filter-search'),
             typeSelect: panelContainer.querySelector('#graph-filter-type'),
             sortSelect: panelContainer.querySelector('#graph-sort-select'),
+            layoutModeSelect: panelContainer.querySelector('#graph-layout-mode'),
+            clusterSelect: panelContainer.querySelector('#graph-cluster-mode'),
+            heatMapCheckbox: panelContainer.querySelector('#graph-heatmap-toggle'),
             selectedOnlyCheckbox: panelContainer.querySelector('#graph-selected-only'),
             highlightOnlyCheckbox: panelContainer.querySelector('#graph-highlight-only'),
             minCountInput: panelContainer.querySelector('#graph-filter-min-count'),
@@ -601,6 +997,7 @@
             resetFiltersBtn: panelContainer.querySelector('#graph-reset-filters'),
             shareViewBtn: panelContainer.querySelector('#graph-share-view'),
             selectionCount: panelContainer.querySelector('#graph-selection-count'),
+            statsContainer: panelContainer.querySelector('#graph-stats-grid'),
             list: panelContainer.querySelector('#graph-node-list')
         } : null;
 
@@ -929,6 +1326,8 @@
                     search: panelState.search,
                     type: panelState.type,
                     sort: panelState.sort,
+                    heatMapEnabled: panelState.heatMapEnabled,
+                    clusterMode: panelState.clusterMode,
                     selectedOnly: panelState.selectedOnly,
                     filterMode: panelState.filterMode,
                     helpVisible: panelState.helpVisible,
@@ -954,6 +1353,8 @@
                 panelState.search = typeof parsed.search === 'string' ? parsed.search : '';
                 panelState.type = typeof parsed.type === 'string' ? parsed.type : 'all';
                 panelState.sort = typeof parsed.sort === 'string' ? parsed.sort : 'label_asc';
+                panelState.heatMapEnabled = Boolean(parsed.heatMapEnabled);
+                panelState.clusterMode = ['none', 'type', 'level'].includes(parsed.clusterMode) ? parsed.clusterMode : 'none';
                 panelState.selectedOnly = Boolean(parsed.selectedOnly);
                 panelState.filterMode = parsed.filterMode === 'highlight' ? 'highlight' : 'hide';
                 panelState.helpVisible = Boolean(parsed.helpVisible);
@@ -984,6 +1385,8 @@
                 const search = params.get('gq');
                 const type = params.get('gt');
                 const sort = params.get('gs');
+                const heatMap = params.get('ghm');
+                const cluster = params.get('gcl');
                 const selectedOnly = params.get('gso');
                 const filterMode = params.get('gfm');
                 const minCount = params.get('gmc');
@@ -994,6 +1397,8 @@
                 if (search !== null) panelState.search = search;
                 if (type !== null) panelState.type = type;
                 if (sort !== null) panelState.sort = sort;
+                if (heatMap !== null) panelState.heatMapEnabled = heatMap === '1';
+                if (cluster !== null) panelState.clusterMode = ['none', 'type', 'level'].includes(cluster) ? cluster : 'none';
                 if (selectedOnly !== null) panelState.selectedOnly = selectedOnly === '1';
                 if (filterMode !== null) panelState.filterMode = filterMode === 'highlight' ? 'highlight' : 'hide';
                 if (dateFrom !== null) panelState.dateFrom = dateFrom;
@@ -1028,6 +1433,8 @@
                 panelState.search === '' &&
                 panelState.type === 'all' &&
                 panelState.sort === 'label_asc' &&
+                panelState.heatMapEnabled === false &&
+                panelState.clusterMode === 'none' &&
                 panelState.selectedOnly === false &&
                 panelState.filterMode === 'hide' &&
                 panelState.minCount === 0 &&
@@ -1035,7 +1442,7 @@
                 panelState.dateTo === '' &&
                 panelState.selectedIds.size === 0;
 
-            const managedKeys = ['gn', 'gq', 'gt', 'gs', 'gso', 'gfm', 'gmc', 'gdf', 'gdt', 'gsel'];
+            const managedKeys = ['gn', 'gq', 'gt', 'gs', 'ghm', 'gcl', 'gso', 'gfm', 'gmc', 'gdf', 'gdt', 'gsel'];
             managedKeys.forEach(key => params.delete(key));
 
             if (!isDefaultState) {
@@ -1043,6 +1450,8 @@
                 if (panelState.search) params.set('gq', panelState.search);
                 if (panelState.type && panelState.type !== 'all') params.set('gt', panelState.type);
                 if (panelState.sort && panelState.sort !== 'label_asc') params.set('gs', panelState.sort);
+                if (panelState.heatMapEnabled) params.set('ghm', '1');
+                if (panelState.clusterMode !== 'none') params.set('gcl', panelState.clusterMode);
                 if (panelState.selectedOnly) params.set('gso', '1');
                 if (panelState.filterMode === 'highlight') params.set('gfm', 'highlight');
                 if (panelState.minCount > 0) params.set('gmc', String(panelState.minCount));
@@ -1092,6 +1501,8 @@
             if (panel.searchInput) panel.searchInput.value = panelState.search;
             if (panel.typeSelect) panel.typeSelect.value = panelState.type;
             if (panel.sortSelect) panel.sortSelect.value = panelState.sort;
+            if (panel.heatMapCheckbox) panel.heatMapCheckbox.checked = panelState.heatMapEnabled;
+            if (panel.clusterSelect) panel.clusterSelect.value = panelState.clusterMode;
             if (panel.selectedOnlyCheckbox) panel.selectedOnlyCheckbox.checked = panelState.selectedOnly;
             if (panel.highlightOnlyCheckbox) panel.highlightOnlyCheckbox.checked = panelState.filterMode === 'highlight';
             if (panel.minCountInput) panel.minCountInput.value = panelState.minCount > 0 ? String(panelState.minCount) : '';
@@ -1127,6 +1538,8 @@
                 search: panelState.search,
                 type: panelState.type,
                 sort: panelState.sort,
+                heatMapEnabled: panelState.heatMapEnabled,
+                clusterMode: panelState.clusterMode,
                 selectedOnly: panelState.selectedOnly,
                 filterMode: panelState.filterMode,
                 minCount: panelState.minCount,
@@ -1140,6 +1553,8 @@
             panelState.search = typeof serialized.search === 'string' ? serialized.search : '';
             panelState.type = typeof serialized.type === 'string' ? serialized.type : 'all';
             panelState.sort = typeof serialized.sort === 'string' ? serialized.sort : 'label_asc';
+            panelState.heatMapEnabled = Boolean(serialized.heatMapEnabled);
+            panelState.clusterMode = ['none', 'type', 'level'].includes(serialized.clusterMode) ? serialized.clusterMode : 'none';
             panelState.selectedOnly = Boolean(serialized.selectedOnly);
             panelState.filterMode = serialized.filterMode === 'highlight' ? 'highlight' : 'hide';
 
@@ -1331,7 +1746,21 @@
                 modal.classList.add('visible');
                 modal.setAttribute('aria-hidden', 'false');
 
+                // Monitor if panel becomes hidden (e.g., graph block is collapsed)
+                const visibilityObserver = new MutationObserver(() => {
+                    const panelStyle = window.getComputedStyle(panel.root);
+                    const isHidden = panelStyle.display === 'none' || panelStyle.visibility === 'hidden';
+                    if (isHidden && !resolved) {
+                        finalize('cancel');
+                    }
+                });
+                visibilityObserver.observe(panel.root, {
+                    attributes: true,
+                    attributeFilter: ['style', 'class']
+                });
+
                 const cleanup = () => {
+                    visibilityObserver.disconnect();
                     buttons.forEach(btn => btn.removeEventListener('click', onDecision));
                     modal.removeEventListener('keydown', onKeydown);
                     modal.classList.remove('visible');
@@ -1566,6 +1995,57 @@
             }
 
             panel.selectionCount.textContent = `${panelState.selectedIds.size} ausgewaehlt | ${panelState.visibleIds.size} sichtbar`;
+            renderPanelStats();
+        }
+
+        function renderPanelStats() {
+            if (!panel || !panel.statsContainer) {
+                return;
+            }
+
+            const visibleNodes = graphData.nodes.filter(n => panelState.visibleIds.has(n.id));
+            const visibleNodeCount = visibleNodes.length;
+            const selectedCount = panelState.selectedIds.size;
+            const totalNodeCount = graphData.nodes.length;
+
+            const visibleLinkCount = graphData.links.reduce((sum, l) => {
+                const sourceId = resolveNodeId(l.source);
+                const targetId = resolveNodeId(l.target);
+                return sum + (panelState.visibleIds.has(sourceId) && panelState.visibleIds.has(targetId) ? 1 : 0);
+            }, 0);
+
+            const density = visibleNodeCount > 1
+                ? ((2 * visibleLinkCount) / (visibleNodeCount * (visibleNodeCount - 1)))
+                : 0;
+
+            const typeCounts = new Map();
+            visibleNodes.forEach(n => {
+                const key = n.type || 'unknown';
+                typeCounts.set(key, (typeCounts.get(key) || 0) + 1);
+            });
+
+            let topType = '-';
+            let topTypeCount = 0;
+            typeCounts.forEach((count, type) => {
+                if (count > topTypeCount) {
+                    topType = type;
+                    topTypeCount = count;
+                }
+            });
+
+            const avgDegree = visibleNodeCount > 0
+                ? (visibleNodes.reduce((sum, n) => sum + (connectionCount.get(n.id) || 0), 0) / visibleNodeCount)
+                : 0;
+
+            panel.statsContainer.innerHTML = `
+                <div class="graph-stat-item"><span class="label">Gesamt</span><strong>${totalNodeCount}</strong></div>
+                <div class="graph-stat-item"><span class="label">Sichtbar</span><strong>${visibleNodeCount}</strong></div>
+                <div class="graph-stat-item"><span class="label">Selektion</span><strong>${selectedCount}</strong></div>
+                <div class="graph-stat-item"><span class="label">Kanten</span><strong>${visibleLinkCount}</strong></div>
+                <div class="graph-stat-item"><span class="label">Dichte</span><strong>${density.toFixed(3)}</strong></div>
+                <div class="graph-stat-item"><span class="label">Top Typ</span><strong>${topType}${topTypeCount > 0 ? ` (${topTypeCount})` : ''}</strong></div>
+                <div class="graph-stat-item"><span class="label">Ø Grad</span><strong>${avgDegree.toFixed(2)}</strong></div>
+            `;
         }
 
         function createPanelNodeItem(n) {
@@ -1755,6 +2235,7 @@
             }
 
             updateSelectionStyles();
+            applyHeatMapStyles();
             renderPanelList();
             const typeCounts = new Map();
             graphData.nodes.forEach(n => {
@@ -1938,6 +2419,41 @@
                 applyPanelState();
             });
 
+            panel.heatMapCheckbox?.addEventListener('change', (e) => {
+                panelState.heatMapEnabled = Boolean(e.target.checked);
+                applyHeatMapStyles();
+                persistPanelState();
+                syncUrlState();
+            });
+
+            panel.clusterSelect?.addEventListener('change', (e) => {
+                panelState.clusterMode = ['none', 'type', 'level'].includes(e.target.value) ? e.target.value : 'none';
+                applyClusterForces();
+                persistPanelState();
+                syncUrlState();
+            });
+
+            panel.layoutModeSelect?.addEventListener('change', (e) => {
+                const newMode = e.target.value || 'force';
+                if (panelState.layoutMode === newMode) return;
+
+                panelState.layoutMode = newMode;
+
+                // Clear and recreate graph with new layout
+                if (container) {
+                    const layoutRunner = new Promise((resolve) => {
+                        setTimeout(() => {
+                            if (panelState.layoutMode === 'galaxy') {
+                                createGalaxyLayout(container, graphData, panelContainer);
+                            } else {
+                                createForceDirectedGraph(container, graphData, panelContainer);
+                            }
+                            resolve();
+                        }, 50);
+                    });
+                }
+            });
+
             panel.selectedOnlyCheckbox?.addEventListener('change', (e) => {
                 panelState.selectedOnly = Boolean(e.target.checked);
                 applyPanelState();
@@ -1978,6 +2494,8 @@
                 panelState.search = '';
                 panelState.type = 'all';
                 panelState.sort = 'label_asc';
+                panelState.heatMapEnabled = false;
+                panelState.clusterMode = 'none';
                 panelState.selectedOnly = false;
                 panelState.filterMode = 'hide';
                 panelState.minCount = 0;
@@ -1985,6 +2503,7 @@
                 panelState.dateTo = '';
                 syncPanelControls();
                 applyPanelState();
+                applyClusterForces();
             });
 
             panel.presetSelect?.addEventListener('change', (e) => {
@@ -2213,6 +2732,88 @@
         });
 
         initializePanel();
+        applyClusterForces();
+
+        // Particle system for hover effects
+        const particleContainer = g.append('g').attr('class', 'particle-container');
+        let activeParticles = [];
+
+        function createParticles(x, y, count = 8) {
+            const particles = [];
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const speed = 2 + Math.random() * 2;
+                const life = 0.6 + Math.random() * 0.4; // seconds
+                
+                const particle = {
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: life,
+                    maxLife: life,
+                    element: null,
+                    startTime: performance.now()
+                };
+
+                // Create SVG circle for particle
+                particle.element = particleContainer.append('circle')
+                    .attr('cx', x)
+                    .attr('cy', y)
+                    .attr('r', 3)
+                    .attr('class', 'particle-spark')
+                    .attr('fill', d3.color(d.fill || '#7c4dff').brighter(1))
+                    .attr('opacity', 0.8)
+                    .attr('filter', 'url(#glow)');
+
+                activeParticles.push(particle);
+                particles.push(particle);
+            }
+
+            return particles;
+        }
+
+        function animateParticles(currentTime) {
+            activeParticles = activeParticles.filter(p => {
+                const elapsed = (currentTime - p.startTime) / 1000; // convert to seconds
+                const progress = elapsed / p.maxLife;
+                
+                if (progress >= 1) {
+                    p.element.remove();
+                    return false;
+                }
+
+                // Physics: gravity downward
+                p.vy += 0.3; // gravity
+                
+                // Update position
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // Update element
+                p.element
+                    .attr('cx', p.x)
+                    .attr('cy', p.y)
+                    .attr('opacity', 0.8 * (1 - progress)); // fade out
+
+                return true;
+            });
+
+            if (activeParticles.length > 0) {
+                requestAnimationFrame(animateParticles);
+            }
+        }
+
+        // Start particle animation loop
+        let particleAnimationFrame = null;
+        function scheduleParticleAnimation() {
+            if (!particleAnimationFrame) {
+                particleAnimationFrame = requestAnimationFrame((t) => {
+                    animateParticles(t);
+                    particleAnimationFrame = null;
+                });
+            }
+        }
 
         // Add hover effects
         node.on('mouseover', function(event, d) {
@@ -2222,6 +2823,15 @@
 
             clearTooltipTimer('hideTimer');
             tooltipState.activeTouchNodeId = null;
+            d3.select(this).select('circle').classed('heartbeat', true);
+            
+            // Create particle effect
+            const circle = d3.select(this).select('circle');
+            const cx = +circle.attr('cx') || 0;
+            const cy = +circle.attr('cy') || 0;
+            createParticles(cx, cy, 12);
+            scheduleParticleAnimation();
+            
             highlightNodeAndLinks(this, d);
             renderTooltipContent(d);
             scheduleTooltipShow(getEventPosition(event, this));
@@ -2236,6 +2846,7 @@
                 return;
             }
 
+            d3.select(this).select('circle').classed('heartbeat', false);
             resetNodeAndLinks(this, d);
             scheduleTooltipHide();
         })
@@ -2244,6 +2855,15 @@
                 return;
             }
 
+            d3.select(this).select('circle').classed('heartbeat', true);
+            
+            // Create particle effect
+            const circle = d3.select(this).select('circle');
+            const cx = +circle.attr('cx') || 0;
+            const cy = +circle.attr('cy') || 0;
+            createParticles(cx, cy, 10);
+            scheduleParticleAnimation();
+            
             highlightNodeAndLinks(this, d);
             renderTooltipContent(d);
             scheduleTooltipShow(getEventPosition(event, this), true);
@@ -2253,6 +2873,7 @@
                 return;
             }
 
+            d3.select(this).select('circle').classed('heartbeat', false);
             resetNodeAndLinks(this, d);
             scheduleTooltipHide();
         })
@@ -2280,6 +2901,14 @@
                 event.preventDefault();
                 tooltipState.activeTouchNodeId = d.id;
                 tooltipState.suppressNextClick = true;
+                
+                // Create particle effect
+                const circle = d3.select(this).select('circle');
+                const cx = +circle.attr('cx') || 0;
+                const cy = +circle.attr('cy') || 0;
+                createParticles(cx, cy, 15);
+                scheduleParticleAnimation();
+                
                 highlightNodeAndLinks(this, d);
                 renderTooltipContent(d);
                 showTooltip(getEventPosition(event, this), true);
@@ -2448,6 +3077,109 @@
         const style = document.createElement('style');
         style.id = 'themisdb-graph-panel-styles';
         style.textContent = `
+            .nav-graph-toggle {
+                position: fixed;
+                top: 20px;
+                left: 20px;
+                z-index: 10000;
+                background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+                color: #ffffff;
+                border: none;
+                border-radius: 999px;
+                width: 56px;
+                height: 56px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                box-shadow: 0 10px 24px rgba(37, 99, 235, 0.35);
+                transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+            }
+
+            .nav-graph-toggle:hover {
+                transform: scale(1.06);
+                box-shadow: 0 14px 28px rgba(37, 99, 235, 0.45);
+                background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+            }
+
+            .nav-graph-toggle:focus-visible,
+            .control-btn:focus-visible {
+                outline: 3px solid rgba(255, 215, 120, 0.95);
+                outline-offset: 3px;
+            }
+
+            .nav-graph-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(10, 16, 28, 0.92);
+                backdrop-filter: blur(10px);
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+                transition: opacity 0.25s ease, visibility 0.25s ease;
+            }
+
+            .nav-graph-overlay.visible {
+                opacity: 1;
+                visibility: visible;
+                pointer-events: auto;
+            }
+
+            .nav-graph-container {
+                width: 95%;
+                height: 90%;
+                overflow: hidden;
+                position: relative;
+                border-radius: 14px;
+                background: radial-gradient(circle at center, rgba(30, 41, 59, 0.88) 0%, rgba(10, 16, 28, 0.98) 100%);
+                box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+            }
+
+            .nav-graph-container .loading {
+                color: #ffffff;
+                font-size: 1.05rem;
+                text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                gap: 1rem;
+            }
+
+            .graph-controls {
+                position: absolute;
+                right: 24px;
+                bottom: 24px;
+                display: flex;
+                gap: 10px;
+                z-index: 70;
+            }
+
+            .control-btn {
+                width: 46px;
+                height: 46px;
+                border: 1px solid rgba(124, 150, 255, 0.35);
+                border-radius: 999px;
+                background: rgba(17, 24, 39, 0.86);
+                color: #eff6ff;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+                transition: transform 0.18s ease, background 0.18s ease;
+            }
+
+            .control-btn:hover {
+                transform: translateY(-1px);
+                background: rgba(30, 41, 59, 0.96);
+            }
+
             .themisdb-graph-layout {
                 position: absolute;
                 inset: 0;
@@ -2746,6 +3478,39 @@
                 color: #b8c8f8;
             }
 
+            .graph-stats-grid {
+                margin-top: 6px;
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 6px;
+            }
+
+            .graph-stat-item {
+                border: 1px solid rgba(124, 150, 255, 0.28);
+                background: rgba(11, 16, 25, 0.72);
+                border-radius: 8px;
+                padding: 6px 8px;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+
+            .graph-stat-item .label {
+                font-size: 10px;
+                letter-spacing: 0.02em;
+                text-transform: uppercase;
+                color: #9eb2f3;
+            }
+
+            .graph-stat-item strong {
+                font-size: 13px;
+                color: #f4f8ff;
+                line-height: 1.2;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
             .graph-node-list {
                 margin-top: 10px;
                 border-top: 1px solid rgba(130, 152, 233, 0.3);
@@ -2794,7 +3559,67 @@
                 line-height: 1.5;
             }
 
+            @keyframes graph-heartbeat {
+                0%, 100% {
+                    transform: scale(1);
+                    filter: drop-shadow(0 0 4px rgba(52, 152, 219, 0.4));
+                }
+                25% {
+                    transform: scale(1.08);
+                    filter: drop-shadow(0 0 8px rgba(52, 152, 219, 0.7));
+                }
+                50% {
+                    transform: scale(1);
+                    filter: drop-shadow(0 0 4px rgba(52, 152, 219, 0.4));
+                }
+            }
+
+            circle.heartbeat {
+                animation: graph-heartbeat 0.8s ease-in-out infinite;
+            }
+
+            circle.particle-spark {
+                pointer-events: none;
+                will-change: cx, cy, opacity;
+            }
+
+            @keyframes galaxy-rotate {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+
+            .graph-node.galaxy-mode circle {
+                animation: galaxy-rotate 20s linear infinite;
+                animation-play-state: paused;
+            }
+
+            .graph-node.galaxy-mode.rotating circle {
+                animation-play-state: running;
+            }
+
             @media (max-width: 960px) {
+                .nav-graph-toggle {
+                    width: 48px;
+                    height: 48px;
+                    top: 12px;
+                    left: 12px;
+                }
+
+                .nav-graph-container {
+                    width: 98%;
+                    height: 95%;
+                }
+
+                .graph-controls {
+                    right: 16px;
+                    bottom: 16px;
+                }
+
+                .control-btn {
+                    width: 42px;
+                    height: 42px;
+                }
+
                 .graph-side-panel {
                     width: min(300px, calc(100% - 40px));
                     right: 10px;
@@ -2888,9 +3713,22 @@
                             <option value="size_desc">Sortierung: Groesse</option>
                             <option value="count_desc">Sortierung: Count</option>
                         </select>
+                        <select id="graph-layout-mode" data-help-section="layout" aria-label="Visualisierungsmodus">
+                            <option value="force">Visualisierung: Force Layout</option>
+                            <option value="galaxy">Visualisierung: Galaxy Mode</option>
+                        </select>
+                        <select id="graph-cluster-mode" data-help-section="layout" aria-label="Cluster Modus">
+                            <option value="none">Clustering: Aus</option>
+                            <option value="type">Clustering: Nach Typ</option>
+                            <option value="level">Clustering: Nach Ebene</option>
+                        </select>
                         <label class="graph-panel-row" for="graph-highlight-only" data-help-section="highlight">
                             <span>Highlight-only Modus</span>
                             <input id="graph-highlight-only" type="checkbox" />
+                        </label>
+                        <label class="graph-panel-row" for="graph-heatmap-toggle" data-help-section="layout">
+                            <span>Heat-Map Intensitaet</span>
+                            <input id="graph-heatmap-toggle" type="checkbox" />
                         </label>
                         <input id="graph-filter-min-count" type="number" min="0" step="1" placeholder="Mindest-Count (z. B. 3)" data-help-section="filter" />
                         <input id="graph-filter-date-from" type="date" aria-label="Datum von" data-help-section="filter" />
@@ -2956,6 +3794,7 @@
                         <button id="graph-reset-filters" type="button">Filter zuruecksetzen</button>
                         <button id="graph-share-view" type="button">Ansicht-Link kopieren</button>
                         <div class="graph-selection-count" id="graph-selection-count">0 ausgewaehlt</div>
+                        <div class="graph-stats-grid" id="graph-stats-grid" aria-label="Graph Statistik"></div>
                     </div>
                     <div class="graph-node-list" id="graph-node-list" role="listbox" aria-label="Graph nodes"></div>
                     </div>
@@ -2992,10 +3831,17 @@
             <path fill-rule="evenodd" d="M2 2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1H3v2.5a.5.5 0 0 1-1 0v-3zm12 12a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1H13v-2.5a.5.5 0 0 1 1 0v3zM2 9.5a.5.5 0 0 1 .5.5v2.5H5a.5.5 0 0 1 0 1H2.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5zm12-7a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0V3h-2.5a.5.5 0 0 1 0-1h3a.5.5 0 0 1 .5.5z"/>
         </svg>`;
         
-        // Insert button in header (far left)
-        const header = document.querySelector('.header-inner');
-        if (header) {
-            header.insertAdjacentElement('afterbegin', button);
+        // Insert button into the most suitable header/container for the active theme.
+        const buttonMount = document.querySelector('.header-inner')
+            || document.querySelector('header .wp-block-group')
+            || document.querySelector('header')
+            || document.querySelector('.wp-site-blocks')
+            || document.body;
+
+        if (buttonMount === document.body) {
+            document.body.appendChild(button);
+        } else {
+            buttonMount.insertAdjacentElement('afterbegin', button);
         }
 
         // Add event listeners

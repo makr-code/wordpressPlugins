@@ -1,0 +1,144 @@
+/* ============================================================================
+   STAT CARDS
+   ============================================================================ */
+
+.themisdb-stat-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.themisdb-stat-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+}
+
+/* ============================================================================
+   COAT-OF-ARMS GRID (Länderverbund)
+   ============================================================================ */
+
+.themisdb-land-link {
+    min-width: 140px;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    border: 1px solid var(--themisdb-border);
+    border-radius: var(--themisdb-radius-card);
+    background: white;
+    padding: 15px;
+    text-align: center;
+}
+
+.themisdb-land-link:hover {
+    border-color: var(--themisdb-sky);
+    background: var(--themisdb-slate-50);
+    transform: translateY(-4px);
+    box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.05);
+}
+
+.themisdb-crest-container {
+    width: 65px;
+    height: 65px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.themisdb-crest-img {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.08));
+}
+
+/* Fallback when SVG is missing */
+.themisdb-crest-placeholder {
+    width: 65px;
+    height: 65px;
+    background: var(--themisdb-slate-100);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--themisdb-slate-400);
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.themisdb-land-code {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--themisdb-slate-800);
+    line-height: 1.2;
+}
+
+.themisdb-land-name {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--themisdb-slate-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+}
+
+@media (max-width: 640px) {
+    .themisdb-land-link {
+        min-width: 100px;
+        min-height: 110px;
+        padding: 10px;
+        border-radius: 1rem;
+    }
+    .themisdb-crest-container { width: 50px; height: 50px; }
+}
+
+/* ============================================================================
+   MODULE CARDS (Dunkle Sektion)
+   ============================================================================ */
+
+.themisdb-module-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.themisdb-module-card:hover {
+    transform: translateY(-8px);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.20);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================================================
+   LAW / LEGAL TAGS
+   ============================================================================ */
+
+.themisdb-law-tag {
+    background: var(--themisdb-slate-100);
+    color: var(--themisdb-slate-600);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border: 1px solid var(--themisdb-border);
+}
+
+/* ============================================================================
+   WORKFLOW STEPS
+   ============================================================================ */
+
+.themisdb-step-number {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}

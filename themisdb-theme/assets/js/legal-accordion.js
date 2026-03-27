@@ -5,6 +5,8 @@
 (function () {
     'use strict';
 
+    const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     /* data-legal-toggle öffnet die Sektion */
     document.querySelectorAll('[data-legal-toggle]').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -19,7 +21,7 @@
             if (isOpen) {
                 /* Sanftes Scrollen zur Sektion */
                 setTimeout(function () {
-                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    section.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' });
                 }, 50);
                 /* Schließ-Button fokussieren */
                 section.querySelector('[data-legal-close]')?.focus();

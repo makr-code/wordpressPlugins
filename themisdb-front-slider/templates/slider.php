@@ -20,15 +20,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 $slider_id = 'themisdb-fs-' . uniqid();
+$labels = isset( $labels ) && is_array( $labels ) ? $labels : array();
+$region_label = isset( $labels['region'] ) ? (string) $labels['region'] : '';
+$previous_label = isset( $labels['previous'] ) ? (string) $labels['previous'] : '';
+$next_label = isset( $labels['next'] ) ? (string) $labels['next'] : '';
+$pagination_label = isset( $labels['pagination'] ) ? (string) $labels['pagination'] : '';
+$slide_label_format = isset( $labels['slide'] ) ? (string) $labels['slide'] : '';
+$readmore_aria_format = isset( $labels['readmore_aria'] ) ? (string) $labels['readmore_aria'] : '';
+$has_multiple_slides = $query->post_count > 1;
 ?>
 <div
-    class="themisdb-fs-wrapper la-hero-slider"
+    class="themisdb-fs-wrapper la-hero-slider themisdb-fs-preset-<?php echo esc_attr( $layout_preset ); ?>"
     id="<?php echo esc_attr( $slider_id ); ?>"
     data-interval="<?php echo esc_attr( $interval ); ?>"
     data-autoplay="<?php echo $autoplay ? '1' : '0'; ?>"
+    data-preset="<?php echo esc_attr( $layout_preset ); ?>"
     style="--tfs-accent: <?php echo esc_attr( $accent_color ); ?>;"
     role="region"
-    aria-label="<?php esc_attr_e( 'Neueste Artikel', 'themisdb-front-slider' ); ?>"
+    aria-label="<?php echo esc_attr( $region_label ); ?>"
     aria-roledescription="carousel"
 >
     <!-- Track -->
@@ -45,14 +54,14 @@ $slider_id = 'themisdb-fs-' . uniqid();
                 $categories   = get_the_category();
                 $first_cat    = ! empty( $categories ) ? $categories[0] : null;
                 $has_thumb    = has_post_thumbnail();
-                $thumb_url    = $has_thumb ? get_the_post_thumbnail_url( $post_id, $image_size ) : '';
+                $thumb_id     = $has_thumb ? get_post_thumbnail_id( $post_id ) : 0;
                 $is_active    = ( 0 === $slide_index );
             ?>
             <div
                 class="themisdb-fs-slide la-hero-slide<?php echo $is_active ? ' is-active' : ''; ?>"
                 role="group"
                 aria-roledescription="slide"
-                aria-label="<?php echo esc_attr( sprintf( '%d / %d', $slide_index + 1, $query->post_count ) ); ?>"
+                aria-label="<?php echo esc_attr( sprintf( $slide_label_format, $slide_index + 1, $query->post_count ) ); ?>"
                 aria-hidden="<?php echo $is_active ? 'false' : 'true'; ?>"
             >
                 <div class="themisdb-fs-slide-inner">
@@ -79,9 +88,12 @@ $slider_id = 'themisdb-fs-' . uniqid();
                         </h2>
 
                         <?php if ( $show_excerpt ) : ?>
+                        <?php $excerpt = get_the_excerpt(); ?>
+                        <?php if ( '' !== $excerpt ) : ?>
                         <p class="themisdb-fs-excerpt">
-                            <?php echo wp_kses_post( wp_trim_words( get_the_excerpt(), 25, '…' ) ); ?>
+                            <?php echo wp_kses_post( $excerpt ); ?>
                         </p>
+                        <?php endif; ?>
                         <?php endif; ?>
 
                         <div class="themisdb-fs-meta">
@@ -97,7 +109,7 @@ $slider_id = 'themisdb-fs-' . uniqid();
                                 class="themisdb-fs-readmore"
                                 href="<?php the_permalink(); ?>"
                                 tabindex="<?php echo $is_active ? '0' : '-1'; ?>"
-                                aria-label="<?php echo esc_attr( sprintf( __( 'Weiterlesen: %s', 'themisdb-front-slider' ), get_the_title() ) ); ?>"
+                                aria-label="<?php echo esc_attr( sprintf( $readmore_aria_format, $readmore_text, get_the_title() ) ); ?>"
                             >
                                 <?php echo esc_html( $readmore_text ); ?>
                             </a>
@@ -108,11 +120,18 @@ $slider_id = 'themisdb-fs-' . uniqid();
                     <!-- Right column: featured image in card -->
                     <div class="themisdb-fs-slide-image">
                         <div class="themisdb-fs-image-card">
-                            <img
-                                src="<?php echo esc_url( $thumb_url ); ?>"
-                                alt="<?php echo esc_attr( get_the_title() ); ?>"
-                                loading="<?php echo $is_active ? 'eager' : 'lazy'; ?>"
-                            >
+                            <?php
+                            echo wp_get_attachment_image(
+                                $thumb_id,
+                                $image_size,
+                                false,
+                                array(
+                                    'loading'       => $is_active ? 'eager' : 'lazy',
+                                    'fetchpriority' => $is_active ? 'high' : 'auto',
+                                    'decoding'      => 'async',
+                                )
+                            );
+                            ?>
                         </div>
                         <div class="themisdb-fs-blob-1" aria-hidden="true"></div>
                         <div class="themisdb-fs-blob-2" aria-hidden="true"></div>
@@ -128,10 +147,10 @@ $slider_id = 'themisdb-fs-' . uniqid();
         </div><!-- .themisdb-fs-track -->
     </div><!-- .themisdb-fs-track-outer -->
 
-    <!-- Navigation buttons -->
+    <?php if ( $has_multiple_slides ) : ?>
     <button
         class="themisdb-fs-btn themisdb-fs-prev la-slider-arrow la-slider-arrow-prev"
-        aria-label="<?php esc_attr_e( 'Vorheriger Artikel', 'themisdb-front-slider' ); ?>"
+        aria-label="<?php echo esc_attr( $previous_label ); ?>"
         aria-controls="<?php echo esc_attr( $slider_id ); ?>"
     >
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -140,7 +159,7 @@ $slider_id = 'themisdb-fs-' . uniqid();
     </button>
     <button
         class="themisdb-fs-btn themisdb-fs-next la-slider-arrow la-slider-arrow-next"
-        aria-label="<?php esc_attr_e( 'Nächster Artikel', 'themisdb-front-slider' ); ?>"
+        aria-label="<?php echo esc_attr( $next_label ); ?>"
         aria-controls="<?php echo esc_attr( $slider_id ); ?>"
     >
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -148,21 +167,20 @@ $slider_id = 'themisdb-fs-' . uniqid();
         </svg>
     </button>
 
-    <!-- Dot indicators -->
-    <div class="themisdb-fs-dots la-slider-dots" role="tablist" aria-label="<?php esc_attr_e( 'Slides', 'themisdb-front-slider' ); ?>">
+    <div class="themisdb-fs-dots la-slider-dots" role="tablist" aria-label="<?php echo esc_attr( $pagination_label ); ?>">
         <?php for ( $i = 0; $i < $slide_index; $i++ ) : ?>
         <button
             class="themisdb-fs-dot la-slider-dot<?php echo ( 0 === $i ) ? ' is-active' : ''; ?>"
             role="tab"
             aria-selected="<?php echo ( 0 === $i ) ? 'true' : 'false'; ?>"
-            aria-label="<?php echo esc_attr( sprintf( __( 'Slide %d', 'themisdb-front-slider' ), $i + 1 ) ); ?>"
+            aria-label="<?php echo esc_attr( sprintf( $slide_label_format, $i + 1, $slide_index ) ); ?>"
             data-index="<?php echo esc_attr( $i ); ?>"
         ></button>
         <?php endfor; ?>
     </div>
 
-    <!-- Timer progress bar -->
     <div class="themisdb-fs-timer-bar" aria-hidden="true">
         <div class="themisdb-fs-timer-fill la-hero-progress-bar"></div>
     </div>
+    <?php endif; ?>
 </div>

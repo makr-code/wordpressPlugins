@@ -1,0 +1,17 @@
+{
+  "name": "themisdb-wp-local-env",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local WordPress runtime for ThemisDB theme and plugins",
+  "scripts": {
+    "wp:start": "wp-env start --xdebug=off",
+    "wp:stop": "wp-env stop",
+    "wp:destroy": "wp-env destroy",
+    "wp:logs": "wp-env logs",
+    "wp:install": "wp-env install-path"
+  },
+  "devDependencies": {
+    "@wordpress/env": "^10.20.0",
+    "playwright": "^1.58.2"
+  }
+}

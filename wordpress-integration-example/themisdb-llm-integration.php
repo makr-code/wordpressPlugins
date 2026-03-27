@@ -87,6 +87,15 @@ class ThemisDB_LLM_Integration {
     private function init_client() {
         $endpoint = get_option('themisdb_endpoint', 'http://localhost:8080');
         $namespace = get_option('themisdb_namespace', 'wordpress');
+
+        if (!class_exists('ThemisDB\\ThemisClient')) {
+            error_log('ThemisDB SDK not available. Install composer dependencies for wordpress-integration-example.');
+            add_action('admin_notices', function() {
+                echo '<div class="notice notice-warning"><p><strong>ThemisDB Hinweis:</strong> Das Plugin "ThemisDB LLM Integration" wurde geladen, aber das ThemisDB PHP SDK fehlt. Installiere die Composer-Abhaengigkeiten in wordpress-integration-example, um die LLM-Funktionen zu aktivieren.</p></div>';
+            });
+            $this->client = null;
+            return;
+        }
         
         try {
             $this->client = new ThemisClient(

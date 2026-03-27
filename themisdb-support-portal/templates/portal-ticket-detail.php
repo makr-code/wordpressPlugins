@@ -33,10 +33,13 @@ if (!defined('ABSPATH')) {
 
     <div class="themisdb-support-ticket-messages">
         <?php foreach ($messages as $msg): ?>
-            <div class="themisdb-support-message <?php echo $msg['is_admin_reply'] ? 'themisdb-support-message-admin' : 'themisdb-support-message-customer'; ?>">
+            <?php $is_system_message = ThemisDB_SupportPortal_Ticket_Manager::is_system_message($msg); ?>
+            <div class="themisdb-support-message <?php echo $is_system_message ? 'themisdb-support-message-system' : ($msg['is_admin_reply'] ? 'themisdb-support-message-admin' : 'themisdb-support-message-customer'); ?>">
                 <div class="themisdb-support-message-header">
                     <strong><?php echo esc_html($msg['author_name']); ?></strong>
-                    <?php if ($msg['is_admin_reply']): ?>
+                    <?php if ($is_system_message): ?>
+                        <span class="themisdb-support-message-role themisdb-support-message-role-system"><?php esc_html_e('System', 'themisdb-support-portal'); ?></span>
+                    <?php elseif ($msg['is_admin_reply']): ?>
                         <span class="themisdb-support-message-role"><?php esc_html_e('Support-Team', 'themisdb-support-portal'); ?></span>
                     <?php endif; ?>
                     <span class="themisdb-support-message-date">

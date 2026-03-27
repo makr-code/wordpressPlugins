@@ -13,6 +13,68 @@
     border-radius: 1rem;
 }
 
+.themisdb-front-slider-editor-shell {
+    border: 1px solid #dbe4ee;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    overflow: hidden;
+}
+
+.themisdb-front-slider-editor-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: rgba(224, 242, 254, 0.45);
+}
+
+.themisdb-front-slider-editor-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.themisdb-front-slider-editor-heading span {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.themisdb-front-slider-editor-meta {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.themisdb-front-slider-editor-chip {
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.themisdb-front-slider-editor-body {
+    padding: 1rem;
+}
+
+.themisdb-front-slider-editor-loading {
+    min-height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+    border: 1px dashed #cbd5e1;
+    border-radius: 0.85rem;
+    background: repeating-linear-gradient(-45deg, #f8fafc, #f8fafc 10px, #f1f5f9 10px, #f1f5f9 20px);
+    color: #475569;
+}
+
 .wp-block[data-type="themisdb/front-slider"][data-align="wide"] .themisdb-fs-slide-inner {
     max-width: 90rem;
 }

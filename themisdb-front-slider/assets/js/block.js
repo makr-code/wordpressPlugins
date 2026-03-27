@@ -11,7 +11,58 @@
     var TextControl = components.TextControl;
     var ToggleControl = components.ToggleControl;
     var SelectControl = components.SelectControl;
+    var Spinner = components.Spinner;
     var ServerSideRender = serverSideRender;
+
+    function previewMeta(attrs) {
+        return [
+            __( 'Beiträge', 'themisdb-front-slider' ) + ': ' + ( attrs.posts || 5 ),
+            __( 'Intervall', 'themisdb-front-slider' ) + ': ' + ( attrs.interval || 5000 ) + ' ms',
+            __( 'Layout', 'themisdb-front-slider' ) + ': ' + ( attrs.layout_preset || 'standard' )
+        ];
+    }
+
+    function previewShell(attrs) {
+        var meta = previewMeta(attrs);
+
+        return el(
+            'div',
+            { className: 'themisdb-front-slider-editor-shell' },
+            el(
+                'div',
+                { className: 'themisdb-front-slider-editor-header' },
+                el(
+                    'div',
+                    { className: 'themisdb-front-slider-editor-heading' },
+                    el( 'strong', null, __( 'Front Slider Vorschau', 'themisdb-front-slider' ) ),
+                    el( 'span', null, __( 'Serverseitig gerenderte Live-Vorschau', 'themisdb-front-slider' ) )
+                ),
+                el(
+                    'div',
+                    { className: 'themisdb-front-slider-editor-meta' },
+                    meta.map( function( item, index ) {
+                        return el( 'span', { key: index, className: 'themisdb-front-slider-editor-chip' }, item );
+                    } )
+                )
+            ),
+            el(
+                'div',
+                { className: 'themisdb-front-slider-editor-body' },
+                el( ServerSideRender, {
+                    block: 'themisdb/front-slider',
+                    attributes: attrs,
+                    LoadingResponsePlaceholder: function () {
+                        return el(
+                            'div',
+                            { className: 'themisdb-front-slider-editor-loading' },
+                            el( Spinner, null ),
+                            el( 'span', null, __( 'Slider-Vorschau wird geladen…', 'themisdb-front-slider' ) )
+                        );
+                    }
+                } )
+            )
+        );
+    }
 
     blocks.registerBlockType( 'themisdb/front-slider', {
         edit: function( props ) {
@@ -67,16 +118,16 @@
                         } ),
                         el( SelectControl, {
                             label: __( 'Layout-Preset', 'themisdb-front-slider' ),
-                            value: attrs.layout_preset || 'clean',
+                            value: attrs.layout_preset || 'standard',
                             options: [
-                                { label: __( 'Clean', 'themisdb-front-slider' ), value: 'clean' },
-                                { label: __( 'Magazine', 'themisdb-front-slider' ), value: 'magazine' },
-                                { label: __( 'Compact', 'themisdb-front-slider' ), value: 'compact' }
+                                { label: __( 'Standard (2 Spalten)', 'themisdb-front-slider' ), value: 'standard' },
+                                { label: __( 'Compact (nur Text)', 'themisdb-front-slider' ), value: 'compact' },
+                                { label: __( 'Magazine (Vollbr.)', 'themisdb-front-slider' ), value: 'magazine' }
                             ],
                             onChange: function( value ) {
-                                props.setAttributes( { layout_preset: value || 'clean' } );
+                                props.setAttributes( { layout_preset: value || 'standard' } );
                             },
-                            help: __( 'Visuelle Stilvariante des Sliders', 'themisdb-front-slider' )
+                            help: __( 'Wähle ein vordefiniertes Layout-Design', 'themisdb-front-slider' )
                         } ),
                         el( TextControl, {
                             label: __( 'Kategorie-Slug (optional)', 'themisdb-front-slider' ),
@@ -85,14 +136,6 @@
                                 props.setAttributes( { category: value } );
                             },
                             help: __( 'Leer lassen, um alle Kategorien einzubeziehen.', 'themisdb-front-slider' )
-                        } ),
-                        el( TextControl, {
-                            label: __( 'Button-Text', 'themisdb-front-slider' ),
-                            value: attrs.readmore_text || 'Weiterlesen →',
-                            onChange: function( value ) {
-                                props.setAttributes( { readmore_text: value } );
-                            },
-                            help: __( 'Beschriftung des \u201eWeiterlesen\u201c-Buttons', 'themisdb-front-slider' )
                         } ),
                         el( ToggleControl, {
                             label: __( 'Autoplay aktivieren', 'themisdb-front-slider' ),
@@ -138,10 +181,7 @@
                     } )
                 ),
                 el( 'div', blockProps,
-                    el( ServerSideRender, {
-                        block: 'themisdb/front-slider',
-                        attributes: attrs
-                    } )
+                    previewShell( attrs )
                 )
             );
         },

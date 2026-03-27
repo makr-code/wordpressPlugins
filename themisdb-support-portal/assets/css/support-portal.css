@@ -625,6 +625,11 @@
     border-color: #b8daff;
 }
 
+.themisdb-support-message-system {
+    background: #f6f7f7;
+    border-color: #c3c4c7;
+}
+
 .themisdb-support-message-header {
     display: flex;
     align-items: center;
@@ -640,6 +645,10 @@
     padding: 2px 8px;
     border-radius: 10px;
     font-weight: 600;
+}
+
+.themisdb-support-message-role-system {
+    background: #50575e;
 }
 
 .themisdb-support-message-date {

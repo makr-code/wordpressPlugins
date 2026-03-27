@@ -1,0 +1,191 @@
+/* ============================================================================
+   MERMAID DIAGRAMS
+   ============================================================================ */
+
+.themisdb-mermaid-wrap .mermaid svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+/* ============================================================================
+   CONTACT FORM
+   ============================================================================ */
+
+.themisdb-visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+.themisdb-honeypot-field {
+    position: absolute !important;
+    left: -10000px !important;
+    top: auto !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+}
+
+.themisdb-contact-form-grid {
+    display: grid;
+    gap: 0.75rem;
+    max-width: 32rem;
+}
+
+.themisdb-field-help {
+    margin: -0.25rem 0 0;
+    font-size: 0.78rem;
+    color: var(--themisdb-slate-500);
+}
+
+.themisdb-field-meta {
+    margin: -0.35rem 0 0;
+    font-size: 0.74rem;
+    color: var(--themisdb-slate-400);
+}
+
+.themisdb-field-meta.is-near-limit {
+    color: #b45309;
+    font-weight: 600;
+}
+
+.themisdb-contact-form input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    background: var(--themisdb-slate-50);
+    border: 1px solid transparent;
+    font-size: 0.875rem;
+    font-family: inherit;
+    transition: border-color 0.2s;
+    outline: none;
+}
+
+.themisdb-contact-form input:focus {
+    border-color: var(--themisdb-sky);
+    background: white;
+}
+
+.themisdb-contact-form input.themisdb-input-error {
+    border-color: #ef4444;
+    background: #fef2f2;
+}
+
+.themisdb-form-message {
+    display: none;
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.65rem;
+}
+
+.themisdb-form-message.is-visible {
+    display: block;
+}
+
+.themisdb-form-message--error {
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+}
+
+.themisdb-form-message--success {
+    color: #065f46;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+}
+
+.themisdb-btn-primary {
+    width: 100%;
+    background: var(--themisdb-navy);
+    color: white;
+    font-weight: 700;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9375rem;
+    transition: background 0.2s;
+}
+
+.themisdb-btn-primary:hover {
+    background: #0369a1;
+}
+
+.themisdb-btn-primary:focus-visible {
+    outline: 3px solid rgba(2, 132, 199, 0.35);
+    outline-offset: 2px;
+}
+
+.themisdb-btn-primary[disabled] {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+    .themisdb-contact-form-grid {
+        gap: 0.9rem;
+    }
+
+    .themisdb-contact-form input {
+        min-height: 2.9rem;
+        font-size: 1rem;
+    }
+
+    .themisdb-btn-primary {
+        min-height: 3rem;
+        font-size: 1rem;
+    }
+}
+
+/* ============================================================================
+   CHANGELOG TIMELINE
+   ============================================================================ */
+
+.themisdb-timeline {
+    position: relative;
+}
+
+.themisdb-timeline::before {
+    content: '';
+    position: absolute;
+    left: 1.5rem;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--themisdb-navy), var(--themisdb-sky-light), var(--themisdb-slate-100));
+}
+
+.themisdb-timeline-entry {
+    position: relative;
+    padding-left: 4rem;
+    padding-bottom: 2.5rem;
+}
+
+.themisdb-timeline-badge {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 900;
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}

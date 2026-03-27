@@ -107,6 +107,24 @@ function themisdb_enqueue() {
 		THEMISDB_THEME_VERSION
 	);
 
+	// ── Block CSS (modularisiert) ─────────────────────────────────────
+	$block_css = array(
+		'themisdb-hero-slider-css'    => 'assets/css/blocks/hero-slider.css',
+		'themisdb-section-blocks-css' => 'assets/css/blocks/section-blocks.css',
+		'themisdb-gallery-css'        => 'assets/css/blocks/gallery.css',
+		'themisdb-faq-css'            => 'assets/css/blocks/faq.css',
+		'themisdb-contact-form-css'   => 'assets/css/blocks/contact-form.css',
+		'themisdb-motion-css'         => 'assets/css/blocks/motion.css',
+	);
+	foreach ( $block_css as $handle => $path ) {
+		wp_enqueue_style(
+			$handle,
+			THEMISDB_THEME_URI . '/' . $path,
+			array( 'themisdb-style' ),
+			THEMISDB_THEME_VERSION
+		);
+	}
+
 	// ── Mermaid.js (CDN) – für Prozessdiagramme ───────────────────────
 	// NOTE: In Produktion lokal bundlen.
 	wp_enqueue_script(
@@ -148,6 +166,15 @@ function themisdb_enqueue() {
 	wp_enqueue_script(
 		'themisdb-faq',
 		THEMISDB_THEME_URI . '/assets/js/faq.js',
+		array(),
+		THEMISDB_THEME_VERSION,
+		true
+	);
+
+	// ── Shared Motion Controller for dynamic blocks ───────────────────
+	wp_enqueue_script(
+		'themisdb-motion',
+		THEMISDB_THEME_URI . '/assets/js/motion.js',
 		array(),
 		THEMISDB_THEME_VERSION,
 		true
@@ -1717,6 +1744,132 @@ function themisdb_get_contact_email() {
 	return sanitize_email( get_theme_mod( 'themisdb_contact_email', get_option( 'admin_email' ) ) );
 }
 
+function themisdb_get_footer_text( $mod_name, $default = '' ) {
+	$value = get_theme_mod( $mod_name, $default );
+
+	if ( ! is_string( $value ) ) {
+		return '';
+	}
+
+	return sanitize_text_field( $value );
+}
+
+function themisdb_get_footer_description() {
+	$default = get_bloginfo( 'description' );
+	$value   = get_theme_mod( 'themisdb_footer_description', $default );
+
+	if ( ! is_string( $value ) ) {
+		return '';
+	}
+
+	return wp_kses_post( wpautop( $value ) );
+}
+
+function themisdb_get_footer_menu_markup( $location ) {
+	if ( has_nav_menu( $location ) ) {
+		return wp_nav_menu( array(
+			'theme_location' => $location,
+			'container'      => false,
+			'echo'           => false,
+			'depth'          => 1,
+			'fallback_cb'    => false,
+			'items_wrap'     => '<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.75rem;">%3$s</ul>',
+			'link_before'    => '<span style="font-size:0.875rem;color:#94a3b8;text-decoration:none;transition:color 0.2s">',
+			'link_after'     => '</span>',
+		) );
+	}
+
+	if ( 'footer-1' !== $location ) {
+		return '';
+	}
+
+	$pages = get_pages( array(
+		'sort_column' => 'menu_order,post_title',
+		'parent'      => 0,
+	) );
+
+	if ( empty( $pages ) ) {
+		return '';
+	}
+
+	$items = array();
+	foreach ( array_slice( $pages, 0, 6 ) as $page ) {
+		$items[] = sprintf(
+			'<li><a href="%1$s" style="font-size:0.875rem;color:#94a3b8;text-decoration:none;transition:color 0.2s">%2$s</a></li>',
+			esc_url( get_permalink( $page->ID ) ),
+			esc_html( get_the_title( $page->ID ) )
+		);
+	}
+
+	return '<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.75rem;">' . implode( '', $items ) . '</ul>';
+}
+
+function themisdb_get_footer_notice_markup() {
+	$notice = themisdb_get_footer_text( 'themisdb_footer_notice', '' );
+
+	if ( '' === $notice ) {
+		return '';
+	}
+
+	return sprintf(
+		'<div style="font-size:0.625rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#334155">%s</div>',
+		esc_html( $notice )
+	);
+}
+
+function themisdb_get_footer_copyright_markup() {
+	return sprintf(
+		'&copy; %1$s %2$s',
+		esc_html( gmdate( 'Y' ) ),
+		esc_html( get_bloginfo( 'name' ) )
+	);
+}
+
+function themisdb_get_legal_page_id( $mod_name, $fallback_slug = '' ) {
+	$page_id = absint( get_theme_mod( $mod_name, 0 ) );
+
+	if ( $page_id > 0 && get_post( $page_id ) instanceof WP_Post ) {
+		return $page_id;
+	}
+
+	if ( '' !== $fallback_slug ) {
+		$page = get_page_by_path( sanitize_title( $fallback_slug ) );
+		if ( $page instanceof WP_Post ) {
+			return (int) $page->ID;
+		}
+	}
+
+	return 0;
+}
+
+function themisdb_get_legal_page_title( $mod_name, $default_title, $fallback_slug = '' ) {
+	$page_id = themisdb_get_legal_page_id( $mod_name, $fallback_slug );
+
+	if ( $page_id > 0 ) {
+		$title = get_the_title( $page_id );
+		if ( is_string( $title ) && '' !== $title ) {
+			return $title;
+		}
+	}
+
+	return $default_title;
+}
+
+function themisdb_get_legal_page_content( $mod_name, $fallback_slug = '' ) {
+	$page_id = themisdb_get_legal_page_id( $mod_name, $fallback_slug );
+
+	if ( $page_id <= 0 ) {
+		return '';
+	}
+
+	$page = get_post( $page_id );
+	if ( ! ( $page instanceof WP_Post ) ) {
+		return '';
+	}
+
+	return apply_filters( 'the_content', (string) $page->post_content );
+}
+
 function themisdb_bool_atts( $value, $default = true ) {
 	if ( null === $value || '' === $value ) {
 		return (bool) $default;
@@ -1782,9 +1935,13 @@ function themisdb_render_section_empty_state( $section_slug ) {
 		return '';
 	}
 
-	return '<p style="margin:0;padding:.85rem 1rem;border:1px dashed #cbd5e1;border-radius:.75rem;color:#475569;background:#f8fafc;">' .
-		esc_html( sprintf( __( 'Keine Inhalte in der Kategorie "%s".', 'themisdb-theme' ), $section_slug ) ) .
-	'</p>';
+	return '<div class="themisdb-empty-state" role="status">' .
+		'<div class="themisdb-empty-state-icon" aria-hidden="true">◌</div>' .
+		'<div class="themisdb-empty-state-body">' .
+			'<h3 class="themisdb-empty-state-title">' . esc_html__( 'Noch keine Inhalte vorhanden', 'themisdb-theme' ) . '</h3>' .
+			'<p class="themisdb-empty-state-text">' . esc_html( sprintf( __( 'In der Kategorie "%s" wurden noch keine passenden Beiträge gefunden.', 'themisdb-theme' ), $section_slug ) ) . '</p>' .
+		'</div>' .
+	'</div>';
 }
 
 function themisdb_get_seed_blueprint() {
@@ -2054,69 +2211,58 @@ function themisdb_register_dynamic_blocks() {
 	) );
 
 	$registry = WP_Block_Type_Registry::get_instance();
-	if ( $registry->is_registered( 'themisdb/front-slider' ) ) {
-		unregister_block_type( 'themisdb/front-slider' );
-	}
+	$plugin_slider_available = function_exists( 'themisdb_fs_shortcode' );
 
-	register_block_type( 'themisdb/front-slider', array(
-		'editor_script'   => 'themisdb-dynamic-section-blocks',
-		'render_callback' => 'themisdb_render_front_slider_block',
-		'attributes'      => array(
-			'posts' => array(
-				'type'    => 'number',
-				'default' => 5,
+	// Guardrail: Plugin-Block nie im Theme überschreiben.
+	// Fallback-Block nur registrieren, wenn kein Plugin-Block vorhanden ist.
+	if ( ! $registry->is_registered( 'themisdb/front-slider' ) ) {
+		register_block_type( 'themisdb/front-slider', array(
+			'editor_script'   => 'themisdb-dynamic-section-blocks',
+			'render_callback' => 'themisdb_render_front_slider_block',
+			'attributes'      => array(
+				'posts' => array(
+					'type'    => 'number',
+					'default' => 5,
+				),
+				'interval' => array(
+					'type'    => 'number',
+					'default' => (int) get_theme_mod( 'themisdb_slider_interval', 5000 ),
+				),
+				'category' => array(
+					'type'    => 'string',
+					'default' => '',
+				),
+				'excerpt' => array(
+					'type'    => 'boolean',
+					'default' => true,
+				),
+				'date' => array(
+					'type'    => 'boolean',
+					'default' => true,
+				),
+				'cat_label' => array(
+					'type'    => 'boolean',
+					'default' => true,
+				),
+				'autoplay' => array(
+					'type'    => 'boolean',
+					'default' => true,
+				),
+				'overlay' => array(
+					'type'    => 'string',
+					'default' => 'normal',
+				),
 			),
-			'interval' => array(
-				'type'    => 'number',
-				'default' => (int) get_theme_mod( 'themisdb_slider_interval', 5000 ),
-			),
-			'category' => array(
-				'type'    => 'string',
-				'default' => '',
-			),
-			'excerpt' => array(
-				'type'    => 'boolean',
-				'default' => true,
-			),
-			'date' => array(
-				'type'    => 'boolean',
-				'default' => true,
-			),
-			'cat_label' => array(
-				'type'    => 'boolean',
-				'default' => true,
-			),
-			'autoplay' => array(
-				'type'    => 'boolean',
-				'default' => true,
-			),
-			'overlay' => array(
-				'type'    => 'string',
-				'default' => 'normal',
-			),
-		),
-	) );
+		) );
+	}
 }
 
 function themisdb_get_state_grid_items() {
-	$items = array(
-		array( 'code' => 'BB', 'name' => 'Brandenburg', 'crest' => 'Coat_of_arms_of_Brandenburg.svg' ),
-		array( 'code' => 'BE', 'name' => 'Berlin', 'crest' => 'Coat_of_arms_of_Berlin.svg' ),
-		array( 'code' => 'HE', 'name' => 'Hessen', 'crest' => 'Coat_of_arms_of_Hesse.svg' ),
-		array( 'code' => 'MV', 'name' => 'Meckl.-Vorp.', 'crest' => 'Coat_of_arms_of_Mecklenburg-Vorpommern.svg' ),
-		array( 'code' => 'RP', 'name' => 'Rheinland-Pfalz', 'crest' => 'Coat_of_arms_of_Rhineland-Palatinate.svg' ),
-		array( 'code' => 'SN', 'name' => 'Sachsen', 'crest' => 'Coat_of_arms_of_Saxony.svg' ),
-		array( 'code' => 'TH', 'name' => 'Thüringen', 'crest' => 'Coat_of_arms_of_Thuringia.svg' ),
-		array( 'code' => 'HH', 'name' => 'Hamburg', 'crest' => 'Coat_of_arms_of_Hamburg.svg' ),
-		array( 'code' => 'NI', 'name' => 'Niedersachsen', 'crest' => 'Coat_of_arms_of_Niedersachsen.svg' ),
-		array( 'code' => 'SL', 'name' => 'Saarland', 'crest' => 'Coat_of_arms_of_Saarlands.svg' ),
-		array( 'code' => 'ST', 'name' => 'Sachsen-Anhalt', 'crest' => 'Coat_of_arms_of_Sachsen-Anhalt.svg' ),
-		array( 'code' => 'SH', 'name' => 'Schleswig-Holstein', 'crest' => 'Coat_of_arms_of_Schleswig-Holstein.svg' ),
-		array( 'code' => 'BW', 'name' => 'Baden-Württ.', 'crest' => 'Coat_of_arms_of_Baden-Württemberg.svg' ),
-		array( 'code' => 'BY', 'name' => 'Bayern', 'crest' => 'Coat_of_arms_of_Bayern.svg' ),
-		array( 'code' => 'HB', 'name' => 'Bremen', 'crest' => 'Coat_of_arms_of_Bremen.svg' ),
-		array( 'code' => 'NW', 'name' => 'Nordrhein-Westf.', 'crest' => 'Coat_of_arms_of_North_Rhine-Westphalia.svg' ),
-	);
+	if ( ! get_theme_mod( 'themisdb_show_state_grid', false ) ) {
+		return array();
+	}
+
+	$items = array();
 
 	return apply_filters( 'themisdb_theme_state_grid_items', $items );
 }
@@ -2136,6 +2282,36 @@ function themisdb_front_slider_defaults() {
 	);
 
 	return apply_filters( 'themisdb_theme_front_slider_defaults', $defaults, $plugin_opts );
+}
+
+function themisdb_theme_render_plugin_front_slider( $atts ) {
+	if ( ! function_exists( 'themisdb_fs_shortcode' ) ) {
+		return null;
+	}
+
+	if ( wp_style_is( 'themisdb-front-slider-css', 'registered' ) ) {
+		wp_enqueue_style( 'themisdb-front-slider-css' );
+	}
+
+	$plugin_atts = array(
+		'posts'         => isset( $atts['posts'] ) ? $atts['posts'] : null,
+		'interval'      => isset( $atts['interval'] ) ? $atts['interval'] : null,
+		'category'      => isset( $atts['category'] ) ? $atts['category'] : null,
+		'excerpt'       => isset( $atts['excerpt'] ) ? $atts['excerpt'] : null,
+		'date'          => isset( $atts['date'] ) ? $atts['date'] : null,
+		'cat_label'     => isset( $atts['cat_label'] ) ? $atts['cat_label'] : null,
+		'autoplay'      => isset( $atts['autoplay'] ) ? $atts['autoplay'] : null,
+		'layout_preset' => 'standard',
+	);
+
+	$plugin_atts = array_filter(
+		$plugin_atts,
+		static function( $value ) {
+			return null !== $value;
+		}
+	);
+
+	return themisdb_fs_shortcode( $plugin_atts );
 }
 
 function themisdb_render_front_slider_block( $attributes ) {
@@ -2161,10 +2337,20 @@ function themisdb_render_front_slider_block( $attributes ) {
 		}
 	);
 
+	$plugin_html = themisdb_theme_render_plugin_front_slider( $atts );
+	if ( null !== $plugin_html ) {
+		return $plugin_html;
+	}
+
 	return themisdb_front_slider_shortcode( $atts );
 }
 
 function themisdb_front_slider_shortcode( $atts ) {
+	$plugin_html = themisdb_theme_render_plugin_front_slider( (array) $atts );
+	if ( null !== $plugin_html ) {
+		return $plugin_html;
+	}
+
 	$defaults = themisdb_front_slider_defaults();
 
 	$atts = shortcode_atts( $defaults, $atts, 'themisdb_front_slider' );
@@ -2204,7 +2390,7 @@ function themisdb_front_slider_shortcode( $atts ) {
 
 	ob_start();
 	?>
-	<div class="themisdb-fs-wrapper themisdb-hero-slider"
+	<div class="themisdb-fs-wrapper themisdb-hero-slider themisdb-hero-slider--fallback"
 		id="<?php echo esc_attr( $slider_id ); ?>"
 		data-interval="<?php echo esc_attr( $interval ); ?>"
 		data-autoplay="<?php echo $autoplay ? '1' : '0'; ?>"
@@ -2296,30 +2482,40 @@ function themisdb_render_gallery_grid_block( $attributes ) {
 	if ( $show_header ) {
 		echo themisdb_render_section_header( $section_slug, $show_description );
 	}
-	echo '<div id="themisdb-gallery-grid" class="themisdb-gallery-grid" style="grid-template-columns:repeat(' . esc_attr( (string) $columns ) . ',1fr);">';
+	echo '<div class="themisdb-gallery-toolbar">';
+	echo '<p class="themisdb-gallery-results" data-gallery-results aria-live="polite">' . esc_html( sprintf( _n( '%d Eintrag', '%d Einträge', $query->post_count, 'themisdb-theme' ), (int) $query->post_count ) ) . '</p>';
+	echo '</div>';
+	echo '<div class="themisdb-gallery-grid" data-gallery-grid style="grid-template-columns:repeat(' . esc_attr( (string) $columns ) . ',1fr);">';
+	$item_index = 0;
 	while ( $query->have_posts() ) {
 		$query->the_post();
 		$thumb = get_the_post_thumbnail_url( get_the_ID(), 'themisdb-gallery' );
 		if ( ! $thumb ) {
 			$thumb = get_the_post_thumbnail_url( get_the_ID(), 'large' );
 		}
-		echo '<a class="themisdb-gallery-item" href="' . esc_url( get_permalink() ) . '" data-title="' . esc_attr( get_the_title() ) . '" data-desc="' . esc_attr( wp_strip_all_tags( get_the_excerpt() ) ) . '" data-category="' . esc_attr( $section_slug ) . '" tabindex="0">';
+		echo '<a class="themisdb-gallery-item is-media-loading" href="' . esc_url( get_permalink() ) . '" data-title="' . esc_attr( get_the_title() ) . '" data-desc="' . esc_attr( wp_strip_all_tags( get_the_excerpt() ) ) . '" data-category="' . esc_attr( $section_slug ) . '" data-gallery-index="' . esc_attr( (string) $item_index ) . '" tabindex="0">';
 		if ( $thumb ) {
-			echo '<img src="' . esc_url( $thumb ) . '" alt="' . esc_attr( get_the_title() ) . '">';
+			$img_loading = 0 === $item_index ? 'eager' : 'lazy';
+			$img_fetch   = 0 === $item_index ? 'high' : 'auto';
+			echo '<img src="' . esc_url( $thumb ) . '" alt="' . esc_attr( get_the_title() ) . '" loading="' . esc_attr( $img_loading ) . '" decoding="async" fetchpriority="' . esc_attr( $img_fetch ) . '">';
 		}
 		echo '<span class="themisdb-gallery-overlay"><span class="themisdb-gallery-zoom-icon">+</span></span>';
 		echo '</a>';
+		$item_index++;
 	}
 	echo '</div>';
-	echo '<div id="themisdb-lightbox" aria-hidden="true">';
-	echo '<div class="themisdb-lb-inner">';
-	echo '<button id="themisdb-lb-close" class="themisdb-lb-close" type="button" aria-label="' . esc_attr__( 'Lightbox schließen', 'themisdb-theme' ) . '">&times;</button>';
-	echo '<button id="themisdb-lb-prev" class="themisdb-lb-nav themisdb-lb-prev" type="button" aria-label="' . esc_attr__( 'Vorheriges Bild', 'themisdb-theme' ) . '">&#8249;</button>';
-	echo '<button id="themisdb-lb-next" class="themisdb-lb-nav themisdb-lb-next" type="button" aria-label="' . esc_attr__( 'Nächstes Bild', 'themisdb-theme' ) . '">&#8250;</button>';
-	echo '<img id="themisdb-lb-img" class="themisdb-lb-img" src="" alt="">';
+	echo '<div class="themisdb-lightbox" data-gallery-lightbox aria-hidden="true" role="dialog" aria-modal="true" aria-label="' . esc_attr__( 'Galerieansicht', 'themisdb-theme' ) . '">';
+	echo '<div class="themisdb-lb-inner" tabindex="-1">';
+	echo '<button class="themisdb-lb-close" data-gallery-close type="button" aria-label="' . esc_attr__( 'Lightbox schließen', 'themisdb-theme' ) . '">&times;</button>';
+	echo '<button class="themisdb-lb-nav themisdb-lb-prev" data-gallery-prev type="button" aria-label="' . esc_attr__( 'Vorheriges Bild', 'themisdb-theme' ) . '">&#8249;</button>';
+	echo '<button class="themisdb-lb-nav themisdb-lb-next" data-gallery-next type="button" aria-label="' . esc_attr__( 'Nächstes Bild', 'themisdb-theme' ) . '">&#8250;</button>';
+	echo '<img class="themisdb-lb-img" data-gallery-image src="" alt="">';
 	echo '<div class="themisdb-lb-caption">';
-	echo '<h3 id="themisdb-lb-title"></h3>';
-	echo '<p id="themisdb-lb-desc"></p>';
+	echo '<div class="themisdb-lb-meta">';
+	echo '<p class="themisdb-lb-count" data-gallery-position aria-live="polite"></p>';
+	echo '</div>';
+	echo '<h3 data-gallery-title></h3>';
+	echo '<p data-gallery-desc></p>';
 	echo '</div>';
 	echo '</div>';
 	echo '</div>';
@@ -2438,6 +2634,11 @@ function themisdb_render_contact_form_block() {
 function themisdb_render_state_grid_block( $attributes ) {
 	$show_header      = isset( $attributes['showHeader'] ) ? (bool) $attributes['showHeader'] : true;
 	$show_description = isset( $attributes['showDescription'] ) ? (bool) $attributes['showDescription'] : true;
+	$items            = themisdb_get_state_grid_items();
+
+	if ( empty( $items ) ) {
+		return '';
+	}
 
 	ob_start();
 	echo '<section class="themisdb-section-shell themisdb-state-grid-section">';
@@ -2451,7 +2652,7 @@ function themisdb_render_state_grid_block( $attributes ) {
 	}
 	echo '<div class="themisdb-state-grid-shell" style="padding:1rem 1rem 1.5rem;background:#fff;border:1px solid #e2e8f0;border-radius:2rem;box-shadow:0 10px 30px -15px rgba(15,23,42,0.08);">';
 	echo '<div class="themisdb-state-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1.5rem;justify-items:center;">';
-	foreach ( themisdb_get_state_grid_items() as $state ) {
+	foreach ( $items as $state ) {
 		echo '<a href="#" class="themisdb-land-link">';
 		echo '<div class="themisdb-crest-container">';
 		echo '<img class="themisdb-crest-img" data-crest="' . esc_attr( $state['crest'] ) . '" alt="' . esc_attr( $state['name'] ) . '">';
@@ -2692,12 +2893,18 @@ function themisdb_section_cards_shortcode( $atts ) {
 	}
 	$style_grid = '--lis-cols:' . $columns . ';display:grid;gap:1.5rem;grid-template-columns:repeat(var(--lis-cols),minmax(0,1fr));';
 	echo '<div class="themisdb-section-cards" style="' . esc_attr( $style_grid ) . '">';
+	$card_index = 0;
 	while ( $query->have_posts() ) {
 		$query->the_post();
-		echo '<article class="themisdb-section-card" style="border:1px solid #e2e8f0;border-radius:1rem;background:#fff;overflow:hidden;">';
+		echo '<article class="themisdb-section-card' . ( $show_image && has_post_thumbnail() ? ' is-media-loading' : '' ) . '" style="border:1px solid #e2e8f0;border-radius:1rem;background:#fff;overflow:hidden;">';
 		if ( $show_image && has_post_thumbnail() ) {
 			echo '<a href="' . esc_url( get_permalink() ) . '">';
-			the_post_thumbnail( 'themisdb-card', array( 'style' => 'width:100%;height:auto;display:block;' ) );
+			the_post_thumbnail( 'themisdb-card', array(
+				'style' => 'width:100%;height:auto;display:block;',
+				'loading' => 0 === $card_index ? 'eager' : 'lazy',
+				'decoding' => 'async',
+				'fetchpriority' => 0 === $card_index ? 'high' : 'auto',
+			) );
 			echo '</a>';
 		}
 		echo '<div style="padding:1rem 1rem 1.1rem;">';
@@ -2710,6 +2917,7 @@ function themisdb_section_cards_shortcode( $atts ) {
 		}
 		echo '</div>';
 		echo '</article>';
+		$card_index++;
 	}
 	echo '</div>';
 	echo '</section>';
@@ -2744,7 +2952,7 @@ function themisdb_section_feature_shortcode( $atts ) {
 	if ( $show_header ) {
 		echo themisdb_render_section_header( $section_slug, $show_desc );
 	}
-	echo '<article class="themisdb-feature" style="display:grid;gap:2rem;grid-template-columns:1.1fr .9fr;align-items:center;">';
+	echo '<article class="themisdb-feature' . ( has_post_thumbnail() ? ' is-media-loading' : '' ) . '" style="display:grid;gap:2rem;grid-template-columns:1.1fr .9fr;align-items:center;">';
 	echo '<div>';
 	echo '<h2 style="margin:0 0 .75rem;"><a href="' . esc_url( get_permalink() ) . '" style="color:#0f172a;text-decoration:none;">' . esc_html( get_the_title() ) . '</a></h2>';
 	echo '<p style="margin:0;color:#475569;line-height:1.7;">' . esc_html( wp_trim_words( get_the_excerpt() ? get_the_excerpt() : wp_strip_all_tags( get_the_content() ), $words, '…' ) ) . '</p>';
@@ -2752,7 +2960,12 @@ function themisdb_section_feature_shortcode( $atts ) {
 	echo '<div>';
 	if ( has_post_thumbnail() ) {
 		echo '<a href="' . esc_url( get_permalink() ) . '">';
-		the_post_thumbnail( 'themisdb-featured', array( 'style' => 'width:100%;height:auto;border-radius:1rem;display:block;' ) );
+		the_post_thumbnail( 'themisdb-featured', array(
+			'style' => 'width:100%;height:auto;border-radius:1rem;display:block;',
+			'loading' => 'eager',
+			'decoding' => 'async',
+			'fetchpriority' => 'high',
+		) );
 		echo '</a>';
 	}
 	echo '</div>';
@@ -2825,13 +3038,18 @@ function themisdb_section_faq_shortcode( $atts ) {
 	if ( $show_header ) {
 		echo themisdb_render_section_header( $section_slug, $show_desc );
 	}
-	echo '<div id="themisdb-faq-container" class="themisdb-faq-list" style="border:1px solid #e2e8f0;border-radius:1rem;background:#fff;overflow:hidden;">';
+	$faq_instance_id = wp_unique_id( 'themisdb-faq-' );
+	echo '<div class="themisdb-faq-list" data-faq-container id="' . esc_attr( $faq_instance_id ) . '" style="border:1px solid #e2e8f0;border-radius:1rem;background:#fff;overflow:hidden;">';
+	$item_index = 0;
 	while ( $query->have_posts() ) {
 		$query->the_post();
+		$toggle_id = $faq_instance_id . '-toggle-' . $item_index;
+		$answer_id = $faq_instance_id . '-answer-' . $item_index;
 		echo '<div class="themisdb-faq-item" style="border-bottom:1px solid #e2e8f0;">';
-		echo '<button type="button" class="themisdb-faq-toggle" aria-expanded="false" style="width:100%;text-align:left;background:none;border:none;padding:1rem 1.1rem;font-weight:700;color:#0f172a;cursor:pointer;">' . esc_html( get_the_title() ) . '</button>';
-		echo '<div class="themisdb-faq-answer" style="padding:0 1.1rem 1rem;color:#475569;line-height:1.7;">' . wp_kses_post( apply_filters( 'the_content', get_the_content() ) ) . '</div>';
+		echo '<button type="button" id="' . esc_attr( $toggle_id ) . '" class="themisdb-faq-toggle" data-faq-toggle aria-expanded="false" aria-controls="' . esc_attr( $answer_id ) . '" style="width:100%;text-align:left;background:none;border:none;padding:1rem 1.1rem;font-weight:700;color:#0f172a;cursor:pointer;">' . esc_html( get_the_title() ) . '<span class="themisdb-faq-icon" aria-hidden="true">+</span></button>';
+		echo '<div id="' . esc_attr( $answer_id ) . '" class="themisdb-faq-answer" data-faq-answer role="region" aria-labelledby="' . esc_attr( $toggle_id ) . '" aria-hidden="true" style="padding:0 1.1rem;color:#475569;line-height:1.7;">' . wp_kses_post( apply_filters( 'the_content', get_the_content() ) ) . '</div>';
 		echo '</div>';
+		$item_index++;
 	}
 	echo '</div>';
 	echo '</section>';
@@ -2928,11 +3146,20 @@ function themisdb_contact_form_shortcode() {
 	ob_start();
 	?>
 	<form id="themisdb-contact-form" class="themisdb-contact-form" novalidate>
-		<div style="display:grid;gap:.75rem;max-width:32rem;">
-			<input id="themisdb-cf-behoerde" type="text" name="behoerde" placeholder="Behörde / Institution" autocomplete="organization" required>
-			<input id="themisdb-cf-email" type="email" name="email" placeholder="Dienstliche E-Mail" autocomplete="email" required>
-			<p id="themisdb-cf-error" style="display:none;color:#b91c1c;font-size:.85rem;font-weight:600;margin:0;"></p>
-			<p id="themisdb-cf-success" style="display:none;color:#065f46;font-size:.85rem;font-weight:600;margin:0;"></p>
+		<div class="themisdb-contact-form-grid">
+			<label class="themisdb-visually-hidden" for="themisdb-cf-behoerde"><?php esc_html_e( 'Behoerde / Institution', 'themisdb-theme' ); ?></label>
+			<input id="themisdb-cf-behoerde" type="text" name="behoerde" placeholder="Behoerde / Institution" autocomplete="organization" aria-describedby="themisdb-cf-behoerde-help themisdb-cf-behoerde-count themisdb-cf-error themisdb-cf-success" maxlength="120" required>
+			<p id="themisdb-cf-behoerde-help" class="themisdb-field-help"><?php esc_html_e( 'Bitte geben Sie den offiziellen Namen Ihrer Behoerde oder Institution an.', 'themisdb-theme' ); ?></p>
+			<p id="themisdb-cf-behoerde-count" class="themisdb-field-meta" aria-live="polite">0 / 120</p>
+			<label class="themisdb-visually-hidden" for="themisdb-cf-email"><?php esc_html_e( 'Dienstliche E-Mail', 'themisdb-theme' ); ?></label>
+			<input id="themisdb-cf-email" type="email" name="email" placeholder="Dienstliche E-Mail" autocomplete="email" aria-describedby="themisdb-cf-email-help themisdb-cf-error themisdb-cf-success" required>
+			<p id="themisdb-cf-email-help" class="themisdb-field-help"><?php esc_html_e( 'Verwenden Sie eine dienstliche Adresse fuer eine schnellere Zuordnung.', 'themisdb-theme' ); ?></p>
+			<div class="themisdb-honeypot-field" aria-hidden="true">
+				<label class="themisdb-visually-hidden" for="themisdb-cf-website"><?php esc_html_e( 'Website', 'themisdb-theme' ); ?></label>
+				<input id="themisdb-cf-website" type="text" name="website" tabindex="-1" autocomplete="off">
+			</div>
+			<p id="themisdb-cf-error" class="themisdb-form-message themisdb-form-message--error" role="alert" aria-live="assertive"></p>
+			<p id="themisdb-cf-success" class="themisdb-form-message themisdb-form-message--success" role="status" aria-live="polite"></p>
 			<button type="submit" class="themisdb-btn-primary"><?php esc_html_e( 'Anfrage senden', 'themisdb-theme' ); ?></button>
 		</div>
 	</form>
@@ -3036,52 +3263,208 @@ function themisdb_section_admin_hint() {
 add_action( 'wp_ajax_nopriv_themisdb_contact', 'themisdb_handle_contact' );
 add_action( 'wp_ajax_themisdb_contact',        'themisdb_handle_contact' );
 
-function themisdb_handle_contact() {
-	check_ajax_referer( 'themisdb_contact_nonce', 'nonce' );
+function themisdb_get_request_ip() {
+	$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? wp_unslash( $_SERVER['REMOTE_ADDR'] ) : '';
+	$ip = sanitize_text_field( $ip );
 
-	$behoerde = isset( $_POST['behoerde'] ) ? sanitize_text_field( wp_unslash( $_POST['behoerde'] ) ) : '';
-	$email    = isset( $_POST['email']    ) ? sanitize_email( wp_unslash( $_POST['email'] ) )         : '';
-
-	if ( empty( $behoerde ) || empty( $email ) || ! is_email( $email ) ) {
-		wp_send_json_error( array( 'message' => __( 'Bitte Behörde und dienstliche E-Mail-Adresse eingeben.', 'themisdb-theme' ) ) );
-		return;
+	if ( '' === $ip ) {
+		return 'unknown';
 	}
 
-	// E-Mail an Kontaktadresse senden (konfigurierbar via Theme-Einstellung)
-	$recipient = themisdb_get_contact_email();
+	return $ip;
+}
+
+function themisdb_contact_rate_limit_seconds() {
+	$seconds = (int) get_theme_mod( 'themisdb_contact_rate_limit_seconds', 60 );
+
+	return max( 15, min( 900, $seconds ) );
+}
+
+function themisdb_contact_rate_limit_key( $email ) {
+	$identifier = strtolower( trim( (string) $email ) );
+	if ( '' === $identifier ) {
+		$identifier = themisdb_get_request_ip();
+	}
+
+	return 'themisdb_cf_rl_' . md5( themisdb_get_request_ip() . '|' . $identifier );
+}
+
+function themisdb_contact_rate_limited( $email ) {
+	$key = themisdb_contact_rate_limit_key( $email );
+
+	return false !== get_transient( $key );
+}
+
+function themisdb_contact_rate_limit_remaining( $email ) {
+	$key       = themisdb_contact_rate_limit_key( $email );
+	$lock_until = (int) get_transient( $key );
+	$remaining  = $lock_until - time();
+
+	if ( $remaining <= 0 ) {
+		return 0;
+	}
+
+	return $remaining;
+}
+
+function themisdb_mark_contact_attempt( $email ) {
+	$key     = themisdb_contact_rate_limit_key( $email );
+	$seconds = themisdb_contact_rate_limit_seconds();
+	set_transient( $key, time() + $seconds, $seconds );
+}
+
+function themisdb_create_support_ticket_from_contact( $behoerde, $email ) {
+	if ( ! class_exists( 'ThemisDB_SupportPortal_Ticket_Manager' ) ) {
+		return new WP_Error(
+			'support_plugin_missing',
+			__( 'Support-Portal ist nicht aktiv. Ticket konnte nicht erstellt werden.', 'themisdb-theme' )
+		);
+	}
 
 	$subject = sprintf(
-		/* translators: %s: Behördenname */
-		__( '[ThemisDB] Systemzugang-Anfrage von %s', 'themisdb-theme' ),
+		/* translators: %s: Behoerde/Institution */
+		__( 'Systemzugang-Anfrage: %s', 'themisdb-theme' ),
 		$behoerde
 	);
 
-	$body = sprintf(
-		"Behörde/Institution: %s\nE-Mail: %s\nDatum/Uhrzeit: %s",
-		$behoerde,
-		$email,
-		wp_date( 'd.m.Y H:i' )
+	$request_url = home_url( '/' );
+	if ( isset( $GLOBALS['wp'] ) && is_object( $GLOBALS['wp'] ) && isset( $GLOBALS['wp']->request ) ) {
+		$request_path = trim( (string) $GLOBALS['wp']->request, '/' );
+		if ( '' !== $request_path ) {
+			$request_url = home_url( '/' . $request_path . '/' );
+		}
+	}
+
+	$message_lines = array(
+		sprintf( __( 'Behoerde/Institution: %s', 'themisdb-theme' ), $behoerde ),
+		sprintf( __( 'Dienstliche E-Mail: %s', 'themisdb-theme' ), $email ),
+		sprintf( __( 'Anfragezeitpunkt: %s', 'themisdb-theme' ), wp_date( 'd.m.Y H:i' ) ),
+		sprintf( __( 'Anfrageseite: %s', 'themisdb-theme' ), esc_url_raw( $request_url ) ),
+		sprintf( __( 'Anfrage-IP: %s', 'themisdb-theme' ), themisdb_get_request_ip() ),
 	);
 
-	$sent = wp_mail(
-		$recipient,
-		$subject,
-		$body,
-		array( 'Content-Type: text/plain; charset=UTF-8' )
+	$ticket_id = ThemisDB_SupportPortal_Ticket_Manager::create_ticket(
+		array(
+			'subject'          => $subject,
+			'message'          => implode( "\n", $message_lines ),
+			'customer_name'    => $behoerde,
+			'customer_email'   => $email,
+			'customer_company' => $behoerde,
+			'priority'         => 'normal',
+			'user_id'          => get_current_user_id(),
+		)
 	);
 
-	if ( $sent ) {
+	if ( ! $ticket_id ) {
+		$last_error = '';
+		if ( is_callable( array( 'ThemisDB_SupportPortal_Ticket_Manager', 'get_last_error' ) ) ) {
+			$last_error = (string) ThemisDB_SupportPortal_Ticket_Manager::get_last_error();
+		}
+
+		return new WP_Error(
+			'support_ticket_failed',
+			'' !== $last_error
+				? $last_error
+				: __( 'Support-Ticket konnte nicht erstellt werden.', 'themisdb-theme' )
+		);
+	}
+
+	$ticket_number = '';
+	if ( is_callable( array( 'ThemisDB_SupportPortal_Ticket_Manager', 'get_ticket' ) ) ) {
+		$ticket = ThemisDB_SupportPortal_Ticket_Manager::get_ticket( (int) $ticket_id );
+		if ( is_array( $ticket ) && ! empty( $ticket['ticket_number'] ) ) {
+			$ticket_number = (string) $ticket['ticket_number'];
+		}
+	}
+
+	return array(
+		'ticket_id'     => (int) $ticket_id,
+		'ticket_number' => $ticket_number,
+	);
+}
+
+function themisdb_handle_contact() {
+	check_ajax_referer( 'themisdb_contact_nonce', 'nonce' );
+
+	$honeypot = isset( $_POST['website'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['website'] ) ) ) : '';
+	$behoerde = isset( $_POST['behoerde'] ) ? sanitize_text_field( wp_unslash( $_POST['behoerde'] ) ) : '';
+	$email    = isset( $_POST['email']    ) ? sanitize_email( wp_unslash( $_POST['email'] ) )         : '';
+
+	// Honeypot-Treffer werden still wie Erfolg behandelt.
+	if ( '' !== $honeypot ) {
 		wp_send_json_success( array(
-			'message' => __( 'Ihre Anfrage wurde erfolgreich übermittelt. Wir melden uns zeitnah.', 'themisdb-theme' ),
+			'message' => __( 'Ihre Anfrage wurde erfolgreich uebermittelt. Wir melden uns zeitnah.', 'themisdb-theme' ),
+			'code'    => 'ignored_honeypot',
 		) );
-	} else {
-		wp_send_json_error( array(
-			'message' => sprintf(
-				/* translators: %s: Kontakt-E-Mail-Adresse */
-				__( 'Beim Senden trat ein Fehler auf. Bitte wenden Sie sich direkt per E-Mail an %s.', 'themisdb-theme' ),
-				themisdb_get_contact_email()
+		return;
+	}
+
+	if ( themisdb_contact_rate_limited( $email ) ) {
+		$remaining = themisdb_contact_rate_limit_remaining( $email );
+		wp_send_json_error(
+			array(
+				'code'        => 'rate_limited',
+				'message'     => __( 'Bitte warten Sie kurz, bevor Sie eine weitere Anfrage senden.', 'themisdb-theme' ),
+				'retry_after' => $remaining,
 			),
+			429
+		);
+		return;
+	}
+
+	if ( empty( $behoerde ) || empty( $email ) || ! is_email( $email ) ) {
+		$invalid_fields = array();
+		if ( empty( $behoerde ) ) {
+			$invalid_fields[] = 'behoerde';
+		}
+		if ( empty( $email ) || ! is_email( $email ) ) {
+			$invalid_fields[] = 'email';
+		}
+
+		wp_send_json_error(
+			array(
+				'code'    => 'invalid_input',
+				'fields'  => $invalid_fields,
+				'message' => __( 'Bitte Behoerde und dienstliche E-Mail-Adresse eingeben.', 'themisdb-theme' ),
+			),
+			400
+		);
+		return;
+	}
+
+	themisdb_mark_contact_attempt( $email );
+	$ticket_result = themisdb_create_support_ticket_from_contact( $behoerde, $email );
+
+	if ( is_wp_error( $ticket_result ) ) {
+		wp_send_json_error(
+			array(
+				'code'    => $ticket_result->get_error_code(),
+				'message' => $ticket_result->get_error_message(),
+			),
+			500
+		);
+		return;
+	}
+
+	if ( is_array( $ticket_result ) ) {
+		$ticket_number = isset( $ticket_result['ticket_number'] ) ? (string) $ticket_result['ticket_number'] : '';
+		$success_msg   = __( 'Ihre Anfrage wurde als Support-Ticket gespeichert. Wir melden uns zeitnah.', 'themisdb-theme' );
+
+		if ( '' !== $ticket_number ) {
+			$success_msg = sprintf(
+				/* translators: %s: Ticketnummer */
+				__( 'Ihre Anfrage wurde als Support-Ticket %s gespeichert. Wir melden uns zeitnah.', 'themisdb-theme' ),
+				esc_html( $ticket_number )
+			);
+		}
+
+		wp_send_json_success( array(
+			'code'          => 'ticket_created',
+			'message'       => $success_msg,
+			'ticket_id'     => (int) $ticket_result['ticket_id'],
+			'ticket_number' => $ticket_number,
 		) );
+		return;
 	}
 }
 
@@ -3095,6 +3478,7 @@ function themisdb_customizer( $wp_customize ) {
 
 	$wp_customize->add_section( 'themisdb_options', array(
 		'title'    => __( 'ThemisDB Einstellungen', 'themisdb-theme' ),
+		'description' => __( 'Kontakt, Footer und rechtliche Inhalte. Inhalte sollten aus WordPress-Seiten, Menues und Theme-Optionen gepflegt werden.', 'themisdb-theme' ),
 		'priority' => 30,
 	) );
 
@@ -3105,8 +3489,113 @@ function themisdb_customizer( $wp_customize ) {
 	) );
 	$wp_customize->add_control( 'themisdb_contact_email', array(
 		'label'       => __( 'Kontakt-E-Mail (Systemzugang-Anfragen)', 'themisdb-theme' ),
+		'description' => __( 'Empfaengeradresse fuer Formularanfragen auf der Startseite.', 'themisdb-theme' ),
 		'section'     => 'themisdb_options',
 		'type'        => 'email',
+	) );
+
+	$wp_customize->add_setting( 'themisdb_contact_rate_limit_seconds', array(
+		'default'           => 60,
+		'sanitize_callback' => 'absint',
+	) );
+	$wp_customize->add_control( 'themisdb_contact_rate_limit_seconds', array(
+		'label'       => __( 'Kontaktformular Rate-Limit (Sekunden)', 'themisdb-theme' ),
+		'description' => __( 'Empfohlener Bereich: 30 bis 120 Sekunden pro Anfrage und Absender.', 'themisdb-theme' ),
+		'section'     => 'themisdb_options',
+		'type'        => 'number',
+		'input_attrs' => array(
+			'min'  => 15,
+			'max'  => 900,
+			'step' => 5,
+		),
+	) );
+
+	$wp_customize->add_setting( 'themisdb_footer_description', array(
+		'default'           => get_bloginfo( 'description' ),
+		'sanitize_callback' => 'sanitize_textarea_field',
+	) );
+	$wp_customize->add_control( 'themisdb_footer_description', array(
+		'label'       => __( 'Footer-Beschreibung', 'themisdb-theme' ),
+		'description' => __( 'Kurztext fuer den Footer-Bereich. Empfehlung: 1 bis 2 Saetze mit Zweck und Zielgruppe.', 'themisdb-theme' ),
+		'section'     => 'themisdb_options',
+		'type'        => 'textarea',
+	) );
+
+	$wp_customize->add_setting( 'themisdb_footer_contact_heading', array(
+		'default'           => __( 'Kontakt', 'themisdb-theme' ),
+		'sanitize_callback' => 'sanitize_text_field',
+	) );
+	$wp_customize->add_control( 'themisdb_footer_contact_heading', array(
+		'label'       => __( 'Footer-Kontaktüberschrift', 'themisdb-theme' ),
+		'description' => __( 'Kurze Ueberschrift fuer die Kontaktspalte im Footer.', 'themisdb-theme' ),
+		'section'     => 'themisdb_options',
+		'type'        => 'text',
+	) );
+
+	$wp_customize->add_setting( 'themisdb_footer_contact_name', array(
+		'default'           => get_bloginfo( 'name' ),
+		'sanitize_callback' => 'sanitize_text_field',
+	) );
+	$wp_customize->add_control( 'themisdb_footer_contact_name', array(
+		'label'       => __( 'Footer-Kontaktname', 'themisdb-theme' ),
+		'description' => __( 'Bezeichnung der zustaendigen Stelle, z. B. Referat oder Teamname.', 'themisdb-theme' ),
+		'section'     => 'themisdb_options',
+		'type'        => 'text',
+	) );
+
+	$wp_customize->add_setting( 'themisdb_footer_contact_subline', array(
+		'default'           => '',
+		'sanitize_callback' => 'sanitize_text_field',
+	) );
+	$wp_customize->add_control( 'themisdb_footer_contact_subline', array(
+		'label'       => __( 'Footer-Kontakt-Unterzeile', 'themisdb-theme' ),
+		'description' => __( 'Optionaler Zusatz, z. B. Erreichbarkeit oder Bereich.', 'themisdb-theme' ),
+		'section'     => 'themisdb_options',
+		'type'        => 'text',
+	) );
+
+	$wp_customize->add_setting( 'themisdb_footer_notice', array(
+		'default'           => '',
+		'sanitize_callback' => 'sanitize_text_field',
+	) );
+	$wp_customize->add_control( 'themisdb_footer_notice', array(
+		'label'       => __( 'Footer-Hinweis unten rechts', 'themisdb-theme' ),
+		'description' => __( 'Optionaler kurzer Hinweis, z. B. Sicherheits- oder Betriebsstatus.', 'themisdb-theme' ),
+		'section'     => 'themisdb_options',
+		'type'        => 'text',
+	) );
+
+	$wp_customize->add_setting( 'themisdb_impressum_page', array(
+		'default'           => 0,
+		'sanitize_callback' => 'absint',
+	) );
+	$wp_customize->add_control( 'themisdb_impressum_page', array(
+		'label'       => __( 'Seite für Impressum', 'themisdb-theme' ),
+		'description' => __( 'Waehlen Sie die WordPress-Seite, deren Inhalt als Impressum ausgegeben wird.', 'themisdb-theme' ),
+		'section'     => 'themisdb_options',
+		'type'        => 'dropdown-pages',
+	) );
+
+	$wp_customize->add_setting( 'themisdb_datenschutz_page', array(
+		'default'           => 0,
+		'sanitize_callback' => 'absint',
+	) );
+	$wp_customize->add_control( 'themisdb_datenschutz_page', array(
+		'label'       => __( 'Seite für Datenschutz', 'themisdb-theme' ),
+		'description' => __( 'Waehlen Sie die WordPress-Seite, deren Inhalt als Datenschutzhinweis ausgegeben wird.', 'themisdb-theme' ),
+		'section'     => 'themisdb_options',
+		'type'        => 'dropdown-pages',
+	) );
+
+	$wp_customize->add_setting( 'themisdb_show_state_grid', array(
+		'default'           => false,
+		'sanitize_callback' => 'rest_sanitize_boolean',
+	) );
+	$wp_customize->add_control( 'themisdb_show_state_grid', array(
+		'label'       => __( 'Bundesländer-Grid anzeigen', 'themisdb-theme' ),
+		'description' => __( 'Aktivieren nur wenn Inhalte fuer alle Bundeslaender gepflegt sind.', 'themisdb-theme' ),
+		'section'     => 'themisdb_options',
+		'type'        => 'checkbox',
 	) );
 
 	// Slider-Autoplay-Intervall
@@ -3116,7 +3605,7 @@ function themisdb_customizer( $wp_customize ) {
 	) );
 	$wp_customize->add_control( 'themisdb_slider_interval', array(
 		'label'       => __( 'Hero-Slider Intervall (ms)', 'themisdb-theme' ),
-		'description' => __( 'Standard: 5000 (5 Sekunden)', 'themisdb-theme' ),
+		'description' => __( 'Empfehlung: 5000 bis 7000 fuer gute Lesbarkeit ohne Traegheit.', 'themisdb-theme' ),
 		'section'     => 'themisdb_options',
 		'type'        => 'number',
 		'input_attrs' => array(
@@ -3133,7 +3622,7 @@ function themisdb_customizer( $wp_customize ) {
 	) );
 	$wp_customize->add_control( 'themisdb_crest_base_url', array(
 		'label'       => __( 'Wappen-Verzeichnis URL', 'themisdb-theme' ),
-		'description' => __( 'URL des Ordners mit den SVG-Wappendateien.', 'themisdb-theme' ),
+		'description' => __( 'URL des Ordners mit den SVG-Wappendateien. Abschluss mit / verwenden.', 'themisdb-theme' ),
 		'section'     => 'themisdb_options',
 		'type'        => 'url',
 	) );
@@ -3152,6 +3641,20 @@ function themisdb_footer_js_data() {
 		'contactNonce'   => wp_create_nonce( 'themisdb_contact_nonce' ),
 		'contactEmail'   => themisdb_get_contact_email(),
 		'ajaxUrl'        => esc_url( admin_url( 'admin-ajax.php' ) ),
+		'i18n'           => array(
+			'contactSubmitDefault'   => __( 'Anfrage senden', 'themisdb-theme' ),
+			'contactSubmitBusy'      => __( 'Wird gesendet...', 'themisdb-theme' ),
+			'contactWaitSeconds'     => __( 'Bitte warten Sie %d Sekunden, bevor Sie eine weitere Anfrage senden.', 'themisdb-theme' ),
+			'contactWaitGeneric'     => __( 'Bitte warten Sie kurz, bevor Sie eine weitere Anfrage senden.', 'themisdb-theme' ),
+			'contactOrgRequired'     => __( 'Bitte geben Sie Ihre Behoerde / Institution an.', 'themisdb-theme' ),
+			'contactEmailInvalid'    => __( 'Bitte geben Sie eine gueltige dienstliche E-Mail-Adresse an.', 'themisdb-theme' ),
+			'contactEmailClientOpen' => __( 'Ihr E-Mail-Client wurde geoeffnet. Bitte senden Sie die Nachricht ab.', 'themisdb-theme' ),
+			'contactMailtoSubject'   => __( 'ThemisDB Zugangsanfrage von %s', 'themisdb-theme' ),
+			'contactMailtoBody'      => __( "Behoerde: %1$s\r\nE-Mail: %2$s\r\n\r\nBitte nehmen Sie Kontakt auf.", 'themisdb-theme' ),
+			'contactSendSuccess'     => __( 'Ihre Anfrage wurde erfolgreich gesendet. Wir melden uns in Kuerze.', 'themisdb-theme' ),
+			'contactSendError'       => __( 'Fehler beim Senden. Bitte versuchen Sie es erneut oder schreiben Sie direkt an %s.', 'themisdb-theme' ),
+			'contactNetworkError'    => __( 'Netzwerkfehler. Bitte schreiben Sie direkt an %s.', 'themisdb-theme' ),
+		),
 	);
 
 	printf(
@@ -3165,10 +3668,19 @@ function themisdb_footer_js_data() {
    (Übernommen aus ThemisDB v3 für Sub-Directory-Kompatibilität)
    ===================================================================== */
 
-add_filter( 'render_block', 'themisdb_normalize_root_relative_urls', 20 );
+add_filter( 'render_block', 'themisdb_normalize_root_relative_urls', 20, 2 );
 
-function themisdb_normalize_root_relative_urls( $content ) {
+function themisdb_normalize_root_relative_urls( $content, $block ) {
 	if ( ! is_string( $content ) || '' === $content ) {
+		return $content;
+	}
+
+	$block_name      = ( is_array( $block ) && isset( $block['blockName'] ) ) ? (string) $block['blockName'] : '';
+	$is_theme_block  = '' !== $block_name && 0 === strpos( $block_name, 'themisdb-theme/' );
+	$is_templatepart = 'core/template-part' === $block_name;
+	$has_placeholder = false !== strpos( $content, '%%THEMISDB_' );
+
+	if ( ! $is_theme_block && ! $is_templatepart && ! $has_placeholder ) {
 		return $content;
 	}
 
@@ -3203,7 +3715,25 @@ function themisdb_normalize_root_relative_urls( $content ) {
 }
 
 function themisdb_replace_template_placeholders( $content ) {
-	return str_replace( '%%THEMISDB_CONTACT_EMAIL%%', themisdb_get_contact_email(), $content );
+	$replacements = array(
+		'%%THEMISDB_CONTACT_EMAIL%%'          => themisdb_get_contact_email(),
+		'%%THEMISDB_SITE_TITLE%%'             => esc_html( get_bloginfo( 'name' ) ),
+		'%%THEMISDB_SITE_TAGLINE%%'           => esc_html( get_bloginfo( 'description' ) ),
+		'%%THEMISDB_FOOTER_DESCRIPTION%%'     => themisdb_get_footer_description(),
+		'%%THEMISDB_FOOTER_LINKS%%'           => themisdb_get_footer_menu_markup( 'footer-1' ),
+		'%%THEMISDB_FOOTER_CONTACT_HEADING%%' => esc_html( themisdb_get_footer_text( 'themisdb_footer_contact_heading', __( 'Kontakt', 'themisdb-theme' ) ) ),
+		'%%THEMISDB_FOOTER_CONTACT_NAME%%'    => esc_html( themisdb_get_footer_text( 'themisdb_footer_contact_name', get_bloginfo( 'name' ) ) ),
+		'%%THEMISDB_FOOTER_CONTACT_SUBLINE%%' => esc_html( themisdb_get_footer_text( 'themisdb_footer_contact_subline', '' ) ),
+		'%%THEMISDB_FOOTER_META%%'            => themisdb_get_footer_menu_markup( 'footer-2' ),
+		'%%THEMISDB_FOOTER_COPYRIGHT%%'       => themisdb_get_footer_copyright_markup(),
+		'%%THEMISDB_FOOTER_NOTICE%%'          => themisdb_get_footer_notice_markup(),
+		'%%THEMISDB_IMPRESSUM_TITLE%%'        => esc_html( themisdb_get_legal_page_title( 'themisdb_impressum_page', __( 'Impressum', 'themisdb-theme' ), 'impressum' ) ),
+		'%%THEMISDB_IMPRESSUM_CONTENT%%'      => themisdb_get_legal_page_content( 'themisdb_impressum_page', 'impressum' ),
+		'%%THEMISDB_DATENSCHUTZ_TITLE%%'      => esc_html( themisdb_get_legal_page_title( 'themisdb_datenschutz_page', __( 'Datenschutz', 'themisdb-theme' ), 'datenschutz' ) ),
+		'%%THEMISDB_DATENSCHUTZ_CONTENT%%'    => themisdb_get_legal_page_content( 'themisdb_datenschutz_page', 'datenschutz' ),
+	);
+
+	return strtr( $content, $replacements );
 }
 
 /* =====================================================================

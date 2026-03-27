@@ -1,0 +1,107 @@
+/* ============================================================================
+   FAQ ACCORDION
+   ============================================================================ */
+
+.themisdb-faq-item {
+    border-bottom: 1px solid var(--themisdb-slate-100);
+}
+
+.themisdb-faq-toggle {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    background: white;
+}
+
+.themisdb-faq-toggle:hover {
+    background: var(--themisdb-slate-50);
+}
+
+.themisdb-faq-toggle:focus-visible {
+    outline: 2px solid var(--themisdb-sky-light);
+    outline-offset: -2px;
+}
+
+.themisdb-faq-icon {
+    width: 2rem;
+    height: 2rem;
+    background: var(--themisdb-slate-100);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--themisdb-slate-500);
+    transition: transform 0.3s ease, background 0.2s ease;
+}
+
+.themisdb-faq-item.is-open .themisdb-faq-icon {
+    transform: rotate(45deg);
+    background: var(--themisdb-navy);
+    color: white;
+}
+
+.themisdb-faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    padding: 0 2rem;
+    font-size: 0.875rem;
+    color: var(--themisdb-slate-600);
+    line-height: 1.75;
+    opacity: 0;
+    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.25s ease;
+}
+
+.themisdb-faq-answer.is-open {
+    opacity: 1;
+    padding-bottom: 1.5rem;
+}
+
+/* ============================================================================
+   LEGAL ACCORDION (Impressum / Datenschutz)
+   ============================================================================ */
+
+.themisdb-legal-block {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--themisdb-slate-50);
+    border-top: 1px solid var(--themisdb-border);
+}
+
+.themisdb-legal-block.is-open {
+    max-height: 9999px;
+}
+
+.themisdb-legal-block-inner {
+    padding: 3.5rem 1.5rem 4rem;
+    max-width: 56rem;
+    margin: 0 auto;
+}
+
+.themisdb-legal-close-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--themisdb-slate-500);
+    border: 1px solid var(--themisdb-border);
+    background: white;
+    padding: 0.4rem 1rem;
+    border-radius: 99px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.themisdb-legal-close-btn:hover {
+    background: var(--themisdb-navy);
+    color: white;
+    border-color: var(--themisdb-navy);
+}

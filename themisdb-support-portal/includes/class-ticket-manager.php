@@ -20,6 +20,8 @@ if (!class_exists('ThemisDB_SupportPortal_Ticket_Manager')) {
 class ThemisDB_SupportPortal_Ticket_Manager {
 
     private static $last_error = '';
+    const SYSTEM_AUTHOR_NAME  = 'ThemisDB System';
+    const SYSTEM_AUTHOR_EMAIL = 'system@themisdb.local';
 
     const STATUS_OPEN        = 'open';
     const STATUS_IN_PROGRESS = 'in_progress';
@@ -47,6 +49,7 @@ class ThemisDB_SupportPortal_Ticket_Manager {
      *     @type string $priority        (optional, default 'normal')
      *     @type string $license_key     (optional)
      *     @type int    $user_id         (optional)
+    *     @type int    $assignee_user_id (optional)
      * }
      * @return int|false  New ticket ID on success, false on failure.
      */
@@ -58,6 +61,7 @@ class ThemisDB_SupportPortal_Ticket_Manager {
         $table_tickets  = $wpdb->prefix . 'themisdb_support_tickets';
         $table_messages = $wpdb->prefix . 'themisdb_support_messages';
         $benefit_id = null;
+        $default_assignee_user_id = intval(get_option('themisdb_support_default_assignee_user_id', 0));
 
         // Validate support benefits limits if license is provided
         if (!empty($data['license_key']) && class_exists('ThemisDB_Support_Benefits_Manager')) {
@@ -106,6 +110,7 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             'license_key'      => isset($data['license_key'])  ? sanitize_text_field($data['license_key'])  : null,
             'benefit_id'       => $benefit_id,
             'user_id'          => isset($data['user_id'])      ? intval($data['user_id'])                   : null,
+            'assignee_user_id' => self::sanitize_assignee_user_id(isset($data['assignee_user_id']) ? $data['assignee_user_id'] : $default_assignee_user_id),
         );
 
         $result = $wpdb->insert($table_tickets, $ticket_data);
@@ -197,6 +202,7 @@ class ThemisDB_SupportPortal_Ticket_Manager {
      *     @type string $status    Filter by status
      *     @type string $priority  Filter by priority
      *     @type int    $user_id   Filter by WordPress user ID
+    *     @type int    $assignee_user_id Filter by assigned agent
      *     @type int    $per_page  Default 20
      *     @type int    $page      Default 1
      *     @type string $orderby   Default 'created_at'
@@ -213,6 +219,7 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             'status'   => '',
             'priority' => '',
             'user_id'  => 0,
+            'assignee_user_id' => 0,
             'per_page' => 20,
             'page'     => 1,
             'orderby'  => 'created_at',
@@ -234,6 +241,10 @@ class ThemisDB_SupportPortal_Ticket_Manager {
         if (!empty($args['user_id'])) {
             $where[]  = 'user_id = %d';
             $values[] = intval($args['user_id']);
+        }
+        if (!empty($args['assignee_user_id'])) {
+            $where[]  = 'assignee_user_id = %d';
+            $values[] = intval($args['assignee_user_id']);
         }
 
         $where_sql = implode(' AND ', $where);
@@ -302,14 +313,49 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             return false;
         }
 
+        $ticket_id = intval($ticket_id);
+        if ($ticket_id <= 0) {
+            return false;
+        }
+
+        $current_ticket = self::get_ticket($ticket_id);
+        if (!$current_ticket || !is_array($current_ticket)) {
+            return false;
+        }
+
+        $old_status = isset($current_ticket['status']) ? sanitize_key($current_ticket['status']) : '';
+        if ($old_status === $status) {
+            return true;
+        }
+
         $table  = $wpdb->prefix . 'themisdb_support_tickets';
         $result = $wpdb->update(
             $table,
             array('status' => $status),
-            array('id'     => intval($ticket_id))
+            array('id'     => $ticket_id)
         );
 
-        return $result !== false;
+        if ($result === false) {
+            return false;
+        }
+
+        $updated_ticket = self::get_ticket($ticket_id);
+        if ($updated_ticket && is_array($updated_ticket)) {
+            self::log_status_change_history($updated_ticket, $old_status, $status);
+            self::notify_admin_status_change($updated_ticket, $old_status, $status);
+        }
+
+        /**
+         * Fires after ticket status has changed.
+         *
+         * @param int   $ticket_id
+         * @param string $old_status
+         * @param string $new_status
+         * @param array|null $ticket
+         */
+        do_action('themisdb_support_portal_ticket_status_changed', $ticket_id, $old_status, $status, $updated_ticket);
+
+        return true;
     }
 
     /**
@@ -326,6 +372,13 @@ class ThemisDB_SupportPortal_Ticket_Manager {
         if ($ticket_id <= 0 || !is_array($data)) {
             return false;
         }
+
+        $current_ticket = self::get_ticket($ticket_id);
+        if (!$current_ticket || !is_array($current_ticket)) {
+            return false;
+        }
+
+        $old_assignee_user_id = isset($current_ticket['assignee_user_id']) ? intval($current_ticket['assignee_user_id']) : 0;
 
         $table = $wpdb->prefix . 'themisdb_support_tickets';
         $fields = array();
@@ -347,13 +400,14 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             $fields['priority'] = $priority;
         }
 
+        $status_to_apply = null;
         if (isset($data['status'])) {
             $status = sanitize_key($data['status']);
             $allowed_status = array(self::STATUS_OPEN, self::STATUS_IN_PROGRESS, self::STATUS_RESOLVED, self::STATUS_CLOSED);
             if (!in_array($status, $allowed_status, true)) {
                 return false;
             }
-            $fields['status'] = $status;
+            $status_to_apply = $status;
         }
 
         if (isset($data['customer_name'])) {
@@ -376,12 +430,50 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             $fields['license_key'] = sanitize_text_field($data['license_key']);
         }
 
-        if (empty($fields)) {
+        if (isset($data['assignee_user_id'])) {
+            $fields['assignee_user_id'] = self::sanitize_assignee_user_id($data['assignee_user_id']);
+        }
+
+        if (empty($fields) && $status_to_apply === null) {
             return false;
         }
 
-        $result = $wpdb->update($table, $fields, array('id' => $ticket_id));
-        return $result !== false;
+        $result = true;
+        if (!empty($fields)) {
+            $result = $wpdb->update($table, $fields, array('id' => $ticket_id));
+            if ($result === false) {
+                return false;
+            }
+        }
+
+        if ($status_to_apply !== null) {
+            if (!self::update_ticket_status($ticket_id, $status_to_apply)) {
+                return false;
+            }
+        }
+
+        if (isset($data['assignee_user_id'])) {
+            $updated_ticket = self::get_ticket($ticket_id);
+            if ($updated_ticket && is_array($updated_ticket)) {
+                $new_assignee_user_id = isset($updated_ticket['assignee_user_id']) ? intval($updated_ticket['assignee_user_id']) : 0;
+                if ($new_assignee_user_id !== $old_assignee_user_id) {
+                    self::log_assignee_change_history($updated_ticket, $old_assignee_user_id, $new_assignee_user_id);
+                    self::notify_assignee_assignment_change($updated_ticket, $old_assignee_user_id, $new_assignee_user_id);
+
+                    /**
+                     * Fires after assignee has changed for a ticket.
+                     *
+                     * @param int   $ticket_id
+                     * @param int   $old_assignee_user_id
+                     * @param int   $new_assignee_user_id
+                     * @param array $ticket
+                     */
+                    do_action('themisdb_support_portal_ticket_assignee_changed', $ticket_id, $old_assignee_user_id, $new_assignee_user_id, $updated_ticket);
+                }
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -423,8 +515,6 @@ class ThemisDB_SupportPortal_Ticket_Manager {
      * @return int Number of updated tickets
      */
     public static function bulk_update_status($ticket_ids, $status) {
-        global $wpdb;
-
         $allowed = array(self::STATUS_OPEN, self::STATUS_IN_PROGRESS, self::STATUS_RESOLVED, self::STATUS_CLOSED);
         if (!in_array($status, $allowed, true)) {
             return 0;
@@ -435,14 +525,39 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             return 0;
         }
 
-        $table = $wpdb->prefix . 'themisdb_support_tickets';
-        $id_sql = implode(',', $ids);
+        $updated = 0;
+        foreach ($ids as $ticket_id) {
+            if (self::update_ticket_status($ticket_id, $status)) {
+                $updated++;
+            }
+        }
 
-        $updated = $wpdb->query(
-            $wpdb->prepare("UPDATE `$table` SET status = %s WHERE id IN ($id_sql)", $status)
-        );
+        return $updated;
+    }
 
-        return $updated !== false ? intval($updated) : 0;
+    /**
+     * Bulk assign tickets to a support agent or remove assignment.
+     *
+     * @param array    $ticket_ids
+     * @param int|null $assignee_user_id
+     * @return int Number of updated tickets
+     */
+    public static function bulk_update_assignee($ticket_ids, $assignee_user_id) {
+        $ids = self::sanitize_ticket_ids($ticket_ids);
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $sanitized_assignee_user_id = self::sanitize_assignee_user_id($assignee_user_id);
+        $updated = 0;
+
+        foreach ($ids as $ticket_id) {
+            if (self::update_ticket($ticket_id, array('assignee_user_id' => $sanitized_assignee_user_id))) {
+                $updated++;
+            }
+        }
+
+        return $updated;
     }
 
     /**
@@ -527,11 +642,15 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             array('id' => intval($ticket_id))
         );
 
-        // If it is an admin reply, notify the customer
-        if (!empty($message_data['is_admin_reply'])) {
-            $ticket = self::get_ticket($ticket_id);
-            if ($ticket) {
+        $ticket = self::get_ticket($ticket_id);
+
+        // If it is an admin reply, notify the customer.
+        // If it is a customer message, notify the assigned support agent.
+        if ($ticket) {
+            if (!empty($message_data['is_admin_reply'])) {
                 self::notify_customer_reply($ticket, $message_data['message']);
+            } else {
+                self::notify_assignee_customer_message($ticket, $message_data['message']);
             }
         }
 
@@ -558,6 +677,18 @@ class ThemisDB_SupportPortal_Ticket_Manager {
         );
 
         return $results ?: array();
+    }
+
+    /**
+     * Detect whether a message row is a system history entry.
+     *
+     * @param array $message
+     * @return bool
+     */
+    public static function is_system_message($message) {
+        return is_array($message)
+            && isset($message['author_email'])
+            && sanitize_email($message['author_email']) === self::SYSTEM_AUTHOR_EMAIL;
     }
 
     // -------------------------------------------------------------------------
@@ -625,6 +756,148 @@ class ThemisDB_SupportPortal_Ticket_Manager {
         );
     }
 
+    /**
+     * Validate assignee user id against users that can edit content.
+     *
+     * @param mixed $assignee_user_id
+     * @return int|null
+     */
+    private static function sanitize_assignee_user_id($assignee_user_id) {
+        $assignee_user_id = intval($assignee_user_id);
+        if ($assignee_user_id <= 0) {
+            return null;
+        }
+
+        $user = get_user_by('id', $assignee_user_id);
+        if (!$user || !($user instanceof WP_User) || !user_can($user, 'edit_posts')) {
+            return null;
+        }
+
+        return $assignee_user_id;
+    }
+
+    /**
+     * Resolve notification recipient: assigned editor first, fallback to admin email.
+     *
+     * @param array  $ticket
+     * @param string $fallback_email
+     * @return string
+     */
+    private static function resolve_notification_recipient_email($ticket, $fallback_email) {
+        $assignee_user_id = isset($ticket['assignee_user_id']) ? intval($ticket['assignee_user_id']) : 0;
+        if ($assignee_user_id > 0) {
+            $assignee = get_user_by('id', $assignee_user_id);
+            if ($assignee instanceof WP_User && is_email($assignee->user_email)) {
+                return sanitize_email($assignee->user_email);
+            }
+        }
+
+        return sanitize_email($fallback_email);
+    }
+
+    /**
+     * Return assignee display name for mail output.
+     *
+     * @param array $ticket
+     * @return string
+     */
+    private static function get_assignee_label($ticket) {
+        $assignee_user_id = isset($ticket['assignee_user_id']) ? intval($ticket['assignee_user_id']) : 0;
+        return self::get_assignee_label_by_user_id($assignee_user_id);
+    }
+
+    /**
+     * Return assignee label for a user ID.
+     *
+     * @param int $assignee_user_id
+     * @return string
+     */
+    private static function get_assignee_label_by_user_id($assignee_user_id) {
+        $assignee_user_id = intval($assignee_user_id);
+        if ($assignee_user_id <= 0) {
+            return __('Nicht zugewiesen', 'themisdb-support-portal');
+        }
+
+        $assignee = get_user_by('id', $assignee_user_id);
+        if (!($assignee instanceof WP_User)) {
+            return __('Nicht zugewiesen', 'themisdb-support-portal');
+        }
+
+        return $assignee->display_name;
+    }
+
+    /**
+     * Add an internal system message without triggering customer notifications.
+     *
+     * @param int    $ticket_id
+     * @param string $message
+     * @return int|false
+     */
+    private static function add_system_message($ticket_id, $message) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'themisdb_support_messages';
+        $result = $wpdb->insert($table, array(
+            'ticket_id' => intval($ticket_id),
+            'author_name' => self::SYSTEM_AUTHOR_NAME,
+            'author_email' => self::SYSTEM_AUTHOR_EMAIL,
+            'message' => wp_kses_post($message),
+            'is_admin_reply' => 1,
+        ));
+
+        if (!$result) {
+            return false;
+        }
+
+        return $wpdb->insert_id;
+    }
+
+    /**
+     * Add a history entry for status changes.
+     *
+     * @param array  $ticket
+     * @param string $old_status
+     * @param string $new_status
+     */
+    private static function log_status_change_history($ticket, $old_status, $new_status) {
+        if (empty($ticket['id'])) {
+            return;
+        }
+
+        $status_labels = self::get_status_labels();
+        $old_label = isset($status_labels[$old_status]) ? $status_labels[$old_status] : $old_status;
+        $new_label = isset($status_labels[$new_status]) ? $status_labels[$new_status] : $new_status;
+
+        $message = sprintf(
+            __('Status geändert: %1$s -> %2$s', 'themisdb-support-portal'),
+            $old_label,
+            $new_label
+        );
+
+        self::add_system_message(intval($ticket['id']), $message);
+    }
+
+    /**
+     * Add a history entry for assignee changes.
+     *
+     * @param array $ticket
+     * @param int   $old_assignee_user_id
+     * @param int   $new_assignee_user_id
+     */
+    private static function log_assignee_change_history($ticket, $old_assignee_user_id, $new_assignee_user_id) {
+        if (empty($ticket['id'])) {
+            return;
+        }
+
+        $message = sprintf(
+            __('Bearbeiter geändert: %1$s -> %2$s', 'themisdb-support-portal'),
+            self::get_assignee_label_by_user_id($old_assignee_user_id),
+            self::get_assignee_label_by_user_id($new_assignee_user_id)
+        );
+
+        self::add_system_message(intval($ticket['id']), $message);
+    }
+
     // -------------------------------------------------------------------------
     // Email notifications
     // -------------------------------------------------------------------------
@@ -657,14 +930,22 @@ class ThemisDB_SupportPortal_Ticket_Manager {
         );
 
         $admin_url = admin_url('admin.php?page=themisdb-support-view&ticket_id=' . $ticket_id);
+        $status_labels = self::get_status_labels();
+        $priority_labels = self::get_priority_labels();
+        $status_label = isset($status_labels[$ticket['status']]) ? $status_labels[$ticket['status']] : $ticket['status'];
+        $priority_label = isset($priority_labels[$ticket['priority']]) ? $priority_labels[$ticket['priority']] : $ticket['priority'];
+        $assignee_label = self::get_assignee_label($ticket);
+        $recipient_email = self::resolve_notification_recipient_email($ticket, $admin_email);
 
         $body = sprintf(
-            __("Ein neues Support-Ticket wurde erstellt.\n\nTicket: %s\nBetreff: %s\nKunde: %s (%s)\nPriorität: %s\n\nTicket ansehen: %s", 'themisdb-support-portal'),
+            __("Ein neues Support-Ticket wurde erstellt.\n\nTicket: %s\nBetreff: %s\nKunde: %s (%s)\nStatus: %s\nPriorität: %s\nZugewiesen an: %s\n\nTicket ansehen: %s", 'themisdb-support-portal'),
             $ticket['ticket_number'],
             $ticket['subject'],
             $ticket['customer_name'],
             $ticket['customer_email'],
-            $ticket['priority'],
+            $status_label,
+            $priority_label,
+            $assignee_label,
             $admin_url
         );
 
@@ -673,7 +954,185 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             'From: ' . sanitize_text_field($from_name) . ' <' . sanitize_email($from_email) . '>',
         );
 
-        wp_mail($admin_email, $subject, $body, $headers);
+        wp_mail($recipient_email, $subject, $body, $headers);
+    }
+
+    /**
+     * Notify the support admin when a ticket status changes.
+     *
+     * @param array  $ticket
+     * @param string $old_status
+     * @param string $new_status
+     */
+    private static function notify_admin_status_change($ticket, $old_status, $new_status) {
+        if (!get_option('themisdb_support_email_notifications', '1')) {
+            return;
+        }
+
+        if (!get_option('themisdb_support_status_email_notifications', '1')) {
+            return;
+        }
+
+        $admin_email = get_option('themisdb_support_admin_email', get_option('admin_email'));
+        $from_name   = get_option('themisdb_support_email_from_name', get_option('blogname'));
+        $from_email  = get_option('themisdb_support_email_from', get_option('admin_email'));
+
+        if (empty($ticket['id']) || empty($ticket['ticket_number'])) {
+            return;
+        }
+
+        $status_labels  = self::get_status_labels();
+        $priority_labels = self::get_priority_labels();
+        $old_label      = isset($status_labels[$old_status]) ? $status_labels[$old_status] : $old_status;
+        $new_label      = isset($status_labels[$new_status]) ? $status_labels[$new_status] : $new_status;
+        $priority_label = isset($priority_labels[$ticket['priority']]) ? $priority_labels[$ticket['priority']] : $ticket['priority'];
+        $assignee_label = self::get_assignee_label($ticket);
+        $recipient_email = self::resolve_notification_recipient_email($ticket, $admin_email);
+
+        $subject = sprintf(
+            /* translators: 1: ticket number, 2: new status */
+            __('[Support] Ticket %1$s Status: %2$s', 'themisdb-support-portal'),
+            esc_html($ticket['ticket_number']),
+            esc_html($new_label)
+        );
+
+        $admin_url = admin_url('admin.php?page=themisdb-support-view&ticket_id=' . intval($ticket['id']));
+
+        $body = sprintf(
+            __("Der Status eines Support-Tickets wurde geändert.\n\nTicket: %s\nBetreff: %s\nKunde: %s (%s)\nAlter Status: %s\nNeuer Status: %s\nPriorität: %s\nZugewiesen an: %s\n\nTicket ansehen: %s", 'themisdb-support-portal'),
+            $ticket['ticket_number'],
+            $ticket['subject'],
+            $ticket['customer_name'],
+            $ticket['customer_email'],
+            $old_label,
+            $new_label,
+            $priority_label,
+            $assignee_label,
+            $admin_url
+        );
+
+        $headers = array(
+            'Content-Type: text/plain; charset=UTF-8',
+            'From: ' . sanitize_text_field($from_name) . ' <' . sanitize_email($from_email) . '>',
+        );
+
+        wp_mail($recipient_email, $subject, $body, $headers);
+    }
+
+    /**
+     * Notify newly assigned support editor about assignment.
+     *
+     * @param array $ticket
+     * @param int   $old_assignee_user_id
+     * @param int   $new_assignee_user_id
+     */
+    private static function notify_assignee_assignment_change($ticket, $old_assignee_user_id, $new_assignee_user_id) {
+        if (!get_option('themisdb_support_email_notifications', '1')) {
+            return;
+        }
+
+        if (!get_option('themisdb_support_assignee_email_notifications', '1')) {
+            return;
+        }
+
+        if ($new_assignee_user_id <= 0) {
+            return;
+        }
+
+        $assignee = get_user_by('id', $new_assignee_user_id);
+        if (!($assignee instanceof WP_User) || !is_email($assignee->user_email)) {
+            return;
+        }
+
+        $from_name  = get_option('themisdb_support_email_from_name', get_option('blogname'));
+        $from_email = get_option('themisdb_support_email_from', get_option('admin_email'));
+
+        $old_assignee_label = __('Nicht zugewiesen', 'themisdb-support-portal');
+        if ($old_assignee_user_id > 0) {
+            $old_assignee = get_user_by('id', $old_assignee_user_id);
+            if ($old_assignee instanceof WP_User) {
+                $old_assignee_label = $old_assignee->display_name;
+            }
+        }
+
+        $subject = sprintf(
+            /* translators: %s: ticket number */
+            __('[Support] Ticket %s wurde Ihnen zugewiesen', 'themisdb-support-portal'),
+            esc_html($ticket['ticket_number'])
+        );
+
+        $admin_url = admin_url('admin.php?page=themisdb-support&ticket_id=' . intval($ticket['id']));
+
+        $body = sprintf(
+            __("Ein Support-Ticket wurde Ihnen zugewiesen.\n\nTicket: %s\nBetreff: %s\nKunde: %s (%s)\nVorheriger Bearbeiter: %s\n\nTicket ansehen: %s", 'themisdb-support-portal'),
+            $ticket['ticket_number'],
+            $ticket['subject'],
+            $ticket['customer_name'],
+            $ticket['customer_email'],
+            $old_assignee_label,
+            $admin_url
+        );
+
+        $headers = array(
+            'Content-Type: text/plain; charset=UTF-8',
+            'From: ' . sanitize_text_field($from_name) . ' <' . sanitize_email($from_email) . '>',
+        );
+
+        wp_mail(sanitize_email($assignee->user_email), $subject, $body, $headers);
+    }
+
+    /**
+     * Notify assigned support editor when customer posts a new message.
+     *
+     * @param array  $ticket
+     * @param string $customer_message
+     */
+    private static function notify_assignee_customer_message($ticket, $customer_message) {
+        if (!get_option('themisdb_support_email_notifications', '1')) {
+            return;
+        }
+
+        if (!get_option('themisdb_support_assignee_email_notifications', '1')) {
+            return;
+        }
+
+        $assignee_user_id = isset($ticket['assignee_user_id']) ? intval($ticket['assignee_user_id']) : 0;
+        if ($assignee_user_id <= 0) {
+            return;
+        }
+
+        $assignee = get_user_by('id', $assignee_user_id);
+        if (!($assignee instanceof WP_User) || !is_email($assignee->user_email)) {
+            return;
+        }
+
+        $from_name  = get_option('themisdb_support_email_from_name', get_option('blogname'));
+        $from_email = get_option('themisdb_support_email_from', get_option('admin_email'));
+
+        $subject = sprintf(
+            /* translators: %s: ticket number */
+            __('[Support] Neue Kunden-Nachricht zu Ticket %s', 'themisdb-support-portal'),
+            esc_html($ticket['ticket_number'])
+        );
+
+        $admin_url = admin_url('admin.php?page=themisdb-support&ticket_id=' . intval($ticket['id']));
+
+        $body = sprintf(
+            __("Es gibt eine neue Kunden-Nachricht zu einem Ihnen zugewiesenen Ticket.\n\nTicket: %s\nBetreff: %s\nKunde: %s (%s)\n\nNachricht:\n%s\n\nTicket ansehen: %s", 'themisdb-support-portal'),
+            $ticket['ticket_number'],
+            $ticket['subject'],
+            $ticket['customer_name'],
+            $ticket['customer_email'],
+            wp_strip_all_tags($customer_message),
+            $admin_url
+        );
+
+        $headers = array(
+            'Content-Type: text/plain; charset=UTF-8',
+            'From: ' . sanitize_text_field($from_name) . ' <' . sanitize_email($from_email) . '>',
+        );
+
+        wp_mail(sanitize_email($assignee->user_email), $subject, $body, $headers);
     }
 
     /**

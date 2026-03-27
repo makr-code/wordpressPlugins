@@ -123,6 +123,80 @@ function themisdb_fs_enqueue() {
     }
 }
 
+function themisdb_fs_get_post_type_labels() {
+    $post_type_object = get_post_type_object( 'post' );
+
+    if ( $post_type_object && isset( $post_type_object->labels ) ) {
+        return $post_type_object->labels;
+    }
+
+    return null;
+}
+
+function themisdb_fs_get_default_readmore_text() {
+    $labels = themisdb_fs_get_post_type_labels();
+
+    if ( $labels && ! empty( $labels->view_item ) ) {
+        return sanitize_text_field( $labels->view_item );
+    }
+
+    return esc_html__( 'Beitrag ansehen', 'themisdb-front-slider' );
+}
+
+function themisdb_fs_get_default_no_posts_text() {
+    $labels = themisdb_fs_get_post_type_labels();
+
+    if ( $labels && ! empty( $labels->not_found ) ) {
+        return sanitize_text_field( $labels->not_found );
+    }
+
+    return esc_html__( 'Keine Inhalte gefunden.', 'themisdb-front-slider' );
+}
+
+function themisdb_fs_get_region_label( $category_slug ) {
+    if ( ! empty( $category_slug ) ) {
+        $term = get_category_by_slug( $category_slug );
+
+        if ( $term && ! is_wp_error( $term ) && ! empty( $term->name ) ) {
+            return sanitize_text_field( $term->name );
+        }
+    }
+
+    $labels = themisdb_fs_get_post_type_labels();
+
+    if ( $labels && ! empty( $labels->name ) ) {
+        return sanitize_text_field( $labels->name );
+    }
+
+    return sanitize_text_field( get_bloginfo( 'name' ) );
+}
+
+function themisdb_fs_get_slider_labels( $category_slug, $readmore_text ) {
+    $post_type_labels = themisdb_fs_get_post_type_labels();
+    $singular_label = $post_type_labels && ! empty( $post_type_labels->singular_name )
+        ? sanitize_text_field( $post_type_labels->singular_name )
+        : esc_html__( 'Eintrag', 'themisdb-front-slider' );
+    $plural_label = $post_type_labels && ! empty( $post_type_labels->name )
+        ? sanitize_text_field( $post_type_labels->name )
+        : esc_html__( 'Inhalte', 'themisdb-front-slider' );
+
+    $labels = array(
+        'region'        => themisdb_fs_get_region_label( $category_slug ),
+        'previous'      => sprintf( __( 'Vorheriger %s', 'themisdb-front-slider' ), $singular_label ),
+        'next'          => sprintf( __( 'Nächster %s', 'themisdb-front-slider' ), $singular_label ),
+        'pagination'    => sprintf( __( 'Navigation für %s', 'themisdb-front-slider' ), $plural_label ),
+        'slide'         => sprintf( __( '%1$s %2$s von %3$s', 'themisdb-front-slider' ), $singular_label, '%1$d', '%2$d' ),
+        'readmore_aria' => __( '%1$s: %2$s', 'themisdb-front-slider' ),
+        'empty'         => themisdb_fs_get_default_no_posts_text(),
+    );
+
+    if ( '' === $labels['region'] ) {
+        $labels['region'] = sanitize_text_field( get_bloginfo( 'name' ) );
+    }
+
+    return apply_filters( 'themisdb_front_slider_labels', $labels, $category_slug, $readmore_text );
+}
+
 /* --------------------------------------------------------------------------
  * Shortcode  [themisdb_front_slider]
  *
@@ -135,7 +209,6 @@ function themisdb_fs_enqueue() {
  *   cat_label     – show category label (1/0)       (default: 1)
  *   autoplay      – enable autoplay   (1/0)         (default: 1)
  *   accent_color  – accent hex color                (default: #0284c7)
- *   readmore_text – readmore button text            (default: Weiterlesen →)
  *   img_size      – WP image size                   (default: large)
  * ---------------------------------------------------------------------- */
 
@@ -168,8 +241,8 @@ function themisdb_fs_shortcode( $atts ) {
             'cat_label'     => isset( $opts['show_category'] ) ? $opts['show_category'] : true,
             'autoplay'      => isset( $opts['autoplay'] )      ? $opts['autoplay']      : true,
             'accent_color'  => '#0284c7',
-            'readmore_text' => 'Weiterlesen →',
             'img_size'      => 'large',
+            'layout_preset' => 'standard',
         ),
         $raw_atts,
         'themisdb_front_slider'
@@ -187,10 +260,12 @@ function themisdb_fs_shortcode( $atts ) {
     $autoplay      = filter_var( $atts['autoplay'],  FILTER_VALIDATE_BOOLEAN );
     $raw_accent    = (string) $atts['accent_color'];
     $accent_color  = preg_match( '/^#[0-9a-fA-F]{3,6}$/', $raw_accent ) ? $raw_accent : '#0284c7';
-    $readmore_text = sanitize_text_field( (string) $atts['readmore_text'] );
-    if ( '' === $readmore_text ) { $readmore_text = 'Weiterlesen →'; }
+    $readmore_text = themisdb_fs_get_default_readmore_text();
     $image_size    = sanitize_key( (string) $atts['img_size'] );
     $image_size    = in_array( $image_size, array( 'thumbnail', 'medium', 'medium_large', 'large', 'full' ), true ) ? $image_size : 'large';
+    $layout_preset = sanitize_key( (string) $atts['layout_preset'] );
+    $layout_preset = in_array( $layout_preset, array( 'standard', 'compact', 'magazine' ), true ) ? $layout_preset : 'standard';
+    $labels        = themisdb_fs_get_slider_labels( $category, $readmore_text );
 
     // Query posts.
     $query_args = array(
@@ -211,7 +286,7 @@ function themisdb_fs_shortcode( $atts ) {
     $query = new WP_Query( $query_args );
 
     if ( ! $query->have_posts() ) {
-        return '<p class="themisdb-fs-no-posts">' . esc_html__( 'Keine Artikel gefunden.', 'themisdb-front-slider' ) . '</p>';
+        return '<p class="themisdb-fs-no-posts">' . esc_html( $labels['empty'] ) . '</p>';
     }
 
     $slides = array();
@@ -221,7 +296,7 @@ function themisdb_fs_shortcode( $atts ) {
             'title' => (string) get_the_title( $post_obj->ID ),
             'url' => (string) get_permalink( $post_obj->ID ),
             'date' => (string) get_the_date( '', $post_obj->ID ),
-            'excerpt' => (string) wp_trim_words( get_the_excerpt( $post_obj->ID ), 24 ),
+            'excerpt' => (string) get_the_excerpt( $post_obj->ID ),
             'thumbnail' => (string) get_the_post_thumbnail_url( $post_obj->ID, 'full' ),
         );
     }
@@ -237,6 +312,8 @@ function themisdb_fs_shortcode( $atts ) {
         'accent_color'  => $accent_color,
         'readmore_text' => $readmore_text,
         'image_size'    => $image_size,
+        'layout_preset' => $layout_preset,
+        'labels'        => $labels,
         'query_args'    => $query_args,
         'slides'        => $slides,
     );
@@ -325,13 +402,13 @@ function themisdb_fs_register_block() {
                     'type'    => 'string',
                     'default' => '#0284c7',
                 ),
-                'readmore_text' => array(
-                    'type'    => 'string',
-                    'default' => 'Weiterlesen →',
-                ),
                 'img_size' => array(
                     'type'    => 'string',
                     'default' => 'large',
+                ),
+                'layout_preset' => array(
+                    'type'    => 'string',
+                    'default' => 'standard',
                 ),
             ),
         )
@@ -344,16 +421,16 @@ function themisdb_fs_render_block( $attributes ) {
     }
 
     $atts = array(
-        'posts'         => isset( $attributes['posts'] )        ? $attributes['posts']        : null,
-        'interval'      => isset( $attributes['interval'] )     ? $attributes['interval']     : null,
-        'category'      => isset( $attributes['category'] )     ? $attributes['category']     : null,
-        'excerpt'       => isset( $attributes['excerpt'] )      ? $attributes['excerpt']      : null,
-        'date'          => isset( $attributes['date'] )         ? $attributes['date']         : null,
-        'cat_label'     => isset( $attributes['cat_label'] )    ? $attributes['cat_label']    : null,
-        'autoplay'      => isset( $attributes['autoplay'] )     ? $attributes['autoplay']     : null,
-        'accent_color'  => isset( $attributes['accent_color'] ) ? $attributes['accent_color'] : null,
-        'readmore_text' => isset( $attributes['readmore_text'] )? $attributes['readmore_text']: null,
-        'img_size'      => isset( $attributes['img_size'] )     ? $attributes['img_size']     : null,
+        'posts'         => isset( $attributes['posts'] )         ? $attributes['posts']         : null,
+        'interval'      => isset( $attributes['interval'] )      ? $attributes['interval']      : null,
+        'category'      => isset( $attributes['category'] )      ? $attributes['category']      : null,
+        'excerpt'       => isset( $attributes['excerpt'] )       ? $attributes['excerpt']       : null,
+        'date'          => isset( $attributes['date'] )          ? $attributes['date']          : null,
+        'cat_label'     => isset( $attributes['cat_label'] )     ? $attributes['cat_label']     : null,
+        'autoplay'      => isset( $attributes['autoplay'] )      ? $attributes['autoplay']      : null,
+        'accent_color'  => isset( $attributes['accent_color'] )  ? $attributes['accent_color']  : null,
+        'img_size'      => isset( $attributes['img_size'] )      ? $attributes['img_size']      : null,
+        'layout_preset' => isset( $attributes['layout_preset'] ) ? $attributes['layout_preset'] : null,
     );
 
     $atts = array_filter(
@@ -557,7 +634,7 @@ function themisdb_fs_settings_page() {
                         <td><?php esc_html_e( 'Autoplay mit 3-Sekunden-Intervall.', 'themisdb-front-slider' ); ?></td>
                     </tr>
                     <tr>
-                        <td><code>[themisdb_front_slider excerpt="no" date="no" readmore_text="Zum Beitrag"]</code></td>
+                        <td><code>[themisdb_front_slider excerpt="no" date="no"]</code></td>
                         <td><?php esc_html_e( 'Slider ohne Auszug und Datum.', 'themisdb-front-slider' ); ?></td>
                     </tr>
                 </tbody>
@@ -607,11 +684,6 @@ function themisdb_fs_settings_page() {
                         <td><code>accent_color</code></td>
                         <td><?php esc_html_e( 'Akzentfarbe als HEX (z. B. #0284c7)', 'themisdb-front-slider' ); ?></td>
                         <td>#0284c7</td>
-                    </tr>
-                    <tr>
-                        <td><code>readmore_text</code></td>
-                        <td><?php esc_html_e( 'Beschriftung des Weiterlesen-Buttons', 'themisdb-front-slider' ); ?></td>
-                        <td>Weiterlesen →</td>
                     </tr>
                     <tr>
                         <td><code>img_size</code></td>
