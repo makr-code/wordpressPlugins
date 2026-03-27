@@ -235,7 +235,7 @@ Mehr Details: [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md)
 
 ### Tools
 - [WordPress Plugin Check](https://wordpress.org/plugins/plugin-check/)
-- [PHP CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer)
+- [PHP CodeSniffer](https://github.com/PHPCSStandards/PHP_CodeSniffer)
 - [WPScan](https://wpscan.com/)
 
 ---

@@ -1245,7 +1245,7 @@ Alle Plugins MÜSSEN kompatibel sein mit:
 
 ### Tools
 - [WordPress Plugin Check](https://wordpress.org/plugins/plugin-check/)
-- [PHP CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer)
+- [PHP CodeSniffer](https://github.com/PHPCSStandards/PHP_CodeSniffer)
 - [ESLint](https://eslint.org/)
 - [Stylelint](https://stylelint.io/)
 
