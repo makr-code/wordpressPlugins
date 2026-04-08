@@ -3650,7 +3650,7 @@ function themisdb_footer_js_data() {
 			'contactEmailInvalid'    => __( 'Bitte geben Sie eine gueltige dienstliche E-Mail-Adresse an.', 'themisdb-theme' ),
 			'contactEmailClientOpen' => __( 'Ihr E-Mail-Client wurde geoeffnet. Bitte senden Sie die Nachricht ab.', 'themisdb-theme' ),
 			'contactMailtoSubject'   => __( 'ThemisDB Zugangsanfrage von %s', 'themisdb-theme' ),
-			'contactMailtoBody'      => __( "Behoerde: %1$s\r\nE-Mail: %2$s\r\n\r\nBitte nehmen Sie Kontakt auf.", 'themisdb-theme' ),
+			'contactMailtoBody'      => __( 'Behoerde: %1$s\r\nE-Mail: %2$s\r\n\r\nBitte nehmen Sie Kontakt auf.', 'themisdb-theme' ),
 			'contactSendSuccess'     => __( 'Ihre Anfrage wurde erfolgreich gesendet. Wir melden uns in Kuerze.', 'themisdb-theme' ),
 			'contactSendError'       => __( 'Fehler beim Senden. Bitte versuchen Sie es erneut oder schreiben Sie direkt an %s.', 'themisdb-theme' ),
 			'contactNetworkError'    => __( 'Netzwerkfehler. Bitte schreiben Sie direkt an %s.', 'themisdb-theme' ),

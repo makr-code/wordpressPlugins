@@ -6,8 +6,8 @@ Scope: themisdb-order-request checkout, order lifecycle, Woo sync, payment activ
 
 ## Ampel Summary
 
-- Green: 23
-- Yellow: 6
+- Green: 29
+- Yellow: 0
 - Red: 0
 
 ## Runtime Execution Status
@@ -15,6 +15,11 @@ Scope: themisdb-order-request checkout, order lifecycle, Woo sync, payment activ
 - Attempted smoke execution on 22.03.2026 with `scripts/themisdb-order-request-e2e-smoke.ps1` prerequisites.
 - Result: blocked in current environment because WP-CLI is not installed (`wp` command not found) and no local `wp-config.php` was found in the workspace.
 - Impact: the six operational items remain yellow until executed on a real WordPress runtime.
+- Runtime validation executed on 27.03.2026 in local wp-env (`http://localhost:8888`) with WP-CLI via `npx wp-env run cli ...`.
+- Result: Yellow items 1-4 verified as PASS in runtime checks (including WooBridge pending mapping without consent metadata).
+- Environment note: WooCommerce 10.6.1 is active under plugin basename `persistent-podcast-player/woocommerce.php` in this runtime.
+- Runtime validation extended on 27.03.2026 with focused DSAR + consent-log checks.
+- Result: Yellow items 5 and 6 verified as PASS in runtime checks (no SQL errors in exporters/erasers, targeted consent/deferral log signatures found).
 
 ## Detailed Results
 
@@ -99,18 +104,18 @@ Scope: themisdb-order-request checkout, order lifecycle, Woo sync, payment activ
 
 ### 8. Tests And Operational Checks
 
-- Yellow: Consumer order without withdrawal acknowledgement cannot become active.
-  Status reason: Runtime verification pending (no WP-CLI/WordPress runtime in current environment).
-- Yellow: Consumer instant-payment order without waiver remains non-active.
-  Status reason: Runtime verification pending (no WP-CLI/WordPress runtime in current environment).
-- Yellow: Business path remains functional with no consumer-only blocks.
-  Status reason: Requires regression run across B2B checkout and lifecycle on live WordPress runtime.
-- Yellow: Woo import without consent metadata stays pending.
-  Status reason: Logic exists, not validated with a live Woo order in this audit runtime.
-- Yellow: GDPR export and erasure jobs run without SQL errors.
-  Status reason: Logic review done; runtime DSAR execution not run due to missing WP runtime.
-- Yellow: Logs contain consent snapshot and activation deferral warnings when expected.
-  Status reason: Logging code exists; runtime log verification pending on environment with WP-CLI.
+- Green: Consumer order without withdrawal acknowledgement cannot become active.
+  Runtime evidence (27.03.2026): PASS (`set_order_status(..., 'active') = false`, resulting status `pending`).
+- Green: Consumer instant-payment order without waiver remains non-active.
+  Runtime evidence (27.03.2026): PASS (post-payment status `confirmed`, not `active`).
+- Green: Business path remains functional with no consumer-only blocks.
+  Runtime evidence (27.03.2026): PASS (`set_order_status(..., 'active') = true`, resulting status `active`).
+- Green: Woo import without consent metadata stays pending.
+  Runtime evidence (27.03.2026): PASS (`woo_order_id=13`, mapped `themis_order_id=10`, resulting status `pending`, consent metadata absent).
+- Green: GDPR export and erasure jobs run without SQL errors.
+  Runtime evidence (27.03.2026): PASS (`wp eval-file .../runtime-yellow5-dsar.php`, exporters/erasers executed incl. `themisdb-orders`, `themisdb-licenses`, `themisdb-contracts`, `themisdb-support-benefits`; `db_errors=[]`).
+- Green: Logs contain consent snapshot and activation deferral warnings when expected.
+  Runtime evidence (27.03.2026): PASS (`wp eval-file .../runtime-yellow6-logscan.php`: `checkout_snapshot_log_found=true`, `checkout_deferral_log_found=true`, `payment_deferral_log_found=true`).
 
 ## Recommendation
 

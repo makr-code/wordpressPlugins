@@ -42,6 +42,10 @@ class ThemisDB_Support_Database {
         $table_tickets     = $wpdb->prefix . 'themisdb_support_tickets';
         $table_messages    = $wpdb->prefix . 'themisdb_support_messages';
 
+        // Legacy installations may keep a foreign key on benefit_id.
+        // dbDelta can fail when changing a constrained column definition.
+        self::drop_legacy_benefit_foreign_key($table_tickets);
+
         $sql = "CREATE TABLE $table_tickets (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             ticket_number varchar(20) NOT NULL,
@@ -80,6 +84,38 @@ class ThemisDB_Support_Database {
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
+    }
+
+    /**
+     * Drop legacy FK `fk_themisdb_ticket_benefit` if it exists.
+     */
+    private static function drop_legacy_benefit_foreign_key($table_tickets) {
+        global $wpdb;
+
+        $constraint_name = 'fk_themisdb_ticket_benefit';
+        $table_schema = defined('DB_NAME') ? DB_NAME : '';
+        if ($table_schema === '') {
+            return;
+        }
+
+        $exists = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT CONSTRAINT_NAME
+                 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+                 WHERE TABLE_SCHEMA = %s
+                   AND TABLE_NAME = %s
+                   AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+                   AND CONSTRAINT_NAME = %s
+                 LIMIT 1",
+                $table_schema,
+                $table_tickets,
+                $constraint_name
+            )
+        );
+
+        if (!empty($exists)) {
+            $wpdb->query("ALTER TABLE `$table_tickets` DROP FOREIGN KEY `$constraint_name`");
+        }
     }
 
     /**

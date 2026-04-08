@@ -252,7 +252,7 @@ class ThemisDB_Advanced_Reporting {
                     GROUP BY customer_email
                  ) c
                  WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL %d MONTH)
-                 GROUP BY acquisition_month
+                 GROUP BY DATE_FORMAT(created_at, '%%Y-%%m')
              ) a
              LEFT JOIN (
                  SELECT DATE_FORMAT(f.first_order_date, '%%Y-%%m') AS acquisition_month,
@@ -266,7 +266,7 @@ class ThemisDB_Advanced_Reporting {
                      GROUP BY customer_email
                  ) f ON f.customer_email = o.customer_email
                  WHERE p.payment_status = 'verified'
-                 GROUP BY acquisition_month
+                 GROUP BY DATE_FORMAT(f.first_order_date, '%%Y-%%m')
              ) p ON p.acquisition_month = a.acquisition_month
              ORDER BY a.acquisition_month DESC",
             $months

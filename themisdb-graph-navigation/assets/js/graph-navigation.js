@@ -8,8 +8,18 @@
     'use strict';
 
     // Configuration
+    const scriptTag = document.currentScript || Array.from(document.getElementsByTagName('script')).find((tag) => {
+        const src = (tag && tag.src) ? String(tag.src) : '';
+        return src.indexOf('/themisdb-graph-navigation/assets/js/graph-navigation.js') !== -1;
+    });
+    const scriptSrc = scriptTag && scriptTag.src ? String(scriptTag.src).split('?')[0] : '';
+    const d3LocalURL = scriptSrc
+        ? scriptSrc.replace(/assets\/js\/graph-navigation\.js$/, 'assets/vendor/d3.min.js')
+        : '';
+
     const config = {
         mermaidCDN: 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs',
+        d3Local: d3LocalURL,
         d3CDN: 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
         fallbackEnabled: true,
         animationDuration: 300,
@@ -33,33 +43,51 @@
     async function loadD3() {
         if (d3Loaded && d3) return true;
 
-        try {
-            // Create script element for D3
+        if (window.d3) {
+            d3 = window.d3;
+            d3Loaded = true;
+            console.log('D3.js already available on window');
+            return true;
+        }
+
+        const sources = [];
+        if (config.d3Local) {
+            sources.push(config.d3Local);
+        }
+        sources.push(config.d3CDN);
+
+        const tryLoadFromSource = (src) => new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = config.d3CDN;
+            script.src = src;
             script.async = true;
-            
-            await new Promise((resolve, reject) => {
-                script.onload = () => {
+            script.onload = () => {
+                if (window.d3) {
                     d3 = window.d3;
                     d3Loaded = true;
-                    console.log('D3.js loaded successfully');
-                    resolve();
-                };
-                script.onerror = reject;
-                document.head.appendChild(script);
-            });
+                    console.log('D3.js loaded successfully from:', src);
+                    resolve(true);
+                    return;
+                }
+                reject(new Error('Script loaded but window.d3 is missing: ' + src));
+            };
+            script.onerror = () => reject(new Error('Failed to load: ' + src));
+            document.head.appendChild(script);
+        });
 
-            return true;
-        } catch (error) {
-            console.warn('Failed to load D3.js:', error);
-            
-            if (config.fallbackEnabled) {
-                console.log('Using fallback navigation tree');
-                return false;
+        for (const src of sources) {
+            try {
+                await tryLoadFromSource(src);
+                return true;
+            } catch (error) {
+                console.warn('Failed to load D3.js source:', src, error);
             }
+        }
+
+        if (config.fallbackEnabled) {
+            console.log('Using fallback navigation tree');
             return false;
         }
+        return false;
     }
 
     /**
@@ -3064,7 +3092,16 @@
             container.innerHTML = createFallbackTree(graphData.nodes);
             animateFallbackTree(container);
             if (panelContainer) {
-                panelContainer.innerHTML = '<div class="graph-panel-empty">Filter und Selektion sind im erweiterten D3-Modus verfuegbar.</div>';
+                const modeSelect = panelContainer.querySelector('#graph-layout-mode');
+                if (modeSelect) {
+                    modeSelect.setAttribute('disabled', 'disabled');
+                    modeSelect.setAttribute('title', 'D3 nicht verfuegbar - Fallback-Baum aktiv');
+                }
+
+                const nodeList = panelContainer.querySelector('#graph-node-list');
+                if (nodeList) {
+                    nodeList.innerHTML = '<div class="graph-panel-empty">D3 nicht verfuegbar. Es wird die Fallback-Navigation genutzt.</div>';
+                }
             }
         }
     }

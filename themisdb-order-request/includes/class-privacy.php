@@ -272,10 +272,9 @@ class ThemisDB_Privacy {
                 "SELECT l.*, o.order_number 
                  FROM {$table_licenses} l
                  LEFT JOIN {$table_orders} o ON o.id = l.order_id
-                 WHERE o.customer_email = %s OR l.customer_email = %s
+                 WHERE o.customer_email = %s
                  ORDER BY l.created_at DESC
                  LIMIT 50",
-                $email_address,
                 $email_address
             ),
             ARRAY_A
@@ -531,9 +530,8 @@ class ThemisDB_Privacy {
             $wpdb->prepare(
                 "SELECT l.id FROM {$table_licenses} l
                  LEFT JOIN {$table_orders} o ON o.id = l.order_id
-                 WHERE o.customer_email = %s OR l.customer_email = %s
+                 WHERE o.customer_email = %s
                  LIMIT 10",
-                $email_address,
                 $email_address
             ),
             ARRAY_A

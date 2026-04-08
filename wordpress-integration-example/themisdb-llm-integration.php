@@ -1,27 +1,3 @@
-/*
-╔═════════════════════════════════════════════════════════════════════╗
-║ ThemisDB - Hybrid Database System                                   ║
-╠═════════════════════════════════════════════════════════════════════╣
-  File:            themisdb-llm-integration.php                       ║
-  Version:         0.0.34                                             ║
-  Last Modified:   2026-03-09 03:52:11                                ║
-  Author:          unknown                                            ║
-╠═════════════════════════════════════════════════════════════════════╣
-  Quality Metrics:                                                    ║
-    • Maturity Level:  🟢 PRODUCTION-READY                             ║
-    • Quality Score:   100.0/100                                      ║
-    • Total Lines:     444                                            ║
-    • Open Issues:     TODOs: 0, Stubs: 0                             ║
-╠═════════════════════════════════════════════════════════════════════╣
-  Revision History:                                                   ║
-    • 2a1fb0423  2026-03-03  Merge branch 'develop' into copilot/audit-src-module-docu... ║
-    • 65b6fc41e  2026-02-24  fix: resolve remaining Python (34) and PHP (23) error-han... ║
-    • a629043ab  2026-02-22  Audit: document gaps found - benchmarks and stale annotat... ║
-╠═════════════════════════════════════════════════════════════════════╣
-  Status: ✅ Production Ready                                          ║
-╚═════════════════════════════════════════════════════════════════════╝
- */
-
 <?php
 /**
  * Plugin Name: ThemisDB LLM Integration
@@ -89,7 +65,10 @@ class ThemisDB_LLM_Integration {
         $namespace = get_option('themisdb_namespace', 'wordpress');
 
         if (!class_exists('ThemisDB\\ThemisClient')) {
-            error_log('ThemisDB SDK not available. Install composer dependencies for wordpress-integration-example.');
+            if (!get_transient('themisdb_llm_sdk_missing_logged')) {
+                error_log('ThemisDB SDK not available. Install composer dependencies for wordpress-integration-example.');
+                set_transient('themisdb_llm_sdk_missing_logged', '1', HOUR_IN_SECONDS);
+            }
             add_action('admin_notices', function() {
                 echo '<div class="notice notice-warning"><p><strong>ThemisDB Hinweis:</strong> Das Plugin "ThemisDB LLM Integration" wurde geladen, aber das ThemisDB PHP SDK fehlt. Installiere die Composer-Abhaengigkeiten in wordpress-integration-example, um die LLM-Funktionen zu aktivieren.</p></div>';
             });
