@@ -295,6 +295,43 @@ Im **Block-Inserter** → **ThemisDB v3 – Landing Page** → **Pricing Section
 
 ---
 
+## Relevance Card Grid (Mixed Content)
+
+Das Theme bietet jetzt ein internes Relevanz-Grid fuer gemischte Inhalte (Artikel, Seiten, Podcast-Episoden) als Cards mit variabler Groesse.
+
+### Shortcode
+
+```text
+[themisdb_v3_relevance_grid posts_per_page="24" min_relevance="0"]
+```
+
+### Was wird dargestellt?
+- `post`
+- `page`
+- `pod_episode` (nur wenn der Podcast-CPT aktiv ist)
+
+### Card-Groessen als Vielfache
+- `1x`: Standard-Card (`1x1`)
+- `2x`: Breite oder hohe Card (`2x1` oder `1x2`)
+- `4x`: Hero-Card (`2x2`)
+
+### Internes Gewichtungssystem (Relevanz)
+- `relevance_score` Meta (0..1 oder 0..100)
+- `priority` Meta (numerisch)
+- `featured` Meta (Flag)
+- Sticky-Boost fuer normale Artikel
+- Engagement-Boost ueber Kommentaranzahl
+- Recency-Boost (neuere Inhalte groesser)
+- Podcast-Bonus fuer `pod_episode`
+
+### Erweiterbarkeit
+- Filter fuer Score: `themisdb_v3_relevance_score`
+- Filter fuer Span-Klasse: `themisdb_v3_relevance_span_class`
+
+Damit kann ein internes Ranking-System die Card-Flaeche direkt steuern, ohne Plugin-Fork.
+
+---
+
 ## Entwicklung
 
 ### Anforderungen

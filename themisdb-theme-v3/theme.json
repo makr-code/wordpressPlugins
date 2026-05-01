@@ -33,16 +33,6 @@
                     "size": "0.75rem"
                 },
                 {
-                    "name": "4 (16px)",
-                    "slug": "4",
-                    "size": "1rem"
-                },
-                {
-                    "name": "5 (20px)",
-                    "slug": "5",
-                    "size": "1.25rem"
-                },
-                {
                     "name": "6 (24px)",
                     "slug": "6",
                     "size": "1.5rem"
@@ -722,15 +712,5 @@
             ]
         }
     ],
-    "patterns": [
-        "themisdb-v3/hero-home",
-        "themisdb-v3/feature-cards",
-        "themisdb-v3/stats-bar",
-        "themisdb-v3/cta-download",
-        "themisdb-v3/docs-grid",
-        "themisdb-v3/query-showcase",
-        "themisdb-v3/pricing-section",
-        "themisdb-v3/tabs-section",
-        "themisdb-v3/testimonial"
-    ]
+    "patterns": []
 }

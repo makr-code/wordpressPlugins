@@ -10,3 +10,5 @@ wp-local-env/.wp-env.override.json
 .DS_Store
 Thumbs.db
 *.tmp
+
+page-content/

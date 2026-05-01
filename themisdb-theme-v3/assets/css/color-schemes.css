@@ -1,0 +1,187 @@
+/* ThemisDB v3 color scheme variants (loaded after style.css) */
+
+body.tv3-scheme-modern-slate {
+    --tv3-navy: #1f3650;
+    --tv3-navy-deep: #16283d;
+    --tv3-azure: #4f7ea8;
+    --tv3-azure-dark: #3a6387;
+    --tv3-cyan: #90badb;
+    --tv3-forest: #2f4e69;
+    --tv3-forest-deep: #1f3650;
+    --tv3-forest-dark: #152739;
+    --tv3-forest-mint: #a4c5de;
+    --tv3-surface-base: #ffffff;
+    --tv3-surface-muted: #f4f7fb;
+    --tv3-border-soft: #d7e1ec;
+    --tv3-border-strong: #b8c9da;
+    --tv3-text-primary: #0f1f31;
+    --tv3-text-secondary: #50657c;
+    --tv3-text-muted: #7b90a6;
+    --tv3-accent-primary: #2e6fa8;
+    --tv3-accent-success: #2f5f89;
+    --tv3-page-bg-start: #f2f6fb;
+    --tv3-page-bg-mid: #ffffff;
+    --tv3-header-bg-1: rgba(245, 250, 255, 0.96);
+    --tv3-header-bg-2: rgba(236, 244, 252, 0.95);
+    --tv3-header-bg-3: rgba(228, 239, 250, 0.93);
+    --tv3-header-border: rgba(140, 166, 191, 0.35);
+    --tv3-header-shadow: rgba(22, 40, 61, 0.12);
+}
+
+/* Original Themis green palette */
+body.tv3-scheme-themis-original {
+    --tv3-navy: #2f6a56;
+    --tv3-navy-deep: #1f4f3d;
+    --tv3-azure: #2f9b75;
+    --tv3-azure-dark: #247a5b;
+    --tv3-cyan: #66d6ad;
+    --tv3-forest: #155a42;
+    --tv3-forest-deep: #0d3f2f;
+    --tv3-forest-dark: #0a2a20;
+    --tv3-forest-mint: #5fdd8b;
+    --tv3-surface-base: #ffffff;
+    --tv3-surface-muted: #f6fbf8;
+    --tv3-border-soft: #dce9e2;
+    --tv3-border-strong: #bfd8cb;
+    --tv3-text-primary: #123126;
+    --tv3-text-secondary: #4f6f63;
+    --tv3-text-muted: #769488;
+    --tv3-accent-primary: #1f7f61;
+    --tv3-accent-success: #1a6d54;
+    --tv3-page-bg-start: #edf7f2;
+    --tv3-page-bg-mid: #ffffff;
+    --tv3-header-bg-1: rgba(236, 249, 243, 0.97);
+    --tv3-header-bg-2: rgba(223, 244, 233, 0.95);
+    --tv3-header-bg-3: rgba(211, 238, 224, 0.93);
+    --tv3-header-border: rgba(111, 160, 140, 0.38);
+    --tv3-header-shadow: rgba(15, 58, 43, 0.13);
+}
+
+body.tv3-scheme-ocean-clean {
+    --tv3-navy: #153753;
+    --tv3-navy-deep: #0f273c;
+    --tv3-azure: #2f7fa9;
+    --tv3-azure-dark: #24698e;
+    --tv3-cyan: #87c7e5;
+    --tv3-forest: #21516f;
+    --tv3-forest-deep: #153753;
+    --tv3-forest-dark: #0f273c;
+    --tv3-forest-mint: #9fcfe7;
+    --tv3-surface-base: #ffffff;
+    --tv3-surface-muted: #f2f8fc;
+    --tv3-border-soft: #cfe0eb;
+    --tv3-border-strong: #a9c4d8;
+    --tv3-text-primary: #0d2538;
+    --tv3-text-secondary: #426178;
+    --tv3-text-muted: #6b879b;
+    --tv3-accent-primary: #1f6f9a;
+    --tv3-accent-success: #2a7aa5;
+    --tv3-page-bg-start: #edf5fb;
+    --tv3-page-bg-mid: #ffffff;
+    --tv3-header-bg-1: rgba(236, 246, 252, 0.97);
+    --tv3-header-bg-2: rgba(223, 238, 249, 0.95);
+    --tv3-header-bg-3: rgba(212, 232, 246, 0.93);
+    --tv3-header-border: rgba(109, 148, 178, 0.36);
+    --tv3-header-shadow: rgba(14, 44, 69, 0.13);
+}
+
+body.tv3-scheme-charcoal-cyan {
+    --tv3-navy: #2c3742;
+    --tv3-navy-deep: #1c252e;
+    --tv3-azure: #4f92aa;
+    --tv3-azure-dark: #3e7c93;
+    --tv3-cyan: #9fd3df;
+    --tv3-forest: #40515f;
+    --tv3-forest-deep: #2c3742;
+    --tv3-forest-dark: #1c252e;
+    --tv3-forest-mint: #b7dde6;
+    --tv3-surface-base: #ffffff;
+    --tv3-surface-muted: #f5f8fa;
+    --tv3-border-soft: #d8e0e6;
+    --tv3-border-strong: #bcc9d3;
+    --tv3-text-primary: #1a2631;
+    --tv3-text-secondary: #556674;
+    --tv3-text-muted: #7a8d9c;
+    --tv3-accent-primary: #347491;
+    --tv3-accent-success: #2d647d;
+    --tv3-page-bg-start: #f1f5f7;
+    --tv3-page-bg-mid: #ffffff;
+    --tv3-header-bg-1: rgba(242, 248, 251, 0.97);
+    --tv3-header-bg-2: rgba(232, 241, 246, 0.95);
+    --tv3-header-bg-3: rgba(223, 235, 242, 0.93);
+    --tv3-header-border: rgba(129, 152, 168, 0.38);
+    --tv3-header-shadow: rgba(27, 40, 51, 0.12);
+}
+
+/* Inspired by editorial/paper-like 2020x palettes */
+body.tv3-scheme-paper-editorial {
+    --tv3-navy: #3b3530;
+    --tv3-navy-deep: #27221e;
+    --tv3-azure: #8f5d3f;
+    --tv3-azure-dark: #744a31;
+    --tv3-cyan: #ceb197;
+    --tv3-forest: #5f4a3f;
+    --tv3-forest-deep: #3b3530;
+    --tv3-forest-dark: #27221e;
+    --tv3-forest-mint: #d8c3ad;
+    --tv3-surface-base: #fefcf9;
+    --tv3-surface-muted: #f6f1ea;
+    --tv3-border-soft: #e2d6c8;
+    --tv3-border-strong: #c9b5a2;
+    --tv3-text-primary: #2f2a26;
+    --tv3-text-secondary: #675b52;
+    --tv3-text-muted: #89796d;
+    --tv3-accent-primary: #8a5638;
+    --tv3-accent-success: #6f4936;
+    --tv3-page-bg-start: #f8f2e9;
+    --tv3-page-bg-mid: #fefcf9;
+    --tv3-header-bg-1: rgba(250, 243, 235, 0.97);
+    --tv3-header-bg-2: rgba(246, 237, 227, 0.95);
+    --tv3-header-bg-3: rgba(241, 230, 218, 0.93);
+    --tv3-header-border: rgba(174, 145, 123, 0.35);
+    --tv3-header-shadow: rgba(56, 44, 35, 0.12);
+}
+
+/* Inspired by high-contrast clean accessibility variants */
+body.tv3-scheme-high-contrast-clean {
+    --tv3-navy: #102036;
+    --tv3-navy-deep: #0b1727;
+    --tv3-azure: #005f9e;
+    --tv3-azure-dark: #004777;
+    --tv3-cyan: #8ecff5;
+    --tv3-forest: #153552;
+    --tv3-forest-deep: #102036;
+    --tv3-forest-dark: #0b1727;
+    --tv3-forest-mint: #b8e1fb;
+    --tv3-surface-base: #ffffff;
+    --tv3-surface-muted: #edf4fb;
+    --tv3-border-soft: #c0d3e6;
+    --tv3-border-strong: #95b4d2;
+    --tv3-text-primary: #091524;
+    --tv3-text-secondary: #27435d;
+    --tv3-text-muted: #506981;
+    --tv3-accent-primary: #005f9e;
+    --tv3-accent-success: #0b4f80;
+    --tv3-page-bg-start: #eaf2fb;
+    --tv3-page-bg-mid: #ffffff;
+    --tv3-header-bg-1: rgba(236, 246, 254, 0.98);
+    --tv3-header-bg-2: rgba(223, 237, 250, 0.96);
+    --tv3-header-bg-3: rgba(210, 228, 245, 0.94);
+    --tv3-header-border: rgba(81, 122, 160, 0.45);
+    --tv3-header-shadow: rgba(9, 29, 48, 0.16);
+}
+
+/* Map scheme accents into front-card variables where used */
+body.tv3-scheme-themis-original .tv3-query-front,
+body.tv3-scheme-ocean-clean .tv3-query-front,
+body.tv3-scheme-charcoal-cyan .tv3-query-front,
+body.tv3-scheme-modern-slate .tv3-query-front,
+body.tv3-scheme-paper-editorial .tv3-query-front,
+body.tv3-scheme-high-contrast-clean .tv3-query-front {
+    --tv3-front-accent: var(--tv3-accent-primary);
+    --tv3-front-accent-strong: var(--tv3-navy-deep);
+    --tv3-front-border: var(--tv3-border-soft);
+    --tv3-front-soft: var(--tv3-surface-muted);
+    --tv3-front-text: var(--tv3-text-primary);
+    --tv3-front-muted: var(--tv3-text-secondary);
+}

@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../xampp/htdocs"
+		},
+		{
+			"path": "../ThemisDB_Doku"
+		}
+	],
+	"settings": {
+		"powershell.cwd": "wordpressPlugins"
+	}
+}

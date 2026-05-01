@@ -101,7 +101,9 @@ class Persistent_Podcast_Player {
         
         // Admin: media library integration
         add_action('add_meta_boxes', array($this, 'add_audio_meta_box'));
+        add_action('add_meta_boxes_post', array($this, 'maybe_add_audio_meta_box_for_post'));
         add_action('save_post_pod_episode', array($this, 'save_audio_meta'), 10, 2);
+        add_action('save_post_post', array($this, 'save_audio_meta_for_post'), 10, 2);
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
         add_filter('redirect_post_location', array($this, 'add_audio_notice_redirect_arg'), 10, 2);
         add_action('admin_notices', array($this, 'render_audio_admin_notice'));
@@ -294,6 +296,65 @@ class Persistent_Podcast_Player {
             'normal',
             'high'
         );
+    }
+
+    /**
+     * Conditionally add audio meta box for regular posts in the Podcast category.
+     *
+     * @param WP_Post $post Current post object.
+     */
+    public function maybe_add_audio_meta_box_for_post( $post ) {
+        if ( ! has_category( 'podcast', $post ) ) {
+            return;
+        }
+        add_meta_box(
+            'ppp-audio-meta-box',
+            __('Audio-Datei', 'persistent-podcast-player'),
+            array($this, 'render_audio_meta_box'),
+            'post',
+            'normal',
+            'high'
+        );
+    }
+
+    /**
+     * Save audio meta for regular posts in the Podcast category.
+     * No publish-blocking applied — only pod_episode requires mandatory audio.
+     *
+     * @param int     $post_id Post ID.
+     * @param WP_Post $post    Post object.
+     */
+    public function save_audio_meta_for_post( $post_id, $post ) {
+        if ( ! isset( $_POST['ppp_audio_meta_box_nonce'] ) ||
+            ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['ppp_audio_meta_box_nonce'] ) ), 'ppp_audio_meta_box' ) ) {
+            return;
+        }
+
+        if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'edit_post', $post_id ) ) {
+            return;
+        }
+
+        if ( ! isset( $_POST['ppp_audio_attachment_id'] ) ) {
+            return;
+        }
+
+        $attachment_id = absint( $_POST['ppp_audio_attachment_id'] );
+        if ( $attachment_id > 0 && $this->is_audio_attachment( $attachment_id ) ) {
+            update_post_meta( $post_id, 'audio_attachment_id', $attachment_id );
+            $attachment_url = wp_get_attachment_url( $attachment_id );
+            if ( $attachment_url ) {
+                update_post_meta( $post_id, 'audio_url', esc_url_raw( $attachment_url ) );
+            }
+            delete_post_meta( $post_id, '_ppp_audio_notice' );
+            delete_post_meta( $post_id, '_ppp_audio_notice_mime' );
+        } elseif ( $attachment_id === 0 ) {
+            delete_post_meta( $post_id, 'audio_attachment_id' );
+            delete_post_meta( $post_id, 'audio_url' );
+        }
     }
     
     /**
