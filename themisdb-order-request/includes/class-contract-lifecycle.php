@@ -415,23 +415,53 @@ class ThemisDB_Contract_Lifecycle {
         return gmdate('Y-m-d H:i:s', $earliest_ts);
     }
 
+    // -------------------------------------------------------------------------
+    // Notifications
+    // -------------------------------------------------------------------------
+
+    /**
+     * Send HTML admin notification when a new lifecycle request is created.
+     */
     private static function notify_admin_request_created($request_id, $request_type, $license_id) {
         $admin_email = get_option('admin_email');
         if (!is_email($admin_email)) {
             return;
         }
 
-        $subject = sprintf('[ThemisDB] Neuer %s Antrag #%d', $request_type === self::TYPE_TERMINATION ? 'Kuendigungs' : 'Aenderungs', intval($request_id));
-        $body = sprintf(
-            "Ein neuer Lifecycle-Antrag wurde erstellt.\n\nAntrag-ID: %d\nTyp: %s\nLizenz-ID: %d\n\nBitte im Admin pruefen.",
-            intval($request_id),
-            $request_type,
-            intval($license_id)
+        $type_label = $request_type === self::TYPE_TERMINATION
+            ? __('Kuendigungsantrag', 'themisdb-order-request')
+            : __('Aenderungsantrag', 'themisdb-order-request');
+
+        $review_url = admin_url('admin.php?page=themisdb-contract-lifecycle&status=requested');
+
+        $subject = sprintf('[ThemisDB] Neuer %s #%d', $type_label, intval($request_id));
+        $body    = self::render_mail_template(
+            $type_label . ' eingegangen',
+            sprintf(
+                '<p>%s</p><table style="width:100%%;border-collapse:collapse;font-size:14px;">
+                    <tr><td style="padding:6px 0;color:#555;width:40%%;">Antrag-ID</td><td><strong>%d</strong></td></tr>
+                    <tr><td style="padding:6px 0;color:#555;">Typ</td><td><strong>%s</strong></td></tr>
+                    <tr><td style="padding:6px 0;color:#555;">Lizenz-ID</td><td><strong>%d</strong></td></tr>
+                    <tr><td style="padding:6px 0;color:#555;">Erstellt am</td><td>%s</td></tr>
+                </table>
+                <p style="margin-top:20px;"><a href="%s" style="background:#0073aa;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;">Antrag pruefen</a></p>',
+                esc_html__('Ein neuer Lifecycle-Antrag wartet auf Ihre Pruefung.', 'themisdb-order-request'),
+                intval($request_id),
+                esc_html($type_label),
+                intval($license_id),
+                esc_html(date_i18n(get_option('date_format') . ' H:i', current_time('timestamp'))),
+                esc_url($review_url)
+            )
         );
 
+        add_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
         wp_mail($admin_email, $subject, $body);
+        remove_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
     }
 
+    /**
+     * Notify customer about the review outcome (approved or rejected).
+     */
     private static function notify_customer_review_result($request_id, $status) {
         $request = self::get_request($request_id);
         if (!$request) {
@@ -444,24 +474,63 @@ class ThemisDB_Contract_Lifecycle {
         }
 
         $is_approved = $status === self::STATUS_CONFIRMED;
-        $subject = sprintf(
-            '[ThemisDB] Ihr %s Antrag #%d wurde %s',
-            $request['request_type'] === self::TYPE_TERMINATION ? 'Kuendigungs' : 'Aenderungs',
-            intval($request_id),
-            $is_approved ? 'bestaetigt' : 'abgelehnt'
+        $type_label  = $request['request_type'] === self::TYPE_TERMINATION
+            ? __('Kuendigungsantrag', 'themisdb-order-request')
+            : __('Aenderungsantrag', 'themisdb-order-request');
+
+        $status_label = $is_approved
+            ? __('bestaetigt', 'themisdb-order-request')
+            : __('abgelehnt', 'themisdb-order-request');
+
+        $status_color = $is_approved ? '#28a745' : '#dc3545';
+
+        $note_row = '';
+        if (!empty($request['review_note'])) {
+            $note_row = sprintf(
+                '<tr><td style="padding:6px 0;color:#555;width:40%%;">Hinweis</td><td>%s</td></tr>',
+                esc_html((string) $request['review_note'])
+            );
+        }
+
+        $effective_row = '';
+        if ($is_approved && $request['request_type'] === self::TYPE_TERMINATION && !empty($request['effective_at'])) {
+            $effective_row = sprintf(
+                '<tr><td style="padding:6px 0;color:#555;">Wirksam ab</td><td><strong>%s</strong></td></tr>',
+                esc_html(date_i18n(get_option('date_format'), strtotime($request['effective_at'])))
+            );
+        }
+
+        $subject = sprintf('[ThemisDB] Ihr %s #%d wurde %s', $type_label, intval($request_id), $status_label);
+        $body    = self::render_mail_template(
+            sprintf('%s %s', $type_label, $status_label),
+            sprintf(
+                '<p>%s</p>
+                <p><span style="display:inline-block;padding:4px 14px;border-radius:3px;background:%s;color:#fff;font-weight:bold;">%s</span></p>
+                <table style="width:100%%;border-collapse:collapse;font-size:14px;margin-top:12px;">
+                    <tr><td style="padding:6px 0;color:#555;width:40%%;">Antrag-ID</td><td><strong>%d</strong></td></tr>
+                    <tr><td style="padding:6px 0;color:#555;">Typ</td><td>%s</td></tr>
+                    %s%s
+                </table>',
+                $is_approved
+                    ? esc_html__('Ihr Antrag wurde genehmigt und wird zum angegebenen Termin ausgefuehrt.', 'themisdb-order-request')
+                    : esc_html__('Ihr Antrag wurde abgelehnt. Bitte kontaktieren Sie uns bei Fragen.', 'themisdb-order-request'),
+                esc_attr($status_color),
+                esc_html(ucfirst($status_label)),
+                intval($request_id),
+                esc_html($type_label),
+                $note_row,
+                $effective_row
+            )
         );
 
-        $body = sprintf(
-            "Ihr Antrag wurde bearbeitet.\n\nAntrag-ID: %d\nTyp: %s\nStatus: %s\n\nHinweis: %s",
-            intval($request_id),
-            sanitize_text_field((string) $request['request_type']),
-            sanitize_text_field((string) $status),
-            sanitize_text_field((string) ($request['review_note'] ?? ''))
-        );
-
+        add_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
         wp_mail($to, $subject, $body);
+        remove_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
     }
 
+    /**
+     * Notify customer when a scheduled termination was actually executed.
+     */
     private static function notify_customer_termination_executed($request_id) {
         $request = self::get_request($request_id);
         if (!$request) {
@@ -473,15 +542,133 @@ class ThemisDB_Contract_Lifecycle {
             return;
         }
 
-        $subject = sprintf('[ThemisDB] Kuendigung ausgefuehrt (Antrag #%d)', intval($request_id));
-        $body = sprintf(
-            "Die Kuendigung Ihrer Lizenz wurde ausgefuehrt.\n\nAntrag-ID: %d\nLizenz-ID: %d\nAusgefuehrt am: %s",
-            intval($request_id),
-            intval($request['license_id']),
-            current_time('mysql')
+        $subject = sprintf('[ThemisDB] Ihre Lizenz wurde kuendigt (Antrag #%d)', intval($request_id));
+        $body    = self::render_mail_template(
+            __('Kuendigung ausgefuehrt', 'themisdb-order-request'),
+            sprintf(
+                '<p>%s</p>
+                <table style="width:100%%;border-collapse:collapse;font-size:14px;">
+                    <tr><td style="padding:6px 0;color:#555;width:40%%;">Antrag-ID</td><td><strong>%d</strong></td></tr>
+                    <tr><td style="padding:6px 0;color:#555;">Lizenz-ID</td><td><strong>%d</strong></td></tr>
+                    <tr><td style="padding:6px 0;color:#555;">Ausgefuehrt am</td><td><strong>%s</strong></td></tr>
+                </table>
+                <p style="margin-top:16px;color:#555;font-size:13px;">%s</p>',
+                esc_html__('Die Kuendigung Ihrer ThemisDB-Lizenz wurde ausgefuehrt. Zugriffe werden mit Wirkung dieses Datums eingestellt.', 'themisdb-order-request'),
+                intval($request_id),
+                intval($request['license_id']),
+                esc_html(date_i18n(get_option('date_format') . ' H:i', current_time('timestamp'))),
+                esc_html__('Bei Fragen wenden Sie sich bitte an unseren Support.', 'themisdb-order-request')
+            )
         );
 
+        add_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
         wp_mail($to, $subject, $body);
+        remove_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
+    }
+
+    /**
+     * Notify customer when an approved change request has been applied to their license.
+     */
+    private static function notify_customer_change_executed($request_id) {
+        $request = self::get_request($request_id);
+        if (!$request) {
+            return;
+        }
+
+        $to = self::get_customer_email_by_license_id(intval($request['license_id']));
+        if (!is_email($to)) {
+            return;
+        }
+
+        $payload = json_decode((string) ($request['payload'] ?? '{}'), true);
+        $change_rows = '';
+        $field_labels = array(
+            'product_edition' => __('Edition', 'themisdb-order-request'),
+            'license_type'    => __('Lizenztyp', 'themisdb-order-request'),
+            'max_nodes'       => __('Max Nodes', 'themisdb-order-request'),
+            'max_cores'       => __('Max Cores', 'themisdb-order-request'),
+            'max_storage_gb'  => __('Max Storage (GB)', 'themisdb-order-request'),
+            'expiry_date'     => __('Ablaufdatum', 'themisdb-order-request'),
+        );
+        if (is_array($payload)) {
+            foreach ($payload as $field => $value) {
+                $label = isset($field_labels[$field]) ? $field_labels[$field] : $field;
+                $change_rows .= sprintf(
+                    '<tr><td style="padding:5px 0;color:#555;width:40%%;">%s</td><td><strong>%s</strong></td></tr>',
+                    esc_html($label),
+                    esc_html((string) $value)
+                );
+            }
+        }
+
+        $subject = sprintf('[ThemisDB] Aenderungen an Ihrer Lizenz wirksam (Antrag #%d)', intval($request_id));
+        $body    = self::render_mail_template(
+            __('Lizenzaenderung ausgefuehrt', 'themisdb-order-request'),
+            sprintf(
+                '<p>%s</p>
+                <table style="width:100%%;border-collapse:collapse;font-size:14px;">
+                    <tr><td style="padding:6px 0;color:#555;width:40%%;">Antrag-ID</td><td><strong>%d</strong></td></tr>
+                    <tr><td style="padding:6px 0;color:#555;">Lizenz-ID</td><td><strong>%d</strong></td></tr>
+                    %s
+                </table>',
+                esc_html__('Die folgenden Aenderungen an Ihrer ThemisDB-Lizenz sind ab sofort wirksam:', 'themisdb-order-request'),
+                intval($request_id),
+                intval($request['license_id']),
+                $change_rows
+            )
+        );
+
+        add_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
+        wp_mail($to, $subject, $body);
+        remove_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
+    }
+
+    /** Content-type filter callback for HTML mails. */
+    public static function _mail_html_type() {
+        return 'text/html';
+    }
+
+    /**
+     * Shared HTML mail wrapper (logo, heading, body, footer).
+     *
+     * @param string $heading Displayed heading inside the card.
+     * @param string $content HTML body content (already escaped).
+     * @return string Full HTML email body.
+     */
+    private static function render_mail_template($heading, $content) {
+        $site_name = get_option('blogname', 'ThemisDB');
+        $site_url  = home_url('/');
+        $year      = gmdate('Y');
+
+        return '<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;color:#333;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 0;">
+    <tr><td align="center">
+      <table width="580" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+        <!-- Header -->
+        <tr><td style="background:#0073aa;padding:24px 32px;">
+          <h1 style="margin:0;color:#fff;font-size:20px;font-weight:bold;">' . esc_html($site_name) . '</h1>
+          <p style="margin:4px 0 0;color:#cce8f4;font-size:13px;">Vertragsmanagement</p>
+        </td></tr>
+        <!-- Heading -->
+        <tr><td style="padding:28px 32px 8px;">
+          <h2 style="margin:0;font-size:18px;color:#0073aa;">' . esc_html($heading) . '</h2>
+        </td></tr>
+        <!-- Content -->
+        <tr><td style="padding:12px 32px 28px;">
+          ' . $content . '
+        </td></tr>
+        <!-- Footer -->
+        <tr><td style="background:#f5f5f5;padding:18px 32px;border-top:1px solid #e0e0e0;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#888;">&copy; ' . esc_html($year) . ' <a href="' . esc_url($site_url) . '" style="color:#0073aa;text-decoration:none;">' . esc_html($site_name) . '</a> &mdash; Automatisch generierte Nachricht</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>';
     }
 
     private static function execute_change_request($request_id) {
@@ -537,6 +724,11 @@ class ThemisDB_Contract_Lifecycle {
             $update_format,
             array('%d')
         );
+
+        if ($result !== false) {
+            self::notify_customer_change_executed($request_id);
+            do_action('contract.change.executed', intval($request_id), $license_id);
+        }
 
         return $result !== false;
     }
