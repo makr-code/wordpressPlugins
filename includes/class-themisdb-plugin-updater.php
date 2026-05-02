@@ -241,19 +241,27 @@ class ThemisDB_Plugin_Updater {
     }
     
     /**
-     * Get remote version information from GitHub
-     * 
+     * Get remote version information.
+     * Priority: releases.themisdb.org manifest → GitHub release + update-info.json
+     *
      * @return object|false Version information or false on failure
      */
     private function get_remote_version() {
         $cache_key = 'themisdb_update_' . $this->plugin_slug;
         $remote_version = get_transient($cache_key);
-        
+
         if ($remote_version !== false) {
             return $remote_version;
         }
-        
-        // Fetch plugin metadata from GitHub
+
+        // 1. Try official manifest from releases.themisdb.org (set by ThemisDB CI)
+        $manifest_remote = $this->fetch_themisdb_org_manifest();
+        if ($manifest_remote) {
+            set_transient($cache_key, $manifest_remote, $this->cache_duration);
+            return $manifest_remote;
+        }
+
+        // 2. Fallback: Fetch plugin metadata from GitHub
         $metadata = $this->fetch_plugin_metadata();
         
         if (!$metadata) {
@@ -595,6 +603,61 @@ class ThemisDB_Plugin_Updater {
         $tag = $this->plugin_slug . '/v' . $version;
 
         return "https://github.com/{$this->username}/{$this->repository}/releases/download/{$tag}/{$this->plugin_slug}.zip";
+    }
+
+    /**
+     * Fetch update info from the official releases.themisdb.org manifest.
+     *
+     * The ThemisDB CI uploads update-manifest.json to releases.themisdb.org
+     * after every release. This is the primary update source; GitHub is a fallback.
+     *
+     * @return object|false Normalized version object or false if unavailable
+     */
+    private function fetch_themisdb_org_manifest() {
+        $manifest_url = apply_filters(
+            'themisdb_update_manifest_url',
+            'https://releases.themisdb.org/update-manifest.json'
+        );
+
+        $response = wp_remote_get($manifest_url, array(
+            'timeout'   => 8,
+            'sslverify' => true,
+            'headers'   => array(
+                'Accept'     => 'application/json',
+                'User-Agent' => 'ThemisDB-Plugin-Updater/' . $this->plugin_slug,
+            ),
+        ));
+
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            return false;
+        }
+
+        $manifest = json_decode(wp_remote_retrieve_body($response), true);
+
+        if (!is_array($manifest) || empty($manifest['plugins'][ $this->plugin_slug ])) {
+            return false;
+        }
+
+        $info = $manifest['plugins'][ $this->plugin_slug ];
+
+        // Build normalized version object (same shape as GitHub path)
+        return (object) array(
+            'version'        => $info['version'],
+            'name'           => isset($info['name']) ? $info['name'] : $this->plugin_slug,
+            'slug'           => $this->plugin_slug,
+            'homepage'       => 'https://themisdb.org',
+            'description'    => isset($info['description']) ? $info['description'] : '',
+            'author'         => 'ThemisDB Team',
+            'author_profile' => 'https://themisdb.org',
+            'requires'       => $info['requires']     ?? '5.0',
+            'tested'         => $info['tested']       ?? '6.4',
+            'requires_php'   => $info['requires_php'] ?? '7.4',
+            'download_url'   => $info['download_url'],
+            'last_updated'   => $manifest['release_date'] ?? gmdate('c'),
+            'changelog'      => isset($info['changelog_url'])
+                                    ? '<a href="' . esc_url($info['changelog_url']) . '">View Changelog</a>'
+                                    : '',
+        );
     }
 }
 

@@ -172,3 +172,16 @@ jobs:
           echo "Artifacts:"
           ls -lh build/*.zip 2>/dev/null || echo "(none)"
           echo "========================"
+
+      - name: Notify ThemisDB repo (trigger bundle release)
+        if: ${{ secrets.THEMISDB_REPO_TOKEN != '' }}
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.THEMISDB_REPO_TOKEN }}
+          repository: makr-code/ThemisDB
+          event-type: wp-plugins-released
+          client-payload: |
+            {
+              "version": "${{ steps.version.outputs.version }}",
+              "plugins_release_url": "https://github.com/makr-code/wordpressPlugins/releases/tag/v${{ steps.version.outputs.version }}"
+            }

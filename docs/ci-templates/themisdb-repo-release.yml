@@ -1,0 +1,285 @@
+##
+## GitHub Actions Workflow Template für makr-code/ThemisDB Repo
+##
+## Kopiere diese Datei nach:
+##   makr-code/ThemisDB/.github/workflows/release.yml
+##
+## Benötigte GitHub Secrets im ThemisDB-Repo:
+##   THEMISDB_ORG_HOST    - z.B. themisdb.org
+##   THEMISDB_ORG_USER    - SSH/SFTP User
+##   THEMISDB_ORG_KEY     - SSH Private Key (PEM)
+##   THEMISDB_ORG_PATH    - Upload-Pfad, z.B. /var/www/releases.themisdb.org
+##   WP_PLUGINS_TOKEN     - GitHub Token mit read:packages auf wordpressPlugins
+##                          (kann GITHUB_TOKEN sein wenn Repos gleiche Org)
+##
+
+name: Release & Deploy to themisdb.org
+
+on:
+  push:
+    tags: ['v*']     # z.B. v1.2.0
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (ohne v-Prefix, z.B. 1.2.0)'
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------------------------------ #
+      # 1. Checkout ThemisDB core
+      # ------------------------------------------------------------------ #
+      - name: Checkout ThemisDB
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ------------------------------------------------------------------ #
+      # 2. Version aus Tag ableiten
+      # ------------------------------------------------------------------ #
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            TAG="${{ github.ref }}"
+            VERSION="${TAG#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION"    >> $GITHUB_OUTPUT
+          echo "Building release $VERSION"
+
+      # ------------------------------------------------------------------ #
+      # 3. ThemisDB core bauen (anpassen an euer Build-System)
+      # ------------------------------------------------------------------ #
+      - name: Build ThemisDB core
+        run: |
+          echo "==> Building ThemisDB core..."
+          # Beispiel: cmake, make, dotnet publish, etc.
+          # make release VERSION=${{ steps.ver.outputs.version }}
+          #
+          # Ergebnis sollte in dist/ liegen:
+          mkdir -p dist/themisdb-core
+          echo "ThemisDB ${{ steps.ver.outputs.version }}" > dist/themisdb-core/VERSION
+
+      # ------------------------------------------------------------------ #
+      # 4. WordPress Plugins aus wordpressPlugins-Repo holen
+      # ------------------------------------------------------------------ #
+      - name: Fetch WordPress plugins from wordpressPlugins releases
+        env:
+          GH_TOKEN: ${{ secrets.WP_PLUGINS_TOKEN || github.token }}
+        run: |
+          VERSION=${{ steps.ver.outputs.version }}
+          PLUGINS=(themisdb-order-request themisdb-support-portal)
+          mkdir -p dist/wp-plugins
+
+          for PLUGIN in "${PLUGINS[@]}"; do
+            ZIP_NAME="${PLUGIN}-${VERSION}.zip"
+            DOWNLOAD_URL="https://github.com/makr-code/wordpressPlugins/releases/download/v${VERSION}/${ZIP_NAME}"
+            SHA256_URL="${DOWNLOAD_URL}.sha256"
+
+            echo "Downloading $PLUGIN v$VERSION..."
+
+            # Download ZIP
+            HTTP_STATUS=$(curl -sSL -w "%{http_code}" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/octet-stream" \
+              "$DOWNLOAD_URL" \
+              -o "dist/wp-plugins/${ZIP_NAME}")
+
+            if [ "$HTTP_STATUS" != "200" ]; then
+              echo "::warning::Plugin $PLUGIN v$VERSION not found in wordpressPlugins releases (HTTP $HTTP_STATUS)"
+              echo "::warning::Fetching latest available version instead..."
+
+              # Fallback: neuestes Release holen
+              LATEST_URL=$(curl -sSL \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/makr-code/wordpressPlugins/releases/latest" | \
+                jq -r ".assets[] | select(.name | startswith(\"${PLUGIN}-\")) | .browser_download_url" | \
+                grep '\.zip$' | head -1)
+
+              if [ -n "$LATEST_URL" ]; then
+                curl -sSL -H "Authorization: Bearer $GH_TOKEN" \
+                  "$LATEST_URL" -o "dist/wp-plugins/${ZIP_NAME}"
+                echo "Fetched from latest release: $LATEST_URL"
+              else
+                echo "::error::Cannot find $PLUGIN in any release. Aborting."
+                exit 1
+              fi
+            fi
+
+            # Verify/generate checksum
+            sha256sum "dist/wp-plugins/${ZIP_NAME}" | \
+              awk '{print $1}' > "dist/wp-plugins/${ZIP_NAME}.sha256"
+
+            echo "OK: dist/wp-plugins/${ZIP_NAME}"
+          done
+
+      # ------------------------------------------------------------------ #
+      # 5. Deployment-Bundle zusammenstellen
+      # ------------------------------------------------------------------ #
+      - name: Assemble deployment bundle
+        run: |
+          VERSION=${{ steps.ver.outputs.version }}
+          BUNDLE_DIR="bundle/themisdb-${VERSION}"
+          mkdir -p "$BUNDLE_DIR"
+
+          # Core kopieren
+          cp -r dist/themisdb-core "$BUNDLE_DIR/"
+
+          # WP-Plugins entpacken
+          mkdir -p "$BUNDLE_DIR/wp-plugins"
+          for ZIP in dist/wp-plugins/*.zip; do
+            PLUGIN_NAME=$(basename "$ZIP" .zip | sed 's/-[0-9].*//')
+            unzip -q "$ZIP" -d "$BUNDLE_DIR/wp-plugins/$PLUGIN_NAME"
+          done
+
+          # INSTALL.md
+          cat > "$BUNDLE_DIR/INSTALL.md" << 'EOF'
+          # ThemisDB ${{ steps.ver.outputs.version }} Installation
+
+          ## Prerequisites
+          - PHP 7.4+
+          - WordPress 5.0+
+          - MySQL 5.6+
+
+          ## Installation
+          1. Upload `wp-plugins/` to `wp-content/plugins/`
+          2. Activate plugins in WordPress admin
+          3. Configure ThemisDB core (see docs/)
+          EOF
+
+          # SHA256 Checksums
+          cd bundle
+          find "themisdb-${VERSION}" -type f -exec sha256sum {} \; > "themisdb-${VERSION}/SHA256SUMS"
+          cd ..
+
+          # Gesamtes Bundle zippen
+          mkdir -p releases
+          cd bundle
+          zip -r "../releases/themisdb-${VERSION}.zip" "themisdb-${VERSION}/"
+          cd ..
+
+          # Plugin-ZIPs separat für direkten WP-Download
+          cp dist/wp-plugins/*.zip releases/
+
+          # Release-SHA256
+          cd releases
+          sha256sum *.zip > SHA256SUMS
+          cat SHA256SUMS
+          cd ..
+
+          echo "==> Bundle contents:"
+          ls -lh releases/
+
+      # ------------------------------------------------------------------ #
+      # 6. Update-Manifest generieren
+      # ------------------------------------------------------------------ #
+      - name: Generate update manifest
+        run: |
+          VERSION=${{ steps.ver.outputs.version }}
+          BASE_URL="https://releases.themisdb.org"
+
+          # Update-Manifest für WP Plugin-Updater
+          cat > releases/update-manifest.json << EOF
+          {
+            "latest_version": "$VERSION",
+            "release_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "plugins": {
+              "themisdb-order-request": {
+                "version": "$VERSION",
+                "download_url": "${BASE_URL}/v${VERSION}/themisdb-order-request-${VERSION}.zip",
+                "package": "${BASE_URL}/v${VERSION}/themisdb-order-request-${VERSION}.zip",
+                "requires_php": "7.4",
+                "requires": "5.0",
+                "tested": "6.4",
+                "changelog_url": "https://github.com/makr-code/ThemisDB/releases/tag/v${VERSION}"
+              },
+              "themisdb-support-portal": {
+                "version": "$VERSION",
+                "download_url": "${BASE_URL}/v${VERSION}/themisdb-support-portal-${VERSION}.zip",
+                "package": "${BASE_URL}/v${VERSION}/themisdb-support-portal-${VERSION}.zip",
+                "requires_php": "7.4",
+                "requires": "5.0",
+                "tested": "6.4",
+                "changelog_url": "https://github.com/makr-code/ThemisDB/releases/tag/v${VERSION}"
+              }
+            },
+            "full_bundle": "${BASE_URL}/v${VERSION}/themisdb-${VERSION}.zip",
+            "checksums": "${BASE_URL}/v${VERSION}/SHA256SUMS"
+          }
+          EOF
+
+          cat releases/update-manifest.json
+
+      # ------------------------------------------------------------------ #
+      # 7. Auf themisdb.org hochladen (SFTP)
+      # ------------------------------------------------------------------ #
+      - name: Upload to releases.themisdb.org
+        env:
+          SSH_KEY: ${{ secrets.THEMISDB_ORG_KEY }}
+          SSH_HOST: ${{ secrets.THEMISDB_ORG_HOST }}
+          SSH_USER: ${{ secrets.THEMISDB_ORG_USER }}
+          REMOTE_PATH: ${{ secrets.THEMISDB_ORG_PATH }}
+        run: |
+          VERSION=${{ steps.ver.outputs.version }}
+
+          # SSH Key schreiben
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Verzeichnis auf Server anlegen
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            "${SSH_USER}@${SSH_HOST}" \
+            "mkdir -p ${REMOTE_PATH}/v${VERSION}"
+
+          # Dateien hochladen
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            releases/* \
+            "${SSH_USER}@${SSH_HOST}:${REMOTE_PATH}/v${VERSION}/"
+
+          # update-manifest.json ins Root (neueste Version)
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            releases/update-manifest.json \
+            "${SSH_USER}@${SSH_HOST}:${REMOTE_PATH}/update-manifest.json"
+
+          # latest-Symlink setzen
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            "${SSH_USER}@${SSH_HOST}" \
+            "cd ${REMOTE_PATH} && ln -sfn v${VERSION} latest"
+
+          # SSH Key aufräumen
+          rm -f ~/.ssh/deploy_key
+
+          echo "Upload complete: ${BASE_URL}/v${VERSION}/"
+
+      # ------------------------------------------------------------------ #
+      # 8. GitHub Release erstellen (Optional, für Changelog-Seite)
+      # ------------------------------------------------------------------ #
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ThemisDB ${{ steps.ver.outputs.version }}
+          body: |
+            ## Download
+
+            **Full Bundle (Core + WordPress Plugins):**
+            https://releases.themisdb.org/v${{ steps.ver.outputs.version }}/themisdb-${{ steps.ver.outputs.version }}.zip
+
+            **WordPress Plugins only:**
+            - [themisdb-order-request](https://releases.themisdb.org/v${{ steps.ver.outputs.version }}/themisdb-order-request-${{ steps.ver.outputs.version }}.zip)
+            - [themisdb-support-portal](https://releases.themisdb.org/v${{ steps.ver.outputs.version }}/themisdb-support-portal-${{ steps.ver.outputs.version }}.zip)
+
+            **Verify integrity:**
+            ```bash
+            curl https://releases.themisdb.org/v${{ steps.ver.outputs.version }}/SHA256SUMS | sha256sum -c
+            ```
+          draft: false
+          prerelease: ${{ contains(steps.ver.outputs.version, '-beta') || contains(steps.ver.outputs.version, '-rc') || contains(steps.ver.outputs.version, '-alpha') }}

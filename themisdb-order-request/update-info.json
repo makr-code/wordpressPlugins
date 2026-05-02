@@ -1,11 +1,13 @@
 {
   "name": "ThemisDB Order Request & Contract Management",
   "version": "1.1.0",
-  "homepage": "https://github.com/makr-code/wordpressPlugins",
+  "homepage": "https://themisdb.org",
   "description": "Dialog-basiertes Bestellanfrage-System für ThemisDB mit Vertragsrecht-CRUD, automatischer PDF-Generierung und E-Mail-Versand.",
   "author": "ThemisDB Team",
-  "author_uri": "https://github.com/makr-code/wordpressPlugins",
+  "author_uri": "https://themisdb.org",
   "requires": "5.8",
   "tested": "6.4",
-  "requires_php": "7.4"
+  "requires_php": "7.4",
+  "download_url": "https://releases.themisdb.org/latest/themisdb-order-request.zip",
+  "changelog_url": "https://github.com/makr-code/ThemisDB/releases/latest"
 }
