@@ -83,10 +83,50 @@ class ThemisDB_Contract_Change_Engine {
      * @param array $change_payload
      */
     public static function on_change_requested($request_id, $license_id, $change_payload) {
+        // Impact berechnen und persistieren.
         $impact = self::calculate_impact($license_id, $change_payload);
         if ($impact) {
             self::store_impact($request_id, $impact);
         }
+
+        // §4 Event #7: Eingangsbestätigung an Kunden (ARCHITECTUR.md §9 DoD #2).
+        if (!class_exists('ThemisDB_Mail_Orchestrator')) {
+            return;
+        }
+
+        $email = self::get_customer_email(intval($license_id));
+        if (!$email) {
+            return;
+        }
+
+        $risk_info = '';
+        if ($impact && isset($impact['risk_level'])) {
+            $risk_info = sprintf(
+                __('Risikostufe: %s', 'themisdb-support-portal'),
+                self::risk_label($impact['risk_level'])
+            );
+        }
+
+        $lines = array(
+            sprintf(
+                __('Ihr Vertragsänderungsantrag (ID: %d) für Lizenz #%d ist bei uns eingegangen.', 'themisdb-support-portal'),
+                intval($request_id),
+                intval($license_id)
+            ),
+            __('Unser Team prüft den Antrag und führt bei Bedarf eine kaufmännische und technische Bewertung durch. Sie erhalten nach der Entscheidung eine weitere Nachricht.', 'themisdb-support-portal'),
+        );
+
+        if ($risk_info) {
+            $lines[] = $risk_info;
+        }
+
+        ThemisDB_Mail_Orchestrator::send(
+            $email,
+            __('[ThemisDB] Ihr Änderungsantrag ist eingegangen', 'themisdb-support-portal'),
+            self::build_mail_body(__('Guten Tag,', 'themisdb-support-portal'), $lines),
+            'contract_change_requested',
+            array('request_id' => $request_id, 'license_id' => $license_id)
+        );
     }
 
     /**
