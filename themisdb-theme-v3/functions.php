@@ -83,6 +83,7 @@ function themisdb_v3_get_post_author_items( int $post_id, int $avatar_size = 40,
             $url   = '';
             $bio   = isset( $author->description ) ? trim( (string) $author->description ) : '';
             $avatar = '';
+            $brand  = themisdb_v3_detect_ai_author_brand( $name, $slug );
 
             if ( $linked && '' !== $slug ) {
                 $url = get_author_posts_url( $id, $slug );
@@ -106,6 +107,13 @@ function themisdb_v3_get_post_author_items( int $post_id, int $avatar_size = 40,
                 );
             }
 
+            if ( '' !== $brand ) {
+                $brand_avatar = themisdb_v3_get_ai_author_avatar_markup( $brand, $name, $avatar_size );
+                if ( '' !== $brand_avatar ) {
+                    $avatar = $brand_avatar;
+                }
+            }
+
             if ( '' !== $name ) {
                 $items[] = array(
                     'id'     => $id,
@@ -120,7 +128,7 @@ function themisdb_v3_get_post_author_items( int $post_id, int $avatar_size = 40,
     }
 
     if ( ! empty( $items ) ) {
-        return $items;
+        return themisdb_v3_sort_author_items_prioritize_humans( $items );
     }
 
     $author_id = (int) get_post_field( 'post_author', $post_id );
@@ -135,6 +143,21 @@ function themisdb_v3_get_post_author_items( int $post_id, int $avatar_size = 40,
 
     $slug = trim( (string) get_the_author_meta( 'user_nicename', $author_id ) );
     $url  = ( $linked && '' !== $slug ) ? get_author_posts_url( $author_id, $slug ) : '';
+    $brand = themisdb_v3_detect_ai_author_brand( $name, $slug );
+    $avatar = (string) get_avatar(
+        $author_id,
+        $avatar_size,
+        '',
+        $name,
+        array( 'class' => 'tv3-card-author-avatar' )
+    );
+
+    if ( '' !== $brand ) {
+        $brand_avatar = themisdb_v3_get_ai_author_avatar_markup( $brand, $name, $avatar_size );
+        if ( '' !== $brand_avatar ) {
+            $avatar = $brand_avatar;
+        }
+    }
 
     return array(
         array(
@@ -142,16 +165,205 @@ function themisdb_v3_get_post_author_items( int $post_id, int $avatar_size = 40,
             'name'   => $name,
             'slug'   => $slug,
             'url'    => $url,
-            'avatar' => get_avatar(
-                $author_id,
-                $avatar_size,
-                '',
-                $name,
-                array( 'class' => 'tv3-card-author-avatar' )
-            ),
+            'avatar' => $avatar,
             'bio'    => trim( (string) get_the_author_meta( 'description', $author_id ) ),
         ),
     );
+}
+
+/**
+ * Sort author items so human authors are listed before AI co-authors.
+ *
+ * Preserves relative order within each group.
+ *
+ * @param array<int,array<string,mixed>> $items Author items.
+ * @return array<int,array<string,mixed>>
+ */
+function themisdb_v3_sort_author_items_prioritize_humans( array $items ): array {
+    if ( count( $items ) <= 1 ) {
+        return $items;
+    }
+
+    $human_items = array();
+    $ai_items    = array();
+
+    foreach ( $items as $item ) {
+        $name  = isset( $item['name'] ) ? (string) $item['name'] : '';
+        $slug  = isset( $item['slug'] ) ? (string) $item['slug'] : '';
+        $brand = themisdb_v3_detect_ai_author_brand( $name, $slug );
+
+        if ( '' === $brand ) {
+            $human_items[] = $item;
+        } else {
+            $ai_items[] = $item;
+        }
+    }
+
+    return array_merge( $human_items, $ai_items );
+}
+
+/**
+ * Detect whether an author record maps to an AI co-author brand.
+ *
+ * @param string $name Author display name.
+ * @param string $slug Author slug.
+ * @return string
+ */
+function themisdb_v3_detect_ai_author_brand( string $name, string $slug = '' ): string {
+    $haystack = strtolower( trim( $name . ' ' . $slug ) );
+    if ( '' === $haystack ) {
+        return '';
+    }
+
+    if ( false !== strpos( $haystack, 'gemini' ) || false !== strpos( $haystack, 'gimini' ) || false !== strpos( $haystack, 'google-gemini' ) ) {
+        return 'gemini';
+    }
+
+    if ( false !== strpos( $haystack, 'copilot' ) || false !== strpos( $haystack, 'github-copilot' ) ) {
+        return 'copilot';
+    }
+
+    if ( false !== strpos( $haystack, 'gemma4' ) || false !== strpos( $haystack, 'gemma-4' ) || false !== strpos( $haystack, 'gemma' ) ) {
+        return 'gemma4';
+    }
+
+    if ( false !== strpos( $haystack, 'swarmui' ) || false !== strpos( $haystack, 'swarm-ui' ) ) {
+        return 'swarmui';
+    }
+
+    return '';
+}
+
+/**
+ * Build AI co-author avatar markup from static theme logo assets.
+ *
+ * @param string $brand One of: gemini, copilot, gemma4, swarmui.
+ * @param string $name Author display name.
+ * @param int    $size Avatar size in px.
+ * @return string
+ */
+function themisdb_v3_get_ai_author_avatar_markup( string $brand, string $name, int $size ): string {
+    $size = max( 24, min( 96, absint( $size ) ) );
+    $brand = sanitize_key( $brand );
+    $logo_map = array(
+        'gemini'  => 'assets/images/authors/gemini.svg',
+        'copilot' => 'assets/images/authors/copilot.svg',
+        'gemma4'  => 'assets/images/authors/gemma4.svg',
+        'swarmui' => 'assets/images/authors/swarmui.svg',
+    );
+
+    if ( ! isset( $logo_map[ $brand ] ) ) {
+        return '';
+    }
+
+    $relative_logo = (string) $logo_map[ $brand ];
+    $absolute_logo = trailingslashit( get_template_directory() ) . str_replace( '/', DIRECTORY_SEPARATOR, $relative_logo );
+    if ( ! file_exists( $absolute_logo ) ) {
+        return '';
+    }
+
+    $logo_url = trailingslashit( get_template_directory_uri() ) . $relative_logo;
+    $classes  = 'tv3-card-author-avatar tv3-card-author-avatar-ai tv3-card-author-avatar-ai--' . $brand;
+    $alt      = '' !== trim( $name ) ? $name : ucfirst( $brand );
+
+    return '<img class="' . esc_attr( $classes ) . '" src="' . esc_url( $logo_url ) . '" alt="' . esc_attr( $alt ) . '" loading="lazy" decoding="async" width="' . esc_attr( (string) $size ) . '" height="' . esc_attr( (string) $size ) . '" />';
+}
+
+/**
+ * Extract unique positive author IDs from normalized author items.
+ *
+ * @param array<int,array<string,mixed>> $authors Author items.
+ * @return array<int,int>
+ */
+function themisdb_v3_get_author_ids_from_items( array $authors ): array {
+    $ids = array();
+    foreach ( $authors as $author ) {
+        $author_id = isset( $author['id'] ) ? absint( (int) $author['id'] ) : 0;
+        if ( $author_id > 0 ) {
+            $ids[ $author_id ] = $author_id;
+        }
+    }
+
+    return array_values( $ids );
+}
+
+/**
+ * Extract unique author slugs from normalized author items.
+ *
+ * @param array<int,array<string,mixed>> $authors Author items.
+ * @return array<int,string>
+ */
+function themisdb_v3_get_author_slugs_from_items( array $authors ): array {
+    $slugs = array();
+    foreach ( $authors as $author ) {
+        $slug = isset( $author['slug'] ) ? sanitize_title( (string) $author['slug'] ) : '';
+        if ( '' !== $slug ) {
+            $slugs[ $slug ] = $slug;
+        }
+    }
+
+    return array_values( $slugs );
+}
+
+/**
+ * Collect published post IDs for one or more author signatures.
+ *
+ * @param array<int,int>    $author_ids Author IDs.
+ * @param array<int,string> $author_slugs Author slugs.
+ * @param array<int,string> $post_types Post types.
+ * @param int               $posts_per_signature Posts fetched per signature.
+ * @return array<int,int>
+ */
+function themisdb_v3_collect_posts_for_author_signatures( array $author_ids, array $author_slugs, array $post_types, int $posts_per_signature = 120 ): array {
+    $post_ids = array();
+
+    foreach ( $author_ids as $author_id ) {
+        $author_id = absint( (int) $author_id );
+        if ( $author_id <= 0 ) {
+            continue;
+        }
+
+        $matches = get_posts(
+            array(
+                'author'         => $author_id,
+                'post_type'      => $post_types,
+                'post_status'    => 'publish',
+                'posts_per_page' => $posts_per_signature,
+                'fields'         => 'ids',
+                'orderby'        => 'date',
+                'order'          => 'DESC',
+            )
+        );
+
+        foreach ( $matches as $match_id ) {
+            $post_ids[ (int) $match_id ] = (int) $match_id;
+        }
+    }
+
+    foreach ( $author_slugs as $author_slug ) {
+        $author_slug = sanitize_title( (string) $author_slug );
+        if ( '' === $author_slug ) {
+            continue;
+        }
+
+        $matches = get_posts(
+            array(
+                'author_name'    => $author_slug,
+                'post_type'      => $post_types,
+                'post_status'    => 'publish',
+                'posts_per_page' => $posts_per_signature,
+                'fields'         => 'ids',
+                'orderby'        => 'date',
+                'order'          => 'DESC',
+            )
+        );
+
+        foreach ( $matches as $match_id ) {
+            $post_ids[ (int) $match_id ] = (int) $match_id;
+        }
+    }
+
+    return array_values( $post_ids );
 }
 
 /**
@@ -170,7 +382,6 @@ function themisdb_v3_render_authors_compact_shortcode( array $atts = array() ): 
         $atts,
         'themisdb_v3_authors_compact'
     );
-
     $post_id      = (int) get_the_ID();
     $avatar_size  = max( 24, min( 80, absint( $atts['size'] ) ) );
     $linked       = '0' !== (string) $atts['linked'];
@@ -202,12 +413,19 @@ function themisdb_v3_render_authors_compact_shortcode( array $atts = array() ): 
     $avatars_html = '';
     if ( $show_avatars ) {
         $avatar_nodes = array();
-        foreach ( array_slice( $authors, 0, 3 ) as $author ) {
+        $visible_authors = array_slice( $authors, 0, 3 );
+        $visible_count   = count( $visible_authors );
+
+        foreach ( $visible_authors as $avatar_index => $author ) {
             $avatar = (string) ( $author['avatar'] ?? '' );
             if ( '' === $avatar ) {
                 continue;
             }
-            $avatar_nodes[] = '<span class="tv3-authors-compact-avatar">' . $avatar . '</span>';
+
+            $avatar_nodes[] = '<span class="tv3-authors-compact-avatar" style="--tv3-avatar-layer:'
+                . esc_attr( (string) ( $visible_count - (int) $avatar_index ) )
+                . ';--tv3-author-avatar-size:' . esc_attr( (string) $avatar_size ) . 'px'
+                . '">' . $avatar . '</span>';
         }
         if ( ! empty( $avatar_nodes ) ) {
             $avatars_html = '<span class="tv3-authors-compact-avatars">' . implode( '', $avatar_nodes ) . '</span>';
@@ -240,7 +458,16 @@ function themisdb_v3_get_context_author_id(): int {
     }
 
     if ( is_singular() ) {
-        return (int) get_post_field( 'post_author', get_the_ID() );
+        $post_id = (int) get_the_ID();
+        if ( $post_id > 0 ) {
+            $authors    = themisdb_v3_get_post_author_items( $post_id, 40, false );
+            $author_ids = themisdb_v3_get_author_ids_from_items( $authors );
+            if ( ! empty( $author_ids ) ) {
+                return (int) $author_ids[0];
+            }
+        }
+
+        return (int) get_post_field( 'post_author', $post_id );
     }
 
     return 0;
@@ -312,6 +539,49 @@ function themisdb_v3_render_author_bio_shortcode(): string {
  * @return string
  */
 function themisdb_v3_render_author_stats_shortcode(): string {
+    if ( is_singular() ) {
+        $post_id = (int) get_the_ID();
+        if ( $post_id > 0 ) {
+            $authors      = themisdb_v3_get_post_author_items( $post_id, 40, false );
+            $author_ids   = themisdb_v3_get_author_ids_from_items( $authors );
+            $author_slugs = themisdb_v3_get_author_slugs_from_items( $authors );
+            $post_ids     = themisdb_v3_collect_posts_for_author_signatures( $author_ids, $author_slugs, array( 'post', 'page', 'pod_episode' ) );
+
+            if ( ! empty( $post_ids ) ) {
+                $counts = array(
+                    'post'        => 0,
+                    'page'        => 0,
+                    'pod_episode' => 0,
+                );
+
+                foreach ( $post_ids as $related_post_id ) {
+                    $type = (string) get_post_type( (int) $related_post_id );
+                    if ( isset( $counts[ $type ] ) ) {
+                        $counts[ $type ]++;
+                    }
+                }
+
+                $total = $counts['post'] + $counts['page'] + $counts['pod_episode'];
+                if ( $total > 0 ) {
+                    $parts = array();
+                    if ( $counts['post'] > 0 ) {
+                        $parts[] = sprintf( _n( '%d Beitrag', '%d Beitraege', $counts['post'], 'themisdb-v3' ), $counts['post'] );
+                    }
+                    if ( $counts['page'] > 0 ) {
+                        $parts[] = sprintf( _n( '%d Seite', '%d Seiten', $counts['page'], 'themisdb-v3' ), $counts['page'] );
+                    }
+                    if ( $counts['pod_episode'] > 0 ) {
+                        $parts[] = sprintf( _n( '%d Episode', '%d Episoden', $counts['pod_episode'], 'themisdb-v3' ), $counts['pod_episode'] );
+                    }
+
+                    if ( ! empty( $parts ) ) {
+                        return '<p class="tv3-author-fact-text">' . esc_html( implode( ' · ', $parts ) ) . '</p>';
+                    }
+                }
+            }
+        }
+    }
+
     $author_id = themisdb_v3_get_context_author_id();
     if ( $author_id <= 0 ) {
         return '<p class="tv3-author-fact-text">Noch keine Publikationsdaten verfuegbar.</p>';
@@ -348,6 +618,42 @@ function themisdb_v3_render_author_stats_shortcode(): string {
  * @return string
  */
 function themisdb_v3_render_author_focus_shortcode(): string {
+    if ( is_singular() ) {
+        $post_id = (int) get_the_ID();
+        if ( $post_id > 0 ) {
+            $authors      = themisdb_v3_get_post_author_items( $post_id, 40, false );
+            $author_ids   = themisdb_v3_get_author_ids_from_items( $authors );
+            $author_slugs = themisdb_v3_get_author_slugs_from_items( $authors );
+            $posts        = themisdb_v3_collect_posts_for_author_signatures( $author_ids, $author_slugs, array( 'post', 'pod_episode' ) );
+
+            if ( ! empty( $posts ) ) {
+                $bucket = array();
+                foreach ( $posts as $candidate_post_id ) {
+                    $terms = wp_get_post_terms( (int) $candidate_post_id, 'category' );
+                    if ( is_wp_error( $terms ) || empty( $terms ) ) {
+                        continue;
+                    }
+                    foreach ( $terms as $term ) {
+                        $name = trim( (string) $term->name );
+                        if ( '' === $name ) {
+                            continue;
+                        }
+                        if ( ! isset( $bucket[ $name ] ) ) {
+                            $bucket[ $name ] = 0;
+                        }
+                        $bucket[ $name ]++;
+                    }
+                }
+
+                if ( ! empty( $bucket ) ) {
+                    arsort( $bucket );
+                    $top = array_slice( array_keys( $bucket ), 0, 3 );
+                    return '<p class="tv3-author-fact-text">' . esc_html( implode( ' · ', $top ) ) . '</p>';
+                }
+            }
+        }
+    }
+
     $author_id = themisdb_v3_get_context_author_id();
     if ( $author_id <= 0 ) {
         return '<p class="tv3-author-fact-text">Themenschwerpunkte werden laufend ergaenzt.</p>';
@@ -1064,6 +1370,8 @@ function themisdb_v3_enqueue_assets() {
     $kernthese_js_ver      = file_exists( $kernthese_js_file ) ? (string) filemtime( $kernthese_js_file ) : THEMISDB_V3_VERSION;
     $code_highlight_js_file = get_template_directory() . '/assets/js/code-highlight.js';
     $code_highlight_js_ver  = file_exists( $code_highlight_js_file ) ? (string) filemtime( $code_highlight_js_file ) : THEMISDB_V3_VERSION;
+    $podcast_audio_js_file  = get_template_directory() . '/assets/js/podcast-audio-single.js';
+    $podcast_audio_js_ver   = file_exists( $podcast_audio_js_file ) ? (string) filemtime( $podcast_audio_js_file ) : THEMISDB_V3_VERSION;
 
     wp_enqueue_style( 'themisdb-v3-style', get_stylesheet_uri(), array(), $style_version );
     wp_enqueue_style(
@@ -1081,12 +1389,14 @@ function themisdb_v3_enqueue_assets() {
     );
     if ( themisdb_v3_should_show_reading_progress() ) {
         $minutes_total = is_singular() ? themisdb_v3_get_read_time_minutes() : 0;
+        $reading_progress_js_file = get_template_directory() . '/assets/js/reading-progress.js';
+        $reading_progress_js_ver  = file_exists( $reading_progress_js_file ) ? (string) filemtime( $reading_progress_js_file ) : THEMISDB_V3_VERSION;
 
         wp_enqueue_script(
             'themisdb-v3-reading-progress',
             get_template_directory_uri() . '/assets/js/reading-progress.js',
             array(),
-            THEMISDB_V3_VERSION,
+            $reading_progress_js_ver,
             true
         );
 
@@ -1095,8 +1405,8 @@ function themisdb_v3_enqueue_assets() {
             'themisdbV3ReadingProgress',
             array(
                 'minutesTotal'       => $minutes_total,
-                'labelPattern'       => __( '%1$d%% · %2$d Min. uebrig', 'themisdb-v3' ),
-                'labelPatternSimple' => __( '%1$d%% gelesen', 'themisdb-v3' ),
+                'labelPattern'       => __( '%1$d% · %2$d Min. uebrig', 'themisdb-v3' ),
+                'labelPatternSimple' => __( '%1$d% gelesen', 'themisdb-v3' ),
             )
         );
     }
@@ -1121,6 +1431,16 @@ function themisdb_v3_enqueue_assets() {
             get_template_directory_uri() . '/assets/js/code-highlight.js',
             array(),
             $code_highlight_js_ver,
+            true
+        );
+    }
+
+    if ( is_singular() || is_home() || is_front_page() || is_archive() || is_search() ) {
+        wp_enqueue_script(
+            'themisdb-v3-podcast-audio-single',
+            get_template_directory_uri() . '/assets/js/podcast-audio-single.js',
+            array(),
+            $podcast_audio_js_ver,
             true
         );
     }
@@ -1518,6 +1838,8 @@ function themisdb_v3_render_relationship_metabox( $post ) {
     $related_objects = implode( ', ', themisdb_v3_get_related_object_ids( $post->ID ) );
     $related_posts   = implode( ', ', themisdb_v3_get_related_post_ids( $post->ID ) );
     $object_type     = (string) get_post_meta( $post->ID, 'content_object_type', true );
+    $autofix_slug    = (string) get_post_meta( $post->ID, '_themisdb_v3_media_category_autofix_slug', true );
+    $autofix_at      = absint( get_post_meta( $post->ID, '_themisdb_v3_media_category_autofix_at', true ) );
 
     $object_types    = themisdb_v3_get_supported_object_post_types();
 
@@ -1560,6 +1882,20 @@ function themisdb_v3_render_relationship_metabox( $post ) {
     <p style="margin-bottom:0;color:#50575e;">
         <?php esc_html_e( 'Dynamische Kriterien: Suche basiert auf vorhandenen Content-Typen und vorhandenen Titeln im System.', 'themisdb-v3' ); ?>
     </p>
+    <?php if ( $autofix_at > 0 && '' !== $autofix_slug ) : ?>
+        <p style="margin-top:0.75rem;padding:0.6rem 0.7rem;border:1px solid #c9d7e6;border-radius:6px;background:#f4f8fc;color:#2d4c68;">
+            <?php
+            echo esc_html(
+                sprintf(
+                    /* translators: 1: category slug, 2: datetime */
+                    __( 'Media category auto-set: %1$s at %2$s', 'themisdb-v3' ),
+                    $autofix_slug,
+                    wp_date( 'Y-m-d H:i', $autofix_at )
+                )
+            );
+            ?>
+        </p>
+    <?php endif; ?>
     <style>
     .themisdb-v3-picker-results { margin-top: 0.35rem; display: grid; gap: 0.3rem; }
     .themisdb-v3-picker-result { width: 100%; text-align: left; border: 1px solid #d0d7de; background: #fff; border-radius: 6px; padding: 0.38rem 0.5rem; cursor: pointer; }
@@ -1816,6 +2152,10 @@ function themisdb_v3_get_card_metrics( $post_id ) {
         );
     }
 
+    // Add runtime engagement bonus provided by any active tracker plugin (0–40).
+    $engagement_bonus = (int) apply_filters( 'themisdb_engagement_bonus_for_post', 0, $post_id );
+    $bookmark_score   = min( 99, $bookmark_score + $engagement_bonus );
+
     $star_score = $priority_meta > 0 ? min( 5, max( 1, $priority_meta / 2 ) ) : 0;
     if ( $star_score <= 0 ) {
         $star_score = min(
@@ -1853,7 +2193,6 @@ function themisdb_v3_get_card_metrics( $post_id ) {
             $bookmark_score +
             ( $star_score * 12 ) +
             ( $is_featured ? 12 : 0 ) +
-            ( 'pod_episode' === $post_type ? 6 : 0 ) -
             min( 18, $days_since ) +
             min( 16, $relationship_count * 3 )
         )
@@ -2219,6 +2558,197 @@ function themisdb_v3_extract_audio_url_from_post( $post_id ) {
     return '';
 }
 
+/**
+ * Resolve a media type from category slugs only.
+ *
+ * @param int $post_id Post ID.
+ * @return string One of: podcast, video, screencast, audio, or empty string.
+ */
+function themisdb_v3_get_media_category_type( $post_id ) {
+    $terms = get_the_terms( $post_id, 'category' );
+    if ( empty( $terms ) || is_wp_error( $terms ) ) {
+        return '';
+    }
+
+    $slug_set = array();
+    foreach ( $terms as $term ) {
+        if ( $term instanceof WP_Term ) {
+            $slug_set[] = sanitize_key( (string) $term->slug );
+        }
+    }
+
+    if ( in_array( 'podcast', $slug_set, true ) ) {
+        return 'podcast';
+    }
+
+    if ( in_array( 'screencast', $slug_set, true ) ) {
+        return 'screencast';
+    }
+
+    if ( in_array( 'video', $slug_set, true ) || in_array( 'videos', $slug_set, true ) ) {
+        return 'video';
+    }
+
+    if ( in_array( 'audio', $slug_set, true ) ) {
+        return 'audio';
+    }
+
+    return '';
+}
+
+/**
+ * Get card presentation labels derived from media category type.
+ *
+ * @param string $media_type Media type from themisdb_v3_get_media_category_type.
+ * @return array{badge_label:string,badge_class:string,audio_label:string}
+ */
+function themisdb_v3_get_media_category_presentation( $media_type ) {
+    $media_type = sanitize_key( (string) $media_type );
+
+    switch ( $media_type ) {
+        case 'podcast':
+            return array(
+                'badge_label' => 'Podcast',
+                'badge_class' => 'tv3-card-badge-podcast',
+                'audio_label' => 'Episode Audio',
+            );
+        case 'video':
+            return array(
+                'badge_label' => 'Video',
+                'badge_class' => 'tv3-card-badge-podcast',
+                'audio_label' => 'Video Audio',
+            );
+        case 'screencast':
+            return array(
+                'badge_label' => 'Screencast',
+                'badge_class' => 'tv3-card-badge-guide',
+                'audio_label' => 'Screencast Audio',
+            );
+        case 'audio':
+            return array(
+                'badge_label' => 'Audio',
+                'badge_class' => 'tv3-card-badge-guide',
+                'audio_label' => 'Audio Track',
+            );
+        default:
+            return array(
+                'badge_label' => '',
+                'badge_class' => '',
+                'audio_label' => 'Episode Audio',
+            );
+    }
+}
+
+add_action( 'admin_notices', 'themisdb_v3_admin_notice_missing_media_category_for_audio' );
+/**
+ * Warn in post editor when audio exists but no media category is assigned.
+ *
+ * Category-driven media presentation expects one of: podcast, video, screencast, audio.
+ */
+function themisdb_v3_admin_notice_missing_media_category_for_audio() {
+    if ( ! is_admin() || ! function_exists( 'get_current_screen' ) ) {
+        return;
+    }
+
+    $screen = get_current_screen();
+    if ( ! $screen || 'post' !== $screen->base ) {
+        return;
+    }
+
+    $post_id = 0;
+    if ( isset( $_GET['post'] ) ) {
+        $post_id = absint( wp_unslash( $_GET['post'] ) );
+    } elseif ( isset( $_POST['post_ID'] ) ) {
+        $post_id = absint( wp_unslash( $_POST['post_ID'] ) );
+    }
+
+    if ( $post_id <= 0 ) {
+        return;
+    }
+
+    $post = get_post( $post_id );
+    if ( ! ( $post instanceof WP_Post ) || 'trash' === $post->post_status || 'auto-draft' === $post->post_status ) {
+        return;
+    }
+
+    $audio_url = trim( (string) themisdb_v3_get_episode_audio_url( $post_id ) );
+    if ( '' === $audio_url ) {
+        return;
+    }
+
+    $media_category_type = themisdb_v3_get_media_category_type( $post_id );
+    if ( '' !== $media_category_type ) {
+        return;
+    }
+
+    echo '<div class="notice notice-warning"><p>'
+        . esc_html__( 'Audio erkannt, aber keine Medien-Kategorie gesetzt. Bitte eine Kategorie mit Slug podcast, video, screencast oder audio zuweisen, damit Darstellung und Badge korrekt greifen.', 'themisdb-v3' )
+        . '</p></div>';
+}
+
+add_action( 'save_post', 'themisdb_v3_autofix_media_category_for_audio', 30, 3 );
+/**
+ * Auto-assign a media category when audio exists but no media category is set.
+ *
+ * Filter: themisdb_v3_autofix_media_category_for_audio_enabled (bool, default true)
+ * Filter: themisdb_v3_autofix_media_category_default_slug (string, default "audio")
+ *
+ * @param int     $post_id Post ID.
+ * @param WP_Post $post    Current post object.
+ * @param bool    $update  Whether this is an existing post being updated.
+ */
+function themisdb_v3_autofix_media_category_for_audio( $post_id, $post, $update ) {
+    if ( ! ( $post instanceof WP_Post ) ) {
+        return;
+    }
+
+    if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+        return;
+    }
+
+    $enabled = (bool) apply_filters( 'themisdb_v3_autofix_media_category_for_audio_enabled', true, $post_id, $post, $update );
+    if ( ! $enabled ) {
+        return;
+    }
+
+    if ( ! taxonomy_exists( 'category' ) || ! is_object_in_taxonomy( (string) $post->post_type, 'category' ) ) {
+        return;
+    }
+
+    $audio_url = trim( (string) themisdb_v3_get_episode_audio_url( $post_id ) );
+    if ( '' === $audio_url ) {
+        return;
+    }
+
+    if ( '' !== themisdb_v3_get_media_category_type( $post_id ) ) {
+        return;
+    }
+
+    $default_slug = sanitize_key( (string) apply_filters( 'themisdb_v3_autofix_media_category_default_slug', 'audio', $post_id, $post, $update ) );
+    if ( '' === $default_slug ) {
+        return;
+    }
+
+    $term = get_term_by( 'slug', $default_slug, 'category' );
+    if ( ! ( $term instanceof WP_Term ) ) {
+        return;
+    }
+
+    $existing_terms = wp_get_post_terms( $post_id, 'category', array( 'fields' => 'ids' ) );
+    if ( is_wp_error( $existing_terms ) ) {
+        $existing_terms = array();
+    }
+
+    $term_ids = array_values( array_unique( array_map( 'absint', array_merge( $existing_terms, array( (int) $term->term_id ) ) ) ) );
+    if ( empty( $term_ids ) ) {
+        return;
+    }
+
+    wp_set_post_terms( $post_id, $term_ids, 'category', false );
+    update_post_meta( $post_id, '_themisdb_v3_media_category_autofix_slug', (string) $term->slug );
+    update_post_meta( $post_id, '_themisdb_v3_media_category_autofix_at', (string) time() );
+}
+
 function themisdb_v3_get_episode_audio_url( $post_id ) {
     $audio_url = (string) get_post_meta( $post_id, 'audio_url', true );
     if ( ! empty( $audio_url ) ) {
@@ -2312,6 +2842,7 @@ function themisdb_v3_get_mixed_cards_state( array $atts = array(), array $reques
         'context_taxonomy' => $context['taxonomy'],
         'context_term_id' => $context['term_id'],
         'context_author_id' => $context['author_id'],
+        'context_author_slug' => $context['author_slug'],
         'context_post_type' => $context['post_type'],
         'context_year' => $context['year'],
         'context_monthnum' => $context['monthnum'],
@@ -2332,6 +2863,7 @@ function themisdb_v3_get_mixed_cards_context( array $request = array() ) {
         'taxonomy'  => '',
         'term_id'   => 0,
         'author_id' => 0,
+        'author_slug' => '',
         'post_type' => '',
         'year'      => 0,
         'monthnum'  => 0,
@@ -2344,6 +2876,7 @@ function themisdb_v3_get_mixed_cards_context( array $request = array() ) {
         $context['taxonomy']  = isset( $request['tv3_context_taxonomy'] ) ? sanitize_key( (string) $request['tv3_context_taxonomy'] ) : '';
         $context['term_id']   = isset( $request['tv3_context_term_id'] ) ? absint( $request['tv3_context_term_id'] ) : 0;
         $context['author_id'] = isset( $request['tv3_context_author_id'] ) ? absint( $request['tv3_context_author_id'] ) : 0;
+        $context['author_slug'] = isset( $request['tv3_context_author_slug'] ) ? sanitize_title( (string) $request['tv3_context_author_slug'] ) : '';
         $context['post_type'] = isset( $request['tv3_context_post_type'] ) ? sanitize_key( (string) $request['tv3_context_post_type'] ) : '';
         $context['year']      = isset( $request['tv3_context_year'] ) ? absint( $request['tv3_context_year'] ) : 0;
         $context['monthnum']  = isset( $request['tv3_context_monthnum'] ) ? absint( $request['tv3_context_monthnum'] ) : 0;
@@ -2364,6 +2897,13 @@ function themisdb_v3_get_mixed_cards_context( array $request = array() ) {
     if ( is_author() ) {
         $context['view']      = 'author';
         $context['author_id'] = (int) get_queried_object_id();
+        $context['author_slug'] = sanitize_title( (string) get_query_var( 'author_name' ) );
+        if ( '' === $context['author_slug'] ) {
+            $queried_author = get_queried_object();
+            if ( $queried_author instanceof WP_User ) {
+                $context['author_slug'] = sanitize_title( (string) $queried_author->user_nicename );
+            }
+        }
         return $context;
     }
 
@@ -2408,6 +2948,7 @@ function themisdb_v3_apply_mixed_cards_context( array $query_args, array $state 
             'tv3_context_taxonomy' => $state['context_taxonomy'] ?? '',
             'tv3_context_term_id' => $state['context_term_id'] ?? 0,
             'tv3_context_author_id' => $state['context_author_id'] ?? 0,
+            'tv3_context_author_slug' => $state['context_author_slug'] ?? '',
             'tv3_context_post_type' => $state['context_post_type'] ?? '',
             'tv3_context_year' => $state['context_year'] ?? 0,
             'tv3_context_monthnum' => $state['context_monthnum'] ?? 0,
@@ -2425,8 +2966,12 @@ function themisdb_v3_apply_mixed_cards_context( array $query_args, array $state 
         );
     }
 
-    if ( 'author' === $context['view'] && $context['author_id'] > 0 ) {
-        $query_args['author'] = (int) $context['author_id'];
+    if ( 'author' === $context['view'] ) {
+        if ( ! empty( $context['author_slug'] ) ) {
+            $query_args['author_name'] = sanitize_title( (string) $context['author_slug'] );
+        } elseif ( $context['author_id'] > 0 ) {
+            $query_args['author'] = (int) $context['author_id'];
+        }
     }
 
     if ( 'post_type' === $context['view'] && '' !== $context['post_type'] ) {
@@ -2832,6 +3377,7 @@ function themisdb_v3_render_mixed_cards_grid( array $posts, array $state = array
             $author_items      = themisdb_v3_get_post_author_items( $post_id, 48, true );
             $author_names      = array();
             $author_name_links = array();
+            $author_face_nodes = array();
             $author_faces      = array();
             foreach ( $author_items as $author_item ) {
                 $author_name = trim( (string) ( $author_item['name'] ?? '' ) );
@@ -2851,18 +3397,29 @@ function themisdb_v3_render_mixed_cards_grid( array $posts, array $state = array
                 }
 
                 if ( ! empty( $author_item['avatar'] ) ) {
+                    $author_face_nodes[] = (string) $author_item['avatar'];
+                }
+            }
+
+            if ( ! empty( $author_face_nodes ) ) {
+                $author_face_count = count( $author_face_nodes );
+                foreach ( $author_face_nodes as $face_index => $face_markup ) {
                     $author_faces[] = sprintf(
-                        '<span class="tv3-card-author-face-item">%s</span>',
-                        (string) $author_item['avatar']
+                        '<span class="tv3-card-author-face-item" style="--tv3-avatar-layer:%1$s">%2$s</span>',
+                        esc_attr( (string) ( $author_face_count - (int) $face_index ) ),
+                        $face_markup
                     );
                 }
             }
             $author = ! empty( $author_name_links ) ? implode( ', ', $author_name_links ) : implode( ', ', $author_names );
             $metrics            = themisdb_v3_get_card_metrics( $post_id );
             $post_type          = $metrics['post_type'];
-            $is_podcast_entry  = 'pod_episode' === $post_type || ( 'post' === $post_type && has_category( 'podcast', $post_id ) );
-            $episode_audio_url = $is_podcast_entry ? themisdb_v3_get_episode_audio_url( $post_id ) : '';
-            $episode_duration  = $is_podcast_entry ? themisdb_v3_get_episode_duration_label( $post_id ) : '';
+            $media_category_type = themisdb_v3_get_media_category_type( $post_id );
+            $media_presentation  = themisdb_v3_get_media_category_presentation( $media_category_type );
+            $is_media_entry      = '' !== $media_category_type;
+            $episode_audio_url   = $is_media_entry ? themisdb_v3_get_episode_audio_url( $post_id ) : '';
+            $episode_duration    = $is_media_entry ? themisdb_v3_get_episode_duration_label( $post_id ) : '';
+            $episode_audio_label = (string) $media_presentation['audio_label'];
             $excerpt            = get_the_excerpt( $post_id );
             $is_hero            = false;
             $relevance_size     = 'tv3-card-size-md';
@@ -2879,6 +3436,26 @@ function themisdb_v3_render_mixed_cards_grid( array $posts, array $state = array
             $attention_tone     = themisdb_v3_get_card_attention_tone( $post_id );
 
             $author_face = ! empty( $author_faces ) ? implode( '', $author_faces ) : '';
+
+            if ( '' === trim( wp_strip_all_tags( (string) $author ) ) ) {
+                $fallback_author_id = (int) get_post_field( 'post_author', $post_id );
+                if ( $fallback_author_id > 0 ) {
+                    $fallback_author_name = trim( (string) get_the_author_meta( 'display_name', $fallback_author_id ) );
+                    if ( '' !== $fallback_author_name ) {
+                        $author = esc_html( $fallback_author_name );
+                    }
+
+                    if ( '' === $author_face ) {
+                        $author_face = (string) get_avatar(
+                            $fallback_author_id,
+                            48,
+                            '',
+                            $fallback_author_name,
+                            array( 'class' => 'tv3-card-author-avatar' )
+                        );
+                    }
+                }
+            }
 
             if ( $sizing['allow_hero'] && ! $hero_assigned && $relevance_score >= $sizing['hero_min'] && $engagement_evidence >= 2 ) {
                 $is_hero        = true;
@@ -2897,15 +3474,9 @@ function themisdb_v3_render_mixed_cards_grid( array $posts, array $state = array
             if ( $is_hero ) {
                 $badge_label = 'Top Score';
                 $badge_class = 'tv3-card-badge-hero';
-            } elseif ( 'pod_episode' === $post_type || ( 'post' === $post_type && has_category( 'podcast', $post_id ) ) ) {
-                $badge_label = 'Podcast';
-                $badge_class = 'tv3-card-badge-podcast';
-            } elseif ( in_array( $post_type, array( 'video', 'pod_video' ), true ) ) {
-                $badge_label = 'Video';
-                $badge_class = 'tv3-card-badge-podcast';
-            } elseif ( 'screencast' === $post_type ) {
-                $badge_label = 'Screencast';
-                $badge_class = 'tv3-card-badge-guide';
+            } elseif ( $is_media_entry ) {
+                $badge_label = (string) $media_presentation['badge_label'];
+                $badge_class = (string) $media_presentation['badge_class'];
             } elseif ( 'tutorial' === $post_type ) {
                 $badge_label = 'Tutorial';
                 $badge_class = 'tv3-card-badge-guide';
@@ -2964,7 +3535,7 @@ function themisdb_v3_render_mixed_cards_grid( array $posts, array $state = array
                     </div>
                     <div class="wp-block-group tv3-card-body">
                         <?php if ( ! empty( $episode_audio_url ) ) : ?>
-                            <div class="tv3-card-audio"><div class="tv3-card-audio-meta"><span class="tv3-card-audio-label">Episode Audio</span><span class="tv3-card-audio-duration"><?php echo esc_html( $episode_duration ); ?></span></div><?php echo wp_audio_shortcode( array( 'src' => esc_url( $episode_audio_url ), 'preload' => 'none' ) ); ?></div>
+                            <div class="tv3-card-audio"><div class="tv3-card-audio-meta"><span class="tv3-card-audio-label"><?php echo esc_html( $episode_audio_label ); ?></span><span class="tv3-card-audio-duration"><?php echo esc_html( $episode_duration ); ?></span></div><?php echo wp_audio_shortcode( array( 'src' => esc_url( $episode_audio_url ), 'preload' => 'none' ) ); ?></div>
                         <?php endif; ?>
                         <?php if ( ! empty( $excerpt ) ) : ?>
                             <div class="tv3-card-excerpt wp-block-post-excerpt"><p class="wp-block-post-excerpt__excerpt"><?php echo esc_html( $excerpt ); ?></p><p class="wp-block-post-excerpt__more-text"><a class="wp-block-post-excerpt__more-link" href="<?php echo esc_url( $permalink ); ?>">Weiterlesen</a></p></div>
@@ -3068,6 +3639,7 @@ function themisdb_v3_render_mixed_cards_controls( array $data ) {
             <input type="hidden" name="tv3_context_taxonomy" value="<?php echo esc_attr( (string) ( $state['context_taxonomy'] ?? '' ) ); ?>" />
             <input type="hidden" name="tv3_context_term_id" value="<?php echo esc_attr( (string) ( $state['context_term_id'] ?? 0 ) ); ?>" />
             <input type="hidden" name="tv3_context_author_id" value="<?php echo esc_attr( (string) ( $state['context_author_id'] ?? 0 ) ); ?>" />
+            <input type="hidden" name="tv3_context_author_slug" value="<?php echo esc_attr( (string) ( $state['context_author_slug'] ?? '' ) ); ?>" />
             <input type="hidden" name="tv3_context_post_type" value="<?php echo esc_attr( (string) ( $state['context_post_type'] ?? '' ) ); ?>" />
             <input type="hidden" name="tv3_context_year" value="<?php echo esc_attr( (string) ( $state['context_year'] ?? 0 ) ); ?>" />
             <input type="hidden" name="tv3_context_monthnum" value="<?php echo esc_attr( (string) ( $state['context_monthnum'] ?? 0 ) ); ?>" />
@@ -3189,3 +3761,22 @@ function themisdb_v3_render_mixed_cards_shortcode( $atts ) {
     return themisdb_v3_render_mixed_cards_section( $data );
 }
 add_shortcode( 'themisdb_v3_mixed_cards', 'themisdb_v3_render_mixed_cards_shortcode' );
+
+/* =====================================================================
+   GITHUB UPDATE CHECK
+   ===================================================================== */
+
+add_action( 'after_setup_theme', function () {
+    $updater_local  = get_template_directory() . '/includes/class-themisdb-theme-updater.php';
+    $updater_shared = WP_PLUGIN_DIR . '/includes/class-themisdb-theme-updater.php';
+
+    if ( file_exists( $updater_local ) ) {
+        require_once $updater_local;
+    } elseif ( file_exists( $updater_shared ) ) {
+        require_once $updater_shared;
+    }
+
+    if ( class_exists( 'ThemisDB_Theme_Updater' ) ) {
+        new ThemisDB_Theme_Updater( 'themisdb-theme-v3', THEMISDB_V3_VERSION );
+    }
+}, 100 );

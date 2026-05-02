@@ -13,9 +13,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'THEMISDB_THEME_VERSION', '1.0.0' );
-define( 'THEMISDB_THEME_DIR',     get_template_directory() );
-define( 'THEMISDB_THEME_URI',     get_template_directory_uri() );
+defined( 'THEMISDB_THEME_VERSION' ) || define( 'THEMISDB_THEME_VERSION', '1.0.0' );
+defined( 'THEMISDB_THEME_DIR' )     || define( 'THEMISDB_THEME_DIR',     get_template_directory() );
+defined( 'THEMISDB_THEME_URI' )     || define( 'THEMISDB_THEME_URI',     get_template_directory_uri() );
 
 /* =====================================================================
    1. THEME SETUP
@@ -3750,3 +3750,21 @@ function themisdb_maybe_flush_rewrites() {
 	flush_rewrite_rules( false );
 	update_option( $key, THEMISDB_THEME_VERSION );
 }
+/* =====================================================================
+   GITHUB UPDATE CHECK
+   ===================================================================== */
+
+add_action( 'after_setup_theme', function () {
+	$updater_local  = get_template_directory() . '/includes/class-themisdb-theme-updater.php';
+	$updater_shared = WP_PLUGIN_DIR . '/includes/class-themisdb-theme-updater.php';
+
+	if ( file_exists( $updater_local ) ) {
+		require_once $updater_local;
+	} elseif ( file_exists( $updater_shared ) ) {
+		require_once $updater_shared;
+	}
+
+	if ( class_exists( 'ThemisDB_Theme_Updater' ) ) {
+		new ThemisDB_Theme_Updater( 'themisdb-theme', THEMISDB_THEME_VERSION );
+	}
+}, 100 );

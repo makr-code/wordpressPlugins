@@ -1480,3 +1480,22 @@ function themisdb_hamburger_menu_fallback() {
     </ul>
     <?php
 }
+
+/* =====================================================================
+   GITHUB UPDATE CHECK
+   ===================================================================== */
+
+add_action( 'after_setup_theme', function () {
+    $updater_local  = get_template_directory() . '/includes/class-themisdb-theme-updater.php';
+    $updater_shared = WP_PLUGIN_DIR . '/includes/class-themisdb-theme-updater.php';
+
+    if ( file_exists( $updater_local ) ) {
+        require_once $updater_local;
+    } elseif ( file_exists( $updater_shared ) ) {
+        require_once $updater_shared;
+    }
+
+    if ( class_exists( 'ThemisDB_Theme_Updater' ) ) {
+        new ThemisDB_Theme_Updater( 'themisdb-theme-v1', wp_get_theme()->get( 'Version' ) );
+    }
+}, 100 );
