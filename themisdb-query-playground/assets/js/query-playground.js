@@ -171,7 +171,7 @@
                     $container.html(this.renderJSON(this.lastResults.items));
                     break;
                 case 'chart':
-                    $container.html('<p>Chart view coming soon...</p>');
+                    $container.html(this.renderChart(this.lastResults.items));
                     break;
             }
         },
@@ -205,6 +205,70 @@
         renderJSON: function(items) {
             const json = JSON.stringify(items, null, 2);
             return `<div class="themisdb-results-json"><pre>${this.escapeHtml(json)}</pre></div>`;
+        },
+
+        renderChart: function(items) {
+            if (!items || items.length === 0) {
+                return '<p class="qp-chart-empty">Keine Ergebnisse zum Visualisieren.</p>';
+            }
+
+            const keys = Object.keys(items[0]);
+
+            // Find first string key (label) and first numeric key (value)
+            const labelKey = keys.find(k => typeof items[0][k] === 'string') || keys[0];
+            const valueKey = keys.find(k => k !== labelKey && (typeof items[0][k] === 'number' || !isNaN(parseFloat(items[0][k]))));
+
+            if (!valueKey) {
+                return '<p class="qp-chart-empty">Keine numerischen Felder für ein Diagramm gefunden. Wechsle zur Tabellenansicht.</p>';
+            }
+
+            const MAX_BARS = 40;
+            const data = items.slice(0, MAX_BARS).map(item => ({
+                label: String(item[labelKey] ?? ''),
+                value: parseFloat(item[valueKey]) || 0
+            }));
+
+            const maxVal = Math.max(...data.map(d => d.value), 1);
+            const BAR_H = 28;
+            const GAP = 6;
+            const LABEL_W = 160;
+            const BAR_AREA = 420;
+            const CHART_H = data.length * (BAR_H + GAP);
+
+            let bars = '';
+            data.forEach((d, i) => {
+                const y = i * (BAR_H + GAP);
+                const barW = Math.max(2, (d.value / maxVal) * BAR_AREA);
+                const labelText = d.label.length > 22 ? d.label.slice(0, 21) + '…' : d.label;
+                const valText = Number.isInteger(d.value) ? d.value : d.value.toFixed(2);
+                bars += `
+                    <g transform="translate(0,${y})">
+                        <text x="${LABEL_W - 8}" y="${BAR_H / 2 + 5}" text-anchor="end"
+                              font-size="12" fill="var(--qp-chart-label,#555)" font-family="sans-serif"
+                              title="${this.escapeHtml(d.label)}">${this.escapeHtml(labelText)}</text>
+                        <rect x="${LABEL_W}" y="0" width="${barW}" height="${BAR_H}"
+                              rx="3" fill="var(--qp-chart-bar,#4f8ef7)" opacity="0.85" />
+                        <text x="${LABEL_W + barW + 6}" y="${BAR_H / 2 + 5}"
+                              font-size="11" fill="var(--qp-chart-value,#333)" font-family="sans-serif">${valText}</text>
+                    </g>`;
+            });
+
+            const truncNote = items.length > MAX_BARS
+                ? `<p class="qp-chart-note">Zeige ${MAX_BARS} von ${items.length} Zeilen.</p>`
+                : '';
+
+            return `
+                <div class="themisdb-results-chart">
+                    <p class="qp-chart-meta">Feld: <strong>${this.escapeHtml(labelKey)}</strong>
+                        &nbsp;→&nbsp; <strong>${this.escapeHtml(valueKey)}</strong></p>
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         width="${LABEL_W + BAR_AREA + 80}"
+                         height="${CHART_H}"
+                         role="img" aria-label="Balkendiagramm der Abfrageergebnisse">
+                        ${bars}
+                    </svg>
+                    ${truncNote}
+                </div>`;
         },
 
         formatValue: function(value) {

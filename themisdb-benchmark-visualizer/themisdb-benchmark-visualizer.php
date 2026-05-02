@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Benchmark Visualizer
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Benchmark Visualizer
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Interactive visualization of ThemisDB performance benchmarks. Compare ThemisDB performance against PostgreSQL, MongoDB, and Neo4j. Use shortcode [themisdb_benchmark_visualizer] to embed.
  * Version: 1.0.0
  * Author: ThemisDB Team
@@ -71,6 +80,9 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 }
 
 /**
+ * Plugin Name: ThemisDB Benchmark Visualizer
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Main Plugin Class
  */
 class ThemisDB_Benchmark_Visualizer {

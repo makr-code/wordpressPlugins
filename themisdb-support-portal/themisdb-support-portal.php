@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Support Portal
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -18,8 +24,11 @@
  */
 
 /**
- * Plugin Name: ThemisDB Support Portal
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Exklusives Support-Portal für lizensierte ThemisDB-Kunden. Zugang nur mit gültiger Lizenzdatei. Ticket-System für Kundensupport.
  * Version: 1.0.0
  * Author: ThemisDB Team
@@ -76,6 +85,9 @@ require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-shortcodes.php';
 
 /**
+ * Plugin Name: ThemisDB Support Portal
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin on plugins_loaded so all other plugins (e.g.,
  * themisdb-order-request) are already loaded and their classes available.
  */

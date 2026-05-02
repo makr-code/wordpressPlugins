@@ -9,6 +9,7 @@
     // Constants
     const MAX_MERMAID_LOAD_ATTEMPTS = 100; // Maximum attempts to wait for Mermaid library (10 seconds)
     const MERMAID_CHECK_INTERVAL_MS = 100; // Interval between checks in milliseconds
+    const MERMAID_FALLBACK_URL = 'https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js';
 
     // Global namespace
     window.ThemisDBArchitecture = {
@@ -52,6 +53,7 @@
         waitForMermaid: function() {
             return new Promise((resolve, reject) => {
                 let attempts = 0;
+                let fallbackRequested = false;
                 
                 const checkMermaid = () => {
                     if (typeof mermaid !== 'undefined') {
@@ -61,6 +63,10 @@
                         console.error('Mermaid library load timeout after ' + attempts + ' attempts');
                         reject(new Error('Mermaid library load timeout'));
                     } else {
+                        if (!fallbackRequested && attempts >= 20) {
+                            fallbackRequested = true;
+                            this.injectMermaidFallbackScript();
+                        }
                         attempts++;
                         setTimeout(checkMermaid, MERMAID_CHECK_INTERVAL_MS);
                     }
@@ -68,6 +74,21 @@
                 
                 checkMermaid();
             });
+        },
+
+        /**
+         * Inject fallback Mermaid script from secondary CDN.
+         */
+        injectMermaidFallbackScript: function() {
+            if (document.querySelector('script[data-themisdb-mermaid-fallback="1"]')) {
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = MERMAID_FALLBACK_URL;
+            script.async = true;
+            script.setAttribute('data-themisdb-mermaid-fallback', '1');
+            document.head.appendChild(script);
         },
 
         /**
@@ -171,13 +192,16 @@
         setupEventListeners: function() {
             const self = this;
 
-            // View selector
-            $('#ad-view-select').on('change', function() {
-                const view = $(this).val();
-                self.loadDiagram(view);
-            });
+            // View selector (only if plugin template is used)
+            const $viewSelect = $('#ad-view-select');
+            if ($viewSelect.length > 0) {
+                $viewSelect.on('change', function() {
+                    const view = $(this).val();
+                    self.loadDiagram(view);
+                });
+            }
 
-            // Zoom controls
+            // Zoom controls (only if plugin template is used)
             $('#ad-zoom-in').on('click', function(e) {
                 e.preventDefault();
                 self.zoomIn();
@@ -478,7 +502,74 @@
          * Initialize lazy loading for diagrams
          */
         initLazyLoading: function() {
-            // Check if lazy loading is enabled
+            const self = this;
+            
+            // Check if using theme-based rendering (canvas elements without wrapper)
+            const themeCanvases = document.querySelectorAll('.themisdb-architecture-diagram-canvas');
+            const pluginWrapper = document.querySelector('.themisdb-architecture-wrapper');
+            
+            if (themeCanvases.length > 0 && !pluginWrapper) {
+                // Theme-based rendering - load diagrams directly into canvas elements
+                let canvasIndex = 0;
+                themeCanvases.forEach((canvas) => {
+                    // Clear the placeholder text
+                    canvas.innerHTML = '';
+                    
+                    // Create a container for the diagram
+                    const diagramContainer = document.createElement('div');
+                    diagramContainer.style.minHeight = '400px';
+                    diagramContainer.style.display = 'flex';
+                    diagramContainer.style.alignItems = 'center';
+                    diagramContainer.style.justifyContent = 'center';
+                    canvas.appendChild(diagramContainer);
+                    
+                    const currentIndex = canvasIndex++;
+                    
+                    // Load the diagram via AJAX using fetch
+                    const formData = new FormData();
+                    formData.append('action', 'themisdb_ad_get_diagram');
+                    formData.append('nonce', themisdbAD.nonce);
+                    formData.append('view', self.currentView);
+                    
+                    fetch(themisdbAD.ajax_url, {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.data && data.data.code) {
+                            const diagramCode = data.data.code;
+                            const diagramId = 'theme-diagram-' + currentIndex + '-' + Date.now();
+                            
+                            // Render with Mermaid using the render API
+                            if (typeof mermaid !== 'undefined' && typeof mermaid.render === 'function') {
+                                mermaid.render(diagramId, diagramCode)
+                                    .then(result => {
+                                        // Clear the container and insert the SVG
+                                        diagramContainer.innerHTML = result.svg;
+                                    })
+                                    .catch(error => {
+                                        console.error('Mermaid rendering error:', error);
+                                        diagramContainer.innerHTML = '<p style="color: #e74c3c;">Failed to render diagram</p>';
+                                    });
+                            } else {
+                                console.warn('Mermaid render API not available');
+                                diagramContainer.innerHTML = '<p>Mermaid not loaded</p>';
+                            }
+                        } else {
+                            console.error('Invalid response:', data);
+                            diagramContainer.innerHTML = '<p>No diagram data</p>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Failed to load diagram:', error);
+                        diagramContainer.innerHTML = '<p style="color: #e74c3c;">Error loading diagram</p>';
+                    });
+                });
+                return;
+            }
+            
+            // Plugin-based rendering - use original lazy loading logic
             if (typeof themisdbAD === 'undefined' || !themisdbAD.settings.enableLazyLoading) {
                 // Load initial diagram immediately
                 this.loadDiagram(this.currentView);
@@ -486,7 +577,6 @@
             }
             
             // Use IntersectionObserver for lazy loading
-            const self = this;
             const diagramContainer = document.getElementById('ad-diagram-container');
             
             if (!diagramContainer || !('IntersectionObserver' in window)) {
@@ -588,9 +678,37 @@
 
     // Initialize on document ready
     $(document).ready(function() {
-        if ($('.themisdb-architecture-wrapper').length > 0) {
+        // Support both plugin template wrapper AND theme-based canvas
+        if ($('.themisdb-architecture-wrapper').length > 0 || 
+            $('.themisdb-architecture-diagram-canvas').length > 0) {
             window.ThemisDBArchitecture.init();
         }
     });
+    
+    // Aggressive initialization with multiple fallbacks
+    (function initWithFallbacks() {
+        function attemptInit() {
+            const hasWrapper = document.querySelectorAll('.themisdb-architecture-wrapper').length > 0;
+            const hasCanvas = document.querySelectorAll('.themisdb-architecture-diagram-canvas').length > 0;
+            if ((hasWrapper || hasCanvas) && !window.ThemisDBArchitecture.currentView) {
+                window.ThemisDBArchitecture.init();
+                return true;
+            }
+            return false;
+        }
+        
+        // Try immediately
+        if (attemptInit()) return;
+        
+        // Try on DOMContentLoaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', attemptInit);
+        }
+        
+        // Try with timeout as ultimate fallback
+        setTimeout(attemptInit, 100);
+        setTimeout(attemptInit, 500);
+        setTimeout(attemptInit, 1000);
+    })();
 
 })(jQuery);

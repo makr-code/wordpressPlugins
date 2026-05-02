@@ -56,8 +56,8 @@
         }
 
         var minutesTotal = Math.max(0, toInt(progressSettings.minutesTotal, 0));
-        var labelPattern = String(progressSettings.labelPattern || '%1$d%% · %2$d Min. uebrig');
-        var labelPatternSimple = String(progressSettings.labelPatternSimple || '%1$d%% gelesen');
+        var labelPattern = String(progressSettings.labelPattern || '%1$d% · %2$d Min. uebrig');
+        var labelPatternSimple = String(progressSettings.labelPatternSimple || '%1$d% gelesen');
 
         function updateLabel(progressFraction) {
             if (!label) {

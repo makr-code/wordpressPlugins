@@ -21,8 +21,6 @@
   Status: ✅ Production Ready                                          ║
 ╚═════════════════════════════════════════════════════════════════════╝
  */
-
-<?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 $_ttco_page = 'themisdb-tco-calculator';

@@ -1,7 +1,11 @@
 <?php
 /**
  * Plugin Name: ThemisDB Front Slider
- * Plugin URI:  https://github.com/makr-code/wordpressPlugins
+
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Titelseiten-Slider mit Timer, der die neuesten Artikel auf der Hauptseite darstellt. Shortcode: [themisdb_front_slider]
  * Version:     1.1.0
  * Author:      ThemisDB Team

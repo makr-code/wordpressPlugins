@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Query Playground
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Query Playground
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Interactive AQL query playground for ThemisDB. Execute queries, view results, and explore query execution plans. Use shortcode [themisdb_query_playground] to embed.
  * Version: 1.0.0
  * Author: ThemisDB Team
@@ -80,6 +89,9 @@ if (!class_exists('ThemisDB\\ThemisClient')) {
 }
 
 /**
+ * Plugin Name: ThemisDB Query Playground
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Main Plugin Class
  */
 class ThemisDB_Query_Playground {

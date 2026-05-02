@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Order Request & Contract Management
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Order Request & Contract Management
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Dialog-basiertes Bestellanfrage-System für ThemisDB mit Vertragsrecht-CRUD, automatischer PDF-Generierung und E-Mail-Versand. Integriert mit epServer für Stammdaten.
  * Version: 1.1.0
  * Author: ThemisDB Team
@@ -107,6 +116,9 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-auth-system.php';
 
 /**
+ * Plugin Name: ThemisDB Order Request & Contract Management
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin
  */
 function themisdb_order_request_init() {

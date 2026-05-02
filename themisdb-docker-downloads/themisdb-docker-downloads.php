@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Docker Downloads
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Docker Downloads
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Automatisch die neuesten ThemisDB Docker Images von Docker Hub abrufen und als Download-Links mit SHA256-Digests anzeigen.
  * Version: 1.0.0
  * Author: ThemisDB Team
@@ -81,6 +90,9 @@ require_once THEMISDB_DOCKER_DOWNLOADS_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_DOCKER_DOWNLOADS_PLUGIN_DIR . 'includes/class-shortcodes.php';
 
 /**
+ * Plugin Name: ThemisDB Docker Downloads
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin
  */
 function themisdb_docker_downloads_init() {

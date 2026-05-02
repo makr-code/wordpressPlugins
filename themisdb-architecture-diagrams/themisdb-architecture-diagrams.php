@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Architecture Diagrams
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Architecture Diagrams
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Interactive architecture diagrams for ThemisDB. Visualize multi-model architecture, storage layer, LLM integration, and sharding with Mermaid.js. Use shortcode [themisdb_architecture] to embed.
  * Version: 1.1.0
  * Author: ThemisDB Team
@@ -71,6 +80,9 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 }
 
 /**
+ * Plugin Name: ThemisDB Architecture Diagrams
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Detect color scheme (light/dark)
  * 
  * @return string 'light' or 'dark'
@@ -209,10 +221,10 @@ class ThemisDB_Architecture_Diagrams {
         // Detect color scheme
         $color_scheme = themisdb_arch_get_color_scheme();
         
-        // Mermaid.js ESM from CDN - load in header to ensure it's available before plugin script
+        // Mermaid.js (UMD) from CDN - globally available as window.mermaid
         wp_enqueue_script(
             'mermaid-js',
-            'https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.esm.min.mjs',
+            'https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js',
             array(),
             '10.6.1',
             false
@@ -285,7 +297,7 @@ class ThemisDB_Architecture_Diagrams {
         global $post;
         
         if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'themisdb_architecture')) {
-            echo '<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.esm.min.mjs">' . "\n";
+            echo '<link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js">' . "\n";
         }
     }
     

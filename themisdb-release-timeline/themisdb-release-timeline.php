@@ -1,10 +1,34 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Release Timeline Visualizer
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
 ╠═════════════════════════════════════════════════════════════════════╣
   File:            themisdb-release-timeline.php                      ║
+function themisdb_rt_should_enqueue_assets() {
+    if (!is_singular()) {
+        return false;
+    }
+
+    $post = get_queried_object();
+    if (!($post instanceof WP_Post)) {
+        return false;
+    }
+
+    $content = (string) $post->post_content;
+    return has_shortcode($content, 'themisdb_release_timeline');
+}
+
   Version:         0.0.2                                              ║
+    if (!themisdb_rt_should_enqueue_assets()) {
+        return;
+    }
+
   Last Modified:   2026-03-09 04:08:20                                ║
   Author:          unknown                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
@@ -24,8 +48,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Release Timeline Visualizer
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Interactive release timeline visualization with Mermaid.js for ThemisDB versions, featuring GitHub API integration, CHANGELOG parsing, and multiple timeline views.
  * Version: 1.0.2
  * Author: ThemisDB Team
@@ -65,9 +92,30 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 }
 
 /**
+ * Plugin Name: ThemisDB Release Timeline Visualizer
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Enqueue scripts and styles
  */
+function themisdb_rt_should_enqueue_assets() {
+    if (!is_singular()) {
+        return false;
+    }
+
+    $post = get_queried_object();
+    if (!($post instanceof WP_Post)) {
+        return false;
+    }
+
+    $content = (string) $post->post_content;
+    return has_shortcode($content, 'themisdb_release_timeline');
+}
+
 function themisdb_rt_enqueue_scripts() {
+    if (!themisdb_rt_should_enqueue_assets()) {
+        return;
+    }
+
     // Mermaid.js from CDN
     wp_enqueue_script(
         'mermaid-js',

@@ -38,6 +38,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (!class_exists('ThemisDB_Plugin_Updater')) {
+
 class ThemisDB_Plugin_Updater {
     
     /**
@@ -133,24 +135,49 @@ class ThemisDB_Plugin_Updater {
         if (empty($transient->checked)) {
             return $transient;
         }
-        
+
         // Get remote version information
         $remote_version = $this->get_remote_version();
-        
-        if ($remote_version && version_compare($this->version, $remote_version->version, '<')) {
-            $plugin_data = array(
+
+        if (!$remote_version) {
+            if (!isset($transient->no_update) || !is_array($transient->no_update)) {
+                $transient->no_update = array();
+            }
+            $transient->no_update[$this->plugin_file] = (object) array(
                 'slug' => $this->plugin_slug,
-                'new_version' => $remote_version->version,
-                'url' => $remote_version->homepage,
-                'package' => $remote_version->download_url,
-                'tested' => $remote_version->tested,
-                'requires_php' => $remote_version->requires_php,
-                'requires' => $remote_version->requires,
+                'new_version' => $this->version,
+                'url' => "https://github.com/{$this->username}/{$this->repository}",
+                'package' => '',
+                'tested' => '',
+                'requires_php' => '',
+                'requires' => '',
+                'plugin' => $this->plugin_file,
+                'id' => $this->plugin_slug,
             );
-            
-            $transient->response[$this->plugin_file] = (object) $plugin_data;
+            return $transient;
         }
-        
+
+        $plugin_data = array(
+            'slug' => $this->plugin_slug,
+            'new_version' => $remote_version->version,
+            'url' => $remote_version->homepage,
+            'package' => $remote_version->download_url,
+            'tested' => $remote_version->tested,
+            'requires_php' => $remote_version->requires_php,
+            'requires' => $remote_version->requires,
+            'plugin' => $this->plugin_file,
+            'id' => $this->plugin_slug,
+        );
+
+        if (version_compare($this->version, $remote_version->version, '<')) {
+            $transient->response[$this->plugin_file] = (object) $plugin_data;
+        } else {
+            if (!isset($transient->no_update) || !is_array($transient->no_update)) {
+                $transient->no_update = array();
+            }
+            $transient->no_update[$this->plugin_file] = (object) $plugin_data;
+        }
+
         return $transient;
     }
     
@@ -232,9 +259,37 @@ class ThemisDB_Plugin_Updater {
         if (!$metadata) {
             return false;
         }
+
+        $metadata_version = isset($metadata['version']) ? (string) $metadata['version'] : '';
         
         // Resolve the best matching release for this specific plugin.
         $release = $this->fetch_release_for_plugin();
+
+        if (!$release && !empty($metadata_version)) {
+            $download_url = isset($metadata['download_url'])
+                ? (string) $metadata['download_url']
+                : $this->build_download_url_from_version($metadata_version);
+
+            $remote_version = (object) array(
+                'version' => $metadata_version,
+                'name' => isset($metadata['name']) ? $metadata['name'] : $this->plugin_slug,
+                'slug' => $this->plugin_slug,
+                'homepage' => isset($metadata['homepage']) ? $metadata['homepage'] : "https://github.com/{$this->username}/{$this->repository}",
+                'description' => isset($metadata['description']) ? $metadata['description'] : '',
+                'author' => isset($metadata['author']) ? $metadata['author'] : 'ThemisDB Team',
+                'author_profile' => isset($metadata['author_uri']) ? $metadata['author_uri'] : "https://github.com/{$this->username}",
+                'requires' => isset($metadata['requires']) ? $metadata['requires'] : '5.8',
+                'tested' => isset($metadata['tested']) ? $metadata['tested'] : '6.4',
+                'requires_php' => isset($metadata['requires_php']) ? $metadata['requires_php'] : '7.4',
+                'download_url' => $download_url,
+                'last_updated' => isset($metadata['last_updated']) ? $metadata['last_updated'] : gmdate('c'),
+                'changelog' => isset($metadata['changelog']) ? $metadata['changelog'] : '',
+            );
+
+            set_transient($cache_key, $remote_version, $this->cache_duration);
+
+            return $remote_version;
+        }
         
         if (!$release) {
             return false;
@@ -269,6 +324,12 @@ class ThemisDB_Plugin_Updater {
      */
     private function fetch_plugin_metadata() {
         $paths = array();
+        $branches = array_values(array_unique(array_filter(array(
+            $this->repository_branch,
+            'main',
+            'develop',
+            'master',
+        ))));
 
         if (!empty($this->repository_plugin_path)) {
             $paths[] = $this->repository_plugin_path;
@@ -283,31 +344,33 @@ class ThemisDB_Plugin_Updater {
 
         $paths = array_values(array_unique($paths));
 
-        foreach ($paths as $path) {
-            $prefix = empty($path) ? '' : $path . '/';
-            $metadata_url = "https://raw.githubusercontent.com/{$this->username}/{$this->repository}/{$this->repository_branch}/{$prefix}{$this->plugin_slug}/update-info.json";
+        foreach ($branches as $branch) {
+            foreach ($paths as $path) {
+                $prefix = empty($path) ? '' : $path . '/';
+                $metadata_url = "https://raw.githubusercontent.com/{$this->username}/{$this->repository}/{$branch}/{$prefix}{$this->plugin_slug}/update-info.json";
 
-            $response = wp_remote_get($metadata_url, array(
-                'timeout' => 10,
-                'headers' => array(
-                    'Accept' => 'application/json',
-                ),
-            ));
+                $response = wp_remote_get($metadata_url, array(
+                    'timeout' => 10,
+                    'headers' => $this->build_request_headers(array(
+                        'Accept' => 'application/json',
+                    )),
+                ));
 
-            if (is_wp_error($response)) {
-                continue;
-            }
+                if (is_wp_error($response)) {
+                    continue;
+                }
 
-            $status = wp_remote_retrieve_response_code($response);
-            if ($status !== 200) {
-                continue;
-            }
+                $status = wp_remote_retrieve_response_code($response);
+                if ($status !== 200) {
+                    continue;
+                }
 
-            $body = wp_remote_retrieve_body($response);
-            $metadata = json_decode($body, true);
+                $body = wp_remote_retrieve_body($response);
+                $metadata = json_decode($body, true);
 
-            if (is_array($metadata)) {
-                return $metadata;
+                if (is_array($metadata)) {
+                    return $metadata;
+                }
             }
         }
 
@@ -324,9 +387,9 @@ class ThemisDB_Plugin_Updater {
         
         $response = wp_remote_get($api_url, array(
             'timeout' => 10,
-            'headers' => array(
+            'headers' => $this->build_request_headers(array(
                 'Accept' => 'application/vnd.github.v3+json',
-            ),
+            )),
         ));
         
         if (is_wp_error($response)) {
@@ -349,9 +412,9 @@ class ThemisDB_Plugin_Updater {
 
         $response = wp_remote_get($api_url, array(
             'timeout' => 10,
-            'headers' => array(
+            'headers' => $this->build_request_headers(array(
                 'Accept' => 'application/vnd.github.v3+json',
-            ),
+            )),
         ));
 
         if (is_wp_error($response)) {
@@ -497,4 +560,42 @@ class ThemisDB_Plugin_Updater {
             delete_transient($cache_key);
         }
     }
+
+    /**
+     * Build GitHub request headers with optional token support.
+     *
+     * @param array $headers Initial headers
+     * @return array
+     */
+    private function build_request_headers($headers = array()) {
+        $defaults = array(
+            'User-Agent' => 'ThemisDB-Plugin-Updater/' . $this->plugin_slug,
+        );
+
+        $token = apply_filters('themisdb_plugin_updater_github_token', '', $this->plugin_slug);
+        if (empty($token) && defined('THEMISDB_GITHUB_TOKEN')) {
+            $token = THEMISDB_GITHUB_TOKEN;
+        }
+
+        if (!empty($token)) {
+            $defaults['Authorization'] = 'Bearer ' . trim((string) $token);
+        }
+
+        return array_merge($defaults, $headers);
+    }
+
+    /**
+     * Build default release URL from slug/version when API is unavailable.
+     *
+     * @param string $version Version from update-info.json
+     * @return string
+     */
+    private function build_download_url_from_version($version) {
+        $version = ltrim((string) $version, 'v');
+        $tag = $this->plugin_slug . '/v' . $version;
+
+        return "https://github.com/{$this->username}/{$this->repository}/releases/download/{$tag}/{$this->plugin_slug}.zip";
+    }
+}
+
 }

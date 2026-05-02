@@ -2,6 +2,15 @@
 /**
  * Plugin Name: ThemisDB GitHub Bridge
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
+/**
+
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Zentrale GitHub-Kommunikation fuer ThemisDB Order Request und ThemisDB Support Portal. Erstellt Issues automatisiert aus Tickets.
  * Version: 1.0.0
  * Author: ThemisDB Team
@@ -28,13 +37,15 @@ define('THEMISDB_GITHUB_BRIDGE_VERSION', '1.0.0');
 define('THEMISDB_GITHUB_BRIDGE_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_GITHUB_BRIDGE_PLUGIN_FILE', __FILE__);
 
-$themisdb_updater_local = THEMISDB_GITHUB_BRIDGE_PLUGIN_DIR . 'includes/class-themisdb-plugin-updater.php';
-$themisdb_updater_shared = dirname(THEMISDB_GITHUB_BRIDGE_PLUGIN_DIR) . '/includes/class-themisdb-plugin-updater.php';
+if (!class_exists('ThemisDB_Plugin_Updater')) {
+    $themisdb_updater_shared = dirname(THEMISDB_GITHUB_BRIDGE_PLUGIN_DIR) . '/includes/class-themisdb-plugin-updater.php';
+    $themisdb_updater_local = THEMISDB_GITHUB_BRIDGE_PLUGIN_DIR . 'includes/class-themisdb-plugin-updater.php';
 
-if (file_exists($themisdb_updater_local)) {
-    require_once $themisdb_updater_local;
-} elseif (file_exists($themisdb_updater_shared)) {
-    require_once $themisdb_updater_shared;
+    if (file_exists($themisdb_updater_shared)) {
+        require_once $themisdb_updater_shared;
+    } elseif (file_exists($themisdb_updater_local)) {
+        require_once $themisdb_updater_local;
+    }
 }
 
 if (class_exists('ThemisDB_Plugin_Updater')) {
@@ -193,6 +204,43 @@ if (!function_exists('themisdb_github_bridge_fetch_issues')) {
 }
 
 register_activation_hook(__FILE__, array('ThemisDB_GitHub_Bridge', 'activate'));
+
+/**
+ * Ensure plugin assets stay functional regardless of active theme.
+ */
+function themisdb_github_bridge_register_theme_compat_filters() {
+    $style_filters = array(
+        'themisdb_architecture_enqueue_frontend_style',
+        'themisdb_benchmark_visualizer_enqueue_frontend_style',
+        'themisdb_compendium_enqueue_frontend_style',
+        'themisdb_docker_downloads_enqueue_frontend_style',
+        'themisdb_downloads_enqueue_frontend_style',
+        'themisdb_feature_matrix_enqueue_frontend_style',
+        'themisdb_formula_enqueue_frontend_style',
+        'themisdb_front_slider_enqueue_frontend_style',
+        'themisdb_gallery_enqueue_frontend_style',
+        'themisdb_order_request_enqueue_frontend_style',
+        'themisdb_product_detail_enqueue_frontend_style',
+        'themisdb_shopping_cart_enqueue_frontend_style',
+        'themisdb_license_portal_enqueue_frontend_style',
+        'themisdb_persistent_podcast_player_enqueue_frontend_style',
+        'themisdb_query_playground_enqueue_frontend_style',
+        'themisdb_release_timeline_enqueue_frontend_style',
+        'themisdb_support_portal_enqueue_frontend_style',
+        'themisdb_taxonomy_enqueue_frontend_style',
+        'themisdb_tco_calculator_enqueue_frontend_style',
+        'themisdb_test_dashboard_enqueue_frontend_style',
+        'themisdb_wiki_enqueue_frontend_style',
+    );
+
+    foreach ($style_filters as $filter_name) {
+        add_filter($filter_name, '__return_true', 1000);
+    }
+
+    add_filter('themisdb_graph_navigation_enqueue_frontend_script', '__return_true', 1000);
+    add_filter('themisdb_front_slider_enqueue_frontend_script', '__return_true', 1000);
+}
+add_action('plugins_loaded', 'themisdb_github_bridge_register_theme_compat_filters', 5);
 
 add_action('plugins_loaded', function () {
     ThemisDB_GitHub_Bridge::instance();

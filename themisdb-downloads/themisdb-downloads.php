@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Downloads
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Downloads
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Automatisch die neuesten ThemisDB Packages von GitHub abrufen und als Download-Links mit SHA256-Checksums anzeigen. Extrahiert automatisch Schlagwörter und Kategorien aus Beitragsinhalten.
  * Version: 1.2.0
  * Author: ThemisDB Team
@@ -88,6 +97,9 @@ if (!function_exists('themisdb_get_taxonomy_manager')) {
 }
 
 /**
+ * Plugin Name: ThemisDB Downloads
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin
  */
 function themisdb_downloads_init() {

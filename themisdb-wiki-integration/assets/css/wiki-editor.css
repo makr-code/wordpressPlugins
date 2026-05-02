@@ -206,6 +206,18 @@
     border-radius: 4px;
 }
 
+.diff-view-controls {
+    margin: 10px 0 14px;
+    display: flex;
+    gap: 8px;
+}
+
+.diff-view-btn.active {
+    background: #2271b1;
+    color: #ffffff;
+    border-color: #135e96;
+}
+
 .diff-stat {
     display: inline-block;
     padding: 4px 8px;
@@ -269,6 +281,71 @@
 
 .diff-unchanged {
     background: transparent;
+    color: #333;
+}
+
+.diff-side-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.diff-side-table th,
+.diff-side-table td {
+    border: 1px solid #dfe3e8;
+    vertical-align: top;
+    padding: 6px 8px;
+}
+
+.diff-side-table th {
+    background: #eef2f6;
+    text-align: left;
+}
+
+.diff-side-table pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'Courier New', Consolas, Monaco, monospace;
+    font-size: 12px;
+}
+
+.diff-side-added td {
+    background: #d4edda;
+}
+
+.diff-side-removed td {
+    background: #f8d7da;
+}
+
+.diff-side-modified td {
+    background: #fff3cd;
+}
+
+.diff-inline-wrap {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'Courier New', Consolas, Monaco, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.diff-inline-row {
+    padding: 4px 0;
+}
+
+.diff-word-added {
+    background: #d4edda;
+    color: #155724;
+    text-decoration: none;
+}
+
+.diff-word-removed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.diff-word-same {
     color: #333;
 }
 

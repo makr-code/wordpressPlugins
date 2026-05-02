@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: Persistent Podcast Player
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -21,10 +27,13 @@
 ╚═════════════════════════════════════════════════════════════════════╝
  */
 /**
- * Plugin Name: Persistent Podcast Player
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: A persistent podcast player with episode excerpts and related post links
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -41,7 +50,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('PPP_VERSION', '1.0.0');
+define('PPP_VERSION', '1.0.1');
 define('PPP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PPP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('PPP_PLUGIN_FILE', __FILE__);
@@ -60,13 +69,13 @@ if (file_exists($themisdb_updater_local)) {
 if (class_exists('ThemisDB_Plugin_Updater')) {
     new ThemisDB_Plugin_Updater(
         PPP_PLUGIN_FILE,
-        'persistent-podcast-player',
+        'themisdb-persistent-podcast-player',
         PPP_VERSION
     );
 }
 
 /**
- * Main Plugin Class
+ * Main plugin class.
  */
 class Persistent_Podcast_Player {
     
@@ -107,6 +116,9 @@ class Persistent_Podcast_Player {
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
         add_filter('redirect_post_location', array($this, 'add_audio_notice_redirect_arg'), 10, 2);
         add_action('admin_notices', array($this, 'render_audio_admin_notice'));
+        // Admin settings page
+        add_action('admin_menu',  array($this, 'add_admin_menu'));
+        add_action('admin_init',  array($this, 'register_settings'));
     }
 
     /**
@@ -221,7 +233,7 @@ class Persistent_Podcast_Player {
         $args = array(
             'post_type' => 'pod_episode',
             'post_status' => 'publish',
-            'posts_per_page' => 50,
+            'posts_per_page' => max(1, (int) get_option('ppp_episodes_limit', 50)),
             'orderby' => 'date',
             'order' => 'DESC',
         );
@@ -304,7 +316,8 @@ class Persistent_Podcast_Player {
      * @param WP_Post $post Current post object.
      */
     public function maybe_add_audio_meta_box_for_post( $post ) {
-        if ( ! has_category( 'podcast', $post ) ) {
+        $podcast_cat = get_option('ppp_podcast_category', 'podcast');
+        if ( ! has_category( $podcast_cat, $post ) ) {
             return;
         }
         add_meta_box(
@@ -979,6 +992,190 @@ JS;
         </div>
         <?php
         echo $this->finalize_player_html(ob_get_clean(), $payload);
+    }
+
+    /* -----------------------------------------------------------------
+       Admin – Einstellungsseite
+       ----------------------------------------------------------------- */
+
+    /**
+     * Optionsseite unter Einstellungen registrieren.
+     */
+    public function add_admin_menu() {
+        add_options_page(
+            __('Podcast Player Einstellungen', 'persistent-podcast-player'),
+            __('Podcast Player', 'persistent-podcast-player'),
+            'manage_options',
+            'persistent-podcast-player',
+            array($this, 'render_settings_page')
+        );
+    }
+
+    /**
+     * Einstellungen registrieren.
+     */
+    public function register_settings() {
+        register_setting('ppp_options', 'ppp_episodes_limit', array(
+            'type' => 'integer', 'default' => 50, 'sanitize_callback' => 'absint',
+        ));
+        register_setting('ppp_options', 'ppp_autoplay', array(
+            'type' => 'boolean', 'default' => 0, 'sanitize_callback' => 'absint',
+        ));
+        register_setting('ppp_options', 'ppp_show_on_all_pages', array(
+            'type' => 'boolean', 'default' => 1, 'sanitize_callback' => 'absint',
+        ));
+        register_setting('ppp_options', 'ppp_player_position', array(
+            'type' => 'string', 'default' => 'bottom',
+            'sanitize_callback' => function($v) { return in_array($v, array('bottom','top'), true) ? $v : 'bottom'; },
+        ));
+        register_setting('ppp_options', 'ppp_podcast_category', array(
+            'type' => 'string', 'default' => 'podcast', 'sanitize_callback' => 'sanitize_text_field',
+        ));
+    }
+
+    /**
+     * Einstellungsseite rendern.
+     */
+    public function render_settings_page() {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        $tab = isset($_GET['tab']) ? sanitize_key((string) $_GET['tab']) : 'settings';
+        if (!in_array($tab, array('settings', 'episodes', 'integration'), true)) {
+            $tab = 'settings';
+        }
+
+        $tab_url = function($target_tab) {
+            return esc_url(add_query_arg(
+                array('page' => 'persistent-podcast-player', 'tab' => $target_tab),
+                admin_url('options-general.php')
+            ));
+        };
+
+        $episodes_url = admin_url('edit.php?post_type=pod_episode');
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('Podcast Player Einstellungen', 'persistent-podcast-player'); ?></h1>
+
+            <nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e('Podcast Player Tabs', 'persistent-podcast-player'); ?>">
+                <a href="<?php echo $tab_url('settings'); ?>" class="nav-tab <?php echo $tab === 'settings' ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e('Einstellungen', 'persistent-podcast-player'); ?>
+                </a>
+                <a href="<?php echo $tab_url('episodes'); ?>" class="nav-tab <?php echo $tab === 'episodes' ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e('Episoden', 'persistent-podcast-player'); ?>
+                </a>
+                <a href="<?php echo $tab_url('integration'); ?>" class="nav-tab <?php echo $tab === 'integration' ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e('Integration', 'persistent-podcast-player'); ?>
+                </a>
+            </nav>
+
+            <div class="themisdb-tab-content">
+            <?php if ($tab === 'settings') : ?>
+            <div class="themisdb-admin-modules">
+                <div class="card">
+                    <h2><?php esc_html_e('Schnellaktionen', 'persistent-podcast-player'); ?></h2>
+                    <p><?php esc_html_e('Konfiguriere Verhalten des Players und wechsle direkt zur Episodenverwaltung.', 'persistent-podcast-player'); ?></p>
+                    <p>
+                        <a href="<?php echo esc_url($episodes_url); ?>" class="button button-secondary"><?php esc_html_e('Episoden öffnen', 'persistent-podcast-player'); ?></a>
+                        <a href="<?php echo $tab_url('integration'); ?>" class="button button-secondary"><?php esc_html_e('REST & Hooks', 'persistent-podcast-player'); ?></a>
+                    </p>
+                </div>
+                <div class="card">
+                    <h2><?php esc_html_e('Aktive Defaults', 'persistent-podcast-player'); ?></h2>
+                    <table class="widefat striped"><tbody>
+                        <tr><th><?php esc_html_e('Max. Episoden', 'persistent-podcast-player'); ?></th><td><?php echo esc_html((string) get_option('ppp_episodes_limit', 50)); ?></td></tr>
+                        <tr><th><?php esc_html_e('Kategorie', 'persistent-podcast-player'); ?></th><td><code><?php echo esc_html(get_option('ppp_podcast_category', 'podcast')); ?></code></td></tr>
+                        <tr><th><?php esc_html_e('Position', 'persistent-podcast-player'); ?></th><td><?php echo esc_html(get_option('ppp_player_position', 'bottom')); ?></td></tr>
+                    </tbody></table>
+                </div>
+            </div>
+
+            <form method="post" action="options.php">
+                <?php settings_fields('ppp_options'); ?>
+
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Max. Episoden', 'persistent-podcast-player'); ?></th>
+                        <td>
+                            <input type="number" name="ppp_episodes_limit" min="1" max="500"
+                                   value="<?php echo esc_attr(get_option('ppp_episodes_limit', 50)); ?>" class="small-text">
+                            <p class="description"><?php esc_html_e('Wie viele Episoden in der Playlist angezeigt werden (Standard: 50).', 'persistent-podcast-player'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Podcast-Kategorie', 'persistent-podcast-player'); ?></th>
+                        <td>
+                            <input type="text" name="ppp_podcast_category"
+                                   value="<?php echo esc_attr(get_option('ppp_podcast_category', 'podcast')); ?>" class="regular-text">
+                            <p class="description"><?php esc_html_e('Slug der WordPress-Kategorie, aus der reguläre Beiträge als Podcast-Episoden gelten (für Audio-Metabox).', 'persistent-podcast-player'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Player-Position', 'persistent-podcast-player'); ?></th>
+                        <td>
+                            <select name="ppp_player_position">
+                                <option value="bottom" <?php selected('bottom', get_option('ppp_player_position', 'bottom')); ?>>
+                                    <?php esc_html_e('Unten (fixed)', 'persistent-podcast-player'); ?>
+                                </option>
+                                <option value="top" <?php selected('top', get_option('ppp_player_position', 'bottom')); ?>>
+                                    <?php esc_html_e('Oben (fixed)', 'persistent-podcast-player'); ?>
+                                </option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Autoplay', 'persistent-podcast-player'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="ppp_autoplay" value="1"
+                                       <?php checked(1, get_option('ppp_autoplay', 0)); ?>>
+                                <?php esc_html_e('Erste Episode automatisch starten', 'persistent-podcast-player'); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Player anzeigen', 'persistent-podcast-player'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="ppp_show_on_all_pages" value="1"
+                                       <?php checked(1, get_option('ppp_show_on_all_pages', 1)); ?>>
+                                <?php esc_html_e('Player auf allen Frontend-Seiten einblenden', 'persistent-podcast-player'); ?>
+                            </label>
+                            <p class="description"><?php esc_html_e('Wenn deaktiviert, erscheint der Player nur auf Einzelbeitrags-Seiten mit Audio.', 'persistent-podcast-player'); ?></p>
+                        </td>
+                    </tr>
+                </table>
+
+                <?php submit_button(); ?>
+            </form>
+            <?php elseif ($tab === 'episodes') : ?>
+            <div class="card" style="max-width:860px;">
+                <h2><?php esc_html_e('Podcast-Episoden verwalten', 'persistent-podcast-player'); ?></h2>
+                <p><?php esc_html_e('Episoden können als eigener Beitragstyp oder über reguläre Beiträge in der Podcast-Kategorie geführt werden.', 'persistent-podcast-player'); ?></p>
+                <p>
+                <a href="<?php echo esc_url($episodes_url); ?>" class="button button-secondary">
+                    <?php esc_html_e('Alle Episoden anzeigen', 'persistent-podcast-player'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('post-new.php?post_type=pod_episode')); ?>" class="button button-primary">
+                    <?php esc_html_e('Neue Episode erstellen', 'persistent-podcast-player'); ?>
+                </a>
+                </p>
+            </div>
+            <?php else : ?>
+            <div class="card" style="max-width:860px;">
+                <h2><?php esc_html_e('REST-API Endpunkt', 'persistent-podcast-player'); ?></h2>
+                <p><code><?php echo esc_url(rest_url('persistent-player/v1/episodes')); ?></code></p>
+                <p><strong><?php esc_html_e('Wichtige Filter-Hooks', 'persistent-podcast-player'); ?></strong></p>
+                <ul>
+                    <li><code>themisdb_persistent_podcast_player_payload</code></li>
+                    <li><code>themisdb_persistent_podcast_player_html</code></li>
+                    <li><code>themisdb_persistent_podcast_player_html_output</code></li>
+                </ul>
+            </div>
+            <?php endif; ?>
+            </div>
+        </div>
+        <?php
     }
 }
 

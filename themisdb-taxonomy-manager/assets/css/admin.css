@@ -125,3 +125,27 @@
 .cleaner-section .widefat td.check-column {
     width: 30px;
 }
+
+.tree-label-inline-status {
+    margin-left: 8px;
+    color: #646970;
+    font-size: 12px;
+    font-style: italic;
+}
+
+.tree-label-inline-input.is-saving {
+    opacity: 0.75;
+    cursor: wait;
+    background: #f6f7f7;
+}
+
+.tree-label-inline-input.is-invalid {
+    border-color: #d63638 !important;
+    background: #fcf0f1;
+}
+
+.tree-label.tree-label-renamed {
+    background: #ecf9f0;
+    border-radius: 4px;
+    transition: background-color 0.25s ease;
+}

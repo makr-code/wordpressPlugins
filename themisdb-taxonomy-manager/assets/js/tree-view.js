@@ -215,11 +215,19 @@
         $(document).on('dblclick', '.tree-label', function() {
             var $label = $(this);
             var currentText = $label.text();
+            var $treeItem = $label.closest('.tree-item');
             var termId = $label.closest('.tree-item').data('term-id');
+            var taxonomy = $('.taxonomy-tree').first().data('taxonomy');
+
+            // Prevent creating nested editors when double-clicking repeatedly.
+            if ($label.find('input[type="text"]').length) {
+                return;
+            }
             
             // Create inline input
             var $input = $('<input type="text">')
                 .val(currentText)
+                .addClass('tree-label-inline-input')
                 .css({
                     'width': '100%',
                     'font-weight': '500',
@@ -227,22 +235,108 @@
                     'padding': '4px 8px',
                     'border-radius': '4px'
                 });
+
+            var $status = $('<span>')
+                .addClass('tree-label-inline-status')
+                .attr('aria-live', 'polite');
             
-            $label.html($input);
+            $label.html($input).append($status);
             $input.focus().select();
+
+            var hasSaved = false;
+
+            function restoreOriginal() {
+                $label.text(currentText);
+            }
+
+            function hasDuplicateSiblingName(candidateName) {
+                var normalizedCandidate = candidateName.toLowerCase();
+                var isDuplicate = false;
+
+                $treeItem.siblings('.tree-item').each(function() {
+                    var siblingName = $(this).find('> .tree-node .tree-label').first().text().trim().toLowerCase();
+                    if (siblingName === normalizedCandidate) {
+                        isDuplicate = true;
+                        return false;
+                    }
+                });
+
+                return isDuplicate;
+            }
+
+            function saveIfChanged() {
+                if (hasSaved) {
+                    return;
+                }
+
+                var newText = $input.val().trim();
+                if (newText === '' || newText === currentText) {
+                    restoreOriginal();
+                    return;
+                }
+
+                if (hasDuplicateSiblingName(newText)) {
+                    $input.addClass('is-invalid').focus().select();
+                    $status.text('Name already exists on this level');
+                    showNotification('Duplicate name on this level', 'error');
+                    return;
+                }
+
+                hasSaved = true;
+                $input.prop('disabled', true);
+                $input.addClass('is-saving').attr('aria-busy', 'true');
+                $status.text('Saving...');
+
+                $.post(themisdbTaxonomy.ajaxurl, {
+                    action: 'themisdb_rename_term',
+                    nonce: themisdbTaxonomy.nonce,
+                    term_id: termId,
+                    taxonomy: taxonomy,
+                    name: newText
+                }, function(response) {
+                    if (response.success) {
+                        $label.text(newText);
+                        $label.addClass('tree-label-renamed');
+                        setTimeout(function() {
+                            $label.removeClass('tree-label-renamed');
+                        }, 1500);
+                        showNotification('Name updated', 'success');
+                    } else {
+                        restoreOriginal();
+                        var message = response && response.data && response.data.message
+                            ? response.data.message
+                            : 'Failed to update name';
+                        showNotification(message, 'error');
+                    }
+                }).fail(function() {
+                    restoreOriginal();
+                    showNotification('Failed to update name', 'error');
+                });
+            }
             
             // Save on blur or enter
-            $input.on('blur keypress', function(e) {
-                if (e.type === 'blur' || e.which === 13) {
-                    var newText = $(this).val().trim();
-                    if (newText !== '' && newText !== currentText) {
-                        // TODO: Implement AJAX save for term name
-                        $label.text(newText);
-                        showNotification('Name updated (refresh to see changes)', 'success');
-                    } else {
-                        $label.text(currentText);
-                    }
+            $input.on('blur keydown', function(e) {
+                if (e.type === 'keydown' && e.key === 'Escape') {
+                    e.preventDefault();
+                    hasSaved = true;
+                    restoreOriginal();
+                    return;
                 }
+
+                if (e.type === 'keydown' && e.key === 'Enter') {
+                    e.preventDefault();
+                    saveIfChanged();
+                    return;
+                }
+
+                if (e.type === 'blur') {
+                    saveIfChanged();
+                }
+            });
+
+            $input.on('input', function() {
+                $input.removeClass('is-invalid');
+                $status.text('');
             });
         });
         

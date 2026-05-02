@@ -45,6 +45,7 @@ class ThemisDB_Tree_View {
         add_action('wp_ajax_themisdb_save_term_order', array($this, 'ajax_save_term_order'));
         add_action('wp_ajax_themisdb_export_taxonomies', array($this, 'ajax_export_taxonomies'));
         add_action('wp_ajax_themisdb_import_taxonomies', array($this, 'ajax_import_taxonomies'));
+        add_action('wp_ajax_themisdb_rename_term', array($this, 'ajax_rename_term'));
     }
     
     /**
@@ -122,6 +123,18 @@ class ThemisDB_Tree_View {
             <a href="<?php echo esc_url(admin_url('options-general.php?page=themisdb-taxonomy-manager&tab=hierarchy')); ?>" class="page-title-action"><?php _e('Hierarchie', 'themisdb-taxonomy'); ?></a>
             <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-analytics')); ?>" class="page-title-action"><?php _e('Analytics', 'themisdb-taxonomy'); ?></a>
             <hr class="wp-header-end">
+
+            <nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e('Taxonomy Navigation', 'themisdb-taxonomy'); ?>" style="margin-bottom:1rem;">
+                <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-tree')); ?>" class="nav-tab nav-tab-active">
+                    <?php _e('Tree', 'themisdb-taxonomy'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=themisdb-taxonomy-manager&tab=hierarchy')); ?>" class="nav-tab">
+                    <?php _e('Hierarchie', 'themisdb-taxonomy'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-taxonomy-analytics')); ?>" class="nav-tab">
+                    <?php _e('Analytics', 'themisdb-taxonomy'); ?>
+                </a>
+            </nav>
 
             <div class="themisdb-admin-modules">
                 <div class="card">
@@ -343,5 +356,50 @@ class ThemisDB_Tree_View {
         // This would handle JSON import
         // Implementation depends on specific requirements
         wp_send_json_success(array('message' => 'Import completed'));
+    }
+
+    /**
+     * AJAX: Rename term
+     */
+    public function ajax_rename_term() {
+        check_ajax_referer('themisdb_taxonomy_tree', 'nonce');
+
+        if (!current_user_can('manage_categories')) {
+            wp_send_json_error(array('message' => 'Unauthorized'));
+        }
+
+        $term_id = isset($_POST['term_id']) ? absint($_POST['term_id']) : 0;
+        $taxonomy = isset($_POST['taxonomy']) ? sanitize_key(wp_unslash($_POST['taxonomy'])) : '';
+        $new_name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
+
+        if (!$term_id || $new_name === '' || $taxonomy === '') {
+            wp_send_json_error(array('message' => 'Invalid term data'));
+        }
+
+        if (!taxonomy_exists($taxonomy)) {
+            wp_send_json_error(array('message' => 'Invalid taxonomy'));
+        }
+
+        $term = get_term($term_id, $taxonomy);
+        if (!$term || is_wp_error($term)) {
+            wp_send_json_error(array('message' => 'Term not found'));
+        }
+
+        $updated = wp_update_term(
+            $term_id,
+            $taxonomy,
+            array('name' => $new_name)
+        );
+
+        if (is_wp_error($updated)) {
+            wp_send_json_error(array('message' => $updated->get_error_message()));
+        }
+
+        wp_send_json_success(array(
+            'message' => 'Term updated',
+            'term_id' => $term_id,
+            'name' => $new_name,
+            'taxonomy' => $taxonomy,
+        ));
     }
 }

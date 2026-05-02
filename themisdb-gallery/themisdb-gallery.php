@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Gallery
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Gallery
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Hilft beim Artikel erstellen relevante frei verfügbare thematisch passende Bilder im Internet zu finden, herunterzuladen und einzubinden - mit vollen Credits (Urheber usw.)
  * Version: 1.0.1
  * Author: ThemisDB Team
@@ -84,6 +93,9 @@ require_once THEMISDB_GALLERY_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once THEMISDB_GALLERY_PLUGIN_DIR . 'includes/class-gutenberg-block.php';
 
 /**
+ * Plugin Name: ThemisDB Gallery
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin
  */
 function themisdb_gallery_init() {

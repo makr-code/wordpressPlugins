@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Formula Renderer
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Formula Renderer
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Rendert mathematische Formeln in LaTeX-Notation ($$...$$) in anzeigbare Formeln mit KaTeX. Unterstützt sowohl Inline- als auch Block-Formeln.
  * Version: 1.1.0
  * Author: ThemisDB Team
@@ -81,6 +90,9 @@ require_once THEMISDB_FORMULA_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once THEMISDB_FORMULA_PLUGIN_DIR . 'includes/class-formula-library.php';
 
 /**
+ * Plugin Name: ThemisDB Formula Renderer
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin
  */
 function themisdb_formula_init() {

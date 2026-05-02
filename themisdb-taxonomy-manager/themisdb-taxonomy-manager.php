@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Taxonomy Manager
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Taxonomy Manager
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Manage custom taxonomies for ThemisDB features, use-cases, and industries with visual tree view
  * Version: 1.0.0
  * Author: ThemisDB Team
@@ -69,6 +78,9 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 }
 
 /**
+ * Plugin Name: ThemisDB Taxonomy Manager
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Safe require helper - loads files with error handling and logging
  *
  * @param string $file File path to require

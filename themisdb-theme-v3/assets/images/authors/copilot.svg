@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="GitHub Copilot">
+  <defs>
+    <linearGradient id="c" x1="8" y1="8" x2="88" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="92" height="92" rx="46" fill="url(#c)"/>
+  <path d="M28 48c0-10.5 8.5-19 20-19s20 8.5 20 19-8.5 19-20 19-20-8.5-20-19Zm8 0a12 12 0 1 0 24 0 12 12 0 0 0-24 0Z" fill="#ffffff"/>
+  <rect x="34" y="70" width="28" height="8" rx="4" fill="#bfdbfe"/>
+</svg>

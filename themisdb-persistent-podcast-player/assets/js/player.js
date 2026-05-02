@@ -81,6 +81,9 @@
             const item = $('<div>')
                 .addClass('ppp-playlist-item')
                 .attr('data-index', index);
+
+            const isCurrentEpisode = index === currentIndex;
+            const isCurrentlyPlaying = isCurrentEpisode && audio && !audio.paused;
             
             // Add thumbnail if available
             if (episode.thumbnail && episode.thumbnail.thumbnail) {
@@ -120,9 +123,9 @@
             // Play button overlay
             const playBtn = $('<button>')
                 .addClass('ppp-playlist-play-btn')
-                .html('&#9654;')
-                .attr('title', 'Play')
-                .attr('aria-label', 'Play episode');
+                .html(isCurrentlyPlaying ? '&#10074;&#10074;' : '&#9654;')
+                .attr('title', isCurrentlyPlaying ? 'Pause' : 'Play')
+                .attr('aria-label', isCurrentlyPlaying ? 'Pause episode' : 'Play episode');
             
             actions.append(playBtn);
             
@@ -139,8 +142,12 @@
             
             item.append(actions);
             
-            if (index === currentIndex) {
+            if (isCurrentEpisode) {
                 item.addClass('ppp-active');
+            }
+
+            if (isCurrentlyPlaying) {
+                item.addClass('ppp-playing');
             }
             
             playlistContainer.append(item);
@@ -324,6 +331,31 @@
                 pauseAudio();
             }
         });
+
+        // Keep controls and card states in sync with actual audio state.
+        $(audio).on('play', function() {
+            $('#ppp-play-pause').removeClass('ppp-btn-play').addClass('ppp-btn-pause');
+            syncPlaylistPlaybackState();
+        });
+
+        $(audio).on('pause', function() {
+            $('#ppp-play-pause').removeClass('ppp-btn-pause').addClass('ppp-btn-play');
+            syncPlaylistPlaybackState();
+        });
+
+        // Enforce a single active audio on the page: starting one pauses all others.
+        document.addEventListener('play', function(event) {
+            const target = event.target;
+            if (!(target instanceof HTMLAudioElement)) {
+                return;
+            }
+
+            $('audio').each(function() {
+                if (this !== target && !this.paused) {
+                    this.pause();
+                }
+            });
+        }, true);
         
         // Audio time update (for progress bar and time display)
         $(audio).on('timeupdate', function() {
@@ -747,6 +779,7 @@
         
         audio.play().then(function() {
             $('#ppp-play-pause').removeClass('ppp-btn-play').addClass('ppp-btn-pause');
+            syncPlaylistPlaybackState();
         }).catch(function(error) {
             console.error('Failed to play audio:', error);
         });
@@ -758,6 +791,14 @@
     function pauseAudio() {
         audio.pause();
         $('#ppp-play-pause').removeClass('ppp-btn-pause').addClass('ppp-btn-play');
+        syncPlaylistPlaybackState();
+    }
+
+    /**
+     * Update playlist card visuals for currently playing episode.
+     */
+    function syncPlaylistPlaybackState() {
+        renderPlaylist();
     }
     
     /**
@@ -791,7 +832,7 @@
         
         currentIndex = index;
         updateEpisodeUI(index, true);
-        renderPlaylist(); // Update active state
+        syncPlaylistPlaybackState();
     }
     
     /**

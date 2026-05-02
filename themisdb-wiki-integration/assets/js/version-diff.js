@@ -101,40 +101,44 @@
      */
     function renderDiff(oldText, newText) {
         var $diffViewer = $('#diff-viewer');
-        
-        $diffViewer.html('<h4>Changes</h4><div class="diff-container"></div>');
+
+        $diffViewer.html(
+            '<h4>Changes</h4>' +
+            '<div class="diff-view-controls">' +
+                '<button type="button" class="button button-small diff-view-btn active" data-view="lines">Lines</button>' +
+                '<button type="button" class="button button-small diff-view-btn" data-view="side">Side by side</button>' +
+                '<button type="button" class="button button-small diff-view-btn" data-view="inline">Inline</button>' +
+            '</div>' +
+            '<div class="diff-container"></div>'
+        );
         
         if (typeof Diff === 'undefined') {
             $diffViewer.find('.diff-container').html('<p class="error">Diff library not loaded</p>');
             return;
         }
         
-        // Use jsdiff library
         var diff = Diff.diffLines(oldText || '', newText || '');
-        var html = '';
-        
-        diff.forEach(function(part) {
-            var color = part.added ? 'diff-added' : 
-                       part.removed ? 'diff-removed' : 
-                       'diff-unchanged';
-            var prefix = part.added ? '+ ' : part.removed ? '- ' : '  ';
-            
-            var lines = part.value.split('\n');
-            
-            lines.forEach(function(line, index) {
-                // Skip last empty line
-                if (index === lines.length - 1 && line === '') {
-                    return;
-                }
-                
-                html += '<div class="diff-line ' + color + '">';
-                html += '<span class="diff-prefix">' + escapeHtml(prefix) + '</span>';
-                html += '<span class="diff-content">' + escapeHtml(line) + '</span>';
-                html += '</div>';
-            });
+
+        function setView(view) {
+            var html = '';
+            if (view === 'side') {
+                html = renderSideBySideDiff(oldText || '', newText || '');
+            } else if (view === 'inline') {
+                html = renderInlineDiff(oldText || '', newText || '');
+            } else {
+                html = renderLineDiff(diff);
+            }
+
+            $diffViewer.find('.diff-view-btn').removeClass('active');
+            $diffViewer.find('.diff-view-btn[data-view="' + view + '"]').addClass('active');
+            $diffViewer.find('.diff-container').html(html);
+        }
+
+        $diffViewer.off('click.diffview').on('click.diffview', '.diff-view-btn', function() {
+            setView($(this).data('view'));
         });
-        
-        $diffViewer.find('.diff-container').html(html);
+
+        setView('lines');
         
         // Add stats
         var stats = getDiffStats(diff);
@@ -145,6 +149,32 @@
         statsHtml += '</div>';
         
         $diffViewer.prepend(statsHtml);
+    }
+
+    function renderLineDiff(diff) {
+        var html = '';
+
+        diff.forEach(function(part) {
+            var color = part.added ? 'diff-added' :
+                       part.removed ? 'diff-removed' :
+                       'diff-unchanged';
+            var prefix = part.added ? '+ ' : part.removed ? '- ' : '  ';
+
+            var lines = part.value.split('\n');
+
+            lines.forEach(function(line, index) {
+                if (index === lines.length - 1 && line === '') {
+                    return;
+                }
+
+                html += '<div class="diff-line ' + color + '">';
+                html += '<span class="diff-prefix">' + escapeHtml(prefix) + '</span>';
+                html += '<span class="diff-content">' + escapeHtml(line) + '</span>';
+                html += '</div>';
+            });
+        });
+
+        return html;
     }
     
     /**
@@ -191,16 +221,71 @@
      * Side-by-Side Diff View (future enhancement)
      */
     function renderSideBySideDiff(oldText, newText) {
-        // TODO: Implement side-by-side diff view
-        // This would show old and new versions side by side
+        var oldLines = (oldText || '').split('\n');
+        var newLines = (newText || '').split('\n');
+        var maxLines = Math.max(oldLines.length, newLines.length);
+        var html = '<table class="diff-side-table"><thead><tr><th>Old</th><th>New</th></tr></thead><tbody>';
+
+        for (var i = 0; i < maxLines; i += 1) {
+            var oldLine = oldLines[i] || '';
+            var newLine = newLines[i] || '';
+            var rowClass = oldLine === newLine
+                ? 'diff-side-unchanged'
+                : (oldLine === '' ? 'diff-side-added' : (newLine === '' ? 'diff-side-removed' : 'diff-side-modified'));
+
+            html += '<tr class="' + rowClass + '">';
+            html += '<td><pre>' + escapeHtml(oldLine) + '</pre></td>';
+            html += '<td><pre>' + escapeHtml(newLine) + '</pre></td>';
+            html += '</tr>';
+        }
+
+        html += '</tbody></table>';
+        return html;
     }
     
     /**
      * Inline Diff View with Word-Level Changes (future enhancement)
      */
     function renderInlineDiff(oldText, newText) {
-        // TODO: Implement inline diff with word-level highlighting
-        // This would highlight specific words/characters that changed
+        var lineDiff = Diff.diffLines(oldText || '', newText || '');
+        var html = '<div class="diff-inline-wrap">';
+
+        for (var i = 0; i < lineDiff.length; i += 1) {
+            var part = lineDiff[i];
+
+            if (part.removed && i + 1 < lineDiff.length && lineDiff[i + 1].added) {
+                var removed = part.value;
+                var added = lineDiff[i + 1].value;
+                var wordDiff = Diff.diffWords(removed, added);
+                var row = '<div class="diff-inline-row">';
+
+                wordDiff.forEach(function(wordPart) {
+                    if (wordPart.added) {
+                        row += '<ins class="diff-word-added">' + escapeHtml(wordPart.value) + '</ins>';
+                    } else if (wordPart.removed) {
+                        row += '<del class="diff-word-removed">' + escapeHtml(wordPart.value) + '</del>';
+                    } else {
+                        row += '<span class="diff-word-same">' + escapeHtml(wordPart.value) + '</span>';
+                    }
+                });
+
+                row += '</div>';
+                html += row;
+                i += 1;
+                continue;
+            }
+
+            if (part.added) {
+                html += '<div class="diff-inline-row"><ins class="diff-word-added">' + escapeHtml(part.value) + '</ins></div>';
+            } else if (part.removed) {
+                html += '<div class="diff-inline-row"><del class="diff-word-removed">' + escapeHtml(part.value) + '</del></div>';
+            } else {
+                html += '<div class="diff-inline-row"><span class="diff-word-same">' + escapeHtml(part.value) + '</span></div>';
+            }
+        }
+
+        html += '</div>';
+        return html;
     }
     
 })(jQuery);

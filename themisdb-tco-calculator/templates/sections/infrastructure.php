@@ -21,10 +21,11 @@
   Status: ✅ Production Ready                                          ║
 ╚═════════════════════════════════════════════════════════════════════╝
  */
+?>
 
 <!-- Infrastructure Section -->
 <div class="themisdb-tco-section" 
-     data-animation=" echo esc_attr($atts['animation']); ?>" 
+    data-animation="<?php echo esc_attr($atts['animation']); ?>" 
      data-delay="<?php echo esc_attr($atts['delay']); ?>"
      style="transform: scale(<?php echo esc_attr($atts['scale']); ?>); transform-origin: center;">
     <div class="parameter-group">

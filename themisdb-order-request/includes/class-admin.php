@@ -58,7 +58,8 @@ class ThemisDB_Order_Admin {
      * must be invoked here (admin_init), before any output has been sent.
      */
     public function handle_early_post() {
-        if ( ! is_admin() || $_SERVER['REQUEST_METHOD'] !== 'POST' || ! isset( $_POST['action'] ) ) {
+        $request_method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string) $_SERVER['REQUEST_METHOD']) : '';
+        if ( ! is_admin() || $request_method !== 'POST' || ! isset( $_POST['action'] ) ) {
             return;
         }
 
@@ -99,7 +100,8 @@ class ThemisDB_Order_Admin {
      * Handle GET requests that send headers/files before admin page rendering starts.
      */
     public function handle_early_get() {
-        if (!is_admin() || $_SERVER['REQUEST_METHOD'] !== 'GET') {
+        $request_method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string) $_SERVER['REQUEST_METHOD']) : '';
+        if (!is_admin() || $request_method !== 'GET') {
             return;
         }
 
@@ -459,9 +461,23 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     private function render_module_navigation_tabs($current_page) {
-        // Global cross-module tab navigation is intentionally disabled.
-        // Each module now uses its own module-specific tab view.
-        return;
+        $tabs = array(
+            'themisdb-order-dashboard' => __('Dashboard', 'themisdb-order-request'),
+            'themisdb-orders' => __('Bestellungen', 'themisdb-order-request'),
+            'themisdb-contracts' => __('Verträge', 'themisdb-order-request'),
+            'themisdb-products' => __('Produkte', 'themisdb-order-request'),
+            'themisdb-licenses' => __('Lizenzen', 'themisdb-order-request'),
+            'themisdb-support-tickets' => __('Support', 'themisdb-order-request'),
+            'themisdb-order-settings' => __('Einstellungen', 'themisdb-order-request'),
+        );
+
+        echo '<nav class="nav-tab-wrapper" style="margin-bottom:1rem; display:flex; flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; white-space:nowrap; -webkit-overflow-scrolling:touch;">';
+        foreach ($tabs as $page => $label) {
+            $class = ($current_page === $page) ? 'nav-tab nav-tab-active' : 'nav-tab';
+            $url = admin_url('admin.php?page=' . rawurlencode($page));
+            echo '<a href="' . esc_url($url) . '" class="' . esc_attr($class) . '" style="float:none; flex:0 0 auto; white-space:nowrap;">' . esc_html($label) . '</a>';
+        }
+        echo '</nav>';
     }
 
     /**

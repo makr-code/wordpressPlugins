@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Wiki Integration
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Wiki Integration
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Integrates ThemisDB documentation/wiki from GitHub into WordPress. Fetches markdown files on-demand and displays them with proper formatting. Manual sync recommended.
  * Version: 1.0.1
  * Author: ThemisDB Team
@@ -71,6 +80,9 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 require_once THEMISDB_WIKI_PLUGIN_DIR . 'includes/class-markdown-converter.php';
 
 /**
+ * Plugin Name: ThemisDB Wiki Integration
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Main Plugin Class
  */
 class ThemisDB_Wiki_Integration {

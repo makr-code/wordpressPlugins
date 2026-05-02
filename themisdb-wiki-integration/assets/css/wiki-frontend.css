@@ -217,6 +217,36 @@ a.wikilink-new:hover {
     border-bottom-color: #c0392b;
 }
 
+/* Wiki link hover preview */
+.wiki-link-preview {
+    position: absolute;
+    z-index: 9999;
+    display: none;
+    width: min(320px, calc(100vw - 16px));
+    max-height: 240px;
+    overflow: auto;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--wiki-border);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+}
+
+.wiki-link-preview-title {
+    margin: 0 0 0.35rem;
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--wiki-primary);
+}
+
+.wiki-link-preview-excerpt,
+.wiki-link-preview-loading {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.35;
+    color: var(--wiki-text-light);
+}
+
 /* Table of Contents */
 .wiki-toc {
     background: var(--wiki-sidebar-bg);

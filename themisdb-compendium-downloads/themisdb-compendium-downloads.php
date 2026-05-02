@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Compendium Downloads
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Compendium Downloads
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Bietet ThemisDB Kompendium PDF-Versionen als Downloads auf der Website an, analog zu Docker und GitHub Releases.
  * Version: 1.0.0
  * Author: ThemisDB Team
@@ -81,6 +90,9 @@ require_once THEMISDB_COMPENDIUM_PLUGIN_DIR . 'includes/class-compendium-widget.
 require_once THEMISDB_COMPENDIUM_PLUGIN_DIR . 'includes/class-compendium-admin.php';
 
 /**
+ * Plugin Name: ThemisDB Compendium Downloads
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin
  */
 function themisdb_compendium_init() {

@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Test Dashboard
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Test Dashboard
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Comprehensive testing and quality metrics dashboard for ThemisDB. Monitor CI/CD pipelines, test coverage, and quality gates.
  * Version: 1.0.0
  * Author: ThemisDB Team
@@ -65,6 +74,9 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 }
 
 /**
+ * Plugin Name: ThemisDB Test Dashboard
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Enqueue plugin styles and scripts
  */
 function themisdb_test_dashboard_enqueue_assets() {

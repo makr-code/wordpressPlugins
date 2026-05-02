@@ -13,8 +13,8 @@
         // Add tooltips to wiki links
         addWikiLinkTooltips();
         
-        // Handle wiki link hover previews (future enhancement)
-        // setupLinkPreviews();
+        // Handle wiki link hover previews
+        setupLinkPreviews();
         
         // Smooth scroll to anchors
         setupSmoothScrolling();
@@ -70,17 +70,69 @@
     
     /**
      * Setup Link Previews (hover cards)
-     * Future enhancement: Load page excerpt on hover
      */
     function setupLinkPreviews() {
         var previewTimeout;
         var $preview = null;
+        var previewCache = {};
+
+        function renderPreview(pageName, payload) {
+            var title = String((payload && payload.title) || pageName || '');
+            var excerpt = String((payload && payload.excerpt) || 'No preview available.');
+
+            return '<div class="preview-content"><strong>' + title + '</strong><p>' + excerpt + '</p></div>';
+        }
+
+        function fetchPreview(pageName, done) {
+            var nonce = (typeof themisdbWiki !== 'undefined') ? themisdbWiki.search_nonce : '';
+            var ajaxUrl = (typeof themisdbWiki !== 'undefined') ? themisdbWiki.ajaxurl : '';
+
+            if (!ajaxUrl) {
+                done({ title: pageName, excerpt: 'Preview unavailable.' });
+                return;
+            }
+
+            $.post(ajaxUrl, {
+                action: 'themisdb_wiki_search',
+                query: pageName,
+                nonce: nonce
+            }).done(function(response) {
+                var payload = { title: pageName, excerpt: 'No preview available.' };
+
+                if (response && response.success && response.data && response.data.results && response.data.results.length) {
+                    var results = response.data.results;
+                    var normalized = pageName.toLowerCase();
+                    var best = results[0];
+
+                    $.each(results, function(_, item) {
+                        if (String(item.title || '').toLowerCase() === normalized) {
+                            best = item;
+                            return false;
+                        }
+                        return true;
+                    });
+
+                    payload = {
+                        title: best.title || pageName,
+                        excerpt: best.excerpt || 'No preview excerpt found.'
+                    };
+                }
+
+                done(payload);
+            }).fail(function() {
+                done({ title: pageName, excerpt: 'Preview unavailable.' });
+            });
+        }
         
         $('a.wikilink').on('mouseenter', function() {
             var $link = $(this);
-            var pageUrl = $link.attr('href');
+            var pageName = String($link.data('wiki-page') || $link.text() || '').trim();
             
             clearTimeout(previewTimeout);
+
+            if (!pageName) {
+                return;
+            }
             
             previewTimeout = setTimeout(function() {
                 // Create preview element if it doesn't exist
@@ -97,10 +149,18 @@
                 
                 // Load preview content
                 $preview.html('<div class="loading">Loading...</div>').show();
-                
-                // TODO: Implement AJAX call to fetch page excerpt
-                // For now, just show placeholder
-                $preview.html('<div class="preview-content"><strong>' + $link.text() + '</strong><p>Preview coming soon...</p></div>');
+
+                if (previewCache[pageName]) {
+                    $preview.html(renderPreview(pageName, previewCache[pageName]));
+                    return;
+                }
+
+                fetchPreview(pageName, function(payload) {
+                    previewCache[pageName] = payload;
+                    if ($preview) {
+                        $preview.html(renderPreview(pageName, payload));
+                    }
+                });
                 
             }, 500); // 500ms delay before showing preview
         });

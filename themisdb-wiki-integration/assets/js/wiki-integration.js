@@ -21,6 +21,7 @@
         ThemisDBWikiIntegration.init();
         ThemisDBWikiNav.init();
         ThemisDBWikiSearch.init();
+        ThemisDBWikiLinkPreview.init();
     });
     
     /**
@@ -397,6 +398,155 @@
 
         hide: function() {
             this.$suggestions.hide().empty();
+        }
+    };
+
+    /**
+     * WikiLink hover previews using existing search AJAX endpoint.
+     */
+    var ThemisDBWikiLinkPreview = {
+
+        cache: {},
+        timer: null,
+        $preview: null,
+
+        init: function() {
+            var self = this;
+
+            $(document).on('mouseenter', 'a.wikilink', function() {
+                var $link = $(this);
+                clearTimeout(self.timer);
+
+                self.timer = setTimeout(function() {
+                    self.show($link);
+                }, 350);
+            });
+
+            $(document).on('mouseleave', 'a.wikilink', function() {
+                clearTimeout(self.timer);
+                self.hideDelayed();
+            });
+
+            $(document).on('mouseenter', '.wiki-link-preview', function() {
+                clearTimeout(self.timer);
+            });
+
+            $(document).on('mouseleave', '.wiki-link-preview', function() {
+                self.hide();
+            });
+        },
+
+        ensurePreviewNode: function() {
+            if (!this.$preview || !this.$preview.length) {
+                this.$preview = $('<div class="wiki-link-preview" role="tooltip" aria-live="polite"></div>').appendTo('body');
+            }
+            return this.$preview;
+        },
+
+        show: function($link) {
+            var self = this;
+            var pageName = ($link.data('wiki-page') || $link.text() || '').toString().trim();
+
+            if (!pageName) {
+                return;
+            }
+
+            var $preview = self.ensurePreviewNode();
+            self.position($preview, $link);
+            $preview.html('<div class="wiki-link-preview-loading">Loading preview...</div>').show();
+
+            if (self.cache[pageName]) {
+                self.render($preview, self.cache[pageName]);
+                return;
+            }
+
+            self.fetch(pageName, function(payload) {
+                self.cache[pageName] = payload;
+                self.render($preview, payload);
+                self.position($preview, $link);
+            });
+        },
+
+        hide: function() {
+            if (this.$preview) {
+                this.$preview.hide();
+            }
+        },
+
+        hideDelayed: function() {
+            var self = this;
+            setTimeout(function() {
+                if (!self.$preview || !self.$preview.is(':hover')) {
+                    self.hide();
+                }
+            }, 120);
+        },
+
+        position: function($preview, $link) {
+            var offset = $link.offset();
+            if (!offset) {
+                return;
+            }
+
+            var top = offset.top + $link.outerHeight() + 8;
+            var left = offset.left;
+            var maxLeft = $(window).scrollLeft() + $(window).width() - 320;
+            if (left > maxLeft) {
+                left = Math.max($(window).scrollLeft() + 8, maxLeft);
+            }
+
+            $preview.css({ top: top, left: left });
+        },
+
+        fetch: function(pageName, done) {
+            var nonce = (typeof themisdbWiki !== 'undefined') ? themisdbWiki.search_nonce : '';
+            var ajaxUrl = (typeof themisdbWiki !== 'undefined') ? themisdbWiki.ajaxurl : '';
+
+            if (!ajaxUrl) {
+                done({ title: pageName, excerpt: 'Preview unavailable.' });
+                return;
+            }
+
+            $.post(ajaxUrl, {
+                action: 'themisdb_wiki_search',
+                query: pageName,
+                nonce: nonce
+            }).done(function(response) {
+                var payload = { title: pageName, excerpt: 'No preview available.' };
+
+                if (response && response.success && response.data && response.data.results && response.data.results.length) {
+                    var results = response.data.results;
+                    var normalized = pageName.toLowerCase();
+                    var best = results[0];
+
+                    $.each(results, function(_, item) {
+                        if ((item.title || '').toLowerCase() === normalized) {
+                            best = item;
+                            return false;
+                        }
+                        return true;
+                    });
+
+                    payload = {
+                        title: best.title || pageName,
+                        excerpt: best.excerpt || 'No preview excerpt found.'
+                    };
+                }
+
+                done(payload);
+            }).fail(function() {
+                done({ title: pageName, excerpt: 'Preview unavailable.' });
+            });
+        },
+
+        render: function($preview, payload) {
+            var title = $('<div>').text(payload.title || '').html();
+            var excerpt = payload.excerpt || '';
+
+            $preview.html(
+                '<div class="wiki-link-preview-title">' + title + '</div>' +
+                '<div class="wiki-link-preview-excerpt">' + excerpt + '</div>'
+            );
         }
     };
 

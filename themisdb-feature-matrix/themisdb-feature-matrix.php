@@ -1,4 +1,10 @@
 <?php
+/**
+ * Plugin Name: ThemisDB Feature Matrix
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ */
+
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -24,8 +30,11 @@
 
 
 /**
- * Plugin Name: ThemisDB Feature Matrix
+
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+
+
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Interactive feature comparison matrix for ThemisDB vs PostgreSQL, MongoDB, Neo4j
  * Version: 1.0.0
  * Author: ThemisDB Team
@@ -53,6 +62,9 @@ define('THEMISDB_MATRIX_URL', THEMISDB_FM_PLUGIN_URL);
 define('THEMISDB_MATRIX_VERSION', THEMISDB_FM_VERSION);
 
 /**
+ * Plugin Name: ThemisDB Feature Matrix
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Safe require helper - loads files with error handling and logging
  *
  * @param string $file File path to require

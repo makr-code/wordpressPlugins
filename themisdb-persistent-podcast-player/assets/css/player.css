@@ -10,6 +10,10 @@
     z-index: 9999;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     color: #ffffff;
+    --ppp-accent: var(--tv3-accent-primary, #2e6fa8);
+    --ppp-accent-strong: var(--tv3-navy-deep, #1f3650);
+    --ppp-playing-accent: var(--tv3-accent-success, #2f5f89);
+    --ppp-surface-muted: var(--tv3-surface-muted, #f4f7fb);
 }
 
 .ppp-player-container {
@@ -542,14 +546,20 @@
 }
 
 .ppp-playlist-item:hover {
-    border-color: #667eea;
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+    border-color: var(--ppp-accent);
+    box-shadow: 0 4px 16px rgba(46, 111, 168, 0.2);
     transform: translateY(-2px);
 }
 
 .ppp-playlist-item.ppp-active {
-    border-color: #667eea;
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+    border-color: var(--ppp-accent);
+    box-shadow: 0 4px 16px rgba(46, 111, 168, 0.3);
+}
+
+.ppp-playlist-item.ppp-playing {
+    border-color: var(--ppp-playing-accent);
+    box-shadow: 0 8px 22px rgba(47, 95, 137, 0.25);
+    background: linear-gradient(90deg, #ffffff 0%, var(--ppp-surface-muted) 100%);
 }
 
 .ppp-playlist-item.ppp-active::after {
@@ -559,7 +569,15 @@
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(90deg, var(--ppp-accent) 0%, var(--ppp-accent-strong) 100%);
+}
+
+.ppp-playlist-item.ppp-playing::after {
+    background: linear-gradient(90deg, var(--ppp-playing-accent) 0%, var(--ppp-accent) 100%);
+}
+
+.ppp-playlist-item.ppp-playing .ppp-playlist-title {
+    color: var(--ppp-playing-accent);
 }
 
 .ppp-playlist-thumbnail {
@@ -630,8 +648,12 @@
 
 .ppp-playlist-item:hover .ppp-playlist-play-btn,
 .ppp-playlist-item:focus-within .ppp-playlist-play-btn {
-    background: #667eea;
+    background: var(--ppp-accent);
     transform: scale(1.1);
+}
+
+.ppp-playlist-item.ppp-playing .ppp-playlist-play-btn {
+    background: var(--ppp-playing-accent);
 }
 
 .ppp-download-btn {

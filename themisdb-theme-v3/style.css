@@ -91,7 +91,7 @@ body {
     font-size: clamp(1rem, 0.96rem + 0.2vw, 1.08rem);
     line-height: 1.6;
     text-rendering: optimizeLegibility;
-    animation: tv3-fade-up var(--tv3-motion-slow) var(--tv3-ease-entrance) both;
+    animation: tv3-fade-up var(--tv3-motion-slow) var(--tv3-ease-entrance) backwards;
 }
 
 .is-layout-constrained > * {
@@ -1613,7 +1613,13 @@ body.tv3-motion-reduced * {
 
 .tv3-authors-compact-avatar {
     display: inline-flex;
+    width: var(--tv3-author-avatar-size, 1.9rem);
+    height: var(--tv3-author-avatar-size, 1.9rem);
     margin-left: -0.35rem;
+    position: relative;
+    z-index: var(--tv3-avatar-layer, 1);
+    overflow: hidden;
+    border-radius: 999px;
 }
 
 .tv3-authors-compact-avatar:first-child {
@@ -3007,6 +3013,8 @@ body.tv3-motion-reduced * {
     box-shadow: 0 4px 12px rgba(24, 46, 70, 0.12);
     background: rgba(24, 46, 70, 0.46);
     margin-left: -0.42rem;
+    position: relative;
+    z-index: var(--tv3-avatar-layer, 1);
 }
 
 .tv3-card-author-face-item:first-child {
@@ -3035,6 +3043,23 @@ body.tv3-motion-reduced * {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.tv3-card-author-avatar-ai {
+    opacity: 0.84;
+    filter: saturate(0.82) contrast(0.96);
+    transform: scale(0.93);
+    transform-origin: center;
+}
+
+.tv3-card-author-face-item .tv3-card-author-avatar-ai,
+.tv3-authors-compact-avatar .tv3-card-author-avatar-ai {
+    border-color: rgba(187, 202, 218, 0.85);
+}
+
+.tv3-authors-compact-avatar .tv3-card-author-avatar-ai {
+    transform: none;
+    opacity: 1;
 }
 
 .tv3-card-author-badge {
@@ -3258,6 +3283,13 @@ body.admin-bar .tv3-reading-progress__label {
     border: 1px solid #dbe4ef;
     border-radius: 10px;
     background: #f8fafc;
+    transition: border-color 160ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.tv3-card-audio.tv3-card-audio-playing {
+    border-color: var(--tv3-accent-primary);
+    background: linear-gradient(180deg, #f8fafc 0%, #eef5fc 100%);
+    box-shadow: 0 4px 14px rgba(46, 111, 168, 0.16);
 }
 
 .tv3-card-audio-meta {
@@ -3279,6 +3311,10 @@ body.admin-bar .tv3-reading-progress__label {
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+}
+
+.tv3-card-audio.tv3-card-audio-playing .tv3-card-audio-label {
+    color: var(--tv3-accent-primary);
 }
 
 .tv3-card-audio-duration {
@@ -3995,6 +4031,51 @@ body.admin-bar .tv3-reading-progress__label {
     line-height: 1.35;
     color: #4d657d;
     margin-top: 0.2rem;
+}
+
+/* ── References panel collapse/expand ─────────────────────────────────── */
+.tv3-panel-body {
+    overflow: hidden;
+    max-height: 60rem;
+    transition: max-height 0.35s ease;
+    position: relative;
+}
+
+.tv3-compact-meta-panel-references.is-collapsed .tv3-panel-body {
+    max-height: 4.5rem;
+}
+
+/* Gradient fade-out at bottom when collapsed */
+.tv3-compact-meta-panel-references.is-collapsed .tv3-panel-body::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2rem;
+    background: linear-gradient(to bottom, transparent, #fbfdff);
+    pointer-events: none;
+}
+
+/* Text toggle button */
+.tv3-panel-toggle-text {
+    display: block;
+    width: 100%;
+    padding: 0.3rem 0;
+    border: none;
+    border-top: 1px solid #dce4ef;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #2d6aa0;
+    text-align: center;
+    transition: color 0.15s ease;
+    margin-top: 0.1rem;
+}
+
+.tv3-panel-toggle-text:hover {
+    color: #1a4a78;
 }
 
 @media (max-width: 980px) {
