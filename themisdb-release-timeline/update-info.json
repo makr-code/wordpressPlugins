@@ -1,6 +1,6 @@
 {
   "name": "ThemisDB Release Timeline Visualizer",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "homepage": "https://github.com/makr-code/wordpressPlugins",
   "description": "Interactive release timeline visualization with Mermaid.js for ThemisDB versions, featuring GitHub API integration and CHANGELOG parsing.",
   "author": "ThemisDB Team",
