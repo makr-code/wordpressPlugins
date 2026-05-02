@@ -77,6 +77,15 @@ class ThemisDB_Support_Admin {
 
         add_submenu_page(
             'themisdb-support',
+            __('Mail-Log', 'themisdb-support-portal'),
+            __('Mail-Log', 'themisdb-support-portal'),
+            'manage_options',
+            'themisdb-support-maillog',
+            array($this, 'mail_log_page')
+        );
+
+        add_submenu_page(
+            'themisdb-support',
             __('Einstellungen', 'themisdb-support-portal'),
             __('Einstellungen', 'themisdb-support-portal'),
             'manage_options',
@@ -1141,6 +1150,158 @@ class ThemisDB_Support_Admin {
                     </p>
                 </div>
             </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the Mail-Log page (ARCHITECTUR.md §8.4).
+     */
+    public function mail_log_page() {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Keine Berechtigung', 'themisdb-support-portal'));
+        }
+
+        if (!class_exists('ThemisDB_Mail_Orchestrator')) {
+            echo '<div class="wrap"><p>' . esc_html__('Mail-Orchestrator nicht verfügbar.', 'themisdb-support-portal') . '</p></div>';
+            return;
+        }
+
+        // Purge-Aktion.
+        if (!empty($_GET['ml_purge']) && check_admin_referer('themisdb_ml_purge', '_wpnonce')) {
+            $days    = isset($_GET['ml_purge_days']) ? max(1, intval($_GET['ml_purge_days'])) : 90;
+            $deleted = ThemisDB_Mail_Orchestrator::purge_log($days);
+            echo '<div class="notice notice-success is-dismissible"><p>' . sprintf(
+                /* translators: %d: Anzahl gelöschter Einträge */
+                esc_html__('%d Einträge gelöscht.', 'themisdb-support-portal'),
+                $deleted
+            ) . '</p></div>';
+        }
+
+        // Filter-Parameter.
+        $filter_event  = isset($_GET['ml_event'])  ? sanitize_text_field(wp_unslash($_GET['ml_event']))  : '';
+        $filter_status = isset($_GET['ml_status']) ? sanitize_text_field(wp_unslash($_GET['ml_status'])) : '';
+        $paged         = isset($_GET['paged'])      ? max(1, intval($_GET['paged']))                       : 1;
+        $per_page      = 50;
+        $offset        = ($paged - 1) * $per_page;
+
+        $filter_args = array(
+            'limit'  => $per_page,
+            'offset' => $offset,
+        );
+        if ($filter_event)  { $filter_args['event_type'] = $filter_event; }
+        if ($filter_status) { $filter_args['status']     = $filter_status; }
+
+        $entries = ThemisDB_Mail_Orchestrator::get_log($filter_args);
+        $total   = ThemisDB_Mail_Orchestrator::count_log($filter_args);
+        $pages   = $total > 0 ? (int) ceil($total / $per_page) : 1;
+
+        $purge_url = wp_nonce_url(
+            admin_url('admin.php?page=themisdb-support-maillog&ml_purge=1&ml_purge_days=90'),
+            'themisdb_ml_purge'
+        );
+
+        $all_events = array(
+            ThemisDB_Mail_Orchestrator::EVENT_TICKET_CREATED,
+            ThemisDB_Mail_Orchestrator::EVENT_TICKET_STATUS_CHANGED,
+            ThemisDB_Mail_Orchestrator::EVENT_ORDER_CREATED,
+            ThemisDB_Mail_Orchestrator::EVENT_ORDER_APPROVED,
+            ThemisDB_Mail_Orchestrator::EVENT_ORDER_REJECTED,
+            ThemisDB_Mail_Orchestrator::EVENT_LICENSE_ACTIVATED,
+            ThemisDB_Mail_Orchestrator::EVENT_BUILD_COMPLETED,
+            ThemisDB_Mail_Orchestrator::EVENT_BUILD_FAILED,
+        );
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('Mail-Log', 'themisdb-support-portal'); ?></h1>
+            <p style="color:#666;"><?php esc_html_e('Alle vom Mail-Orchestrator versendeten Lifecycle-Mails.', 'themisdb-support-portal'); ?></p>
+
+            <!-- Filter-Leiste -->
+            <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>" style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+                <input type="hidden" name="page" value="themisdb-support-maillog">
+
+                <select name="ml_event">
+                    <option value=""><?php esc_html_e('Alle Events', 'themisdb-support-portal'); ?></option>
+                    <?php foreach ($all_events as $ev): ?>
+                        <option value="<?php echo esc_attr($ev); ?>" <?php selected($filter_event, $ev); ?>>
+                            <?php echo esc_html(ThemisDB_Mail_Orchestrator::event_label($ev)); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <select name="ml_status">
+                    <option value=""><?php esc_html_e('Alle Status', 'themisdb-support-portal'); ?></option>
+                    <option value="sent"   <?php selected($filter_status, 'sent');   ?>><?php esc_html_e('Gesendet', 'themisdb-support-portal'); ?></option>
+                    <option value="failed" <?php selected($filter_status, 'failed'); ?>><?php esc_html_e('Fehlgeschlagen', 'themisdb-support-portal'); ?></option>
+                </select>
+
+                <button type="submit" class="button"><?php esc_html_e('Filtern', 'themisdb-support-portal'); ?></button>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support-maillog')); ?>" class="button button-secondary"><?php esc_html_e('Zurücksetzen', 'themisdb-support-portal'); ?></a>
+                <span style="flex:1;"></span>
+                <a href="<?php echo esc_url($purge_url); ?>" class="button" onclick="return confirm('<?php esc_attr_e('Einträge älter als 90 Tage löschen?', 'themisdb-support-portal'); ?>');"><?php esc_html_e('Alte Einträge bereinigen', 'themisdb-support-portal'); ?></a>
+            </form>
+
+            <p><?php printf(
+                /* translators: %d: Anzahl Einträge */
+                esc_html__('%d Einträge gefunden.', 'themisdb-support-portal'),
+                $total
+            ); ?></p>
+
+            <table class="wp-list-table widefat fixed striped" style="font-size:13px;">
+                <thead>
+                    <tr>
+                        <th style="width:160px;"><?php esc_html_e('Datum', 'themisdb-support-portal'); ?></th>
+                        <th style="width:160px;"><?php esc_html_e('Event', 'themisdb-support-portal'); ?></th>
+                        <th><?php esc_html_e('Empfänger', 'themisdb-support-portal'); ?></th>
+                        <th><?php esc_html_e('Betreff', 'themisdb-support-portal'); ?></th>
+                        <th style="width:90px;"><?php esc_html_e('Status', 'themisdb-support-portal'); ?></th>
+                        <th style="width:200px;"><?php esc_html_e('Fehler', 'themisdb-support-portal'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($entries)): ?>
+                        <tr><td colspan="6" style="text-align:center;color:#888;"><?php esc_html_e('Keine Einträge', 'themisdb-support-portal'); ?></td></tr>
+                    <?php else: ?>
+                        <?php foreach ($entries as $row):
+                            $status_color = $row['status'] === 'sent' ? '#27ae60' : '#e74c3c';
+                            $status_label = $row['status'] === 'sent'
+                                ? __('Gesendet', 'themisdb-support-portal')
+                                : __('Fehler', 'themisdb-support-portal');
+                            ?>
+                            <tr>
+                                <td><?php echo esc_html(mysql2date('d.m.Y H:i', $row['sent_at'])); ?></td>
+                                <td><?php echo esc_html(ThemisDB_Mail_Orchestrator::event_label($row['event_type'])); ?></td>
+                                <td><?php echo esc_html($row['recipient']); ?></td>
+                                <td title="<?php echo esc_attr($row['subject']); ?>"><?php echo esc_html(mb_strimwidth($row['subject'], 0, 70, '…')); ?></td>
+                                <td>
+                                    <span style="display:inline-block;padding:2px 8px;border-radius:3px;background:<?php echo esc_attr($status_color); ?>;color:#fff;font-size:11px;font-weight:600;">
+                                        <?php echo esc_html($status_label); ?>
+                                    </span>
+                                </td>
+                                <td style="color:#e74c3c;font-size:11px;"><?php echo esc_html($row['error_msg'] ?? ''); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+
+            <?php if ($pages > 1): ?>
+                <div style="margin-top:12px;">
+                    <?php
+                    $base_url = admin_url('admin.php?page=themisdb-support-maillog');
+                    if ($filter_event)  { $base_url = add_query_arg('ml_event',  $filter_event,  $base_url); }
+                    if ($filter_status) { $base_url = add_query_arg('ml_status', $filter_status, $base_url); }
+                    for ($p = 1; $p <= $pages; $p++):
+                        $url = add_query_arg('paged', $p, $base_url);
+                        if ($p === $paged):
+                            echo '<strong style="margin-right:4px;">' . esc_html((string)$p) . '</strong>';
+                        else:
+                            echo '<a href="' . esc_url($url) . '" style="margin-right:4px;">' . esc_html((string)$p) . '</a>';
+                        endif;
+                    endfor;
+                    ?>
+                </div>
+            <?php endif; ?>
         </div>
         <?php
     }

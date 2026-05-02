@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
  */
 class ThemisDB_Support_Database {
 
-    const DB_VERSION = '1.0.4';
+    const DB_VERSION = '1.0.5';
 
     /**
      * Called on plugins_loaded – runs a schema upgrade if needed.
@@ -105,6 +105,23 @@ class ThemisDB_Support_Database {
             KEY severity (severity)
         ) $charset_collate;";
 
+        $table_mail_log = $wpdb->prefix . 'themisdb_mail_log';
+
+        $sql .= "\nCREATE TABLE $table_mail_log (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            event_type varchar(50) NOT NULL DEFAULT '',
+            recipient varchar(255) NOT NULL DEFAULT '',
+            subject varchar(500) NOT NULL DEFAULT '',
+            status varchar(10) NOT NULL DEFAULT 'sent',
+            error_msg varchar(500) DEFAULT NULL,
+            context_json longtext DEFAULT NULL,
+            sent_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY event_type (event_type),
+            KEY status (status),
+            KEY sent_at (sent_at)
+        ) $charset_collate;";
+
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
     }
@@ -148,5 +165,6 @@ class ThemisDB_Support_Database {
         global $wpdb;
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_support_messages");
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_support_tickets");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_mail_log");
     }
 }

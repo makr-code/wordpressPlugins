@@ -83,6 +83,7 @@ require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-license-auth.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-queue-router.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-incident-log.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-observability.php';
+require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-mail-orchestrator.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-ticket-manager.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-shortcodes.php';
@@ -99,6 +100,7 @@ require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-sla-escalation.php';
 function themisdb_support_portal_init() {
     ThemisDB_Support_Database::init();
     ThemisDB_SLA_Escalation::init();
+    ThemisDB_Mail_Orchestrator::init();
 
     if (is_admin()) {
         new ThemisDB_Support_Admin();
