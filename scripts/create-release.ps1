@@ -50,10 +50,12 @@ if ($branch -ne 'main' -and $branch -ne 'develop') {
 }
 
 $dirty = git status --porcelain | Where-Object { $_ -match '^[MADRCU ]M|^ M|^M |^A |^D |^R ' }
-if ($dirty) {
+if ($dirty -and -not $DryRun) {
     Write-Warn "Working directory has uncommitted tracked changes:`n$dirty"
     Write-Warn "Commit or stash tracked changes first. Aborting."
     exit 1
+} elseif ($dirty) {
+    Write-Warn "Working directory has uncommitted changes (DryRun - continuing):`n$dirty"
 }
 
 # Check if tag already exists

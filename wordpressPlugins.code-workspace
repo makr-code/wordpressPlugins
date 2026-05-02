@@ -5,9 +5,6 @@
 		},
 		{
 			"path": "../../xampp/htdocs"
-		},
-		{
-			"path": "../ThemisDB_Doku"
 		}
 	],
 	"settings": {

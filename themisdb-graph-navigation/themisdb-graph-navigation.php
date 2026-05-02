@@ -406,7 +406,9 @@ function themisdb_graph_nav_is_internal_url($url) {
 /**
  * Build external node identity for URL.
  *
- * Wikipedia links are intentionally collapsed into a single shared node.
+ * Well-known reference domains (Wikipedia, arXiv, GitHub, etc.) are collapsed
+ * into a single shared hub node each, so the graph stays readable instead of
+ * sprouting hundreds of individual Wikipedia-article nodes.
  *
  * @param string $url
  * @return array{id: string, label: string, url: string}
@@ -422,14 +424,24 @@ function themisdb_graph_nav_build_external_node($url) {
     }
 
     $host = strtolower((string) wp_parse_url($normalized, PHP_URL_HOST));
-    $is_wikipedia_subdomain = (strlen($host) > strlen('.wikipedia.org'))
-        && (substr($host, -strlen('.wikipedia.org')) === '.wikipedia.org');
-    if ($host === 'wikipedia.org' || $is_wikipedia_subdomain) {
-        return array(
-            'id' => 'ext_wikipedia',
-            'label' => 'Wikipedia',
-            'url' => 'https://de.wikipedia.org/',
-        );
+
+    // Hub domains: every link to these domains collapses to one shared node.
+    $hubs = array(
+        'wikipedia.org'        => array('id' => 'ext_wikipedia', 'label' => 'Wikipedia',  'url' => 'https://de.wikipedia.org/'),
+        'arxiv.org'            => array('id' => 'ext_arxiv',     'label' => 'arXiv',       'url' => 'https://arxiv.org/'),
+        'github.com'           => array('id' => 'ext_github',    'label' => 'GitHub',      'url' => 'https://github.com/'),
+        'stackoverflow.com'    => array('id' => 'ext_so',        'label' => 'Stack Overflow', 'url' => 'https://stackoverflow.com/'),
+        'scholar.google.com'   => array('id' => 'ext_scholar',   'label' => 'Google Scholar', 'url' => 'https://scholar.google.com/'),
+        'huggingface.co'       => array('id' => 'ext_hf',        'label' => 'Hugging Face', 'url' => 'https://huggingface.co/'),
+    );
+
+    foreach ($hubs as $domain => $node) {
+        $suffix = '.' . $domain;
+        $is_subdomain = (strlen($host) > strlen($suffix))
+            && (substr($host, -strlen($suffix)) === $suffix);
+        if ($host === $domain || $is_subdomain) {
+            return $node;
+        }
     }
 
     return array(
