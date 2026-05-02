@@ -114,6 +114,9 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             'user_id'          => isset($data['user_id'])      ? intval($data['user_id'])                   : null,
             'created_by'       => isset($data['user_id']) ? intval($data['user_id']) : (get_current_user_id() ?: null),
             'assignee_user_id' => self::sanitize_assignee_user_id(isset($data['assignee_user_id']) ? $data['assignee_user_id'] : $default_assignee_user_id),
+            'sla_due_at'       => class_exists('ThemisDB_SLA_Escalation')
+                                    ? ThemisDB_SLA_Escalation::calculate_sla_due_at(isset($data['priority']) ? $data['priority'] : 'normal')
+                                    : null,
         );
         $ticket_formats = array(
             'ticket_number' => '%s',
@@ -129,6 +132,7 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             'user_id' => '%d',
             'created_by' => '%d',
             'assignee_user_id' => '%d',
+            'sla_due_at' => '%s',
         );
 
         $prepared = self::prepare_schema_payload($ticket_payload, $ticket_formats, $table_tickets);

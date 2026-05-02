@@ -84,6 +84,7 @@ require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-ticket-manager.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-dashboard-widget.php';
+require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-sla-escalation.php';
 
 /**
  * Plugin Name: ThemisDB Support Portal
@@ -94,6 +95,7 @@ require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-dashboard-widget.php'
  */
 function themisdb_support_portal_init() {
     ThemisDB_Support_Database::init();
+    ThemisDB_SLA_Escalation::init();
 
     if (is_admin()) {
         new ThemisDB_Support_Admin();
@@ -191,6 +193,7 @@ register_activation_hook(__FILE__, 'themisdb_support_portal_activate');
  * Deactivation hook.
  */
 function themisdb_support_portal_deactivate() {
+    ThemisDB_SLA_Escalation::deactivate();
     flush_rewrite_rules();
 }
 register_deactivation_hook(__FILE__, 'themisdb_support_portal_deactivate');

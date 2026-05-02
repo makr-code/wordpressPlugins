@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
  */
 class ThemisDB_Support_Database {
 
-    const DB_VERSION = '1.0.2';
+    const DB_VERSION = '1.0.3';
 
     /**
      * Called on plugins_loaded – runs a schema upgrade if needed.
@@ -59,6 +59,9 @@ class ThemisDB_Support_Database {
             benefit_id bigint(20) unsigned DEFAULT NULL,
             user_id bigint(20) unsigned DEFAULT NULL,
             assignee_user_id bigint(20) unsigned DEFAULT NULL,
+            sla_due_at datetime DEFAULT NULL,
+            sla_warned_at datetime DEFAULT NULL,
+            sla_breached_at datetime DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
