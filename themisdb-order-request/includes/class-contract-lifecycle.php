@@ -752,6 +752,7 @@ class ThemisDB_Contract_Lifecycle {
 
     /**
      * Notify customer when a scheduled termination was actually executed.
+     * Includes a PDF confirmation document as attachment.
      */
     private static function notify_customer_termination_executed($request_id) {
         $request = self::get_request($request_id);
@@ -783,9 +784,21 @@ class ThemisDB_Contract_Lifecycle {
             )
         );
 
+        // Generate and attach PDF confirmation
+        $attachments = array();
+        $pdf_path = self::generate_termination_pdf($request);
+        if ($pdf_path && file_exists($pdf_path)) {
+            $attachments[] = $pdf_path;
+        }
+
         add_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
-        wp_mail($to, $subject, $body);
+        wp_mail($to, $subject, $body, array(), $attachments);
         remove_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
+
+        // Clean up temp PDF file
+        if ($pdf_path && file_exists($pdf_path)) {
+            @unlink($pdf_path);
+        }
     }
 
     /**
@@ -891,6 +904,146 @@ class ThemisDB_Contract_Lifecycle {
   </table>
 </body>
 </html>';
+    }
+
+    /**
+     * Generate a PDF confirmation document for a termination request.
+     * Uses TCPDF if available, otherwise generates a printable HTML document.
+     *
+     * @param array $request Lifecycle request record.
+     * @return string|false Path to generated PDF file, or false if generation failed.
+     */
+    private static function generate_termination_pdf($request) {
+        if (!is_array($request)) {
+            return false;
+        }
+
+        $request_id = intval($request['id']);
+        $license_id = intval($request['license_id']);
+        $executed_at = sanitize_text_field((string) ($request['executed_at'] ?? ''));
+        $reason = sanitize_text_field((string) ($request['reason'] ?? ''));
+
+        // Get site and customer info
+        $site_name = get_option('blogname', 'ThemisDB');
+        $to = self::get_customer_email_by_license_id($license_id);
+        if (!is_email($to)) {
+            return false;
+        }
+
+        // Prepare license details
+        $license = class_exists('ThemisDB_License_Manager') ? ThemisDB_License_Manager::get_license($license_id) : array();
+        $license_name = isset($license['license_name']) ? sanitize_text_field($license['license_name']) : 'Lizenz #' . $license_id;
+        $customer_name = isset($license['customer_name']) ? sanitize_text_field($license['customer_name']) : 'Kunde';
+
+        // HTML content for PDF
+        $site_url = home_url('/');
+        $year = gmdate('Y');
+        $current_date = date_i18n(get_option('date_format') . ' H:i', current_time('timestamp'));
+
+        $html_content = '<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Kündigungsbestätigung</title>
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; color: #333; margin: 0; padding: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; border-bottom: 2px solid #0073aa; padding-bottom: 20px; margin-bottom: 30px; }
+        .header h1 { color: #0073aa; margin: 0; font-size: 28px; }
+        .header p { margin: 5px 0 0; color: #666; font-size: 13px; }
+        .title { color: #0073aa; font-size: 20px; font-weight: bold; margin: 30px 0 15px; }
+        .details-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .details-table td { padding: 8px 0; border-bottom: 1px solid #e0e0e0; }
+        .details-table .label { font-weight: bold; width: 40%; color: #555; }
+        .details-table .value { color: #333; }
+        .stamp { background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin: 20px 0; text-align: center; }
+        .stamp strong { font-size: 18px; color: #ff6b00; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #999; text-align: center; }
+        @media print { body { margin: 0; padding: 0; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>' . esc_html($site_name) . '</h1>
+            <p>Vertragsmanagement - Kündigungsbestätigung</p>
+        </div>
+
+        <p>Sehr geehrte Damen und Herren,</p>
+        <p>hiermit bestätigen wir die Kündigung Ihrer ThemisDB-Lizenz. Die nachfolgenden Details dokumentieren die durchgeführte Aktion.</p>
+
+        <div class="title">Kündigungsdetails</div>
+        <table class="details-table">
+            <tr><td class="label">Bestätigung-ID:</td><td class="value">#' . esc_html((string) $request_id) . '</td></tr>
+            <tr><td class="label">Lizenz-ID:</td><td class="value">#' . esc_html((string) $license_id) . '</td></tr>
+            <tr><td class="label">Lizenzname:</td><td class="value">' . esc_html($license_name) . '</td></tr>
+            <tr><td class="label">Kundenname:</td><td class="value">' . esc_html($customer_name) . '</td></tr>
+            <tr><td class="label">Kundenemail:</td><td class="value">' . esc_html($to) . '</td></tr>
+            <tr><td class="label">Ausführungsdatum:</td><td class="value">' . esc_html($executed_at ?: 'Heute ' . $current_date) . '</td></tr>
+            <tr><td class="label">Kündigungsgrund:</td><td class="value">' . esc_html($reason ?: '(nicht angegeben)') . '</td></tr>
+        </table>
+
+        <div class="stamp">
+            <strong>GEKÜNDIGT</strong><br>
+            <span>Dieses Dokument bestätigt die Vertragsbeendigung.</span>
+        </div>
+
+        <p><strong>Nächste Schritte:</strong></p>
+        <ul>
+            <li>Der Zugriff auf Ihre ThemisDB-Lizenz wird mit sofortiger Wirkung eingestellt.</li>
+            <li>Ausstehende Abrechnungen bleiben gültig und müssen bezahlt werden.</li>
+            <li>Fragen zum Kündigungsverfahren können Sie unserem Support-Team mitteilen.</li>
+        </ul>
+
+        <p>Bei Fragen oder Unklarheiten wenden Sie sich bitte an unseren Support:</p>
+        <p>
+            <strong>E-Mail:</strong> <a href="mailto:support@themisdb.com">support@themisdb.com</a><br>
+            <strong>Website:</strong> <a href="' . esc_url($site_url) . '">' . esc_url($site_url) . '</a>
+        </p>
+
+        <div class="footer">
+            <p>&copy; ' . esc_html($year) . ' ' . esc_html($site_name) . ' | Automatisch generiertes Dokument | ' . $current_date . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+
+        // Try to generate PDF with TCPDF if available
+        if (class_exists('TCPDF')) {
+            try {
+                // Use TCPDF's built-in constants if available
+                $orientation = defined('PDF_PAGE_ORIENTATION') ? PDF_PAGE_ORIENTATION : 'P';
+                $unit = defined('PDF_UNIT') ? PDF_UNIT : 'mm';
+                $format = defined('PDF_PAGE_FORMAT') ? PDF_PAGE_FORMAT : 'A4';
+                $unicode = defined('PDF_FONT_MONOSPACED') ? PDF_FONT_MONOSPACED : 'courier';
+
+                $pdf = new TCPDF($orientation, $unit, $format, true, 'UTF-8', false);
+                $pdf->SetMargins(15, 15, 15);
+                $pdf->SetAutoPageBreak(true, 15);
+                $pdf->AddPage();
+                $pdf->SetFont('dejavusans', '', 10);
+                $pdf->writeHTML($html_content, true, false, true, false, '');
+
+                $pdf_filename = sprintf('termination_%d_%d.pdf', $request_id, time());
+                $upload_dir = wp_upload_dir();
+                $pdf_path = $upload_dir['basedir'] . '/' . $pdf_filename;
+                $pdf->Output($pdf_path, 'F');
+
+                return file_exists($pdf_path) ? $pdf_path : false;
+            } catch (Exception $e) {
+                // Fallback if TCPDF fails
+                error_log('TCPDF PDF generation failed: ' . $e->getMessage());
+            }
+        }
+
+        // Fallback: Save as temporary HTML (printable)
+        $html_filename = sprintf('termination_%d_%d.html', $request_id, time());
+        $upload_dir = wp_upload_dir();
+        $html_path = $upload_dir['basedir'] . '/' . $html_filename;
+        $result = file_put_contents($html_path, $html_content);
+
+        return ($result && file_exists($html_path)) ? $html_path : false;
     }
 
     private static function execute_change_request($request_id) {
