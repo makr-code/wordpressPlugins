@@ -656,21 +656,35 @@ class ThemisDB_Support_Shortcodes {
                             var rows = data.data && data.data.requests ? data.data.requests : [];
                             if (!rows.length) { if (empty) empty.style.display=''; return; }
                             if (table) table.style.display='';
-                            if (tbody) tbody.innerHTML = rows.map(function(r) {
-                                return '<tr>' +
-                                    '<td style="padding:5px 10px;">'+r.id+'</td>' +
-                                    '<td style="padding:5px 10px;">'+r.request_type+'</td>' +
-                                    '<td style="padding:5px 10px;">'+r.status+'</td>' +
-                                    '<td style="padding:5px 10px;">'+(r.effective_at||'—')+'</td>' +
-                                    '<td style="padding:5px 10px;">'+(r.created_at||'—')+'</td>' +
-                                '</tr>';
-                            }).join('');
+                            var statusColors = {requested:'#0073aa',confirmed:'#28a745',rejected:'#dc3545',executed:'#6c757d'};
+                            if (tbody) {
+                                tbody.innerHTML = rows.map(function(r) {
+                                    var sc = statusColors[r.status] || '#333';
+                                    var logHtml = '';
+                                    if (r.log && r.log.length) {
+                                        logHtml = r.log.map(function(e) {
+                                            return '<li style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #eee;font-size:11px;">'
+                                                +'<span style="color:#aaa;min-width:130px;">'+e.created_at+'</span>'
+                                                +'<strong style="min-width:90px;">'+e.event+'</strong>'
+                                                +'<span style="color:#555;min-width:100px;">'+e.actor_name+'</span>'
+                                                +'<span>'+e.note+'</span></li>';
+                                        }).join('');
+                                    } else {
+                                        logHtml = '<li style="color:#aaa;font-size:11px;">Keine Eintraege</li>';
+                                    }
+                                    return '<tr style="cursor:pointer;" onclick="var d=document.getElementById(\'lclog'+r.id+'\');if(d)d.style.display=d.style.display===\'none\'?\'\':\'none\';">'
+                                        +'<td style="padding:5px 10px;"><strong>#'+r.id+'</strong></td>'
+                                        +'<td style="padding:5px 10px;">'+r.request_type+'</td>'
+                                        +'<td style="padding:5px 10px;"><span style="display:inline-block;padding:1px 8px;border-radius:3px;background:'+sc+';color:#fff;font-size:11px;">'+r.status+'</span></td>'
+                                        +'<td style="padding:5px 10px;">'+(r.effective_at||'—')+'</td>'
+                                        +'<td style="padding:5px 10px;">'+(r.created_at||'—')+'</td>'
+                                        +'</tr>'
+                                        +'<tr id="lclog'+r.id+'" style="display:none;"><td colspan="5" style="background:#f9f9f9;padding:8px 20px;">'
+                                        +'<ul style="margin:0;padding:0;list-style:none;">'+logHtml+'</ul></td></tr>';
+                                }).join('');
+                            }
                         })
                         .catch(function() { if (loading) loading.style.display='none'; });
-                }
-
-                // Toggle form
-                var toggleBtn = document.getElementById('themisdb-lifecycle-toggle');
                 var formWrap  = document.getElementById('themisdb-lifecycle-form-wrap');
                 if (toggleBtn && formWrap) {
                     toggleBtn.addEventListener('click', function() {
@@ -892,15 +906,30 @@ class ThemisDB_Support_Shortcodes {
                             var rows = data.data && data.data.requests ? data.data.requests : [];
                             if (!rows.length) { if (empty) empty.style.display=''; return; }
                             if (table) table.style.display='';
-                            if (tbody) tbody.innerHTML = rows.map(function(r) {
-                                return '<tr>' +
-                                    '<td style="padding:5px 10px;">'+r.id+'</td>' +
-                                    '<td style="padding:5px 10px;">'+r.request_type+'</td>' +
-                                    '<td style="padding:5px 10px;">'+r.status+'</td>' +
-                                    '<td style="padding:5px 10px;">'+(r.effective_at||'—')+'</td>' +
-                                    '<td style="padding:5px 10px;">'+(r.created_at||'—')+'</td>' +
-                                '</tr>';
-                            }).join('');
+                            var statusColors = {requested:'#0073aa',confirmed:'#28a745',rejected:'#dc3545',executed:'#6c757d'};
+                            if (tbody) {
+                                tbody.innerHTML = rows.map(function(r) {
+                                    var sc = statusColors[r.status] || '#333';
+                                    var logHtml = r.log && r.log.length
+                                        ? r.log.map(function(e) {
+                                            return '<li style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #eee;font-size:11px;">'
+                                                +'<span style="color:#aaa;min-width:130px;">'+e.created_at+'</span>'
+                                                +'<strong style="min-width:90px;">'+e.event+'</strong>'
+                                                +'<span style="color:#555;min-width:100px;">'+e.actor_name+'</span>'
+                                                +'<span>'+e.note+'</span></li>';
+                                        }).join('')
+                                        : '<li style="color:#aaa;font-size:11px;">Keine Eintraege</li>';
+                                    return '<tr style="cursor:pointer;" onclick="var d=document.getElementById(\'lclog'+r.id+'\');if(d)d.style.display=d.style.display===\'none\'?\'\':\' none\';">'
+                                        +'<td style="padding:5px 10px;"><strong>#'+r.id+'</strong></td>'
+                                        +'<td style="padding:5px 10px;">'+r.request_type+'</td>'
+                                        +'<td style="padding:5px 10px;"><span style="display:inline-block;padding:1px 8px;border-radius:3px;background:'+sc+';color:#fff;font-size:11px;">'+r.status+'</span></td>'
+                                        +'<td style="padding:5px 10px;">'+(r.effective_at||'—')+'</td>'
+                                        +'<td style="padding:5px 10px;">'+(r.created_at||'—')+'</td>'
+                                        +'</tr>'
+                                        +'<tr id="lclog'+r.id+'" style="display:none;"><td colspan="5" style="background:#f9f9f9;padding:8px 20px;">'
+                                        +'<ul style="margin:0;padding:0;list-style:none;">'+logHtml+'</ul></td></tr>';
+                                }).join('');
+                            }
                         })
                         .catch(function() { if (loading) loading.style.display='none'; });
                 }
@@ -1091,7 +1120,24 @@ class ThemisDB_Support_Shortcodes {
             'limit'      => 50,
         ));
 
-        wp_send_json_success(array('requests' => $requests ?: array()));
+        // Enrich with audit log per request
+        $enriched = array();
+        if (is_array($requests)) {
+            foreach ($requests as $req) {
+                $log = ThemisDB_Contract_Lifecycle::get_log(intval($req['id']));
+                $req['log'] = array_map(function($e) {
+                    return array(
+                        'event'      => $e['event'],
+                        'actor_name' => $e['actor_name'] ?: 'System',
+                        'note'       => $e['note'],
+                        'created_at' => $e['created_at'],
+                    );
+                }, $log ?: array());
+                $enriched[] = $req;
+            }
+        }
+
+        wp_send_json_success(array('requests' => $enriched));
     }
 
     // -------------------------------------------------------------------------

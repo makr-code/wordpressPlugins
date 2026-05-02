@@ -57,6 +57,75 @@ class ThemisDB_Contract_Lifecycle {
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
+
+        // Audit log table
+        $log_table = self::get_log_table_name();
+        $sql_log = "CREATE TABLE IF NOT EXISTS {$log_table} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            request_id bigint(20) unsigned NOT NULL,
+            event varchar(60) NOT NULL,
+            actor_id bigint(20) unsigned DEFAULT NULL,
+            note text DEFAULT NULL,
+            context longtext DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY request_id (request_id),
+            KEY event (event),
+            KEY created_at (created_at)
+        ) {$charset_collate};";
+        dbDelta($sql_log);
+    }
+
+    /**
+     * Append an audit log entry for a lifecycle request.
+     *
+     * @param int    $request_id
+     * @param string $event       Short event key, e.g. 'created', 'approved', 'executed'.
+     * @param int    $actor_id    User ID of the actor (0 = system).
+     * @param string $note        Human-readable note.
+     * @param array  $context     Optional key-value context data (stored as JSON).
+     */
+    public static function add_log($request_id, $event, $actor_id = 0, $note = '', $context = array()) {
+        global $wpdb;
+
+        $wpdb->insert(
+            self::get_log_table_name(),
+            array(
+                'request_id' => intval($request_id),
+                'event'      => sanitize_key($event),
+                'actor_id'   => $actor_id > 0 ? intval($actor_id) : null,
+                'note'       => sanitize_textarea_field((string) $note),
+                'context'    => !empty($context) ? wp_json_encode($context) : null,
+            ),
+            array('%d', '%s', '%d', '%s', '%s')
+        );
+    }
+
+    /**
+     * Return audit log entries for a request, oldest first.
+     *
+     * @param int $request_id
+     * @return array
+     */
+    public static function get_log($request_id) {
+        global $wpdb;
+
+        return $wpdb->get_results(
+            $wpdb->prepare(
+                'SELECT l.*, u.display_name AS actor_name
+                 FROM ' . self::get_log_table_name() . ' l
+                 LEFT JOIN ' . $wpdb->users . ' u ON u.ID = l.actor_id
+                 WHERE l.request_id = %d
+                 ORDER BY l.created_at ASC',
+                intval($request_id)
+            ),
+            ARRAY_A
+        );
+    }
+
+    public static function get_log_table_name() {
+        global $wpdb;
+        return $wpdb->prefix . 'themisdb_contract_lifecycle_log';
     }
 
     public static function request_termination($license_id, $requested_end_date = '', $reason = '', $requested_by = 0) {
@@ -110,6 +179,7 @@ class ThemisDB_Contract_Lifecycle {
 
         $request_id = intval($wpdb->insert_id);
 
+        self::add_log($request_id, 'created', intval($requested_by ?: get_current_user_id()), __('Kuendigungsantrag eingereicht.', 'themisdb-order-request'), array('effective_at' => $effective_at, 'reason' => $reason));
         do_action('contract.termination.requested', $request_id, $license_id);
         self::notify_admin_request_created($request_id, self::TYPE_TERMINATION, $license_id);
 
@@ -154,6 +224,7 @@ class ThemisDB_Contract_Lifecycle {
 
         $request_id = intval($wpdb->insert_id);
 
+        self::add_log($request_id, 'created', intval($requested_by ?: get_current_user_id()), __('Aenderungsantrag eingereicht.', 'themisdb-order-request'), array('payload' => $change_payload, 'reason' => $reason));
         do_action('contract.change.requested', $request_id, $license_id, (array) $change_payload);
         self::notify_admin_request_created($request_id, self::TYPE_CHANGE, $license_id);
 
@@ -199,6 +270,7 @@ class ThemisDB_Contract_Lifecycle {
         );
 
         if ($approve) {
+            self::add_log($request_id, 'approved', $reviewed_by, (string) ($review_note ?: __('Antrag genehmigt.', 'themisdb-order-request')));
             if ($request['request_type'] === self::TYPE_CHANGE) {
                 self::execute_change_request($request_id);
                 do_action('contract.change.approved', $request_id, intval($request['license_id']));
@@ -206,6 +278,7 @@ class ThemisDB_Contract_Lifecycle {
                 do_action('contract.termination.confirmed', $request_id, intval($request['license_id']));
             }
         } else {
+            self::add_log($request_id, 'rejected', $reviewed_by, (string) ($review_note ?: __('Antrag abgelehnt.', 'themisdb-order-request')));
             if ($request['request_type'] === self::TYPE_CHANGE) {
                 do_action('contract.change.rejected', $request_id, intval($request['license_id']));
             } else {
@@ -304,10 +377,12 @@ class ThemisDB_Contract_Lifecycle {
                     array('%d')
                 );
 
+                self::add_log(intval($row['id']), 'executed', 0, __('Lizenz durch Scheduler gekuendigt.', 'themisdb-order-request'));
                 do_action('contract.termination.executed', intval($row['id']), $license_id);
                 self::notify_customer_termination_executed(intval($row['id']));
                 $result['executed']++;
             } else {
+                self::add_log(intval($row['id']), 'execute_failed', 0, __('Automatische Ausfuehrung fehlgeschlagen.', 'themisdb-order-request'));
                 $result['failed']++;
             }
         }
@@ -726,6 +801,7 @@ class ThemisDB_Contract_Lifecycle {
         );
 
         if ($result !== false) {
+            self::add_log(intval($request_id), 'executed', 0, __('Lizenzaenderungen angewendet.', 'themisdb-order-request'), $update_data);
             self::notify_customer_change_executed($request_id);
             do_action('contract.change.executed', intval($request_id), $license_id);
         }

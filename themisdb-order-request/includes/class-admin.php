@@ -10561,29 +10561,45 @@ document.addEventListener("DOMContentLoaded", function() {
                             <th><?php esc_html_e('Status', 'themisdb-order-request'); ?></th>
                             <th><?php esc_html_e('Lizenz', 'themisdb-order-request'); ?></th>
                             <th><?php esc_html_e('Effektiv', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Erstellt', 'themisdb-order-request'); ?></th>
                             <th><?php esc_html_e('Begruendung', 'themisdb-order-request'); ?></th>
                             <th><?php esc_html_e('Aktion', 'themisdb-order-request'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
                     <?php if (empty($requests)) : ?>
-                        <tr><td colspan="7"><?php esc_html_e('Keine Lifecycle-Antraege vorhanden.', 'themisdb-order-request'); ?></td></tr>
+                        <tr><td colspan="8"><?php esc_html_e('Keine Lifecycle-Antraege vorhanden.', 'themisdb-order-request'); ?></td></tr>
                     <?php else : ?>
                         <?php foreach ($requests as $request) : ?>
-                            <tr>
-                                <td><?php echo esc_html((string) $request['id']); ?></td>
+                            <tr id="lc-row-<?php echo absint($request['id']); ?>">
+                                <td>
+                                    <a href="#" class="themisdb-lc-toggle-log" data-id="<?php echo absint($request['id']); ?>" title="<?php esc_attr_e('Audit-Log anzeigen', 'themisdb-order-request'); ?>">
+                                        #<?php echo esc_html((string) $request['id']); ?>
+                                    </a>
+                                </td>
                                 <td><?php echo esc_html((string) $request['request_type']); ?></td>
-                                <td><?php echo esc_html((string) $request['status']); ?></td>
+                                <td>
+                                    <?php
+                                    $s_colors = array('requested' => '#0073aa', 'confirmed' => '#28a745', 'rejected' => '#dc3545', 'executed' => '#6c757d');
+                                    $sc = isset($s_colors[$request['status']]) ? $s_colors[$request['status']] : '#333';
+                                    ?>
+                                    <span style="display:inline-block;padding:2px 9px;border-radius:3px;background:<?php echo esc_attr($sc); ?>;color:#fff;font-size:11px;font-weight:bold;">
+                                        <?php echo esc_html((string) $request['status']); ?>
+                                    </span>
+                                </td>
                                 <td><?php echo esc_html((string) $request['license_id']); ?></td>
                                 <td><?php echo esc_html((string) ($request['effective_at'] ?: '—')); ?></td>
-                                <td><?php echo esc_html((string) ($request['reason'] ?: '—')); ?></td>
+                                <td><?php echo esc_html((string) ($request['created_at'] ?: '—')); ?></td>
+                                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?php echo esc_attr((string) ($request['reason'] ?: '')); ?>">
+                                    <?php echo esc_html((string) ($request['reason'] ?: '—')); ?>
+                                </td>
                                 <td>
                                     <?php if ((string) $request['status'] === 'requested') : ?>
                                         <form method="post" style="display:flex;gap:6px;align-items:center;">
                                             <?php wp_nonce_field('themisdb_contract_lifecycle_action'); ?>
                                             <input type="hidden" name="themisdb_lifecycle_action" value="review" />
                                             <input type="hidden" name="request_id" value="<?php echo absint($request['id']); ?>" />
-                                            <input type="text" name="review_note" placeholder="<?php esc_attr_e('Notiz', 'themisdb-order-request'); ?>" />
+                                            <input type="text" name="review_note" placeholder="<?php esc_attr_e('Notiz', 'themisdb-order-request'); ?>" style="width:110px;" />
                                             <button class="button button-primary" name="decision" value="approve" type="submit"><?php esc_html_e('Freigeben', 'themisdb-order-request'); ?></button>
                                             <button class="button" name="decision" value="reject" type="submit"><?php esc_html_e('Ablehnen', 'themisdb-order-request'); ?></button>
                                         </form>
@@ -10592,11 +10608,59 @@ document.addEventListener("DOMContentLoaded", function() {
                                     <?php endif; ?>
                                 </td>
                             </tr>
+                            <!-- Audit-Log-Zeile (initially hidden) -->
+                            <tr class="themisdb-lc-log-row" id="lc-log-<?php echo absint($request['id']); ?>" style="display:none;">
+                                <td colspan="8" style="background:#f9f9f9;padding:0;">
+                                    <div style="padding:12px 20px;">
+                                        <?php
+                                        $log_entries = ThemisDB_Contract_Lifecycle::get_log(intval($request['id']));
+                                        if (empty($log_entries)) :
+                                        ?>
+                                            <em style="color:#888;"><?php esc_html_e('Keine Audit-Eintraege vorhanden.', 'themisdb-order-request'); ?></em>
+                                        <?php else : ?>
+                                            <ul style="margin:0;padding:0;list-style:none;">
+                                                <?php foreach ($log_entries as $entry) :
+                                                    $event_icons = array(
+                                                        'created'        => '📝',
+                                                        'approved'       => '✅',
+                                                        'rejected'       => '❌',
+                                                        'executed'       => '🔒',
+                                                        'execute_failed' => '⚠️',
+                                                    );
+                                                    $icon = isset($event_icons[$entry['event']]) ? $event_icons[$entry['event']] : '•';
+                                                    $actor = !empty($entry['actor_name']) ? $entry['actor_name'] : __('System', 'themisdb-order-request');
+                                                ?>
+                                                <li style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #eee;font-size:12px;align-items:baseline;">
+                                                    <span style="min-width:18px;text-align:center;"><?php echo esc_html($icon); ?></span>
+                                                    <span style="color:#888;min-width:130px;"><?php echo esc_html((string) $entry['created_at']); ?></span>
+                                                    <strong style="min-width:100px;"><?php echo esc_html((string) $entry['event']); ?></strong>
+                                                    <span style="color:#555;min-width:120px;"><?php echo esc_html($actor); ?></span>
+                                                    <span><?php echo esc_html((string) ($entry['note'] ?: '')); ?></span>
+                                                </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
                     </tbody>
                 </table>
             </div>
+
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                document.querySelectorAll('.themisdb-lc-toggle-log').forEach(function(link) {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        var id = this.dataset.id;
+                        var row = document.getElementById('lc-log-' + id);
+                        if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
+                    });
+                });
+            });
+            </script>
         </div>
         <?php
     }
