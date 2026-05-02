@@ -105,7 +105,9 @@
 
         function buildQueryFromState(state) {
             var query = new URLSearchParams();
-            query.set("tv3_limit", String(parseIntSafe(state.limit, 12)));
+            if (parseIntSafe(state.limit, 12) !== 12) {
+                query.set("tv3_limit", String(parseIntSafe(state.limit, 12)));
+            }
             if (state.search) {
                 query.set("tv3_search", state.search);
             }
@@ -250,7 +252,11 @@
         }
 
         if (window.history && typeof window.history.replaceState === "function") {
-            syncBrowserHistory(readStateFromLocation().page || 1, "replace");
+            // Only restore URL state if tv3_ params are already present (e.g. back navigation).
+            // Avoids writing default state (tv3_limit=12) to a clean URL on initial load.
+            if (window.location.search.indexOf("tv3_") !== -1) {
+                syncBrowserHistory(readStateFromLocation().page || 1, "replace");
+            }
         }
 
         window.addEventListener("popstate", function (event) {

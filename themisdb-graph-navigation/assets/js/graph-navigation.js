@@ -903,6 +903,11 @@
                 .attr('stroke-opacity', 0.6);
         }
 
+        // Only sync URL state if the page was loaded with graph params (shared link)
+        // or after the user has explicitly interacted. Prevents localStorage state
+        // from polluting clean URLs on initial page load.
+        let urlSyncAllowed = new URLSearchParams(window.location.search).has('gn');
+
         const panelState = {
             search: '',
             type: 'all',
@@ -1494,12 +1499,18 @@
         }
 
         function syncUrlState() {
+            urlSyncAllowed = true; // any explicit call enables URL sync going forward
             try {
                 const url = buildPanelUrl();
                 window.history.replaceState(null, '', url.toString());
             } catch (error) {
                 console.warn('Could not sync graph URL state', error);
             }
+        }
+
+        function syncUrlStateIfAllowed() {
+            if (!urlSyncAllowed) return;
+            syncUrlState();
         }
 
         async function copyShareLink() {
@@ -2271,7 +2282,7 @@
             });
             renderTypeChips(typeCounts);
             persistPanelState();
-            syncUrlState();
+            syncUrlStateIfAllowed();
         }
 
         function initPanelDrag(el) {
