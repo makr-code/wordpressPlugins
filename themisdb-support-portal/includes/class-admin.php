@@ -28,6 +28,9 @@ class ThemisDB_Support_Admin {
         add_action('wp_ajax_themisdb_support_admin_status', array($this, 'handle_status_change'));
         add_action('wp_ajax_themisdb_support_admin_assign', array($this, 'handle_quick_assign_ajax'));
         add_action('wp_ajax_themisdb_support_admin_bulk', array($this, 'handle_bulk_action_ajax'));
+
+        // Change-Request-Aktionen (approve / reject via POST)
+        add_action('admin_post_themisdb_change_review', array($this, 'handle_change_review'));
     }
 
     // -------------------------------------------------------------------------
@@ -73,6 +76,15 @@ class ThemisDB_Support_Admin {
             'manage_options',
             'themisdb-support-observability',
             array($this, 'observability_page')
+        );
+
+        add_submenu_page(
+            'themisdb-support',
+            __('Änderungsanträge', 'themisdb-support-portal'),
+            __('Änderungsanträge', 'themisdb-support-portal'),
+            'manage_options',
+            'themisdb-support-change-requests',
+            array($this, 'change_requests_page')
         );
 
         add_submenu_page(
@@ -1150,6 +1162,238 @@ class ThemisDB_Support_Admin {
                     </p>
                 </div>
             </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Vertragsänderungsantrag genehmigen oder ablehnen (admin_post handler).
+     */
+    public function handle_change_review() {
+        check_admin_referer('themisdb_change_review', '_wpnonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Keine Berechtigung', 'themisdb-support-portal'));
+        }
+
+        $request_id  = isset($_POST['request_id'])  ? intval($_POST['request_id'])                           : 0;
+        $action      = isset($_POST['cr_action'])    ? sanitize_text_field(wp_unslash($_POST['cr_action']))   : '';
+        $review_note = isset($_POST['review_note'])  ? sanitize_textarea_field(wp_unslash($_POST['review_note'])) : '';
+
+        $redirect = admin_url('admin.php?page=themisdb-support-change-requests');
+
+        if (!$request_id || !in_array($action, array('approve', 'reject'), true)) {
+            wp_safe_redirect(add_query_arg('cr_error', 'invalid', $redirect));
+            exit;
+        }
+
+        if (!class_exists('ThemisDB_Contract_Change_Engine')) {
+            wp_safe_redirect(add_query_arg('cr_error', 'missing_class', $redirect));
+            exit;
+        }
+
+        if ($action === 'approve') {
+            $result = ThemisDB_Contract_Change_Engine::approve($request_id, $review_note);
+        } else {
+            $result = ThemisDB_Contract_Change_Engine::reject($request_id, $review_note);
+        }
+
+        if (is_wp_error($result)) {
+            wp_safe_redirect(add_query_arg('cr_error', urlencode($result->get_error_message()), $redirect));
+        } else {
+            wp_safe_redirect(add_query_arg('cr_done', $action, $redirect));
+        }
+        exit;
+    }
+
+    /**
+     * Render the Change-Requests review page (ARCHITECTUR.md §8.6).
+     */
+    public function change_requests_page() {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Keine Berechtigung', 'themisdb-support-portal'));
+        }
+
+        // Status-Meldungen.
+        if (!empty($_GET['cr_done'])) {
+            $verb = $_GET['cr_done'] === 'approve'
+                ? __('genehmigt', 'themisdb-support-portal')
+                : __('abgelehnt', 'themisdb-support-portal');
+            echo '<div class="notice notice-success is-dismissible"><p>'
+                . esc_html(sprintf(__('Antrag erfolgreich %s.', 'themisdb-support-portal'), $verb))
+                . '</p></div>';
+        }
+
+        if (!empty($_GET['cr_error'])) {
+            echo '<div class="notice notice-error is-dismissible"><p>'
+                . esc_html(urldecode(sanitize_text_field(wp_unslash($_GET['cr_error']))))
+                . '</p></div>';
+        }
+
+        if (!class_exists('ThemisDB_Contract_Change_Engine') || !class_exists('ThemisDB_Contract_Lifecycle')) {
+            echo '<div class="wrap"><p style="color:#e74c3c;">'
+                . esc_html__('Contract-Change-Engine oder Contract-Lifecycle nicht verfügbar. Bitte stellen Sie sicher, dass themisdb-order-request aktiv ist.', 'themisdb-support-portal')
+                . '</p></div>';
+            return;
+        }
+
+        // Filter.
+        $filter_status = isset($_GET['cr_status']) ? sanitize_text_field(wp_unslash($_GET['cr_status'])) : '';
+        $paged         = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
+        $per_page      = 20;
+
+        $list_args = array('limit' => $per_page, 'offset' => ($paged - 1) * $per_page);
+        if ($filter_status) {
+            $list_args['status'] = $filter_status;
+        }
+
+        $requests = ThemisDB_Contract_Change_Engine::list_change_requests($list_args);
+
+        $status_options = array(
+            ''                => __('Alle', 'themisdb-support-portal'),
+            'requested'       => __('Ausstehend', 'themisdb-support-portal'),
+            'confirmed'       => __('Genehmigt', 'themisdb-support-portal'),
+            'rejected'        => __('Abgelehnt', 'themisdb-support-portal'),
+            'executed'        => __('Ausgeführt', 'themisdb-support-portal'),
+            'pending_finance' => __('Finance-Review', 'themisdb-support-portal'),
+        );
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('Vertragsänderungsanträge', 'themisdb-support-portal'); ?></h1>
+            <p style="color:#666;"><?php esc_html_e('Eingehende Änderungsanträge mit Impact-Analyse. Genehmigung oder Ablehnung werden sofort ausgeführt.', 'themisdb-support-portal'); ?></p>
+
+            <!-- Filter -->
+            <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>" style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+                <input type="hidden" name="page" value="themisdb-support-change-requests">
+                <select name="cr_status">
+                    <?php foreach ($status_options as $val => $label): ?>
+                        <option value="<?php echo esc_attr($val); ?>" <?php selected($filter_status, $val); ?>><?php echo esc_html($label); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="button"><?php esc_html_e('Filtern', 'themisdb-support-portal'); ?></button>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support-change-requests')); ?>" class="button button-secondary"><?php esc_html_e('Zurücksetzen', 'themisdb-support-portal'); ?></a>
+            </form>
+
+            <?php if (empty($requests)): ?>
+                <p style="color:#888;"><?php esc_html_e('Keine Änderungsanträge gefunden.', 'themisdb-support-portal'); ?></p>
+            <?php else: ?>
+
+                <?php foreach ($requests as $req):
+                    $status  = isset($req['status'])   ? $req['status']   : 'requested';
+                    $req_id  = isset($req['id'])        ? intval($req['id']) : 0;
+                    $lic_id  = isset($req['license_id']) ? intval($req['license_id']) : 0;
+                    $impact  = ThemisDB_Contract_Change_Engine::get_impact($req_id);
+                    $sc = ThemisDB_Contract_Change_Engine::status_color($status);
+                    $sl = ThemisDB_Contract_Change_Engine::status_label($status);
+                    ?>
+                    <div style="background:#fff;border:1px solid #ddd;border-radius:6px;margin-bottom:20px;overflow:hidden;">
+                        <!-- Header -->
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #eee;background:#fafafa;">
+                            <div style="display:flex;align-items:center;gap:12px;">
+                                <span style="font-size:13px;font-weight:700;"><?php esc_html_e('Antrag', 'themisdb-support-portal'); ?> #<?php echo esc_html((string)$req_id); ?></span>
+                                <span style="display:inline-block;padding:2px 8px;border-radius:3px;background:<?php echo esc_attr($sc); ?>;color:#fff;font-size:11px;font-weight:600;"><?php echo esc_html($sl); ?></span>
+                                <?php if ($impact): ?>
+                                    <?php $rl = isset($impact['risk_level']) ? $impact['risk_level'] : 'low'; ?>
+                                    <span style="display:inline-block;padding:2px 8px;border-radius:3px;background:<?php echo esc_attr(ThemisDB_Contract_Change_Engine::risk_color($rl)); ?>;color:#fff;font-size:11px;">
+                                        <?php esc_html_e('Risiko:', 'themisdb-support-portal'); ?> <?php echo esc_html(ThemisDB_Contract_Change_Engine::risk_label($rl)); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                            <span style="font-size:11px;color:#aaa;"><?php echo esc_html(isset($req['created_at']) ? mysql2date('d.m.Y H:i', $req['created_at']) : ''); ?></span>
+                        </div>
+
+                        <div style="padding:14px 16px;">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+                                <!-- Antrag-Details -->
+                                <div>
+                                    <h4 style="margin:0 0 8px;font-size:13px;"><?php esc_html_e('Antragsdaten', 'themisdb-support-portal'); ?></h4>
+                                    <table style="font-size:12px;width:100%;border-collapse:collapse;">
+                                        <tr>
+                                            <td style="padding:3px 0;color:#666;width:45%;"><?php esc_html_e('Lizenz-ID', 'themisdb-support-portal'); ?></td>
+                                            <td style="padding:3px 0;"><?php echo esc_html($lic_id > 0 ? (string)$lic_id : '—'); ?></td>
+                                        </tr>
+                                        <?php if (!empty($req['reason'])): ?>
+                                        <tr>
+                                            <td style="padding:3px 0;color:#666;vertical-align:top;"><?php esc_html_e('Begründung', 'themisdb-support-portal'); ?></td>
+                                            <td style="padding:3px 0;"><?php echo esc_html(mb_strimwidth($req['reason'], 0, 200, '…')); ?></td>
+                                        </tr>
+                                        <?php endif; ?>
+                                        <?php if (!empty($req['review_note'])): ?>
+                                        <tr>
+                                            <td style="padding:3px 0;color:#666;vertical-align:top;"><?php esc_html_e('Review-Notiz', 'themisdb-support-portal'); ?></td>
+                                            <td style="padding:3px 0;color:#e74c3c;"><?php echo esc_html($req['review_note']); ?></td>
+                                        </tr>
+                                        <?php endif; ?>
+                                    </table>
+                                </div>
+
+                                <!-- Impact-Analyse -->
+                                <div>
+                                    <h4 style="margin:0 0 8px;font-size:13px;"><?php esc_html_e('Impact-Analyse', 'themisdb-support-portal'); ?></h4>
+                                    <?php if (!$impact): ?>
+                                        <p style="color:#aaa;font-size:12px;"><?php esc_html_e('Keine Impact-Daten verfügbar.', 'themisdb-support-portal'); ?></p>
+                                    <?php elseif (empty($impact['changes'])): ?>
+                                        <p style="color:#888;font-size:12px;"><?php esc_html_e('Keine Felder geändert.', 'themisdb-support-portal'); ?></p>
+                                    <?php else: ?>
+                                        <table style="font-size:12px;width:100%;border-collapse:collapse;">
+                                            <?php foreach ($impact['changes'] as $ch): ?>
+                                                <tr style="border-bottom:1px solid #f5f5f5;">
+                                                    <td style="padding:3px 0;color:#666;width:40%;"><?php echo esc_html(isset($ch['label']) ? $ch['label'] : $ch['field']); ?></td>
+                                                    <td style="padding:3px 0;font-family:monospace;"><?php echo esc_html(isset($ch['old']) ? $ch['old'] : '—'); ?></td>
+                                                    <td style="padding:3px 0;color:#555;">→</td>
+                                                    <td style="padding:3px 0;font-family:monospace;font-weight:700;"><?php echo esc_html(isset($ch['new']) ? $ch['new'] : '—'); ?></td>
+                                                    <td style="padding:3px 0;font-size:11px;color:#777;"><?php echo isset($ch['direction']) ? esc_html(ThemisDB_Contract_Change_Engine::direction_label($ch['direction'])) : ''; ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </table>
+                                        <?php if (!is_null($impact['price_delta']) && $impact['price_delta'] != 0): ?>
+                                            <p style="margin:6px 0 0;font-size:12px;color:<?php echo $impact['price_delta'] > 0 ? '#27ae60' : '#e74c3c'; ?>;">
+                                                <?php esc_html_e('Preisänderung (geschätzt):', 'themisdb-support-portal'); ?>
+                                                <?php echo esc_html(($impact['price_delta'] > 0 ? '+' : '') . number_format_i18n($impact['price_delta'], 2) . ' EUR/Jahr'); ?>
+                                            </p>
+                                        <?php endif; ?>
+                                        <?php if ($impact['requires_ops'] || $impact['requires_finance']): ?>
+                                            <p style="margin:6px 0 0;font-size:11px;color:#888;">
+                                                <?php if ($impact['requires_ops']): ?>
+                                                    <span style="background:#e67e22;color:#fff;padding:1px 5px;border-radius:2px;margin-right:4px;"><?php esc_html_e('Ops-Review', 'themisdb-support-portal'); ?></span>
+                                                <?php endif; ?>
+                                                <?php if ($impact['requires_finance']): ?>
+                                                    <span style="background:#9b59b6;color:#fff;padding:1px 5px;border-radius:2px;"><?php esc_html_e('Finance-Review', 'themisdb-support-portal'); ?></span>
+                                                <?php endif; ?>
+                                            </p>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+
+                            <!-- Genehmigungsformular (nur bei Status requested) -->
+                            <?php if ($status === 'requested'): ?>
+                                <div style="border-top:1px solid #eee;margin-top:14px;padding-top:12px;">
+                                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+                                        <?php wp_nonce_field('themisdb_change_review', '_wpnonce'); ?>
+                                        <input type="hidden" name="action" value="themisdb_change_review">
+                                        <input type="hidden" name="request_id" value="<?php echo esc_attr((string)$req_id); ?>">
+
+                                        <div style="flex:1;min-width:200px;">
+                                            <label style="display:block;font-size:12px;margin-bottom:4px;"><?php esc_html_e('Review-Notiz (optional)', 'themisdb-support-portal'); ?></label>
+                                            <input type="text" name="review_note" style="width:100%;padding:4px 8px;border:1px solid #ddd;border-radius:3px;font-size:12px;" placeholder="<?php esc_attr_e('Begründung für Entscheidung…', 'themisdb-support-portal'); ?>">
+                                        </div>
+
+                                        <button type="submit" name="cr_action" value="approve" class="button button-primary" style="background:#27ae60;border-color:#219150;">
+                                            <?php esc_html_e('Genehmigen', 'themisdb-support-portal'); ?>
+                                        </button>
+                                        <button type="submit" name="cr_action" value="reject" class="button" style="color:#e74c3c;border-color:#e74c3c;" onclick="return confirm('<?php esc_attr_e('Antrag wirklich ablehnen?', 'themisdb-support-portal'); ?>');">
+                                            <?php esc_html_e('Ablehnen', 'themisdb-support-portal'); ?>
+                                        </button>
+                                    </form>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+
+            <?php endif; ?>
         </div>
         <?php
     }
