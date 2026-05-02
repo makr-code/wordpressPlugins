@@ -12,7 +12,7 @@
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Lagert die Graph-Navigation aus dem Theme in ein eigenstaendiges Plugin aus.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('THEMISDB_GRAPH_NAV_VERSION', '1.0.0');
+define('THEMISDB_GRAPH_NAV_VERSION', '1.1.0');
 define('THEMISDB_GRAPH_NAV_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_GRAPH_NAV_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_GRAPH_NAV_PLUGIN_FILE', __FILE__);
@@ -121,6 +121,20 @@ function themisdb_graph_navigation_get_graph_data()
 
     $nodes = array();
     $links = array();
+    $link_index = array();
+
+    $add_link = function($source, $target, $type, $extra = array()) use (&$links, &$link_index) {
+        $key = $source . '|' . $target . '|' . $type;
+        if (isset($link_index[$key])) {
+            return;
+        }
+        $link_index[$key] = true;
+        $links[] = array_merge(array(
+            'source' => $source,
+            'target' => $target,
+            'type' => $type,
+        ), $extra);
+    };
 
     // Keep backward compatibility with previous filter names.
     $post_limit = apply_filters('themisdb_graph_post_limit', apply_filters('themisdb_graph_navigation_post_limit', 50));
@@ -148,6 +162,16 @@ function themisdb_graph_navigation_get_graph_data()
         'post_type' => 'page',
     ));
 
+    $content_node_by_wp_id = array();
+    foreach ($posts as $post) {
+        $content_node_by_wp_id[(int) $post->ID] = 'post_' . $post->ID;
+    }
+    foreach ($pages as $page) {
+        $content_node_by_wp_id[(int) $page->ID] = 'page_' . $page->ID;
+    }
+
+    $external_nodes = array();
+
     $nodes[] = array(
         'id' => 'home',
         'label' => get_bloginfo('name'),
@@ -166,11 +190,7 @@ function themisdb_graph_navigation_get_graph_data()
             'count' => $category->count,
         );
 
-        $links[] = array(
-            'source' => 'home',
-            'target' => 'cat_' . $category->term_id,
-            'type' => 'contains',
-        );
+        $add_link('home', 'cat_' . $category->term_id, 'contains', array('weight' => 0.2, 'provenance' => 'taxonomy'));
     }
 
     foreach ($tags as $tag) {
@@ -183,11 +203,7 @@ function themisdb_graph_navigation_get_graph_data()
             'count' => $tag->count,
         );
 
-        $links[] = array(
-            'source' => 'home',
-            'target' => 'tag_' . $tag->term_id,
-            'type' => 'tagged',
-        );
+        $add_link('home', 'tag_' . $tag->term_id, 'tagged', array('weight' => 0.2, 'provenance' => 'taxonomy'));
     }
 
     foreach ($posts as $post) {
@@ -205,22 +221,42 @@ function themisdb_graph_navigation_get_graph_data()
 
         $post_categories = get_the_category($post->ID);
         foreach ($post_categories as $cat) {
-            $links[] = array(
-                'source' => 'cat_' . $cat->term_id,
-                'target' => $post_id,
-                'type' => 'has_post',
-            );
+            $add_link('cat_' . $cat->term_id, $post_id, 'has_post', array('weight' => 0.2, 'provenance' => 'taxonomy'));
         }
 
         $post_tags = get_the_tags($post->ID);
         if ($post_tags) {
             foreach ($post_tags as $tag) {
-                $links[] = array(
-                    'source' => 'tag_' . $tag->term_id,
-                    'target' => $post_id,
-                    'type' => 'has_tag',
+                $add_link('tag_' . $tag->term_id, $post_id, 'has_tag', array('weight' => 0.2, 'provenance' => 'taxonomy'));
+            }
+        }
+
+        $content_urls = themisdb_graph_nav_extract_content_urls($post->post_content);
+        foreach ($content_urls as $content_url) {
+            if (themisdb_graph_nav_is_internal_url($content_url)) {
+                $target_wp_id = url_to_postid($content_url);
+                if ($target_wp_id > 0 && isset($content_node_by_wp_id[(int) $target_wp_id])) {
+                    $target_node_id = $content_node_by_wp_id[(int) $target_wp_id];
+                    if ($target_node_id !== $post_id) {
+                        $add_link($post_id, $target_node_id, 'internal_link', array('weight' => 1.0, 'provenance' => 'internal_link'));
+                    }
+                }
+                continue;
+            }
+
+            $external_node = themisdb_graph_nav_build_external_node($content_url);
+            $external_node_id = $external_node['id'];
+            if (!isset($external_nodes[$external_node_id])) {
+                $external_nodes[$external_node_id] = true;
+                $nodes[] = array(
+                    'id' => $external_node_id,
+                    'label' => $external_node['label'],
+                    'url' => $external_node['url'],
+                    'type' => 'external_resource',
+                    'level' => 3,
                 );
             }
+            $add_link($post_id, $external_node_id, 'external_link', array('weight' => 0.8, 'provenance' => 'external_link'));
         }
     }
 
@@ -236,11 +272,35 @@ function themisdb_graph_navigation_get_graph_data()
             'excerpt' => wp_trim_words(get_the_excerpt($page->ID), 20),
         );
 
-        $links[] = array(
-            'source' => 'home',
-            'target' => $page_id,
-            'type' => 'page_of',
-        );
+        $add_link('home', $page_id, 'page_of', array('weight' => 0.2, 'provenance' => 'taxonomy'));
+
+        $content_urls = themisdb_graph_nav_extract_content_urls($page->post_content);
+        foreach ($content_urls as $content_url) {
+            if (themisdb_graph_nav_is_internal_url($content_url)) {
+                $target_wp_id = url_to_postid($content_url);
+                if ($target_wp_id > 0 && isset($content_node_by_wp_id[(int) $target_wp_id])) {
+                    $target_node_id = $content_node_by_wp_id[(int) $target_wp_id];
+                    if ($target_node_id !== $page_id) {
+                        $add_link($page_id, $target_node_id, 'internal_link', array('weight' => 1.0, 'provenance' => 'internal_link'));
+                    }
+                }
+                continue;
+            }
+
+            $external_node = themisdb_graph_nav_build_external_node($content_url);
+            $external_node_id = $external_node['id'];
+            if (!isset($external_nodes[$external_node_id])) {
+                $external_nodes[$external_node_id] = true;
+                $nodes[] = array(
+                    'id' => $external_node_id,
+                    'label' => $external_node['label'],
+                    'url' => $external_node['url'],
+                    'type' => 'external_resource',
+                    'level' => 3,
+                );
+            }
+            $add_link($page_id, $external_node_id, 'external_link', array('weight' => 0.8, 'provenance' => 'external_link'));
+        }
     }
 
     $data = array(
@@ -264,6 +324,120 @@ add_action('deleted_post', 'themisdb_graph_nav_flush_cache');
 add_action('created_term', 'themisdb_graph_nav_flush_cache');
 add_action('edited_term',  'themisdb_graph_nav_flush_cache');
 add_action('delete_term',  'themisdb_graph_nav_flush_cache');
+
+/**
+ * Extract and normalize all HTTP(S) URLs from content.
+ *
+ * @param string $content
+ * @return string[]
+ */
+function themisdb_graph_nav_extract_content_urls($content) {
+    if (!is_string($content) || $content === '') {
+        return array();
+    }
+
+    $raw_urls = wp_extract_urls($content);
+    if (!is_array($raw_urls) || empty($raw_urls)) {
+        return array();
+    }
+
+    $result = array();
+    foreach ($raw_urls as $url) {
+        $normalized = themisdb_graph_nav_normalize_url($url);
+        if ($normalized === '') {
+            continue;
+        }
+        $result[$normalized] = true;
+    }
+    return array_keys($result);
+}
+
+/**
+ * Normalize URL for stable graph identity and matching.
+ *
+ * @param string $url
+ * @return string
+ */
+function themisdb_graph_nav_normalize_url($url) {
+    if (!is_string($url) || $url === '') {
+        return '';
+    }
+
+    $parsed = wp_parse_url(trim($url));
+    if (!is_array($parsed) || empty($parsed['scheme']) || empty($parsed['host'])) {
+        return '';
+    }
+
+    $scheme = strtolower((string) $parsed['scheme']);
+    if ($scheme !== 'http' && $scheme !== 'https') {
+        return '';
+    }
+
+    $host = strtolower((string) $parsed['host']);
+    $path = isset($parsed['path']) ? $parsed['path'] : '/';
+    $path = $path === '' ? '/' : $path;
+
+    $normalized = $scheme . '://' . $host . $path;
+    if (!empty($parsed['query'])) {
+        $normalized .= '?' . $parsed['query'];
+    }
+    return $normalized;
+}
+
+/**
+ * Check whether URL points to the current site.
+ *
+ * @param string $url
+ * @return bool
+ */
+function themisdb_graph_nav_is_internal_url($url) {
+    $normalized_target = themisdb_graph_nav_normalize_url($url);
+    $normalized_home = themisdb_graph_nav_normalize_url(home_url('/'));
+    if ($normalized_target === '' || $normalized_home === '') {
+        return false;
+    }
+
+    $target_host = wp_parse_url($normalized_target, PHP_URL_HOST);
+    $home_host = wp_parse_url($normalized_home, PHP_URL_HOST);
+
+    return is_string($target_host) && is_string($home_host) && strtolower($target_host) === strtolower($home_host);
+}
+
+/**
+ * Build external node identity for URL.
+ *
+ * Wikipedia links are intentionally collapsed into a single shared node.
+ *
+ * @param string $url
+ * @return array{id: string, label: string, url: string}
+ */
+function themisdb_graph_nav_build_external_node($url) {
+    $normalized = themisdb_graph_nav_normalize_url($url);
+    if ($normalized === '') {
+        return array(
+            'id' => 'ext_unknown',
+            'label' => 'External',
+            'url' => '',
+        );
+    }
+
+    $host = strtolower((string) wp_parse_url($normalized, PHP_URL_HOST));
+    $is_wikipedia_subdomain = (strlen($host) > strlen('.wikipedia.org'))
+        && (substr($host, -strlen('.wikipedia.org')) === '.wikipedia.org');
+    if ($host === 'wikipedia.org' || $is_wikipedia_subdomain) {
+        return array(
+            'id' => 'ext_wikipedia',
+            'label' => 'Wikipedia',
+            'url' => 'https://de.wikipedia.org/',
+        );
+    }
+
+    return array(
+        'id' => 'ext_' . substr(md5($normalized), 0, 16),
+        'label' => $host !== '' ? $host : $normalized,
+        'url' => $normalized,
+    );
+}
 
 /**
  * Backward-compatible function name from theme implementation.
