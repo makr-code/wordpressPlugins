@@ -49,10 +49,10 @@ if ($branch -ne 'main' -and $branch -ne 'develop') {
     if ((Read-Host) -ne 'y') { exit 0 }
 }
 
-$dirty = git status --porcelain
+$dirty = git status --porcelain | Where-Object { $_ -match '^[MADRCU ]M|^ M|^M |^A |^D |^R ' }
 if ($dirty) {
-    Write-Warn "Working directory has uncommitted changes:`n$dirty"
-    Write-Warn "Commit or stash first. Aborting."
+    Write-Warn "Working directory has uncommitted tracked changes:`n$dirty"
+    Write-Warn "Commit or stash tracked changes first. Aborting."
     exit 1
 }
 
