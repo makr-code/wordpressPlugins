@@ -423,6 +423,7 @@ $render_bulk_assignment_options = static function ($assignable_agents) {
                             <th scope="col" class="column-customer"><?php esc_html_e('Kunde', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-status"><?php esc_html_e('Status', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-priority"><?php esc_html_e('Prioritaet', 'themisdb-support-portal'); ?></th>
+                            <th scope="col" class="column-queue"><?php esc_html_e('Queue', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-assignee"><?php esc_html_e('Bearbeiter', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-date"><?php esc_html_e('Datum', 'themisdb-support-portal'); ?></th>
                         </tr>
@@ -475,6 +476,16 @@ $render_bulk_assignment_options = static function ($assignable_agents) {
                                         <?php echo esc_html(isset($priority_labels[$ticket['priority']]) ? $priority_labels[$ticket['priority']] : $ticket['priority']); ?>
                                     </span>
                                 </td>
+                                <td class="column-queue">
+                                    <?php
+                                    $ticket_queue = !empty($ticket['queue']) ? $ticket['queue'] : 'triage';
+                                    $queue_label  = class_exists('ThemisDB_Queue_Router') ? ThemisDB_Queue_Router::queue_label($ticket_queue) : ucfirst($ticket_queue);
+                                    $queue_color  = class_exists('ThemisDB_Queue_Router') ? ThemisDB_Queue_Router::queue_color($ticket_queue)  : '#999';
+                                    ?>
+                                    <span style="display:inline-block;padding:2px 8px;border-radius:3px;background:<?php echo esc_attr($queue_color); ?>;color:#fff;font-size:11px;font-weight:600;">
+                                        <?php echo esc_html($queue_label); ?>
+                                    </span>
+                                </td>
                                 <td class="column-assignee">
                                     <?php
                                     $ticket_assignee_user_id = isset($ticket['assignee_user_id']) ? intval($ticket['assignee_user_id']) : 0;
@@ -520,6 +531,7 @@ $render_bulk_assignment_options = static function ($assignable_agents) {
                             <th scope="col" class="column-customer"><?php esc_html_e('Kunde', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-status"><?php esc_html_e('Status', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-priority"><?php esc_html_e('Prioritaet', 'themisdb-support-portal'); ?></th>
+                            <th scope="col" class="column-queue"><?php esc_html_e('Queue', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-assignee"><?php esc_html_e('Bearbeiter', 'themisdb-support-portal'); ?></th>
                             <th scope="col" class="column-date"><?php esc_html_e('Datum', 'themisdb-support-portal'); ?></th>
                         </tr>

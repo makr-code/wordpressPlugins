@@ -80,6 +80,8 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 // Include required files
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-database.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-license-auth.php';
+require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-queue-router.php';
+require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-incident-log.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-ticket-manager.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-shortcodes.php';

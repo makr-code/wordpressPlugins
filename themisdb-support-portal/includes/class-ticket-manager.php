@@ -117,7 +117,24 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             'sla_due_at'       => class_exists('ThemisDB_SLA_Escalation')
                                     ? ThemisDB_SLA_Escalation::calculate_sla_due_at(isset($data['priority']) ? $data['priority'] : 'normal')
                                     : null,
+            'ticket_type'      => (isset($data['ticket_type']) && in_array($data['ticket_type'], array('incident', 'change', 'request'), true))
+                                    ? $data['ticket_type']
+                                    : 'request',
+            'queue'            => '', // resolved below
         );
+
+        // Resolve queue via router (requires ticket_type and priority to be set first).
+        if (class_exists('ThemisDB_Queue_Router')) {
+            $tier = isset($data['tier']) ? sanitize_text_field($data['tier']) : '';
+            $ticket_payload['queue'] = ThemisDB_Queue_Router::resolve_queue(
+                $ticket_payload['ticket_type'],
+                $ticket_payload['priority'],
+                $tier
+            );
+        } else {
+            $ticket_payload['queue'] = 'triage';
+        }
+
         $ticket_formats = array(
             'ticket_number' => '%s',
             'subject' => '%s',
@@ -133,6 +150,8 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             'created_by' => '%d',
             'assignee_user_id' => '%d',
             'sla_due_at' => '%s',
+            'ticket_type' => '%s',
+            'queue' => '%s',
         );
 
         $prepared = self::prepare_schema_payload($ticket_payload, $ticket_formats, $table_tickets);

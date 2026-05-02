@@ -255,6 +255,22 @@ class ThemisDB_SLA_Escalation {
         add_filter('wp_mail_content_type', array(__CLASS__, '_html_type'));
         wp_mail($to, $subject, $body);
         remove_filter('wp_mail_content_type', array(__CLASS__, '_html_type'));
+
+        // Persist SLA breach as operational incident.
+        if (class_exists('ThemisDB_Incident_Log')) {
+            ThemisDB_Incident_Log::log(
+                ThemisDB_Incident_Log::DOMAIN_SLA,
+                ThemisDB_Incident_Log::SEVERITY_HIGH,
+                sprintf('SLA-Verstoss: Ticket %s (%s) fuer Kunde %s', $ticket['ticket_number'], $ticket['priority'], $ticket['customer_email']),
+                array(
+                    'ticket_id'      => (int) $ticket['id'],
+                    'ticket_number'  => $ticket['ticket_number'],
+                    'priority'       => $ticket['priority'],
+                    'sla_due_at'     => $ticket['sla_due_at'],
+                    'customer_email' => $ticket['customer_email'],
+                )
+            );
+        }
     }
 
     /**

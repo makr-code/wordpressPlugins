@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
  */
 class ThemisDB_Support_Database {
 
-    const DB_VERSION = '1.0.3';
+    const DB_VERSION = '1.0.4';
 
     /**
      * Called on plugins_loaded – runs a schema upgrade if needed.
@@ -62,6 +62,8 @@ class ThemisDB_Support_Database {
             sla_due_at datetime DEFAULT NULL,
             sla_warned_at datetime DEFAULT NULL,
             sla_breached_at datetime DEFAULT NULL,
+            ticket_type varchar(20) NOT NULL DEFAULT 'request',
+            queue varchar(20) NOT NULL DEFAULT 'triage',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
@@ -83,6 +85,24 @@ class ThemisDB_Support_Database {
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY ticket_id (ticket_id)
+        ) $charset_collate;";
+
+        $table_incident_log = $wpdb->prefix . 'themisdb_incident_log';
+
+        $sql .= "\nCREATE TABLE $table_incident_log (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            domain varchar(50) NOT NULL DEFAULT 'system',
+            severity varchar(20) NOT NULL DEFAULT 'medium',
+            status varchar(20) NOT NULL DEFAULT 'open',
+            last_error varchar(1000) NOT NULL DEFAULT '',
+            retry_count int(10) unsigned NOT NULL DEFAULT 0,
+            context longtext DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY domain (domain),
+            KEY status (status),
+            KEY severity (severity)
         ) $charset_collate;";
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';

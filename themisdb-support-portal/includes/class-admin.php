@@ -59,6 +59,15 @@ class ThemisDB_Support_Admin {
 
         add_submenu_page(
             'themisdb-support',
+            __('Incidents', 'themisdb-support-portal'),
+            __('Incidents', 'themisdb-support-portal'),
+            'manage_options',
+            'themisdb-support-incidents',
+            array($this, 'incidents_page')
+        );
+
+        add_submenu_page(
+            'themisdb-support',
             __('Einstellungen', 'themisdb-support-portal'),
             __('Einstellungen', 'themisdb-support-portal'),
             'manage_options',
@@ -815,6 +824,160 @@ class ThemisDB_Support_Admin {
         }
 
         return $context;
+    }
+
+    /**
+     * Render the Incident Log admin page.
+     */
+    public function incidents_page() {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Keine Berechtigung', 'themisdb-support-portal'));
+        }
+
+        // Handle resolve / ignore actions.
+        if (!empty($_POST['themisdb_incident_action']) && check_admin_referer('themisdb_incident_action', 'themisdb_incident_nonce')) {
+            $action      = sanitize_key($_POST['themisdb_incident_action']);
+            $incident_id = isset($_POST['incident_id']) ? absint($_POST['incident_id']) : 0;
+
+            if ($incident_id > 0 && class_exists('ThemisDB_Incident_Log')) {
+                if ($action === 'resolve') {
+                    ThemisDB_Incident_Log::resolve($incident_id);
+                } elseif ($action === 'ignore') {
+                    ThemisDB_Incident_Log::ignore($incident_id);
+                }
+            }
+        }
+
+        // Filter parameters.
+        $filter_status   = isset($_GET['inc_status'])   ? sanitize_key($_GET['inc_status'])   : '';
+        $filter_domain   = isset($_GET['inc_domain'])   ? sanitize_key($_GET['inc_domain'])   : '';
+        $filter_severity = isset($_GET['inc_severity']) ? sanitize_key($_GET['inc_severity']) : '';
+
+        $query_args = array('limit' => 200);
+        if ($filter_status)   { $query_args['status']   = $filter_status; }
+        if ($filter_domain)   { $query_args['domain']   = $filter_domain; }
+        if ($filter_severity) { $query_args['severity'] = $filter_severity; }
+
+        $incidents    = class_exists('ThemisDB_Incident_Log') ? ThemisDB_Incident_Log::get_all($query_args) : array();
+        $open_count   = class_exists('ThemisDB_Incident_Log') ? ThemisDB_Incident_Log::get_open_count()     : 0;
+
+        $severity_labels = array(
+            ''         => __('Alle Schweregrade', 'themisdb-support-portal'),
+            'low'      => __('Niedrig', 'themisdb-support-portal'),
+            'medium'   => __('Mittel', 'themisdb-support-portal'),
+            'high'     => __('Hoch', 'themisdb-support-portal'),
+            'critical' => __('Kritisch', 'themisdb-support-portal'),
+        );
+        $status_labels = array(
+            ''         => __('Alle Status', 'themisdb-support-portal'),
+            'open'     => __('Offen', 'themisdb-support-portal'),
+            'resolved' => __('Geloest', 'themisdb-support-portal'),
+            'ignored'  => __('Ignoriert', 'themisdb-support-portal'),
+        );
+        $domain_labels = array(
+            ''       => __('Alle Domains', 'themisdb-support-portal'),
+            'sla'    => 'SLA',
+            'mail'   => 'Mail',
+            'build'  => 'Build',
+            'sync'   => 'Sync',
+            'system' => 'System',
+        );
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('Incident Log', 'themisdb-support-portal'); ?></h1>
+            <?php if ($open_count > 0): ?>
+                <div class="notice notice-warning inline">
+                    <p><?php echo esc_html(sprintf(__('%d offene Incidents', 'themisdb-support-portal'), $open_count)); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <form method="get" style="margin-bottom:16px;">
+                <input type="hidden" name="page" value="themisdb-support-incidents">
+                <select name="inc_status">
+                    <?php foreach ($status_labels as $val => $lbl): ?>
+                        <option value="<?php echo esc_attr($val); ?>" <?php selected($filter_status, $val); ?>><?php echo esc_html($lbl); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <select name="inc_domain">
+                    <?php foreach ($domain_labels as $val => $lbl): ?>
+                        <option value="<?php echo esc_attr($val); ?>" <?php selected($filter_domain, $val); ?>><?php echo esc_html($lbl); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <select name="inc_severity">
+                    <?php foreach ($severity_labels as $val => $lbl): ?>
+                        <option value="<?php echo esc_attr($val); ?>" <?php selected($filter_severity, $val); ?>><?php echo esc_html($lbl); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="button"><?php esc_html_e('Filtern', 'themisdb-support-portal'); ?></button>
+                <?php if ($filter_status || $filter_domain || $filter_severity): ?>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support-incidents')); ?>" class="button button-secondary"><?php esc_html_e('Zuruecksetzen', 'themisdb-support-portal'); ?></a>
+                <?php endif; ?>
+            </form>
+
+            <?php if (empty($incidents)): ?>
+                <p><?php esc_html_e('Keine Incidents gefunden.', 'themisdb-support-portal'); ?></p>
+            <?php else: ?>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;"><?php esc_html_e('ID', 'themisdb-support-portal'); ?></th>
+                            <th style="width:80px;"><?php esc_html_e('Domain', 'themisdb-support-portal'); ?></th>
+                            <th style="width:90px;"><?php esc_html_e('Schwere', 'themisdb-support-portal'); ?></th>
+                            <th style="width:80px;"><?php esc_html_e('Status', 'themisdb-support-portal'); ?></th>
+                            <th><?php esc_html_e('Fehlermeldung', 'themisdb-support-portal'); ?></th>
+                            <th style="width:60px;"><?php esc_html_e('Wiederh.', 'themisdb-support-portal'); ?></th>
+                            <th style="width:140px;"><?php esc_html_e('Zeitpunkt', 'themisdb-support-portal'); ?></th>
+                            <th style="width:140px;"><?php esc_html_e('Aktionen', 'themisdb-support-portal'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($incidents as $inc): ?>
+                            <?php
+                            $severity_color = class_exists('ThemisDB_Incident_Log')
+                                ? ThemisDB_Incident_Log::severity_color($inc['severity'])
+                                : '#999';
+                            $severity_lbl = class_exists('ThemisDB_Incident_Log')
+                                ? ThemisDB_Incident_Log::severity_label($inc['severity'])
+                                : $inc['severity'];
+                            $status_lbl = class_exists('ThemisDB_Incident_Log')
+                                ? ThemisDB_Incident_Log::status_label($inc['status'])
+                                : $inc['status'];
+                            ?>
+                            <tr>
+                                <td><?php echo esc_html($inc['id']); ?></td>
+                                <td><code><?php echo esc_html($inc['domain']); ?></code></td>
+                                <td>
+                                    <span style="display:inline-block;padding:2px 8px;border-radius:3px;background:<?php echo esc_attr($severity_color); ?>;color:#fff;font-size:11px;font-weight:600;">
+                                        <?php echo esc_html($severity_lbl); ?>
+                                    </span>
+                                </td>
+                                <td><?php echo esc_html($status_lbl); ?></td>
+                                <td><?php echo esc_html($inc['last_error']); ?></td>
+                                <td style="text-align:center;"><?php echo esc_html($inc['retry_count']); ?></td>
+                                <td><?php echo esc_html(date_i18n(get_option('date_format') . ' H:i', strtotime($inc['created_at']))); ?></td>
+                                <td>
+                                    <?php if ($inc['status'] === 'open'): ?>
+                                        <form method="post" style="display:inline;">
+                                            <?php wp_nonce_field('themisdb_incident_action', 'themisdb_incident_nonce'); ?>
+                                            <input type="hidden" name="incident_id" value="<?php echo esc_attr($inc['id']); ?>">
+                                            <button type="submit" name="themisdb_incident_action" value="resolve" class="button button-small button-primary">
+                                                <?php esc_html_e('Geloest', 'themisdb-support-portal'); ?>
+                                            </button>
+                                            <button type="submit" name="themisdb_incident_action" value="ignore" class="button button-small">
+                                                <?php esc_html_e('Ignorieren', 'themisdb-support-portal'); ?>
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        &mdash;
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+        <?php
     }
 
     /**
