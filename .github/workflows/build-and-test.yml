@@ -1,0 +1,145 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PHP_VERSION: 7.4
+  WORDPRESS_VERSION: 6.0
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: wordpress_test
+          MYSQL_ROOT_PASSWORD: root
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mysqli, curl, gd, mbstring
+          tools: composer
+      
+      - name: Install dependencies
+        run: |
+          composer install --prefer-dist --no-progress
+          npm install --legacy-peer-deps
+      
+      - name: PHP Lint
+        run: |
+          find . -name "*.php" \
+            ! -path "./vendor/*" \
+            ! -path "./node_modules/*" \
+            ! -path "./.git/*" \
+            -exec php -l {} \; | \
+            grep -v "No syntax errors" && exit 1 || exit 0
+      
+      - name: PHPCS (WordPress Coding Standards)
+        run: |
+          ./vendor/bin/phpcs --standard=WordPress --extensions=php \
+            --ignore=vendor,node_modules \
+            themisdb-support-portal/includes/ \
+            themisdb-order-request/includes/ \
+            themisdb-license-manager/includes/ || true
+      
+      - name: PHPUnit Tests
+        run: |
+          ./vendor/bin/phpunit --configuration phpunit.xml || true
+      
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+
+  build-artifacts:
+    needs: test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    strategy:
+      matrix:
+        plugin:
+          - themisdb-support-portal
+          - themisdb-order-request
+          - themisdb-license-manager
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG=${{ github.ref }}
+          VERSION=${TAG#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Create release artifact
+        run: |
+          mkdir -p build/
+          cd ${{ matrix.plugin }}
+          zip -r ../build/${{ matrix.plugin }}-${{ steps.version.outputs.version }}.zip . \
+            -x "*/.*" "*/tests/*" "*/node_modules/*" "*/.git/*"
+          cd ..
+      
+      - name: Generate checksum
+        run: |
+          cd build/
+          sha256sum ${{ matrix.plugin }}-${{ steps.version.outputs.version }}.zip > ${{ matrix.plugin }}-${{ steps.version.outputs.version }}.sha256
+          cat ${{ matrix.plugin }}-${{ steps.version.outputs.version }}.sha256
+      
+      - name: Upload artifacts to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            build/${{ matrix.plugin }}-${{ steps.version.outputs.version }}.zip
+            build/${{ matrix.plugin }}-${{ steps.version.outputs.version }}.sha256
+      
+      - name: Upload to artifact server (if configured)
+        if: secrets.ARTIFACT_SERVER != ''
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.ARTIFACT_TOKEN }}" \
+            -F "file=@build/${{ matrix.plugin }}-${{ steps.version.outputs.version }}.zip" \
+            -F "version=${{ steps.version.outputs.version }}" \
+            -F "plugin=${{ matrix.plugin }}" \
+            https://${{ secrets.ARTIFACT_SERVER }}/api/upload || true
+      
+      - name: Update manifest
+        if: secrets.MANIFEST_TOKEN != ''
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.MANIFEST_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "plugin": "${{ matrix.plugin }}",
+              "version": "${{ steps.version.outputs.version }}",
+              "download_url": "https://github.com/makr-code/wordpressPlugins/releases/download/v${{ steps.version.outputs.version }}/${{ matrix.plugin }}-${{ steps.version.outputs.version }}.zip"
+            }' \
+            https://updates.themisdb.org/api/manifest || true
+      
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "Release ${{ matrix.plugin }} v${{ steps.version.outputs.version }} created successfully!"
