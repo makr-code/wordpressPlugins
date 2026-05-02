@@ -20,10 +20,12 @@ define( 'TDET_URL', plugin_dir_url( __FILE__ ) );
 require_once TDET_DIR . 'includes/class-tracker.php';
 require_once TDET_DIR . 'includes/class-score.php';
 require_once TDET_DIR . 'includes/class-admin.php';
+require_once TDET_DIR . 'includes/class-dashboard-widget.php';
 
 add_action( 'plugins_loaded', function () {
     TDET_Tracker::get_instance();
     TDET_Admin::get_instance();
+    TDET_Dashboard_Widget::init();
 } );
 
 /**

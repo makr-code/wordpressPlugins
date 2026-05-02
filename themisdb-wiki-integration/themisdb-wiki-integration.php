@@ -78,6 +78,7 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 
 // Include markdown converter
 require_once THEMISDB_WIKI_PLUGIN_DIR . 'includes/class-markdown-converter.php';
+require_once THEMISDB_WIKI_PLUGIN_DIR . 'includes/class-dashboard-widget.php';
 
 /**
  * Plugin Name: ThemisDB Wiki Integration
@@ -98,6 +99,7 @@ class ThemisDB_Wiki_Integration {
         // Initialize plugin
         add_action('plugins_loaded', array($this, 'init'));
         add_action('admin_menu', array($this, 'add_admin_menu'));
+        ThemisDB_Wiki_Dashboard_Widget::init();
         add_action('admin_init', array($this, 'register_settings'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
             add_filter('script_loader_tag', array($this, 'add_crossorigin_to_cdn_scripts'), 10, 3);

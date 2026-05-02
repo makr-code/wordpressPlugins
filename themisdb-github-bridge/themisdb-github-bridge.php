@@ -58,6 +58,7 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 
 require_once THEMISDB_GITHUB_BRIDGE_PLUGIN_DIR . 'includes/class-github-client.php';
 require_once THEMISDB_GITHUB_BRIDGE_PLUGIN_DIR . 'includes/class-github-bridge.php';
+require_once THEMISDB_GITHUB_BRIDGE_PLUGIN_DIR . 'includes/class-dashboard-widget.php';
 
 if (!function_exists('themisdb_github_bridge_is_active')) {
     function themisdb_github_bridge_is_active() {
@@ -244,5 +245,6 @@ add_action('plugins_loaded', 'themisdb_github_bridge_register_theme_compat_filte
 
 add_action('plugins_loaded', function () {
     ThemisDB_GitHub_Bridge::instance();
+    ThemisDB_GitHub_Bridge_Dashboard_Widget::init();
     load_plugin_textdomain('themisdb-github-bridge', false, dirname(plugin_basename(__FILE__)) . '/languages');
 });

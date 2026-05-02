@@ -88,6 +88,7 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 require_once THEMISDB_COMPENDIUM_PLUGIN_DIR . 'includes/class-compendium-downloads.php';
 require_once THEMISDB_COMPENDIUM_PLUGIN_DIR . 'includes/class-compendium-widget.php';
 require_once THEMISDB_COMPENDIUM_PLUGIN_DIR . 'includes/class-compendium-admin.php';
+require_once THEMISDB_COMPENDIUM_PLUGIN_DIR . 'includes/class-dashboard-widget.php';
 
 /**
  * Plugin Name: ThemisDB Compendium Downloads
@@ -102,6 +103,7 @@ function themisdb_compendium_init() {
     // Initialize admin settings
     if (is_admin()) {
         new ThemisDB_Compendium_Admin();
+        ThemisDB_Compendium_Dashboard_Widget::init();
     }
     
     // Load text domain for translations

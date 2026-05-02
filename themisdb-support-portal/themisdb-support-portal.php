@@ -83,6 +83,7 @@ require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-license-auth.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-ticket-manager.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-shortcodes.php';
+require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-dashboard-widget.php';
 
 /**
  * Plugin Name: ThemisDB Support Portal
@@ -96,6 +97,7 @@ function themisdb_support_portal_init() {
 
     if (is_admin()) {
         new ThemisDB_Support_Admin();
+        ThemisDB_Support_Dashboard_Widget::init();
     }
 
     new ThemisDB_Support_License_Auth();

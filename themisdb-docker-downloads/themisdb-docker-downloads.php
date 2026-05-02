@@ -88,6 +88,7 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 require_once THEMISDB_DOCKER_DOWNLOADS_PLUGIN_DIR . 'includes/class-dockerhub-api.php';
 require_once THEMISDB_DOCKER_DOWNLOADS_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_DOCKER_DOWNLOADS_PLUGIN_DIR . 'includes/class-shortcodes.php';
+require_once THEMISDB_DOCKER_DOWNLOADS_PLUGIN_DIR . 'includes/class-dashboard-widget.php';
 
 /**
  * Plugin Name: ThemisDB Docker Downloads
@@ -99,6 +100,7 @@ function themisdb_docker_downloads_init() {
     // Initialize admin panel
     if (is_admin()) {
         new ThemisDB_Docker_Downloads_Admin();
+        ThemisDB_Docker_Downloads_Dashboard_Widget::init();
     }
     
     // Initialize shortcodes

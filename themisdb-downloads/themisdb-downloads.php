@@ -89,6 +89,7 @@ require_once THEMISDB_DOWNLOADS_PLUGIN_DIR . 'includes/class-markdown-converter.
 require_once THEMISDB_DOWNLOADS_PLUGIN_DIR . 'includes/class-github-api.php';
 require_once THEMISDB_DOWNLOADS_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_DOWNLOADS_PLUGIN_DIR . 'includes/class-shortcodes.php';
+require_once THEMISDB_DOWNLOADS_PLUGIN_DIR . 'includes/class-dashboard-widget.php';
 
 // Keep legacy taxonomy manager for backward compatibility
 // But prefer shared taxonomy manager if available
@@ -106,6 +107,7 @@ function themisdb_downloads_init() {
     // Initialize admin panel
     if (is_admin()) {
         new ThemisDB_Downloads_Admin();
+        ThemisDB_Downloads_Dashboard_Widget::init();
     }
     
     // Initialize shortcodes

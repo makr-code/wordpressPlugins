@@ -50,6 +50,7 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 
 require_once THEMISDB_DB_BACKUP_PLUGIN_DIR . 'includes/class-backup-service.php';
 require_once THEMISDB_DB_BACKUP_PLUGIN_DIR . 'includes/class-admin.php';
+require_once THEMISDB_DB_BACKUP_PLUGIN_DIR . 'includes/class-dashboard-widget.php';
 
 function themisdb_db_backup_activate() {
     if (get_option('themisdb_db_backup_schedule') === false) {
@@ -104,6 +105,7 @@ add_action(THEMISDB_DB_BACKUP_CRON_HOOK, function() {
 function themisdb_db_backup_init() {
     if (is_admin()) {
         new ThemisDB_DB_Backup_Admin();
+        ThemisDB_DB_Backup_Dashboard_Widget::init();
     }
 
     load_plugin_textdomain('themisdb-db-backup', false, dirname(plugin_basename(__FILE__)) . '/languages');

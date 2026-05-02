@@ -91,6 +91,7 @@ require_once THEMISDB_GALLERY_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_GALLERY_PLUGIN_DIR . 'includes/class-media-handler.php';
 require_once THEMISDB_GALLERY_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once THEMISDB_GALLERY_PLUGIN_DIR . 'includes/class-gutenberg-block.php';
+require_once THEMISDB_GALLERY_PLUGIN_DIR . 'includes/class-dashboard-widget.php';
 
 /**
  * Plugin Name: ThemisDB Gallery
@@ -102,6 +103,7 @@ function themisdb_gallery_init() {
     // Initialize admin panel
     if (is_admin()) {
         new ThemisDB_Gallery_Admin();
+        ThemisDB_Gallery_Dashboard_Widget::init();
     }
     
     // Initialize shortcodes
