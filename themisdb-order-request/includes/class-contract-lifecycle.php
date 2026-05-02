@@ -44,6 +44,12 @@ class ThemisDB_Contract_Lifecycle {
             reviewed_by bigint(20) unsigned DEFAULT NULL,
             review_note text DEFAULT NULL,
             reviewed_at datetime DEFAULT NULL,
+            ops_review_by bigint(20) unsigned DEFAULT NULL,
+            ops_review_note text DEFAULT NULL,
+            ops_reviewed_at datetime DEFAULT NULL,
+            finance_review_by bigint(20) unsigned DEFAULT NULL,
+            finance_review_note text DEFAULT NULL,
+            finance_reviewed_at datetime DEFAULT NULL,
             effective_at datetime DEFAULT NULL,
             executed_at datetime DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -283,6 +289,147 @@ class ThemisDB_Contract_Lifecycle {
                 do_action('contract.change.rejected', $request_id, intval($request['license_id']));
             } else {
                 do_action('contract.termination.rejected', $request_id, intval($request['license_id']));
+            }
+        }
+
+        self::notify_customer_review_result($request_id, $new_status);
+
+        return true;
+    }
+
+    /**
+     * Operations review for a lifecycle request (first-stage approval).
+     * Sets status to a pending-finance state if ops approves.
+     *
+     * @param int    $request_id
+     * @param bool   $approve     Whether to approve (true) or reject (false).
+     * @param string $review_note Reviewer note.
+     * @param int    $reviewed_by User ID of the reviewer.
+     * @return true|WP_Error
+     */
+    public static function review_request_ops($request_id, $approve, $review_note = '', $reviewed_by = 0) {
+        global $wpdb;
+
+        $request_id = intval($request_id);
+        $request = self::get_request($request_id);
+        if (!$request) {
+            return new WP_Error('request_not_found', __('Lifecycle-Antrag nicht gefunden.', 'themisdb-order-request'));
+        }
+
+        if ($request['status'] !== self::STATUS_REQUESTED) {
+            return new WP_Error('request_not_pending', __('Antrag ist nicht im angeforderten Status.', 'themisdb-order-request'));
+        }
+
+        $reviewed_by = $reviewed_by > 0 ? intval($reviewed_by) : (get_current_user_id() ?: 0);
+
+        if ($approve) {
+            // Ops approved: move to pending-finance state
+            $new_status = 'pending_finance';
+            self::add_log($request_id, 'ops_approved', $reviewed_by, (string) ($review_note ?: __('Operationale Genehmigung erteilt.', 'themisdb-order-request')));
+        } else {
+            // Ops rejected: move to rejected state
+            $new_status = self::STATUS_REJECTED;
+            self::add_log($request_id, 'ops_rejected', $reviewed_by, (string) ($review_note ?: __('Operationale Genehmigung abgelehnt.', 'themisdb-order-request')));
+        }
+
+        $update_data = array(
+            'status' => $new_status,
+            'ops_review_by' => $reviewed_by > 0 ? $reviewed_by : null,
+            'ops_review_note' => sanitize_textarea_field((string) $review_note),
+            'ops_reviewed_at' => current_time('mysql'),
+        );
+        $update_formats = array('%s', '%d', '%s', '%s');
+
+        $wpdb->update(
+            self::get_table_name(),
+            $update_data,
+            array('id' => $request_id),
+            $update_formats,
+            array('%d')
+        );
+
+        if (!$approve) {
+            if ($request['request_type'] === self::TYPE_CHANGE) {
+                do_action('contract.change.ops_rejected', $request_id, intval($request['license_id']));
+            } else {
+                do_action('contract.termination.ops_rejected', $request_id, intval($request['license_id']));
+            }
+            self::notify_customer_review_result($request_id, self::STATUS_REJECTED);
+        }
+
+        return true;
+    }
+
+    /**
+     * Finance review for a lifecycle request (second-stage approval).
+     * Only executable after ops approval. Moves to confirmed status if approved.
+     *
+     * @param int    $request_id
+     * @param bool   $approve     Whether to approve (true) or reject (false).
+     * @param string $review_note Reviewer note.
+     * @param int    $reviewed_by User ID of the reviewer.
+     * @return true|WP_Error
+     */
+    public static function review_request_finance($request_id, $approve, $review_note = '', $reviewed_by = 0) {
+        global $wpdb;
+
+        $request_id = intval($request_id);
+        $request = self::get_request($request_id);
+        if (!$request) {
+            return new WP_Error('request_not_found', __('Lifecycle-Antrag nicht gefunden.', 'themisdb-order-request'));
+        }
+
+        if ($request['status'] !== 'pending_finance') {
+            return new WP_Error('request_not_pending_finance', __('Antrag befindet sich nicht in Finance-Review-Phase.', 'themisdb-order-request'));
+        }
+
+        $reviewed_by = $reviewed_by > 0 ? intval($reviewed_by) : (get_current_user_id() ?: 0);
+
+        if ($approve) {
+            // Finance approved: move to confirmed state
+            $new_status = self::STATUS_CONFIRMED;
+            self::add_log($request_id, 'finance_approved', $reviewed_by, (string) ($review_note ?: __('Finanziell genehmigt.', 'themisdb-order-request')));
+        } else {
+            // Finance rejected: move to rejected state
+            $new_status = self::STATUS_REJECTED;
+            self::add_log($request_id, 'finance_rejected', $reviewed_by, (string) ($review_note ?: __('Finanzielle Genehmigung abgelehnt.', 'themisdb-order-request')));
+        }
+
+        $update_data = array(
+            'status' => $new_status,
+            'finance_review_by' => $reviewed_by > 0 ? $reviewed_by : null,
+            'finance_review_note' => sanitize_textarea_field((string) $review_note),
+            'finance_reviewed_at' => current_time('mysql'),
+        );
+        $update_formats = array('%s', '%d', '%s', '%s');
+
+        // For terminations, set effective_at if missing
+        if ($approve && $request['request_type'] === self::TYPE_TERMINATION && empty($request['effective_at'])) {
+            $update_data['effective_at'] = current_time('mysql');
+            $update_formats[] = '%s';
+        }
+
+        $wpdb->update(
+            self::get_table_name(),
+            $update_data,
+            array('id' => $request_id),
+            $update_formats,
+            array('%d')
+        );
+
+        if ($approve) {
+            // Execute change immediately after both reviews pass
+            if ($request['request_type'] === self::TYPE_CHANGE) {
+                self::execute_change_request($request_id);
+                do_action('contract.change.approved', $request_id, intval($request['license_id']));
+            } else {
+                do_action('contract.termination.confirmed', $request_id, intval($request['license_id']));
+            }
+        } else {
+            if ($request['request_type'] === self::TYPE_CHANGE) {
+                do_action('contract.change.finance_rejected', $request_id, intval($request['license_id']));
+            } else {
+                do_action('contract.termination.finance_rejected', $request_id, intval($request['license_id']));
             }
         }
 

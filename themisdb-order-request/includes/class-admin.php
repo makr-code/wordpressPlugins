@@ -10398,6 +10398,40 @@ document.addEventListener("DOMContentLoaded", function() {
                 exit;
             }
 
+            if ($action === 'review_ops') {
+                $request_id = isset($_POST['request_id']) ? intval($_POST['request_id']) : 0;
+                $decision = isset($_POST['decision']) ? sanitize_key((string) wp_unslash($_POST['decision'])) : '';
+                $note = isset($_POST['review_note']) ? sanitize_textarea_field((string) wp_unslash($_POST['review_note'])) : '';
+                $approved = $decision === 'approve';
+
+                $result = ThemisDB_Contract_Lifecycle::review_request_ops($request_id, $approved, $note, get_current_user_id());
+
+                if (is_wp_error($result)) {
+                    wp_redirect(admin_url('admin.php?page=themisdb-contract-lifecycle&lifecycle_error=' . rawurlencode($result->get_error_message())));
+                    exit;
+                }
+
+                wp_redirect(admin_url('admin.php?page=themisdb-contract-lifecycle&lifecycle_notice=review_ops_saved'));
+                exit;
+            }
+
+            if ($action === 'review_finance') {
+                $request_id = isset($_POST['request_id']) ? intval($_POST['request_id']) : 0;
+                $decision = isset($_POST['decision']) ? sanitize_key((string) wp_unslash($_POST['decision'])) : '';
+                $note = isset($_POST['review_note']) ? sanitize_textarea_field((string) wp_unslash($_POST['review_note'])) : '';
+                $approved = $decision === 'approve';
+
+                $result = ThemisDB_Contract_Lifecycle::review_request_finance($request_id, $approved, $note, get_current_user_id());
+
+                if (is_wp_error($result)) {
+                    wp_redirect(admin_url('admin.php?page=themisdb-contract-lifecycle&lifecycle_error=' . rawurlencode($result->get_error_message())));
+                    exit;
+                }
+
+                wp_redirect(admin_url('admin.php?page=themisdb-contract-lifecycle&lifecycle_notice=review_finance_saved'));
+                exit;
+            }
+
             if ($action === 'create_termination') {
                 $license_id = isset($_POST['license_id']) ? intval($_POST['license_id']) : 0;
                 $end_date = isset($_POST['requested_end_date']) ? sanitize_text_field((string) wp_unslash($_POST['requested_end_date'])) : '';
@@ -10477,6 +10511,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     <select name="status" id="status">
                         <option value=""><?php esc_html_e('Alle', 'themisdb-order-request'); ?></option>
                         <option value="requested" <?php selected($filter_status, 'requested'); ?>>requested</option>
+                        <option value="pending_finance" <?php selected($filter_status, 'pending_finance'); ?>>pending_finance</option>
                         <option value="confirmed" <?php selected($filter_status, 'confirmed'); ?>>confirmed</option>
                         <option value="rejected" <?php selected($filter_status, 'rejected'); ?>>rejected</option>
                         <option value="executed" <?php selected($filter_status, 'executed'); ?>>executed</option>
@@ -10597,11 +10632,20 @@ document.addEventListener("DOMContentLoaded", function() {
                                     <?php if ((string) $request['status'] === 'requested') : ?>
                                         <form method="post" style="display:flex;gap:6px;align-items:center;">
                                             <?php wp_nonce_field('themisdb_contract_lifecycle_action'); ?>
-                                            <input type="hidden" name="themisdb_lifecycle_action" value="review" />
+                                            <input type="hidden" name="themisdb_lifecycle_action" value="review_ops" />
                                             <input type="hidden" name="request_id" value="<?php echo absint($request['id']); ?>" />
-                                            <input type="text" name="review_note" placeholder="<?php esc_attr_e('Notiz', 'themisdb-order-request'); ?>" style="width:110px;" />
-                                            <button class="button button-primary" name="decision" value="approve" type="submit"><?php esc_html_e('Freigeben', 'themisdb-order-request'); ?></button>
-                                            <button class="button" name="decision" value="reject" type="submit"><?php esc_html_e('Ablehnen', 'themisdb-order-request'); ?></button>
+                                            <input type="text" name="review_note" placeholder="<?php esc_attr_e('Ops-Notiz', 'themisdb-order-request'); ?>" style="width:100px;font-size:11px;" />
+                                            <button class="button button-primary" name="decision" value="approve" type="submit" style="font-size:11px;padding:4px 8px;"><?php esc_html_e('Ops OK', 'themisdb-order-request'); ?></button>
+                                            <button class="button" name="decision" value="reject" type="submit" style="font-size:11px;padding:4px 8px;"><?php esc_html_e('Ops Nein', 'themisdb-order-request'); ?></button>
+                                        </form>
+                                    <?php elseif ((string) $request['status'] === 'pending_finance') : ?>
+                                        <form method="post" style="display:flex;gap:6px;align-items:center;">
+                                            <?php wp_nonce_field('themisdb_contract_lifecycle_action'); ?>
+                                            <input type="hidden" name="themisdb_lifecycle_action" value="review_finance" />
+                                            <input type="hidden" name="request_id" value="<?php echo absint($request['id']); ?>" />
+                                            <input type="text" name="review_note" placeholder="<?php esc_attr_e('Finance-Notiz', 'themisdb-order-request'); ?>" style="width:100px;font-size:11px;" />
+                                            <button class="button button-primary" name="decision" value="approve" type="submit" style="font-size:11px;padding:4px 8px;"><?php esc_html_e('Finance OK', 'themisdb-order-request'); ?></button>
+                                            <button class="button" name="decision" value="reject" type="submit" style="font-size:11px;padding:4px 8px;"><?php esc_html_e('Finance Nein', 'themisdb-order-request'); ?></button>
                                         </form>
                                     <?php else : ?>
                                         <span style="color:#666;">—</span>
@@ -10621,11 +10665,15 @@ document.addEventListener("DOMContentLoaded", function() {
                                             <ul style="margin:0;padding:0;list-style:none;">
                                                 <?php foreach ($log_entries as $entry) :
                                                     $event_icons = array(
-                                                        'created'        => '📝',
-                                                        'approved'       => '✅',
-                                                        'rejected'       => '❌',
-                                                        'executed'       => '🔒',
-                                                        'execute_failed' => '⚠️',
+                                                        'created'           => '📝',
+                                                        'approved'          => '✅',
+                                                        'ops_approved'      => '✔️',
+                                                        'ops_rejected'      => '✗',
+                                                        'finance_approved'  => '💰',
+                                                        'finance_rejected'  => '💸',
+                                                        'rejected'          => '❌',
+                                                        'executed'          => '🔒',
+                                                        'execute_failed'    => '⚠️',
                                                     );
                                                     $icon = isset($event_icons[$entry['event']]) ? $event_icons[$entry['event']] : '•';
                                                     $actor = !empty($entry['actor_name']) ? $entry['actor_name'] : __('System', 'themisdb-order-request');
