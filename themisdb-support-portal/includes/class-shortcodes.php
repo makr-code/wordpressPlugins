@@ -672,6 +672,29 @@ class ThemisDB_Support_Shortcodes {
                                     } else {
                                         logHtml = '<li style="color:#aaa;font-size:11px;">Keine Eintraege</li>';
                                     }
+                                    
+                                    // Build visual timeline
+                                    var stageStates = {
+                                        'requested': {label:'Angefordert', order:1},
+                                        'ops': {label:'Ops Review', order:2},
+                                        'finance': {label:'Finance Review', order:3},
+                                        'executed': {label:'Ausgefuehrt', order:4},
+                                        'rejected': {label:'Abgelehnt', order:5}
+                                    };
+                                    
+                                    var hasOpsReview = r.log && r.log.some(function(e) { return e.event.indexOf('ops_')===0; });
+                                    var hasFinanceReview = r.log && r.log.some(function(e) { return e.event.indexOf('finance_')===0; });
+                                    var isRejected = r.status === 'rejected';
+                                    var isExecuted = r.status === 'executed';
+                                    
+                                    var timelineHtml = '<div style="display:flex;gap:6px;align-items:center;margin:8px 0;font-size:11px;overflow-x:auto;">'
+                                        +'<span style="background:#0073aa;color:#fff;padding:3px 6px;border-radius:3px;white-space:nowrap;">Angefordert</span>';
+                                    if (hasOpsReview) timelineHtml += '<span style="flex-grow:1;height:2px;background:#28a745;"></span><span style="background:#28a745;color:#fff;padding:3px 6px;border-radius:3px;white-space:nowrap;">✓ Ops</span>';
+                                    if (hasFinanceReview) timelineHtml += '<span style="flex-grow:1;height:2px;background:#28a745;"></span><span style="background:#28a745;color:#fff;padding:3px 6px;border-radius:3px;white-space:nowrap;">✓ Finance</span>';
+                                    if (isRejected) timelineHtml += '<span style="flex-grow:1;height:2px;background:#dc3545;"></span><span style="background:#dc3545;color:#fff;padding:3px 6px;border-radius:3px;white-space:nowrap;">✗ Abgelehnt</span>';
+                                    if (isExecuted) timelineHtml += '<span style="flex-grow:1;height:2px;background:#6c757d;"></span><span style="background:#6c757d;color:#fff;padding:3px 6px;border-radius:3px;white-space:nowrap;">✓ Ausgeführt</span>';
+                                    timelineHtml += '</div>';
+                                    
                                     return '<tr style="cursor:pointer;" onclick="var d=document.getElementById(\'lclog'+r.id+'\');if(d)d.style.display=d.style.display===\'none\'?\'\':\'none\';">'
                                         +'<td style="padding:5px 10px;"><strong>#'+r.id+'</strong></td>'
                                         +'<td style="padding:5px 10px;">'+r.request_type+'</td>'
@@ -679,7 +702,8 @@ class ThemisDB_Support_Shortcodes {
                                         +'<td style="padding:5px 10px;">'+(r.effective_at||'—')+'</td>'
                                         +'<td style="padding:5px 10px;">'+(r.created_at||'—')+'</td>'
                                         +'</tr>'
-                                        +'<tr id="lclog'+r.id+'" style="display:none;"><td colspan="5" style="background:#f9f9f9;padding:8px 20px;">'
+                                        +'<tr id="lclog'+r.id+'" style="display:none;"><td colspan="5" style="background:#f9f9f9;padding:12px 20px;">'
+                                        +'<div style="margin-bottom:12px;">'+timelineHtml+'</div>'
                                         +'<ul style="margin:0;padding:0;list-style:none;">'+logHtml+'</ul></td></tr>';
                                 }).join('');
                             }
@@ -919,6 +943,21 @@ class ThemisDB_Support_Shortcodes {
                                                 +'<span>'+e.note+'</span></li>';
                                         }).join('')
                                         : '<li style="color:#aaa;font-size:11px;">Keine Eintraege</li>';
+                                    
+                                    // Build visual timeline
+                                    var hasOpsReview = r.log && r.log.some(function(e) { return e.event.indexOf('ops_')===0; });
+                                    var hasFinanceReview = r.log && r.log.some(function(e) { return e.event.indexOf('finance_')===0; });
+                                    var isRejected = r.status === 'rejected';
+                                    var isExecuted = r.status === 'executed';
+                                    
+                                    var timelineHtml = '<div style="display:flex;gap:6px;align-items:center;margin:8px 0;font-size:11px;overflow-x:auto;">'
+                                        +'<span style="background:#0073aa;color:#fff;padding:3px 6px;border-radius:3px;white-space:nowrap;">Angefordert</span>';
+                                    if (hasOpsReview) timelineHtml += '<span style="flex-grow:1;height:2px;background:#28a745;"></span><span style="background:#28a745;color:#fff;padding:3px 6px;border-radius:3px;white-space:nowrap;">✓ Ops</span>';
+                                    if (hasFinanceReview) timelineHtml += '<span style="flex-grow:1;height:2px;background:#28a745;"></span><span style="background:#28a745;color:#fff;padding:3px 6px;border-radius:3px;white-space:nowrap;">✓ Finance</span>';
+                                    if (isRejected) timelineHtml += '<span style="flex-grow:1;height:2px;background:#dc3545;"></span><span style="background:#dc3545;color:#fff;padding:3px 6px;border-radius:3px;white-space:nowrap;">✗ Abgelehnt</span>';
+                                    if (isExecuted) timelineHtml += '<span style="flex-grow:1;height:2px;background:#6c757d;"></span><span style="background:#6c757d;color:#fff;padding:3px 6px;border-radius:3px;white-space:nowrap;">✓ Ausgeführt</span>';
+                                    timelineHtml += '</div>';
+                                    
                                     return '<tr style="cursor:pointer;" onclick="var d=document.getElementById(\'lclog'+r.id+'\');if(d)d.style.display=d.style.display===\'none\'?\'\':\' none\';">'
                                         +'<td style="padding:5px 10px;"><strong>#'+r.id+'</strong></td>'
                                         +'<td style="padding:5px 10px;">'+r.request_type+'</td>'
@@ -926,7 +965,8 @@ class ThemisDB_Support_Shortcodes {
                                         +'<td style="padding:5px 10px;">'+(r.effective_at||'—')+'</td>'
                                         +'<td style="padding:5px 10px;">'+(r.created_at||'—')+'</td>'
                                         +'</tr>'
-                                        +'<tr id="lclog'+r.id+'" style="display:none;"><td colspan="5" style="background:#f9f9f9;padding:8px 20px;">'
+                                        +'<tr id="lclog'+r.id+'" style="display:none;"><td colspan="5" style="background:#f9f9f9;padding:12px 20px;">'
+                                        +'<div style="margin-bottom:12px;">'+timelineHtml+'</div>'
                                         +'<ul style="margin:0;padding:0;list-style:none;">'+logHtml+'</ul></td></tr>';
                                 }).join('');
                             }
