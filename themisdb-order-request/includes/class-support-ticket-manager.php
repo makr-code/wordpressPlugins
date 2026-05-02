@@ -74,21 +74,44 @@ class ThemisDB_Order_Support_Ticket_Manager {
             }
         }
 
-        $inserted = $wpdb->insert(
-            $table,
-            array(
-                'benefit_id' => $benefit_id > 0 ? $benefit_id : null,
-                'license_id' => isset($data['license_id']) ? intval($data['license_id']) : null,
-                'order_id' => isset($data['order_id']) ? intval($data['order_id']) : null,
-                'customer_email' => $customer_email,
-                'subject' => $subject,
-                'description' => $description,
-                'priority' => $priority,
-                'status' => $status,
-                'created_by' => get_current_user_id() ?: null,
-            ),
-            array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d')
+        $insert_payload = array(
+            'ticket_number' => self::generate_ticket_number(),
+            'benefit_id' => $benefit_id > 0 ? $benefit_id : null,
+            'license_id' => isset($data['license_id']) ? intval($data['license_id']) : null,
+            'order_id' => isset($data['order_id']) ? intval($data['order_id']) : null,
+            'customer_email' => $customer_email,
+            'customer_name' => sanitize_text_field((string) ($data['customer_name'] ?? '')),
+            'customer_company' => isset($data['customer_company']) ? sanitize_text_field((string) $data['customer_company']) : null,
+            'license_key' => isset($data['license_key']) ? sanitize_text_field((string) $data['license_key']) : null,
+            'user_id' => isset($data['user_id']) ? intval($data['user_id']) : null,
+            'assignee_user_id' => isset($data['assignee_user_id']) ? intval($data['assignee_user_id']) : null,
+            'subject' => $subject,
+            'description' => $description,
+            'priority' => $priority,
+            'status' => $status,
+            'created_by' => get_current_user_id() ?: null,
         );
+
+        $insert_formats = array(
+            'ticket_number' => '%s',
+            'benefit_id' => '%d',
+            'license_id' => '%d',
+            'order_id' => '%d',
+            'customer_email' => '%s',
+            'customer_name' => '%s',
+            'customer_company' => '%s',
+            'license_key' => '%s',
+            'user_id' => '%d',
+            'assignee_user_id' => '%d',
+            'subject' => '%s',
+            'description' => '%s',
+            'priority' => '%s',
+            'status' => '%s',
+            'created_by' => '%d',
+        );
+
+        $prepared = self::prepare_schema_payload($insert_payload, $insert_formats);
+        $inserted = $wpdb->insert($table, $prepared['data'], $prepared['formats']);
 
         if (!$inserted) {
             return new WP_Error('db_insert_failed', __('Ticket konnte nicht gespeichert werden.', 'themisdb-order-request'));
@@ -264,19 +287,11 @@ class ThemisDB_Order_Support_Ticket_Manager {
         $issue_url = isset($payload['html_url']) ? esc_url_raw($payload['html_url']) : '';
         $issue_state = isset($payload['state']) ? sanitize_key($payload['state']) : 'open';
 
-        $wpdb->update(
-            $table,
-            array(
-                'github_issue_number' => $issue_number,
-                'github_issue_url' => $issue_url,
-                'github_issue_state' => $issue_state,
-                'github_synced_at' => current_time('mysql'),
-                'github_sync_error' => '',
-            ),
-            array('id' => intval($ticket_id)),
-            array('%d', '%s', '%s', '%s', '%s'),
-            array('%d')
-        );
+        self::persist_bridge_issue_link($ticket_id, array(
+            'issue_number' => $issue_number,
+            'issue_url' => $issue_url,
+            'issue_state' => $issue_state,
+        ));
 
         return array(
             'success' => true,
@@ -296,6 +311,13 @@ class ThemisDB_Order_Support_Ticket_Manager {
             return array(
                 'success' => false,
                 'message' => __('Ticket nicht gefunden.', 'themisdb-order-request'),
+            );
+        }
+
+        if (!self::supports_column('github_issue_number')) {
+            return array(
+                'success' => false,
+                'message' => __('Ticket-Tabelle unterstuetzt keinen GitHub-Issue-Status. Bridge-Linking ist aktiv.', 'themisdb-order-request'),
             );
         }
 
@@ -373,18 +395,11 @@ class ThemisDB_Order_Support_Ticket_Manager {
             );
         }
 
-        $wpdb->update(
-            $table,
-            array(
-                'github_issue_state' => $issue_state,
-                'github_issue_url' => $issue_html_url !== '' ? $issue_html_url : (string) ($ticket['github_issue_url'] ?? ''),
-                'github_synced_at' => current_time('mysql'),
-                'github_sync_error' => '',
-            ),
-            array('id' => intval($ticket_id)),
-            array('%s', '%s', '%s', '%s'),
-            array('%d')
-        );
+        self::persist_bridge_issue_link($ticket_id, array(
+            'issue_number' => $issue_number,
+            'issue_url' => $issue_html_url !== '' ? $issue_html_url : (string) ($ticket['github_issue_url'] ?? ''),
+            'issue_state' => $issue_state,
+        ));
 
         return array(
             'success' => true,
@@ -421,6 +436,16 @@ class ThemisDB_Order_Support_Ticket_Manager {
 
         $limit = max(1, min(200, intval($args['limit'])));
         $table = self::get_table_name();
+
+        if (!self::supports_column('github_issue_number')) {
+            return array(
+                'processed' => 0,
+                'updated' => 0,
+                'failed' => 0,
+                'skipped' => 0,
+                'message' => __('GitHub-Issue-Spalten nicht vorhanden. Bridge-Tracking wird genutzt.', 'themisdb-order-request'),
+            );
+        }
 
         if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
             return array(
@@ -527,6 +552,10 @@ class ThemisDB_Order_Support_Ticket_Manager {
     private static function set_sync_error($table, $ticket_id, $error_message) {
         global $wpdb;
 
+        if (!self::supports_column('github_sync_error')) {
+            return;
+        }
+
         $wpdb->update(
             $table,
             array(
@@ -539,11 +568,124 @@ class ThemisDB_Order_Support_Ticket_Manager {
     }
 
     public static function get_github_settings() {
+        $bridge_enabled = get_option('themisdb_github_bridge_enabled', null);
+        $legacy_enabled = get_option('themisdb_support_github_enabled', '0');
+        $bridge_token = trim((string) get_option('themisdb_github_bridge_token', ''));
+        $legacy_token = trim((string) get_option('themisdb_support_github_token', ''));
+        $bridge_repository = trim((string) get_option('themisdb_github_bridge_repository', ''));
+        $legacy_repository = trim((string) get_option('themisdb_support_github_repository', ''));
+        $bridge_labels = trim((string) get_option('themisdb_github_bridge_order_labels', ''));
+        $legacy_labels = trim((string) get_option('themisdb_support_github_labels', 'support,themisdb'));
+
         return array(
-            'enabled' => get_option('themisdb_support_github_enabled', '0') === '1',
-            'token' => (string) get_option('themisdb_support_github_token', ''),
-            'repository' => trim((string) get_option('themisdb_support_github_repository', '')),
-            'labels' => trim((string) get_option('themisdb_support_github_labels', 'support,themisdb')),
+            'enabled' => $bridge_enabled !== null ? ((string) $bridge_enabled === '1') : ((string) $legacy_enabled === '1'),
+            'token' => $bridge_token !== '' ? $bridge_token : $legacy_token,
+            'repository' => $bridge_repository !== '' ? $bridge_repository : $legacy_repository,
+            'labels' => $bridge_labels !== '' ? $bridge_labels : $legacy_labels,
         );
+    }
+
+    public static function record_bridge_issue_link($ticket_id, $result = array()) {
+        self::persist_bridge_issue_link($ticket_id, array(
+            'issue_number' => isset($result['issue_number']) ? intval($result['issue_number']) : 0,
+            'issue_url' => isset($result['issue_url']) ? (string) $result['issue_url'] : '',
+            'issue_state' => isset($result['issue_state']) ? (string) $result['issue_state'] : 'open',
+        ));
+    }
+
+    private static function persist_bridge_issue_link($ticket_id, $link = array()) {
+        global $wpdb;
+
+        $table = self::get_table_name();
+        $update_data = array();
+        $update_formats = array();
+
+        if (self::supports_column('github_issue_number')) {
+            $update_data['github_issue_number'] = isset($link['issue_number']) ? intval($link['issue_number']) : null;
+            $update_formats[] = '%d';
+        }
+        if (self::supports_column('github_issue_url')) {
+            $update_data['github_issue_url'] = isset($link['issue_url']) ? esc_url_raw((string) $link['issue_url']) : '';
+            $update_formats[] = '%s';
+        }
+        if (self::supports_column('github_issue_state')) {
+            $update_data['github_issue_state'] = isset($link['issue_state']) ? sanitize_key((string) $link['issue_state']) : 'open';
+            $update_formats[] = '%s';
+        }
+        if (self::supports_column('github_synced_at')) {
+            $update_data['github_synced_at'] = current_time('mysql');
+            $update_formats[] = '%s';
+        }
+        if (self::supports_column('github_sync_error')) {
+            $update_data['github_sync_error'] = '';
+            $update_formats[] = '%s';
+        }
+
+        if (empty($update_data)) {
+            return;
+        }
+
+        $wpdb->update(
+            $table,
+            $update_data,
+            array('id' => intval($ticket_id)),
+            $update_formats,
+            array('%d')
+        );
+    }
+
+    private static function supports_column($column_name) {
+        return in_array($column_name, self::get_table_columns(), true);
+    }
+
+    private static function get_table_columns() {
+        global $wpdb;
+
+        static $cache = null;
+        if (is_array($cache)) {
+            return $cache;
+        }
+
+        $table = self::get_table_name();
+        $rows = $wpdb->get_results("SHOW COLUMNS FROM `{$table}`", ARRAY_A);
+        if (!is_array($rows)) {
+            $cache = array();
+            return $cache;
+        }
+
+        $cache = array();
+        foreach ($rows as $row) {
+            if (!empty($row['Field'])) {
+                $cache[] = (string) $row['Field'];
+            }
+        }
+
+        return $cache;
+    }
+
+    private static function prepare_schema_payload($payload, $formats_by_key) {
+        $filtered_data = array();
+        $filtered_formats = array();
+
+        foreach ((array) $payload as $key => $value) {
+            if (!self::supports_column($key)) {
+                continue;
+            }
+            $filtered_data[$key] = $value;
+            if (isset($formats_by_key[$key])) {
+                $filtered_formats[] = $formats_by_key[$key];
+            }
+        }
+
+        return array(
+            'data' => $filtered_data,
+            'formats' => $filtered_formats,
+        );
+    }
+
+    private static function generate_ticket_number() {
+        $prefix = 'TKT-' . gmdate('Ymd') . '-';
+        $suffix = strtoupper(substr(md5(uniqid((string) mt_rand(), true)), 0, 4));
+        return $prefix . $suffix;
     }
 }

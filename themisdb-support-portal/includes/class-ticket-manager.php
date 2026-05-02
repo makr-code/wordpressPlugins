@@ -97,23 +97,44 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             }
         }
 
-        $ticket_data = array(
+        $message_body = isset($data['message']) ? wp_kses_post((string) $data['message']) : '';
+        $ticket_payload = array(
             'ticket_number'    => self::generate_ticket_number(),
             'subject'          => sanitize_text_field($data['subject']),
+            'description'      => $message_body !== '' ? $message_body : sanitize_text_field($data['subject']),
             'status'           => self::STATUS_OPEN,
             'priority'         => isset($data['priority']) && in_array($data['priority'], array('low', 'normal', 'high', 'urgent'), true)
                                     ? $data['priority']
                                     : self::PRIORITY_NORMAL,
-            'customer_name'    => sanitize_text_field($data['customer_name']),
-            'customer_email'   => sanitize_email($data['customer_email']),
+            'customer_name'    => sanitize_text_field((string) ($data['customer_name'] ?? '')),
+            'customer_email'   => sanitize_email((string) ($data['customer_email'] ?? '')),
             'customer_company' => isset($data['customer_company']) ? sanitize_text_field($data['customer_company']) : null,
             'license_key'      => isset($data['license_key'])  ? sanitize_text_field($data['license_key'])  : null,
             'benefit_id'       => $benefit_id,
             'user_id'          => isset($data['user_id'])      ? intval($data['user_id'])                   : null,
+            'created_by'       => isset($data['user_id']) ? intval($data['user_id']) : (get_current_user_id() ?: null),
             'assignee_user_id' => self::sanitize_assignee_user_id(isset($data['assignee_user_id']) ? $data['assignee_user_id'] : $default_assignee_user_id),
         );
+        $ticket_formats = array(
+            'ticket_number' => '%s',
+            'subject' => '%s',
+            'description' => '%s',
+            'status' => '%s',
+            'priority' => '%s',
+            'customer_name' => '%s',
+            'customer_email' => '%s',
+            'customer_company' => '%s',
+            'license_key' => '%s',
+            'benefit_id' => '%d',
+            'user_id' => '%d',
+            'created_by' => '%d',
+            'assignee_user_id' => '%d',
+        );
 
-        $result = $wpdb->insert($table_tickets, $ticket_data);
+        $prepared = self::prepare_schema_payload($ticket_payload, $ticket_formats, $table_tickets);
+        $ticket_data = $prepared['data'];
+
+        $result = $wpdb->insert($table_tickets, $prepared['data'], $prepared['formats']);
 
         if (!$result) {
             self::$last_error = __('Ticket konnte nicht gespeichert werden.', 'themisdb-support-portal');
@@ -710,6 +731,51 @@ class ThemisDB_SupportPortal_Ticket_Manager {
         } while (self::ticket_number_exists($number));
 
         return $number;
+    }
+
+    private static function prepare_schema_payload($payload, $formats_by_key, $table_name) {
+        $columns = self::get_table_columns($table_name);
+        $data = array();
+        $formats = array();
+
+        foreach ((array) $payload as $key => $value) {
+            if (!in_array($key, $columns, true)) {
+                continue;
+            }
+            $data[$key] = $value;
+            if (isset($formats_by_key[$key])) {
+                $formats[] = $formats_by_key[$key];
+            }
+        }
+
+        return array(
+            'data' => $data,
+            'formats' => $formats,
+        );
+    }
+
+    private static function get_table_columns($table_name) {
+        global $wpdb;
+
+        static $cache = array();
+        if (isset($cache[$table_name]) && is_array($cache[$table_name])) {
+            return $cache[$table_name];
+        }
+
+        $rows = $wpdb->get_results("SHOW COLUMNS FROM `{$table_name}`", ARRAY_A);
+        if (!is_array($rows)) {
+            $cache[$table_name] = array();
+            return $cache[$table_name];
+        }
+
+        $cache[$table_name] = array();
+        foreach ($rows as $row) {
+            if (!empty($row['Field'])) {
+                $cache[$table_name][] = (string) $row['Field'];
+            }
+        }
+
+        return $cache[$table_name];
     }
 
     /**

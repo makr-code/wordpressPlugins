@@ -93,6 +93,9 @@ class ThemisDB_Order_Admin {
             case 'themisdb-document-templates':
                 $this->document_templates_page();
                 break;
+            case 'themisdb-contract-lifecycle':
+                $this->contract_lifecycle_page();
+                break;
         }
     }
 
@@ -237,6 +240,15 @@ class ThemisDB_Order_Admin {
             'manage_options',
             'themisdb-document-templates',
             array($this, 'document_templates_page')
+        );
+
+        add_submenu_page(
+            'themisdb-order-dashboard',
+            __('Lifecycle Workflows', 'themisdb-order-request'),
+            __('Lifecycle', 'themisdb-order-request'),
+            'manage_options',
+            'themisdb-contract-lifecycle',
+            array($this, 'contract_lifecycle_page')
         );
         
         add_submenu_page(
@@ -10348,5 +10360,244 @@ document.addEventListener("DOMContentLoaded", function() {
             esc_attr($s['color']),
             esc_html($s['label'])
         );
+    }
+
+    /**
+     * Admin page for lifecycle requests (termination + change).
+     */
+    public function contract_lifecycle_page() {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Keine Berechtigung', 'themisdb-order-request'));
+        }
+
+        if (!class_exists('ThemisDB_Contract_Lifecycle')) {
+            echo '<div class="wrap"><h1>' . esc_html__('Lifecycle Workflows', 'themisdb-order-request') . '</h1><div class="notice notice-error"><p>' . esc_html__('Lifecycle-Modul ist nicht verfuegbar.', 'themisdb-order-request') . '</p></div></div>';
+            return;
+        }
+
+        $is_post = isset($_SERVER['REQUEST_METHOD']) && strtoupper((string) $_SERVER['REQUEST_METHOD']) === 'POST';
+        if ($is_post && isset($_POST['themisdb_lifecycle_action'])) {
+            check_admin_referer('themisdb_contract_lifecycle_action');
+
+            $action = sanitize_key((string) wp_unslash($_POST['themisdb_lifecycle_action']));
+
+            if ($action === 'review') {
+                $request_id = isset($_POST['request_id']) ? intval($_POST['request_id']) : 0;
+                $decision = isset($_POST['decision']) ? sanitize_key((string) wp_unslash($_POST['decision'])) : '';
+                $note = isset($_POST['review_note']) ? sanitize_textarea_field((string) wp_unslash($_POST['review_note'])) : '';
+                $approved = $decision === 'approve';
+
+                $result = ThemisDB_Contract_Lifecycle::review_request($request_id, $approved, $note, get_current_user_id());
+
+                if (is_wp_error($result)) {
+                    wp_redirect(admin_url('admin.php?page=themisdb-contract-lifecycle&lifecycle_error=' . rawurlencode($result->get_error_message())));
+                    exit;
+                }
+
+                wp_redirect(admin_url('admin.php?page=themisdb-contract-lifecycle&lifecycle_notice=review_saved'));
+                exit;
+            }
+
+            if ($action === 'create_termination') {
+                $license_id = isset($_POST['license_id']) ? intval($_POST['license_id']) : 0;
+                $end_date = isset($_POST['requested_end_date']) ? sanitize_text_field((string) wp_unslash($_POST['requested_end_date'])) : '';
+                $reason = isset($_POST['reason']) ? sanitize_textarea_field((string) wp_unslash($_POST['reason'])) : '';
+
+                $result = ThemisDB_Contract_Lifecycle::request_termination($license_id, $end_date, $reason, get_current_user_id());
+                if (is_wp_error($result)) {
+                    wp_redirect(admin_url('admin.php?page=themisdb-contract-lifecycle&lifecycle_error=' . rawurlencode($result->get_error_message())));
+                    exit;
+                }
+
+                wp_redirect(admin_url('admin.php?page=themisdb-contract-lifecycle&lifecycle_notice=termination_created'));
+                exit;
+            }
+
+            if ($action === 'create_change') {
+                $license_id = isset($_POST['license_id']) ? intval($_POST['license_id']) : 0;
+                $reason = isset($_POST['reason']) ? sanitize_textarea_field((string) wp_unslash($_POST['reason'])) : '';
+
+                $payload = array();
+                $allowed = array('product_edition', 'license_type', 'max_nodes', 'max_cores', 'max_storage_gb', 'expiry_date');
+                foreach ($allowed as $field) {
+                    if (!isset($_POST[$field])) {
+                        continue;
+                    }
+                    $raw = wp_unslash($_POST[$field]);
+                    if (in_array($field, array('max_nodes', 'max_cores', 'max_storage_gb'), true)) {
+                        $payload[$field] = intval($raw);
+                    } else {
+                        $payload[$field] = sanitize_text_field((string) $raw);
+                    }
+                }
+
+                $result = ThemisDB_Contract_Lifecycle::request_change($license_id, $payload, $reason, get_current_user_id());
+                if (is_wp_error($result)) {
+                    wp_redirect(admin_url('admin.php?page=themisdb-contract-lifecycle&lifecycle_error=' . rawurlencode($result->get_error_message())));
+                    exit;
+                }
+
+                wp_redirect(admin_url('admin.php?page=themisdb-contract-lifecycle&lifecycle_notice=change_created'));
+                exit;
+            }
+        }
+
+        $filter_type = isset($_GET['request_type']) ? sanitize_key((string) wp_unslash($_GET['request_type'])) : '';
+        $filter_status = isset($_GET['status']) ? sanitize_key((string) wp_unslash($_GET['status'])) : '';
+        $requests = ThemisDB_Contract_Lifecycle::list_requests(array(
+            'request_type' => $filter_type,
+            'status' => $filter_status,
+            'limit' => 200,
+        ));
+
+        $notice = isset($_GET['lifecycle_notice']) ? sanitize_key((string) wp_unslash($_GET['lifecycle_notice'])) : '';
+        $error = isset($_GET['lifecycle_error']) ? sanitize_text_field((string) wp_unslash($_GET['lifecycle_error'])) : '';
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('Lifecycle Workflows', 'themisdb-order-request'); ?></h1>
+
+            <?php if ($notice !== '') : ?>
+                <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Lifecycle-Aktion erfolgreich gespeichert.', 'themisdb-order-request'); ?></p></div>
+            <?php endif; ?>
+            <?php if ($error !== '') : ?>
+                <div class="notice notice-error is-dismissible"><p><?php echo esc_html($error); ?></p></div>
+            <?php endif; ?>
+
+            <div class="card" style="max-width:none; margin-bottom:20px;">
+                <h2><?php esc_html_e('Filter', 'themisdb-order-request'); ?></h2>
+                <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>">
+                    <input type="hidden" name="page" value="themisdb-contract-lifecycle" />
+                    <label for="request_type"><strong><?php esc_html_e('Typ', 'themisdb-order-request'); ?></strong></label>
+                    <select name="request_type" id="request_type">
+                        <option value=""><?php esc_html_e('Alle', 'themisdb-order-request'); ?></option>
+                        <option value="termination" <?php selected($filter_type, 'termination'); ?>><?php esc_html_e('Kuendigung', 'themisdb-order-request'); ?></option>
+                        <option value="change" <?php selected($filter_type, 'change'); ?>><?php esc_html_e('Aenderung', 'themisdb-order-request'); ?></option>
+                    </select>
+                    <label for="status" style="margin-left:12px;"><strong><?php esc_html_e('Status', 'themisdb-order-request'); ?></strong></label>
+                    <select name="status" id="status">
+                        <option value=""><?php esc_html_e('Alle', 'themisdb-order-request'); ?></option>
+                        <option value="requested" <?php selected($filter_status, 'requested'); ?>>requested</option>
+                        <option value="confirmed" <?php selected($filter_status, 'confirmed'); ?>>confirmed</option>
+                        <option value="rejected" <?php selected($filter_status, 'rejected'); ?>>rejected</option>
+                        <option value="executed" <?php selected($filter_status, 'executed'); ?>>executed</option>
+                    </select>
+                    <?php submit_button(__('Filtern', 'themisdb-order-request'), 'secondary', '', false, array('style' => 'margin-left:12px;')); ?>
+                </form>
+            </div>
+
+            <div class="card" style="max-width:none; margin-bottom:20px;">
+                <h2><?php esc_html_e('Neuen Kuendigungsantrag erstellen', 'themisdb-order-request'); ?></h2>
+                <form method="post">
+                    <?php wp_nonce_field('themisdb_contract_lifecycle_action'); ?>
+                    <input type="hidden" name="themisdb_lifecycle_action" value="create_termination" />
+                    <table class="form-table" role="presentation">
+                        <tr>
+                            <th><label for="termination_license_id"><?php esc_html_e('Lizenz-ID', 'themisdb-order-request'); ?></label></th>
+                            <td><input type="number" min="1" id="termination_license_id" name="license_id" required /></td>
+                        </tr>
+                        <tr>
+                            <th><label for="requested_end_date"><?php esc_html_e('Gewuenschtes Enddatum', 'themisdb-order-request'); ?></label></th>
+                            <td><input type="datetime-local" id="requested_end_date" name="requested_end_date" /></td>
+                        </tr>
+                        <tr>
+                            <th><label for="termination_reason"><?php esc_html_e('Grund', 'themisdb-order-request'); ?></label></th>
+                            <td><textarea id="termination_reason" name="reason" rows="3" class="large-text"></textarea></td>
+                        </tr>
+                    </table>
+                    <?php submit_button(__('Kuendigungsantrag anlegen', 'themisdb-order-request')); ?>
+                </form>
+            </div>
+
+            <div class="card" style="max-width:none; margin-bottom:20px;">
+                <h2><?php esc_html_e('Neuen Aenderungsantrag erstellen', 'themisdb-order-request'); ?></h2>
+                <form method="post">
+                    <?php wp_nonce_field('themisdb_contract_lifecycle_action'); ?>
+                    <input type="hidden" name="themisdb_lifecycle_action" value="create_change" />
+                    <table class="form-table" role="presentation">
+                        <tr>
+                            <th><label for="change_license_id"><?php esc_html_e('Lizenz-ID', 'themisdb-order-request'); ?></label></th>
+                            <td><input type="number" min="1" id="change_license_id" name="license_id" required /></td>
+                        </tr>
+                        <tr>
+                            <th><label for="product_edition"><?php esc_html_e('Edition', 'themisdb-order-request'); ?></label></th>
+                            <td><input type="text" id="product_edition" name="product_edition" placeholder="community|enterprise|hyperscaler|reseller" /></td>
+                        </tr>
+                        <tr>
+                            <th><label for="license_type"><?php esc_html_e('Lizenztyp', 'themisdb-order-request'); ?></label></th>
+                            <td><input type="text" id="license_type" name="license_type" /></td>
+                        </tr>
+                        <tr>
+                            <th><label for="max_nodes"><?php esc_html_e('Max Nodes', 'themisdb-order-request'); ?></label></th>
+                            <td><input type="number" id="max_nodes" name="max_nodes" /></td>
+                        </tr>
+                        <tr>
+                            <th><label for="max_cores"><?php esc_html_e('Max Cores', 'themisdb-order-request'); ?></label></th>
+                            <td><input type="number" id="max_cores" name="max_cores" /></td>
+                        </tr>
+                        <tr>
+                            <th><label for="max_storage_gb"><?php esc_html_e('Max Storage (GB)', 'themisdb-order-request'); ?></label></th>
+                            <td><input type="number" id="max_storage_gb" name="max_storage_gb" /></td>
+                        </tr>
+                        <tr>
+                            <th><label for="expiry_date"><?php esc_html_e('Neues Ablaufdatum', 'themisdb-order-request'); ?></label></th>
+                            <td><input type="date" id="expiry_date" name="expiry_date" /></td>
+                        </tr>
+                        <tr>
+                            <th><label for="change_reason"><?php esc_html_e('Grund', 'themisdb-order-request'); ?></label></th>
+                            <td><textarea id="change_reason" name="reason" rows="3" class="large-text"></textarea></td>
+                        </tr>
+                    </table>
+                    <?php submit_button(__('Aenderungsantrag anlegen', 'themisdb-order-request')); ?>
+                </form>
+            </div>
+
+            <div class="card" style="max-width:none;">
+                <h2><?php esc_html_e('Lifecycle-Antraege', 'themisdb-order-request'); ?></h2>
+                <table class="widefat striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th><?php esc_html_e('Typ', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Status', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Lizenz', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Effektiv', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Begruendung', 'themisdb-order-request'); ?></th>
+                            <th><?php esc_html_e('Aktion', 'themisdb-order-request'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($requests)) : ?>
+                        <tr><td colspan="7"><?php esc_html_e('Keine Lifecycle-Antraege vorhanden.', 'themisdb-order-request'); ?></td></tr>
+                    <?php else : ?>
+                        <?php foreach ($requests as $request) : ?>
+                            <tr>
+                                <td><?php echo esc_html((string) $request['id']); ?></td>
+                                <td><?php echo esc_html((string) $request['request_type']); ?></td>
+                                <td><?php echo esc_html((string) $request['status']); ?></td>
+                                <td><?php echo esc_html((string) $request['license_id']); ?></td>
+                                <td><?php echo esc_html((string) ($request['effective_at'] ?: '—')); ?></td>
+                                <td><?php echo esc_html((string) ($request['reason'] ?: '—')); ?></td>
+                                <td>
+                                    <?php if ((string) $request['status'] === 'requested') : ?>
+                                        <form method="post" style="display:flex;gap:6px;align-items:center;">
+                                            <?php wp_nonce_field('themisdb_contract_lifecycle_action'); ?>
+                                            <input type="hidden" name="themisdb_lifecycle_action" value="review" />
+                                            <input type="hidden" name="request_id" value="<?php echo absint($request['id']); ?>" />
+                                            <input type="text" name="review_note" placeholder="<?php esc_attr_e('Notiz', 'themisdb-order-request'); ?>" />
+                                            <button class="button button-primary" name="decision" value="approve" type="submit"><?php esc_html_e('Freigeben', 'themisdb-order-request'); ?></button>
+                                            <button class="button" name="decision" value="reject" type="submit"><?php esc_html_e('Ablehnen', 'themisdb-order-request'); ?></button>
+                                        </form>
+                                    <?php else : ?>
+                                        <span style="color:#666;">—</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php
     }
 }

@@ -1,223 +1,78 @@
 # ThemisDB WordPress Plugins
 
-**Status:** ✅ Produktionsreif  
-**Letzte Aktualisierung:** Februar 2026  
-**Plugins:** 15 aktive Plugins mit automatischen Updates  
-**Dokumentation:** 82 KB (5 Dokumente)
+Status: In Konsolidierung zum durchgaengigen Sales-, Lizenz-, Build- und Support-Lifecycle
+Stand: Mai 2026
 
----
+Dieses Repository enthaelt das operative ThemisDB-Plugin-Portfolio fuer:
 
-## 🔄 Automatische Updates (NEU!)
+- Shopsystem und Angebots-/Vertragsprozess
+- Lizenzverwaltung und Kundenzugang
+- Build-Ausloesung ueber GitHub Actions
+- Service-Desk und Support-Portal
+- Download- und Release-Bereitstellung
 
-**Alle ThemisDB Plugins unterstützen jetzt automatische Updates!**
+## Ziel-Lifecycle (Soll-Prozess)
 
-- ✅ Integriert mit WordPress Update-System
-- ✅ Updates direkt von GitHub Repository
-- ✅ Ein-Klick Update-Installation
-- ✅ Automatische Version-Prüfung
-- ✅ Sichere HTTPS-Verbindungen
+1. Besucher bestellt Lizenz im Shopsystem.
+2. Kunde erhaelt Bestellbestaetigung, Betreiber erhaelt Benachrichtigung.
+3. Betreiber bestaetigt oder lehnt das Angebot.
+4. Kunde erhaelt Vertrag mit PDF und Zahlungsaufforderung oder Ablehnung.
+5. Kunde erhaelt in separater Mail seine Support-Zugangsdaten.
+6. Kunde kann im Support-/Service-Portal einen Build ausloesen.
+7. Nach CI-Abschluss erhaelt Kunde eine Fertig-/Download-Mail.
+8. Fuer Probleme/Aenderungen erstellt Kunde Tickets im Service-Portal.
+9. Kunde kann eine geordnete Kuendigung einreichen (Ende Laufzeit oder ausserordentlich).
+10. Kunde kann Vertrags-/Leistungsaenderungen als Change Request einreichen.
 
-**Weitere Informationen:** [docs/plugins/WORDPRESS_PLUGIN_AUTOMATIC_UPDATES.md](../docs/plugins/WORDPRESS_PLUGIN_AUTOMATIC_UPDATES.md)
+## Zusaetzliche Pflicht-Workflows
 
-**Betrieb (Runbook):** [docs/ci-cd/WORDPRESS_PLUGIN_OPERATIONS.md](../docs/ci-cd/WORDPRESS_PLUGIN_OPERATIONS.md)
+### Kuendigung
 
----
+1. Kunde stellt Kuendigungsantrag im Portal.
+2. System prueft Laufzeit, Frist, offene Forderungen und offene Build-/Support-Vorgaenge.
+3. Betreiber bestaetigt Termin oder lehnt mit Begruendung ab.
+4. Kunde erhaelt Kuendigungsbestaetigung mit Enddatum und Datenhinweisen.
+5. Zum Enddatum werden Lizenz und Supportzugang sauber deaktiviert und revisionssicher protokolliert.
 
-## 📦 Verfügbare Plugins
+### Aenderung (Change Request)
 
-### 1. ThemisDB Formula Renderer
-Rendert mathematische Formeln in LaTeX-Notation mit KaTeX.
+1. Kunde beantragt Aenderung (z. B. Edition, Module, SLA, Benutzerzahl).
+2. System klassifiziert den Vorgang als Change Request und erstellt eine Aufwandseinschaetzung.
+3. Betreiber gibt frei/lehnen ab und erzeugt bei Bedarf Nachtragsangebot (PDF + Zahlungslink).
+4. Nach Freigabe/Zahlung werden Lizenz, Build-Konfiguration und Support-Tier angepasst.
+5. Kunde erhaelt Abschlussmail mit den neuen Vertrags-/Leistungsdaten.
 
-- **Pfad:** `/themisdb-formula-renderer/`
-- **Version:** 1.0.0
-- **Status:** ✅ Optimiert für Themis Theme
-- **Dokumentation:** [README.md](themisdb-formula-renderer/README.md)
+## Kritische Integrationsbausteine
 
-### 2. ThemisDB Compendium Downloads
-Zeigt Kompendium PDF-Downloads von GitHub Releases an.
+- Order/Shop: themisdb-order-request
+- Support-Portal: themisdb-support-portal
+- GitHub Integration und Ticket-Bridge: themisdb-github-bridge
+- Download/Bereitstellung: themisdb-downloads, themisdb-docker-downloads, themisdb-compendium-downloads
 
-- **Pfad:** `/themisdb-compendium-downloads/`
-- **Version:** 1.0.0
-- **Status:** ✅ Optimiert für Themis Theme
-- **Dokumentation:** [README.md](themisdb-compendium-downloads/README.md)
+## Aktuelle Hauptbefunde
 
----
+1. Die Ticket-Datenhaltung von Order und Support muss konsolidiert werden.
+2. GitHub-Sync-Optionen sind aktuell doppelt vorhanden (Order und Bridge).
+3. Service-Desk-Prozesse (Incident, SLA, Eskalation, Agentenrouting) sind noch nicht Ende-zu-Ende integriert.
+4. Build-Status-Rueckkanal zum Kunden (Ticket/Portal/Mail) benoetigt einheitlichen Event-Flow.
 
-## 📚 Dokumentation
+Details und konkrete Umsetzung:
 
-### Für Schnelleinstieg
-📘 **[QUICK_START_GUIDE.md](QUICK_START_GUIDE.md)** (11 KB)
-- Installation und Aktivierung
-- Konfiguration
-- Troubleshooting
-- Checklisten für Admins und Entwickler
+- [ROADMAP.md](ROADMAP.md)
+- [ENHANCEMENT.md](ENHANCEMENT.md)
+- [ARCHITECTUR.md](ARCHITECTUR.md)
 
-### Für Updates & Releases
-🔄 **[WordPress Plugin Automatic Updates](../docs/plugins/WORDPRESS_PLUGIN_AUTOMATIC_UPDATES.md)** **NEU!**
-- Automatisches Update-System
-- Release-Prozess für Entwickler
-- Troubleshooting für Updates
-- GitHub-Integration
+## Betriebsrelevante Dokumente
 
-### Für Projekt-Manager
-📊 **[PROJEKTZUSAMMENFASSUNG.md](PROJEKTZUSAMMENFASSUNG.md)** (14 KB)
-- Executive Summary auf Deutsch
-- Erreichte Ziele und Metriken
-- Deployment-Status
-- Empfehlungen
+- [docs/plugins/WORDPRESS_PLUGIN_AUTOMATIC_UPDATES.md](../docs/plugins/WORDPRESS_PLUGIN_AUTOMATIC_UPDATES.md)
+- [docs/ci-cd/WORDPRESS_PLUGIN_OPERATIONS.md](../docs/ci-cd/WORDPRESS_PLUGIN_OPERATIONS.md)
 
-### Für Entwickler
-📖 **[WORDPRESS_PLUGIN_BEST_PRACTICES.md](WORDPRESS_PLUGIN_BEST_PRACTICES.md)** (27 KB)
-- Vollständige Entwickler-Guidelines
-- Themis Branding Standards
-- Code-Standards (PHP, JS, CSS)
-- Security, Performance, Accessibility
-- Plugin-Struktur und Testing
+## Naechste Umsetzungsschritte (Kurzfristig)
 
-### Für Architekten
-🔍 **[PLUGIN_COMPATIBILITY_ANALYSIS.md](PLUGIN_COMPATIBILITY_ANALYSIS.md)** (20 KB)
-- Detaillierte Kompatibilitäts-Analyse
-- Performance-Benchmarks
-- Security-Assessment
-- Browser- und Theme-Kompatibilität
-- Technische Details
-
----
-
-## 🎨 Themis Brand Colors
-
-Alle Plugins verwenden konsistent die ThemisDB Markenfarben:
-
-```css
-:root {
-    --themis-primary: #2c3e50;      /* Dunkles Blau-Grau */
-    --themis-secondary: #3498db;    /* Helles Blau */
-    --themis-accent: #7c4dff;       /* Lila */
-    --themis-success: #27ae60;      /* Grün */
-    --themis-warning: #f39c12;      /* Orange */
-    --themis-error: #e74c3c;        /* Rot */
-}
-```
-
----
-
-## ✅ Qualitätsmetriken
-
-| Metrik | Ziel | Erreicht | Status |
-|--------|------|----------|--------|
-| **Design-Konsistenz** | 100% | 100% | ✅ |
-| **Accessibility Score** | 90+ | 95+ | ✅ |
-| **Performance Score** | 85+ | 90+ | ✅ |
-| **Security Score** | A | A+ | ✅ |
-| **Browser-Kompatibilität** | 95%+ | 98%+ | ✅ |
-| **WCAG Compliance** | 2.1 AA | 2.1 AA | ✅ |
-
----
-
-## 🚀 Quick Start
-
-### Installation
-
-```bash
-# In WordPress Admin:
-# Plugins → Installieren → Plugin hochladen → ZIP auswählen → Aktivieren
-
-# Oder manuell:
-cp -r themisdb-formula-renderer /path/to/wordpress/wp-content/plugins/
-cp -r themisdb-compendium-downloads /path/to/wordpress/wp-content/plugins/
-```
-
-### Verwendung
-
-**Formula Renderer:**
-```
-[themisdb_formula]E = mc^2[/themisdb_formula]
-
-$$\int_{0}^{\infty} e^{-x^2} dx$$
-```
-
-**Compendium Downloads:**
-```
-[themisdb_compendium_downloads]
-
-[themisdb_compendium_downloads style="modern" layout="cards"]
-```
-
----
-
-## 🔍 Features
-
-### Design
-- ✅ Themis Brand Colors konsistent
-- ✅ Responsive Design (Mobile-First)
-- ✅ Dark Mode Support
-- ✅ Einheitliche Typografie
-- ✅ Konsistente Icons und Buttons
-
-### Performance
-- ✅ Assets nur bei Bedarf laden
-- ✅ Caching implementiert
-- ✅ CDN-Nutzung (KaTeX)
-- ✅ Optimierte Bundle-Größen
-- ✅ Core Web Vitals grün
-
-### Sicherheit
-- ✅ Input Validation & Sanitization
-- ✅ Output Escaping
-- ✅ Nonces für CSRF-Protection
-- ✅ Capability Checks
-- ✅ Security Best Practices
-
-### Barrierefreiheit
-- ✅ WCAG 2.1 AA konform
-- ✅ Semantic HTML
-- ✅ ARIA Labels
-- ✅ Keyboard Navigation
-- ✅ Screen Reader kompatibel
-
----
-
-## 📋 Checkliste
-
-### Für Administratoren
-- [ ] Plugins installiert und aktiviert
-- [ ] Shortcodes auf Testseiten eingebunden
-- [ ] Design auf Desktop geprüft
-- [ ] Design auf Mobile geprüft
-- [ ] Dark Mode getestet
-- [ ] Admin-Einstellungen konfiguriert
-
-### Für Entwickler
-- [ ] Best Practices Dokumentation gelesen
-- [ ] Themis Brand Colors verwendet
-- [ ] Code-Standards befolgt
-- [ ] Tests durchgeführt
-- [ ] Dokumentation aktualisiert
-- [ ] Security-Check durchgeführt
-
----
-
-## 🆘 Troubleshooting
-
-### Plugins werden nicht angezeigt
-1. Cache leeren (Browser + WordPress)
-2. Shortcode korrekt eingebunden?
-3. JavaScript-Fehler in Konsole prüfen
-4. Plugin aktiviert?
-
-### Farben passen nicht
-1. CSS-Cache leeren
-2. Themis Colors in CSS prüfen
-3. Theme-Overrides prüfen
-4. Browser DevTools nutzen
-
-### Performance-Probleme
-1. Caching-Plugin installieren
-2. Bilder optimieren
-3. CDN aktivieren
-4. Database optimieren
-
-Mehr Details: [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md)
+1. Ticketmodell zwischen Order und Support vereinheitlichen.
+2. GitHub-Bridge als Single Source of Truth fuer Issue-Sync festziehen.
+3. Service-Desk-Integration inkl. SLA, Queue und Eskalation implementieren.
+4. Build-Pipeline mit Kundenbenachrichtigung und Download-Freigabe durchgaengig machen.
 
 ---
 

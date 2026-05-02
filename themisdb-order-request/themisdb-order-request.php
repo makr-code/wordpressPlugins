@@ -96,6 +96,7 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-build-dispatche
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-api.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-portal.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-license-renewal.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-contract-lifecycle.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-pdf-generator.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-email-handler.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-document-template-manager.php';
@@ -160,6 +161,11 @@ function themisdb_order_request_init() {
     // Initialize support ticket manager.
     if (class_exists('ThemisDB_Order_Support_Ticket_Manager')) {
         ThemisDB_Order_Support_Ticket_Manager::init();
+    }
+
+    // Initialize contract lifecycle workflows (termination/change requests).
+    if (class_exists('ThemisDB_Contract_Lifecycle')) {
+        ThemisDB_Contract_Lifecycle::init();
     }
 
     // Initialize affiliate program (referral capture + commission tracking).
@@ -274,6 +280,11 @@ function themisdb_order_ensure_contact_page() {
 function themisdb_order_request_activate() {
     // Create database tables
     ThemisDB_Order_Database::create_tables();
+
+    // Create lifecycle workflow table.
+    if (class_exists('ThemisDB_Contract_Lifecycle')) {
+        ThemisDB_Contract_Lifecycle::create_tables();
+    }
 
     // Ensure public pages are present immediately after activation.
     themisdb_order_ensure_contact_page();
@@ -390,6 +401,11 @@ function themisdb_order_request_deactivate() {
     if ($timestamp) {
         wp_unschedule_event($timestamp, 'themisdb_support_github_status_refresh');
     }
+
+    $timestamp = wp_next_scheduled('themisdb_contract_lifecycle_execute');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'themisdb_contract_lifecycle_execute');
+    }
     
     // Flush rewrite rules
     flush_rewrite_rules();
@@ -458,6 +474,22 @@ function themisdb_run_support_github_status_refresh() {
         'skipped' => isset($result['skipped']) ? absint($result['skipped']) : 0,
         'message' => isset($result['message']) ? sanitize_text_field((string) $result['message']) : '',
     ), false);
+}
+
+/**
+ * Backfill issue metadata from central GitHub Bridge into order support tickets.
+ */
+add_action('themisdb_github_bridge_issue_created', 'themisdb_order_request_on_bridge_issue_created', 10, 5);
+function themisdb_order_request_on_bridge_issue_created($source_plugin, $source_type, $source_id, $result, $ticket) {
+    if ($source_plugin !== 'themisdb-order-request' || $source_type !== 'support_ticket') {
+        return;
+    }
+
+    if (!class_exists('ThemisDB_Order_Support_Ticket_Manager')) {
+        return;
+    }
+
+    ThemisDB_Order_Support_Ticket_Manager::record_bridge_issue_link(intval($source_id), is_array($result) ? $result : array());
 }
 
 /**

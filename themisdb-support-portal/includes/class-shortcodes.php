@@ -36,6 +36,10 @@ class ThemisDB_Support_Shortcodes {
 
         // AJAX handler for fetching a single ticket detail
         add_action('wp_ajax_themisdb_support_get_ticket', array($this, 'handle_get_ticket'));
+
+        // AJAX handlers for contract lifecycle self-service
+        add_action('wp_ajax_themisdb_lifecycle_request',     array($this, 'handle_lifecycle_request'));
+        add_action('wp_ajax_themisdb_lifecycle_list',        array($this, 'handle_lifecycle_list'));
     }
 
     /**
@@ -534,9 +538,338 @@ class ThemisDB_Support_Shortcodes {
                 </div>
             </div>
 
+            <?php if (class_exists('ThemisDB_Contract_Lifecycle')) : ?>
+            <!-- Vertragsmanagement -->
+            <div class="themisdb-support-section" id="themisdb-lifecycle-section">
+                <div class="themisdb-support-section-header">
+                    <h3><?php esc_html_e('Vertragsmanagement', 'themisdb-support-portal'); ?></h3>
+                    <button type="button" id="themisdb-lifecycle-toggle" class="themisdb-support-btn themisdb-support-btn-secondary">
+                        <span class="dashicons dashicons-editor-contract"></span>
+                        <?php esc_html_e('Kuendigung / Aenderung beantragen', 'themisdb-support-portal'); ?>
+                    </button>
+                </div>
+
+                <div id="themisdb-lifecycle-form-wrap" style="display:none;">
+                    <div style="margin-bottom:12px;">
+                        <label><strong><?php esc_html_e('Antragstyp', 'themisdb-support-portal'); ?></strong></label><br>
+                        <label style="margin-right:16px;">
+                            <input type="radio" name="themisdb_lifecycle_type" value="termination" id="lc-type-termination" checked />
+                            <?php esc_html_e('Kuendigung', 'themisdb-support-portal'); ?>
+                        </label>
+                        <label>
+                            <input type="radio" name="themisdb_lifecycle_type" value="change" id="lc-type-change" />
+                            <?php esc_html_e('Aenderung', 'themisdb-support-portal'); ?>
+                        </label>
+                    </div>
+
+                    <div id="themisdb-lc-termination-fields">
+                        <div class="themisdb-support-form-group">
+                            <label for="themisdb-lc-end-date"><?php esc_html_e('Gewuenschtes Kuendigungsdatum (optional)', 'themisdb-support-portal'); ?></label>
+                            <input type="date" id="themisdb-lc-end-date" name="requested_end_date" class="themisdb-support-input" />
+                        </div>
+                    </div>
+
+                    <div id="themisdb-lc-change-fields" style="display:none;">
+                        <div class="themisdb-support-form-row">
+                            <div class="themisdb-support-form-group">
+                                <label for="themisdb-lc-edition"><?php esc_html_e('Neue Edition', 'themisdb-support-portal'); ?></label>
+                                <select id="themisdb-lc-edition" name="product_edition" class="themisdb-support-input">
+                                    <option value=""><?php esc_html_e('— keine Aenderung —', 'themisdb-support-portal'); ?></option>
+                                    <option value="community">Community</option>
+                                    <option value="enterprise">Enterprise</option>
+                                    <option value="hyperscaler">Hyperscaler</option>
+                                    <option value="reseller">Reseller</option>
+                                </select>
+                            </div>
+                            <div class="themisdb-support-form-group">
+                                <label for="themisdb-lc-expiry"><?php esc_html_e('Neues Ablaufdatum', 'themisdb-support-portal'); ?></label>
+                                <input type="date" id="themisdb-lc-expiry" name="expiry_date" class="themisdb-support-input" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="themisdb-support-form-group">
+                        <label for="themisdb-lc-reason"><?php esc_html_e('Begruendung', 'themisdb-support-portal'); ?> <span class="themisdb-required">*</span></label>
+                        <textarea id="themisdb-lc-reason" name="reason" rows="4" required class="themisdb-support-input" style="width:100%;"
+                            placeholder="<?php esc_attr_e('Bitte beschreiben Sie Ihr Anliegen…', 'themisdb-support-portal'); ?>"></textarea>
+                    </div>
+
+                    <div class="themisdb-support-form-actions">
+                        <button type="button" id="themisdb-lc-submit" class="themisdb-support-btn themisdb-support-btn-primary">
+                            <?php esc_html_e('Antrag einreichen', 'themisdb-support-portal'); ?>
+                        </button>
+                        <button type="button" id="themisdb-lc-cancel" class="themisdb-support-btn themisdb-support-btn-secondary">
+                            <?php esc_html_e('Abbrechen', 'themisdb-support-portal'); ?>
+                        </button>
+                    </div>
+                    <div id="themisdb-lc-messages" class="themisdb-support-messages"></div>
+                </div>
+
+                <div id="themisdb-lifecycle-requests-wrap" style="margin-top:16px;">
+                    <div class="themisdb-support-loading" id="themisdb-lc-loading">
+                        <span class="dashicons dashicons-update themisdb-spin"></span>
+                        <?php esc_html_e('Lade Lifecycle-Antraege…', 'themisdb-support-portal'); ?>
+                    </div>
+                    <table class="themisdb-support-lc-table" id="themisdb-lc-table" style="display:none;width:100%;border-collapse:collapse;font-size:13px;">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;padding:6px 10px;border-bottom:1px solid #ddd;"><?php esc_html_e('ID', 'themisdb-support-portal'); ?></th>
+                                <th style="text-align:left;padding:6px 10px;border-bottom:1px solid #ddd;"><?php esc_html_e('Typ', 'themisdb-support-portal'); ?></th>
+                                <th style="text-align:left;padding:6px 10px;border-bottom:1px solid #ddd;"><?php esc_html_e('Status', 'themisdb-support-portal'); ?></th>
+                                <th style="text-align:left;padding:6px 10px;border-bottom:1px solid #ddd;"><?php esc_html_e('Effektiv ab', 'themisdb-support-portal'); ?></th>
+                                <th style="text-align:left;padding:6px 10px;border-bottom:1px solid #ddd;"><?php esc_html_e('Erstellt', 'themisdb-support-portal'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody id="themisdb-lc-tbody"></tbody>
+                    </table>
+                    <p id="themisdb-lc-empty" style="display:none;color:#666;"><?php esc_html_e('Keine Lifecycle-Antraege vorhanden.', 'themisdb-support-portal'); ?></p>
+                </div>
+            </div>
+
+            <script>
+            (function() {
+                var lcNonce = <?php echo wp_json_encode(wp_create_nonce('themisdb_lifecycle_nonce')); ?>;
+                var ajaxUrl = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+
+                function lcMsg(msg, isError) {
+                    var el = document.getElementById('themisdb-lc-messages');
+                    if (!el) return;
+                    el.innerHTML = '<div class="themisdb-support-notice themisdb-support-notice-' + (isError ? 'error' : 'success') + '">' + msg + '</div>';
+                }
+
+                function loadRequests() {
+                    var tbody = document.getElementById('themisdb-lc-tbody');
+                    var table = document.getElementById('themisdb-lc-table');
+                    var empty = document.getElementById('themisdb-lc-empty');
+                    var loading = document.getElementById('themisdb-lc-loading');
+                    var fd = new FormData();
+                    fd.append('action', 'themisdb_lifecycle_list');
+                    fd.append('nonce', lcNonce);
+                    fetch(ajaxUrl, {method:'POST', body:fd, credentials:'same-origin'})
+                        .then(function(r){return r.json();})
+                        .then(function(data) {
+                            if (loading) loading.style.display = 'none';
+                            if (!data.success) { if (empty) { empty.style.display=''; empty.textContent = data.data && data.data.message ? data.data.message : 'Fehler'; } return; }
+                            var rows = data.data && data.data.requests ? data.data.requests : [];
+                            if (!rows.length) { if (empty) empty.style.display=''; return; }
+                            if (table) table.style.display='';
+                            if (tbody) tbody.innerHTML = rows.map(function(r) {
+                                return '<tr>' +
+                                    '<td style="padding:5px 10px;">'+r.id+'</td>' +
+                                    '<td style="padding:5px 10px;">'+r.request_type+'</td>' +
+                                    '<td style="padding:5px 10px;">'+r.status+'</td>' +
+                                    '<td style="padding:5px 10px;">'+(r.effective_at||'—')+'</td>' +
+                                    '<td style="padding:5px 10px;">'+(r.created_at||'—')+'</td>' +
+                                '</tr>';
+                            }).join('');
+                        })
+                        .catch(function() { if (loading) loading.style.display='none'; });
+                }
+
+                // Toggle form
+                var toggleBtn = document.getElementById('themisdb-lifecycle-toggle');
+                var formWrap  = document.getElementById('themisdb-lifecycle-form-wrap');
+                if (toggleBtn && formWrap) {
+                    toggleBtn.addEventListener('click', function() {
+                        formWrap.style.display = formWrap.style.display === 'none' ? '' : 'none';
+                    });
+                }
+
+                // Cancel
+                var cancelBtn = document.getElementById('themisdb-lc-cancel');
+                if (cancelBtn && formWrap) {
+                    cancelBtn.addEventListener('click', function() { formWrap.style.display='none'; });
+                }
+
+                // Toggle termination/change fields
+                var typeRadios = document.querySelectorAll('[name="themisdb_lifecycle_type"]');
+                var termFields = document.getElementById('themisdb-lc-termination-fields');
+                var changeFields = document.getElementById('themisdb-lc-change-fields');
+                Array.prototype.forEach.call(typeRadios, function(radio) {
+                    radio.addEventListener('change', function() {
+                        if (this.value === 'termination') {
+                            if (termFields) termFields.style.display='';
+                            if (changeFields) changeFields.style.display='none';
+                        } else {
+                            if (termFields) termFields.style.display='none';
+                            if (changeFields) changeFields.style.display='';
+                        }
+                    });
+                });
+
+                // Submit
+                var submitBtn = document.getElementById('themisdb-lc-submit');
+                if (submitBtn) {
+                    submitBtn.addEventListener('click', function() {
+                        var typeEl = document.querySelector('[name="themisdb_lifecycle_type"]:checked');
+                        var type   = typeEl ? typeEl.value : 'termination';
+                        var reason = (document.getElementById('themisdb-lc-reason')||{}).value||'';
+                        if (!reason.trim()) { lcMsg('Bitte geben Sie eine Begruendung an.', true); return; }
+
+                        var fd = new FormData();
+                        fd.append('action', 'themisdb_lifecycle_request');
+                        fd.append('nonce', lcNonce);
+                        fd.append('request_type', type);
+                        fd.append('reason', reason);
+
+                        if (type === 'termination') {
+                            var endDate = (document.getElementById('themisdb-lc-end-date')||{}).value||'';
+                            if (endDate) fd.append('requested_end_date', endDate);
+                        } else {
+                            var edition = (document.getElementById('themisdb-lc-edition')||{}).value||'';
+                            var expiry  = (document.getElementById('themisdb-lc-expiry')||{}).value||'';
+                            if (edition) fd.append('product_edition', edition);
+                            if (expiry)  fd.append('expiry_date', expiry);
+                        }
+
+                        submitBtn.disabled = true;
+                        fetch(ajaxUrl, {method:'POST', body:fd, credentials:'same-origin'})
+                            .then(function(r){return r.json();})
+                            .then(function(data) {
+                                submitBtn.disabled = false;
+                                if (data.success) {
+                                    lcMsg(data.data.message, false);
+                                    if (formWrap) formWrap.style.display='none';
+                                    loadRequests();
+                                } else {
+                                    lcMsg(data.data && data.data.message ? data.data.message : 'Fehler', true);
+                                }
+                            })
+                            .catch(function() { submitBtn.disabled=false; lcMsg('Netzwerkfehler', true); });
+                    });
+                }
+
+                loadRequests();
+            })();
+            </script>
+            <?php endif; ?>
+
         </div>
         <?php
         return ob_get_clean();
+    }
+
+    // -------------------------------------------------------------------------
+    // Lifecycle AJAX Handlers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Handle lifecycle request submission (termination or change) from portal.
+     */
+    public function handle_lifecycle_request() {
+        check_ajax_referer('themisdb_lifecycle_nonce', 'nonce');
+
+        if (!ThemisDB_Support_License_Auth::current_user_has_license()) {
+            wp_send_json_error(array('message' => __('Zugriff verweigert. Bitte melden Sie sich mit Ihrer Lizenzdatei an.', 'themisdb-support-portal')));
+        }
+
+        if (!class_exists('ThemisDB_Contract_Lifecycle')) {
+            wp_send_json_error(array('message' => __('Das Lifecycle-Modul ist derzeit nicht verfuegbar.', 'themisdb-support-portal')));
+        }
+
+        $type   = isset($_POST['request_type']) ? sanitize_key((string) wp_unslash($_POST['request_type'])) : '';
+        $reason = isset($_POST['reason'])       ? sanitize_textarea_field((string) wp_unslash($_POST['reason'])) : '';
+        $user   = wp_get_current_user();
+
+        // Resolve license ID from order plugin
+        $license_id = 0;
+        if (class_exists('ThemisDB_License_Manager')) {
+            $lid = get_user_meta($user->ID, 'themisdb_license_id', true);
+            if ($lid) {
+                $license_id = intval($lid);
+            } else {
+                $license_key = get_user_meta($user->ID, 'themisdb_support_license_key', true);
+                if ($license_key) {
+                    $lic = ThemisDB_License_Manager::get_license_by_key($license_key);
+                    if (!empty($lic['id'])) {
+                        $license_id = intval($lic['id']);
+                    }
+                }
+            }
+        }
+
+        if ($license_id <= 0) {
+            wp_send_json_error(array('message' => __('Keine zugehoerige Lizenz gefunden.', 'themisdb-support-portal')));
+        }
+
+        if ($type === 'termination') {
+            $end_date = isset($_POST['requested_end_date']) ? sanitize_text_field((string) wp_unslash($_POST['requested_end_date'])) : '';
+            $result   = ThemisDB_Contract_Lifecycle::request_termination($license_id, $end_date, $reason, $user->ID);
+        } elseif ($type === 'change') {
+            $payload  = array();
+            $allowed  = array('product_edition', 'license_type', 'max_nodes', 'max_cores', 'max_storage_gb', 'expiry_date');
+            foreach ($allowed as $field) {
+                if (!isset($_POST[$field]) || '' === $_POST[$field]) {
+                    continue;
+                }
+                $raw = wp_unslash($_POST[$field]);
+                if (in_array($field, array('max_nodes', 'max_cores', 'max_storage_gb'), true)) {
+                    $payload[$field] = intval($raw);
+                } else {
+                    $payload[$field] = sanitize_text_field((string) $raw);
+                }
+            }
+            if (empty($payload)) {
+                wp_send_json_error(array('message' => __('Bitte mindestens ein Feld fuer den Aenderungsantrag angeben.', 'themisdb-support-portal')));
+            }
+            $result = ThemisDB_Contract_Lifecycle::request_change($license_id, $payload, $reason, $user->ID);
+        } else {
+            wp_send_json_error(array('message' => __('Unbekannter Antragstyp.', 'themisdb-support-portal')));
+        }
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
+        wp_send_json_success(array(
+            'message'    => $type === 'termination'
+                ? __('Ihr Kuendigungsantrag wurde erfolgreich eingereicht. Ein Administrator wird ihn pruefen.', 'themisdb-support-portal')
+                : __('Ihr Aenderungsantrag wurde erfolgreich eingereicht. Ein Administrator wird ihn pruefen.', 'themisdb-support-portal'),
+            'request_id' => $result,
+        ));
+    }
+
+    /**
+     * Return the current user's lifecycle requests as JSON.
+     */
+    public function handle_lifecycle_list() {
+        check_ajax_referer('themisdb_lifecycle_nonce', 'nonce');
+
+        if (!ThemisDB_Support_License_Auth::current_user_has_license()) {
+            wp_send_json_error(array('message' => __('Zugriff verweigert.', 'themisdb-support-portal')));
+        }
+
+        if (!class_exists('ThemisDB_Contract_Lifecycle')) {
+            wp_send_json_success(array('requests' => array()));
+        }
+
+        $user       = wp_get_current_user();
+        $license_id = 0;
+        if (class_exists('ThemisDB_License_Manager')) {
+            $lid = get_user_meta($user->ID, 'themisdb_license_id', true);
+            if ($lid) {
+                $license_id = intval($lid);
+            } else {
+                $lk = get_user_meta($user->ID, 'themisdb_support_license_key', true);
+                if ($lk) {
+                    $lic = ThemisDB_License_Manager::get_license_by_key($lk);
+                    if (!empty($lic['id'])) {
+                        $license_id = intval($lic['id']);
+                    }
+                }
+            }
+        }
+
+        if ($license_id <= 0) {
+            wp_send_json_success(array('requests' => array()));
+        }
+
+        $requests = ThemisDB_Contract_Lifecycle::list_requests(array(
+            'license_id' => $license_id,
+            'limit'      => 50,
+        ));
+
+        wp_send_json_success(array('requests' => $requests ?: array()));
     }
 
     // -------------------------------------------------------------------------
