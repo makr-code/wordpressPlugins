@@ -78,15 +78,11 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     
-    strategy:
-      matrix:
-        plugin:
-          - themisdb-support-portal
-          - themisdb-order-request
-          - themisdb-license-manager
-    
     steps:
       - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
       
       - name: Extract version from tag
         id: version
@@ -94,52 +90,85 @@ jobs:
           TAG=${{ github.ref }}
           VERSION=${TAG#refs/tags/v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building artifacts for v$VERSION"
       
-      - name: Create release artifact
+      - name: Update update-info.json for all plugins
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          for plugin in themisdb-support-portal themisdb-order-request themisdb-license-manager; do
+            JSON_FILE="$plugin/update-info.json"
+            if [ -f "$JSON_FILE" ]; then
+              # Update version field in update-info.json
+              jq ".version = \"$VERSION\"" "$JSON_FILE" > "${JSON_FILE}.tmp" && mv "${JSON_FILE}.tmp" "$JSON_FILE"
+              echo "Updated $JSON_FILE to v$VERSION"
+            fi
+          done
+      
+      - name: Commit updated update-info.json files
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add "*/update-info.json" 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "chore(release): bump update-info.json to v${{ steps.version.outputs.version }} [skip ci]"
+          git push origin HEAD:main || true
+      
+      - name: Build plugin ZIPs
         run: |
           mkdir -p build/
-          cd ${{ matrix.plugin }}
-          zip -r ../build/${{ matrix.plugin }}-${{ steps.version.outputs.version }}.zip . \
-            -x "*/.*" "*/tests/*" "*/node_modules/*" "*/.git/*"
-          cd ..
+          VERSION=${{ steps.version.outputs.version }}
+          for plugin in themisdb-support-portal themisdb-order-request themisdb-license-manager; do
+            if [ -d "$plugin" ]; then
+              echo "Building $plugin..."
+              cd "$plugin"
+              zip -r "../build/${plugin}-${VERSION}.zip" . \
+                -x "*/.*" "*/tests/*" "*/node_modules/*" "*/.git/*" "*.sh"
+              cd ..
+              
+              # Generate SHA256
+              sha256sum "build/${plugin}-${VERSION}.zip" > "build/${plugin}-${VERSION}.zip.sha256"
+              echo "Built: build/${plugin}-${VERSION}.zip"
+            fi
+          done
+          ls -la build/
       
-      - name: Generate checksum
-        run: |
-          cd build/
-          sha256sum ${{ matrix.plugin }}-${{ steps.version.outputs.version }}.zip > ${{ matrix.plugin }}-${{ steps.version.outputs.version }}.sha256
-          cat ${{ matrix.plugin }}-${{ steps.version.outputs.version }}.sha256
-      
-      - name: Upload artifacts to GitHub Release
+      - name: Create GitHub Release with artifacts
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          body: |
+            ## ThemisDB Plugin Release v${{ steps.version.outputs.version }}
+            
+            ### Downloads
+            
+            | Plugin | ZIP | SHA256 |
+            |--------|-----|--------|
+            | ThemisDB Order Request | [ZIP](https://github.com/makr-code/wordpressPlugins/releases/download/v${{ steps.version.outputs.version }}/themisdb-order-request-${{ steps.version.outputs.version }}.zip) | [SHA256](https://github.com/makr-code/wordpressPlugins/releases/download/v${{ steps.version.outputs.version }}/themisdb-order-request-${{ steps.version.outputs.version }}.zip.sha256) |
+            | ThemisDB Support Portal | [ZIP](https://github.com/makr-code/wordpressPlugins/releases/download/v${{ steps.version.outputs.version }}/themisdb-support-portal-${{ steps.version.outputs.version }}.zip) | [SHA256](https://github.com/makr-code/wordpressPlugins/releases/download/v${{ steps.version.outputs.version }}/themisdb-support-portal-${{ steps.version.outputs.version }}.zip.sha256) |
+            
+            ### Installation
+            1. Download the plugin ZIP
+            2. Upload to WordPress: Plugins → Add New → Upload Plugin
+            3. Activate plugin
+            4. Configure license key
+            
+            ### Auto-Update
+            Active licenses receive updates automatically via WordPress Plugin Updates.
+            
+            ### Verify Integrity
+            ```bash
+            sha256sum -c themisdb-order-request-${{ steps.version.outputs.version }}.zip.sha256
+            ```
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-beta') || contains(steps.version.outputs.version, '-rc') || contains(steps.version.outputs.version, '-alpha') }}
           files: |
-            build/${{ matrix.plugin }}-${{ steps.version.outputs.version }}.zip
-            build/${{ matrix.plugin }}-${{ steps.version.outputs.version }}.sha256
+            build/*.zip
+            build/*.sha256
       
-      - name: Upload to artifact server (if configured)
-        if: secrets.ARTIFACT_SERVER != ''
+      - name: Summary
         run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.ARTIFACT_TOKEN }}" \
-            -F "file=@build/${{ matrix.plugin }}-${{ steps.version.outputs.version }}.zip" \
-            -F "version=${{ steps.version.outputs.version }}" \
-            -F "plugin=${{ matrix.plugin }}" \
-            https://${{ secrets.ARTIFACT_SERVER }}/api/upload || true
-      
-      - name: Update manifest
-        if: secrets.MANIFEST_TOKEN != ''
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.MANIFEST_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "plugin": "${{ matrix.plugin }}",
-              "version": "${{ steps.version.outputs.version }}",
-              "download_url": "https://github.com/makr-code/wordpressPlugins/releases/download/v${{ steps.version.outputs.version }}/${{ matrix.plugin }}-${{ steps.version.outputs.version }}.zip"
-            }' \
-            https://updates.themisdb.org/api/manifest || true
-      
-      - name: Notify deployment
-        if: always()
-        run: |
-          echo "Release ${{ matrix.plugin }} v${{ steps.version.outputs.version }} created successfully!"
+          echo "=== Release Summary ==="
+          echo "Version: v${{ steps.version.outputs.version }}"
+          echo "Artifacts:"
+          ls -lh build/*.zip 2>/dev/null || echo "(none)"
+          echo "========================"
