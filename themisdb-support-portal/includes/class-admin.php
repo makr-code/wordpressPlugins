@@ -68,6 +68,15 @@ class ThemisDB_Support_Admin {
 
         add_submenu_page(
             'themisdb-support',
+            __('Observability', 'themisdb-support-portal'),
+            __('Observability', 'themisdb-support-portal'),
+            'manage_options',
+            'themisdb-support-observability',
+            array($this, 'observability_page')
+        );
+
+        add_submenu_page(
+            'themisdb-support',
             __('Einstellungen', 'themisdb-support-portal'),
             __('Einstellungen', 'themisdb-support-portal'),
             'manage_options',
@@ -976,6 +985,162 @@ class ThemisDB_Support_Admin {
                     </tbody>
                 </table>
             <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the Observability Dashboard (ARCHITECTUR.md §7).
+     */
+    public function observability_page() {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Keine Berechtigung', 'themisdb-support-portal'));
+        }
+
+        // Allow manual cache flush via URL param.
+        if (!empty($_GET['obs_flush_cache']) && check_admin_referer('themisdb_obs_flush', '_wpnonce')) {
+            if (class_exists('ThemisDB_Observability')) {
+                ThemisDB_Observability::flush_cache();
+            }
+            wp_safe_redirect(admin_url('admin.php?page=themisdb-support-observability'));
+            exit;
+        }
+
+        $frt       = class_exists('ThemisDB_Observability') ? ThemisDB_Observability::get_first_response_time()  : null;
+        $sla_rate  = class_exists('ThemisDB_Observability') ? ThemisDB_Observability::get_sla_breach_rate()       : null;
+        $volume    = class_exists('ThemisDB_Observability') ? ThemisDB_Observability::get_ticket_volume()         : array();
+        $queues    = class_exists('ThemisDB_Observability') ? ThemisDB_Observability::get_queue_distribution()    : array();
+        $incidents = class_exists('ThemisDB_Observability') ? ThemisDB_Observability::get_incident_summary()      : array();
+        $res_time  = class_exists('ThemisDB_Observability') ? ThemisDB_Observability::get_avg_resolution_time()   : null;
+
+        $flush_url = wp_nonce_url(admin_url('admin.php?page=themisdb-support-observability&obs_flush_cache=1'), 'themisdb_obs_flush');
+        ?>
+        <div class="wrap">
+            <h1 style="display:flex;align-items:center;gap:12px;">
+                <?php esc_html_e('Observability Dashboard', 'themisdb-support-portal'); ?>
+                <a href="<?php echo esc_url($flush_url); ?>" class="button button-small" style="font-size:11px;margin-top:2px;"><?php esc_html_e('Cache leeren', 'themisdb-support-portal'); ?></a>
+            </h1>
+            <p style="color:#666;margin-top:-4px;"><?php esc_html_e('Metriken werden 5 Minuten gecacht. Zeitraum: letzte 30 Tage sofern nicht anders angegeben.', 'themisdb-support-portal'); ?></p>
+
+            <!-- KPI-Karten -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
+                <?php
+                $kpis = array(
+                    array(
+                        'label'  => __('Erste Antwortzeit', 'themisdb-support-portal'),
+                        'value'  => $frt !== null ? number_format_i18n($frt, 1) . ' h' : '—',
+                        'sub'    => __('Ø Stunden bis erste Admin-Antwort', 'themisdb-support-portal'),
+                        'color'  => $frt !== null && $frt <= 4 ? '#27ae60' : ($frt !== null && $frt <= 8 ? '#f39c12' : '#e74c3c'),
+                        'icon'   => 'dashicons-clock',
+                    ),
+                    array(
+                        'label'  => __('SLA Breach Rate', 'themisdb-support-portal'),
+                        'value'  => $sla_rate !== null ? number_format_i18n($sla_rate, 1) . ' %' : '—',
+                        'sub'    => __('Anteil geschlossener Tickets mit SLA-Verstoss', 'themisdb-support-portal'),
+                        'color'  => $sla_rate !== null && $sla_rate <= 5 ? '#27ae60' : ($sla_rate !== null && $sla_rate <= 15 ? '#f39c12' : '#e74c3c'),
+                        'icon'   => 'dashicons-warning',
+                    ),
+                    array(
+                        'label'  => __('Ø Loesezeit', 'themisdb-support-portal'),
+                        'value'  => $res_time !== null ? number_format_i18n($res_time, 1) . ' h' : '—',
+                        'sub'    => __('Ø Stunden von Erstellung bis Schliessung', 'themisdb-support-portal'),
+                        'color'  => $res_time !== null && $res_time <= 24 ? '#27ae60' : ($res_time !== null && $res_time <= 72 ? '#f39c12' : '#e74c3c'),
+                        'icon'   => 'dashicons-yes-alt',
+                    ),
+                    array(
+                        'label'  => __('Offene Incidents', 'themisdb-support-portal'),
+                        'value'  => array_sum($incidents),
+                        'sub'    => __('Alle offenen Incidents im Incident Log', 'themisdb-support-portal'),
+                        'color'  => array_sum($incidents) === 0 ? '#27ae60' : (array_sum($incidents) <= 3 ? '#f39c12' : '#e74c3c'),
+                        'icon'   => 'dashicons-flag',
+                    ),
+                );
+                foreach ($kpis as $kpi): ?>
+                    <div style="background:#fff;border:1px solid #ddd;border-radius:6px;padding:16px 18px;border-top:4px solid <?php echo esc_attr($kpi['color']); ?>;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                            <span class="dashicons <?php echo esc_attr($kpi['icon']); ?>" style="color:<?php echo esc_attr($kpi['color']); ?>;font-size:20px;"></span>
+                            <strong style="font-size:13px;color:#333;"><?php echo esc_html($kpi['label']); ?></strong>
+                        </div>
+                        <div style="font-size:28px;font-weight:700;color:<?php echo esc_attr($kpi['color']); ?>;line-height:1.1;"><?php echo esc_html($kpi['value']); ?></div>
+                        <div style="font-size:11px;color:#888;margin-top:4px;"><?php echo esc_html($kpi['sub']); ?></div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+                <!-- Ticket-Volumen letzte 14 Tage -->
+                <div style="background:#fff;border:1px solid #ddd;border-radius:6px;padding:16px 18px;">
+                    <h3 style="margin-top:0;"><?php esc_html_e('Ticket-Volumen (letzte 14 Tage)', 'themisdb-support-portal'); ?></h3>
+                    <?php if (empty($volume) || array_sum($volume) === 0): ?>
+                        <p style="color:#888;"><?php esc_html_e('Keine Daten', 'themisdb-support-portal'); ?></p>
+                    <?php else:
+                        $max_vol = max(array_values($volume));
+                        $max_vol = $max_vol > 0 ? $max_vol : 1;
+                        ?>
+                        <div style="display:flex;align-items:flex-end;gap:4px;height:80px;border-bottom:1px solid #eee;">
+                            <?php foreach ($volume as $day => $cnt): ?>
+                                <?php $pct = round($cnt / $max_vol * 100); ?>
+                                <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">
+                                    <div title="<?php echo esc_attr($day . ': ' . $cnt); ?>" style="width:100%;background:#4f7df3;border-radius:2px 2px 0 0;height:<?php echo esc_attr($pct); ?>%;min-height:<?php echo ($cnt > 0 ? 2 : 0); ?>px;"></div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-top:4px;">
+                            <span><?php echo esc_html(array_key_first($volume)); ?></span>
+                            <span><?php echo esc_html(array_key_last($volume)); ?></span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Queue-Verteilung -->
+                <div style="background:#fff;border:1px solid #ddd;border-radius:6px;padding:16px 18px;">
+                    <h3 style="margin-top:0;"><?php esc_html_e('Queue-Verteilung (aktive Tickets)', 'themisdb-support-portal'); ?></h3>
+                    <?php if (empty($queues)): ?>
+                        <p style="color:#888;"><?php esc_html_e('Keine offenen Tickets', 'themisdb-support-portal'); ?></p>
+                    <?php else:
+                        $total_q = array_sum($queues);
+                        foreach ($queues as $queue => $cnt):
+                            $color = class_exists('ThemisDB_Queue_Router') ? ThemisDB_Queue_Router::queue_color($queue) : '#666';
+                            $label = class_exists('ThemisDB_Queue_Router') ? ThemisDB_Queue_Router::queue_label($queue) : ucfirst($queue);
+                            $pct   = $total_q > 0 ? round($cnt / $total_q * 100) : 0;
+                            ?>
+                            <div style="margin-bottom:8px;">
+                                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;">
+                                    <span style="font-weight:600;color:<?php echo esc_attr($color); ?>"><?php echo esc_html($label); ?></span>
+                                    <span><?php echo esc_html($cnt); ?> (<?php echo esc_html($pct); ?>%)</span>
+                                </div>
+                                <div style="background:#eee;border-radius:3px;height:6px;">
+                                    <div style="background:<?php echo esc_attr($color); ?>;width:<?php echo esc_attr($pct); ?>%;height:6px;border-radius:3px;"></div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Incidents nach Schweregrad -->
+                <div style="background:#fff;border:1px solid #ddd;border-radius:6px;padding:16px 18px;">
+                    <h3 style="margin-top:0;"><?php esc_html_e('Offene Incidents nach Schweregrad', 'themisdb-support-portal'); ?></h3>
+                    <?php if (empty($incidents) || array_sum($incidents) === 0): ?>
+                        <p style="color:#27ae60;font-weight:600;"><?php esc_html_e('Keine offenen Incidents', 'themisdb-support-portal'); ?></p>
+                    <?php else:
+                        $severity_order = array('critical', 'high', 'medium', 'low');
+                        foreach ($severity_order as $sev):
+                            if (!isset($incidents[$sev])) { continue; }
+                            $color = class_exists('ThemisDB_Incident_Log') ? ThemisDB_Incident_Log::severity_color($sev) : '#999';
+                            $label = class_exists('ThemisDB_Incident_Log') ? ThemisDB_Incident_Log::severity_label($sev) : ucfirst($sev);
+                            ?>
+                            <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                                <span style="display:inline-block;width:80px;padding:2px 8px;border-radius:3px;background:<?php echo esc_attr($color); ?>;color:#fff;font-size:11px;font-weight:600;text-align:center;"><?php echo esc_html($label); ?></span>
+                                <strong style="font-size:18px;"><?php echo esc_html($incidents[$sev]); ?></strong>
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support-incidents&inc_status=open&inc_severity=' . $sev)); ?>" style="font-size:11px;"><?php esc_html_e('Anzeigen', 'themisdb-support-portal'); ?> &rarr;</a>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    <p style="margin-top:12px;margin-bottom:0;">
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=themisdb-support-incidents')); ?>" class="button button-small"><?php esc_html_e('Alle Incidents', 'themisdb-support-portal'); ?></a>
+                    </p>
+                </div>
+            </div>
         </div>
         <?php
     }
