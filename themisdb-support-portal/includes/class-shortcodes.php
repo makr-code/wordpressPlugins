@@ -43,6 +43,9 @@ class ThemisDB_Support_Shortcodes {
 
         // Standalone lifecycle portal shortcode
         add_shortcode('themisdb_lifecycle_portal', array($this, 'lifecycle_portal_shortcode'));
+
+        // Unified customer cockpit (ARCHITECTUR.md §8.5)
+        add_shortcode('themisdb_cockpit', array($this, 'cockpit_shortcode'));
     }
 
     /**
@@ -1280,5 +1283,240 @@ class ThemisDB_Support_Shortcodes {
             'open_tickets_label' => $open_tickets_label,
             'expires_at_label' => $expires_at_label,
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // Unified Customer Cockpit (ARCHITECTUR.md §8.5)
+    // -------------------------------------------------------------------------
+
+    /**
+     * [themisdb_cockpit] – Kunden-Cockpit mit aggregiertem Status.
+     *
+     * Zeigt Lizenzstatus, offene Tickets, Bestellungen, Build-History
+     * und offene Lifecycle-Anträge in einer konsolidierten Ansicht.
+     *
+     * @param array $atts  Shortcode-Attribute (derzeit nicht genutzt).
+     * @return string       HTML-Output.
+     */
+    public function cockpit_shortcode($atts) {
+        if (!ThemisDB_Support_License_Auth::current_user_has_license()) {
+            return '<div class="themisdb-support-login-wrap">' . $this->render_login_form() . '</div>';
+        }
+
+        if (!class_exists('ThemisDB_Status_Resolver')) {
+            return '<p class="themisdb-support-notice">'
+                . esc_html__('Status Resolver nicht verfügbar.', 'themisdb-support-portal')
+                . '</p>';
+        }
+
+        $user    = wp_get_current_user();
+        $summary = ThemisDB_Status_Resolver::for_user($user->ID);
+
+        $license   = $summary['license'];
+        $tickets   = $summary['tickets'];
+        $orders    = $summary['orders'];
+        $builds    = $summary['builds'];
+        $lifecycle = $summary['lifecycle'];
+        $health    = $summary['health'];
+
+        ob_start();
+        ?>
+        <div class="themisdb-cockpit-wrap" style="font-family:inherit;max-width:900px;">
+
+            <!-- Health-Banner -->
+            <?php
+            $hcolor = ThemisDB_Status_Resolver::health_color($health['level']);
+            $hicon  = ThemisDB_Status_Resolver::health_icon($health['level']);
+            ?>
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 18px;background:<?php echo esc_attr($hcolor); ?>18;border-left:4px solid <?php echo esc_attr($hcolor); ?>;border-radius:4px;margin-bottom:20px;">
+                <span class="dashicons <?php echo esc_attr($hicon); ?>" style="color:<?php echo esc_attr($hcolor); ?>;font-size:24px;flex-shrink:0;margin-top:1px;"></span>
+                <div>
+                    <strong style="color:<?php echo esc_attr($hcolor); ?>;font-size:14px;">
+                        <?php
+                        if ($health['level'] === 'ok') {
+                            esc_html_e('Alles in Ordnung', 'themisdb-support-portal');
+                        } elseif ($health['level'] === 'warn') {
+                            esc_html_e('Hinweise vorhanden', 'themisdb-support-portal');
+                        } else {
+                            esc_html_e('Handlungsbedarf', 'themisdb-support-portal');
+                        }
+                        ?>
+                    </strong>
+                    <?php if (!empty($health['reasons'])): ?>
+                        <ul style="margin:6px 0 0;padding-left:18px;font-size:13px;color:#333;">
+                            <?php foreach ($health['reasons'] as $reason): ?>
+                                <li><?php echo esc_html($reason); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+                <!-- Lizenz-Karte -->
+                <div style="background:#fff;border:1px solid #ddd;border-radius:6px;padding:16px 18px;">
+                    <h3 style="margin-top:0;font-size:14px;color:#333;display:flex;align-items:center;gap:8px;">
+                        <span class="dashicons dashicons-admin-network" style="color:#4f7df3;"></span>
+                        <?php esc_html_e('Lizenz', 'themisdb-support-portal'); ?>
+                    </h3>
+                    <?php if ($license['available']): ?>
+                        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+                            <tr>
+                                <td style="padding:4px 0;color:#666;width:50%;"><?php esc_html_e('Schlüssel', 'themisdb-support-portal'); ?></td>
+                                <td style="padding:4px 0;font-family:monospace;"><?php echo esc_html($license['license_key']); ?></td>
+                            </tr>
+                            <tr>
+                                <td style="padding:4px 0;color:#666;"><?php esc_html_e('Tier', 'themisdb-support-portal'); ?></td>
+                                <td style="padding:4px 0;"><?php echo esc_html(ucfirst($license['tier'])); ?></td>
+                            </tr>
+                            <tr>
+                                <td style="padding:4px 0;color:#666;"><?php esc_html_e('Status', 'themisdb-support-portal'); ?></td>
+                                <td style="padding:4px 0;">
+                                    <?php
+                                    $ls_label = ThemisDB_Status_Resolver::license_status_label($license['status']);
+                                    $ls_color = in_array($license['status'], array('expired', 'revoked', 'suspended'), true) ? '#e74c3c' : '#27ae60';
+                                    ?>
+                                    <span style="color:<?php echo esc_attr($ls_color); ?>;font-weight:600;"><?php echo esc_html($ls_label); ?></span>
+                                </td>
+                            </tr>
+                            <?php if ($license['expires_at']): ?>
+                            <tr>
+                                <td style="padding:4px 0;color:#666;"><?php esc_html_e('Läuft ab', 'themisdb-support-portal'); ?></td>
+                                <td style="padding:4px 0;"><?php echo esc_html(mysql2date('d.m.Y', $license['expires_at'])); ?></td>
+                            </tr>
+                            <?php endif; ?>
+                        </table>
+                    <?php else: ?>
+                        <p style="color:#888;font-size:13px;"><?php esc_html_e('Keine Lizenzdaten verfügbar.', 'themisdb-support-portal'); ?></p>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Offene Lifecycle-Anträge -->
+                <div style="background:#fff;border:1px solid #ddd;border-radius:6px;padding:16px 18px;">
+                    <h3 style="margin-top:0;font-size:14px;color:#333;display:flex;align-items:center;gap:8px;">
+                        <span class="dashicons dashicons-editor-contract" style="color:#9b59b6;"></span>
+                        <?php esc_html_e('Offene Anträge', 'themisdb-support-portal'); ?>
+                    </h3>
+                    <?php if (empty($lifecycle)): ?>
+                        <p style="color:#888;font-size:13px;"><?php esc_html_e('Keine offenen Vertragsanträge.', 'themisdb-support-portal'); ?></p>
+                    <?php else: ?>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;">
+                            <?php foreach ($lifecycle as $req): ?>
+                                <li style="margin-bottom:4px;">
+                                    <strong><?php echo esc_html(ucfirst(isset($req['type']) ? $req['type'] : '')); ?></strong>
+                                    — <?php echo esc_html(isset($req['status']) ? $req['status'] : ''); ?>
+                                    <?php if (!empty($req['created_at'])): ?>
+                                        <span style="color:#aaa;font-size:11px;"><?php echo esc_html(mysql2date('d.m.Y', $req['created_at'])); ?></span>
+                                    <?php endif; ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </div>
+
+            </div><!-- end 2-col grid -->
+
+            <!-- Tickets -->
+            <div style="background:#fff;border:1px solid #ddd;border-radius:6px;padding:16px 18px;margin-top:20px;">
+                <h3 style="margin-top:0;font-size:14px;color:#333;display:flex;align-items:center;gap:8px;">
+                    <span class="dashicons dashicons-tickets-alt" style="color:#3498db;"></span>
+                    <?php esc_html_e('Aktuelle Tickets', 'themisdb-support-portal'); ?>
+                </h3>
+                <?php if (empty($tickets)): ?>
+                    <p style="color:#888;font-size:13px;"><?php esc_html_e('Keine offenen Tickets.', 'themisdb-support-portal'); ?></p>
+                <?php else: ?>
+                    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                        <thead>
+                            <tr style="border-bottom:1px solid #eee;">
+                                <th style="text-align:left;padding:6px 8px;color:#666;font-weight:600;"><?php esc_html_e('Nr.', 'themisdb-support-portal'); ?></th>
+                                <th style="text-align:left;padding:6px 8px;color:#666;font-weight:600;"><?php esc_html_e('Betreff', 'themisdb-support-portal'); ?></th>
+                                <th style="text-align:left;padding:6px 8px;color:#666;font-weight:600;"><?php esc_html_e('Status', 'themisdb-support-portal'); ?></th>
+                                <th style="text-align:left;padding:6px 8px;color:#666;font-weight:600;"><?php esc_html_e('Priorität', 'themisdb-support-portal'); ?></th>
+                                <th style="text-align:left;padding:6px 8px;color:#666;font-weight:600;"><?php esc_html_e('Aktualisiert', 'themisdb-support-portal'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($tickets as $ticket):
+                                $tstatus = isset($ticket['status']) ? $ticket['status'] : '';
+                                $tcolor  = ThemisDB_Status_Resolver::ticket_status_color($tstatus);
+                                $tlabel  = ThemisDB_Status_Resolver::ticket_status_label($tstatus);
+                            ?>
+                                <tr style="border-bottom:1px solid #f5f5f5;">
+                                    <td style="padding:6px 8px;font-family:monospace;"><?php echo esc_html(isset($ticket['ticket_number']) ? $ticket['ticket_number'] : '—'); ?></td>
+                                    <td style="padding:6px 8px;"><?php echo esc_html(isset($ticket['subject']) ? mb_strimwidth($ticket['subject'], 0, 60, '…') : ''); ?></td>
+                                    <td style="padding:6px 8px;">
+                                        <span style="display:inline-block;padding:1px 7px;border-radius:3px;background:<?php echo esc_attr($tcolor); ?>;color:#fff;font-size:11px;"><?php echo esc_html($tlabel); ?></span>
+                                    </td>
+                                    <td style="padding:6px 8px;"><?php echo esc_html(ucfirst(isset($ticket['priority']) ? $ticket['priority'] : '')); ?></td>
+                                    <td style="padding:6px 8px;color:#aaa;font-size:11px;"><?php echo esc_html(isset($ticket['updated_at']) ? mysql2date('d.m.Y', $ticket['updated_at']) : ''); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+            </div>
+
+            <!-- Bestellungen + Builds nebeneinander -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;">
+
+                <!-- Bestellungen -->
+                <div style="background:#fff;border:1px solid #ddd;border-radius:6px;padding:16px 18px;">
+                    <h3 style="margin-top:0;font-size:14px;color:#333;display:flex;align-items:center;gap:8px;">
+                        <span class="dashicons dashicons-cart" style="color:#27ae60;"></span>
+                        <?php esc_html_e('Bestellungen', 'themisdb-support-portal'); ?>
+                    </h3>
+                    <?php if (empty($orders)): ?>
+                        <p style="color:#888;font-size:13px;"><?php esc_html_e('Keine Bestellungen gefunden.', 'themisdb-support-portal'); ?></p>
+                    <?php else: ?>
+                        <ul style="margin:0;padding-left:0;list-style:none;font-size:13px;">
+                            <?php foreach ($orders as $order): ?>
+                                <li style="border-bottom:1px solid #f5f5f5;padding:6px 0;">
+                                    <strong><?php echo esc_html(isset($order['order_number']) ? $order['order_number'] : '#' . (isset($order['id']) ? $order['id'] : '')); ?></strong>
+                                    — <?php echo esc_html(isset($order['status']) ? ucfirst($order['status']) : ''); ?>
+                                    <?php if (!empty($order['created_at'])): ?>
+                                        <span style="color:#aaa;font-size:11px;display:block;"><?php echo esc_html(mysql2date('d.m.Y', $order['created_at'])); ?></span>
+                                    <?php endif; ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Build-History -->
+                <div style="background:#fff;border:1px solid #ddd;border-radius:6px;padding:16px 18px;">
+                    <h3 style="margin-top:0;font-size:14px;color:#333;display:flex;align-items:center;gap:8px;">
+                        <span class="dashicons dashicons-hammer" style="color:#e67e22;"></span>
+                        <?php esc_html_e('Build-History', 'themisdb-support-portal'); ?>
+                    </h3>
+                    <?php if (empty($builds)): ?>
+                        <p style="color:#888;font-size:13px;"><?php esc_html_e('Keine Build-Einträge gefunden.', 'themisdb-support-portal'); ?></p>
+                    <?php else: ?>
+                        <ul style="margin:0;padding-left:0;list-style:none;font-size:13px;">
+                            <?php foreach ($builds as $build):
+                                $bstatus = isset($build['status']) ? $build['status'] : '';
+                                $bcolor  = ThemisDB_Status_Resolver::build_status_color($bstatus);
+                                $blabel  = ThemisDB_Status_Resolver::build_status_label($bstatus);
+                            ?>
+                                <li style="border-bottom:1px solid #f5f5f5;padding:6px 0;">
+                                    <span style="display:inline-block;padding:1px 7px;border-radius:3px;background:<?php echo esc_attr($bcolor); ?>;color:#fff;font-size:11px;"><?php echo esc_html($blabel); ?></span>
+                                    <?php if (!empty($build['artifact_url'])): ?>
+                                        <a href="<?php echo esc_url($build['artifact_url']); ?>" style="font-size:11px;margin-left:6px;" target="_blank" rel="noopener"><?php esc_html_e('Download', 'themisdb-support-portal'); ?></a>
+                                    <?php endif; ?>
+                                    <?php if (!empty($build['created_at'])): ?>
+                                        <span style="color:#aaa;font-size:11px;display:block;"><?php echo esc_html(mysql2date('d.m.Y H:i', $build['created_at'])); ?></span>
+                                    <?php endif; ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </div>
+
+            </div><!-- end 2-col grid -->
+
+        </div><!-- .themisdb-cockpit-wrap -->
+        <?php
+
+        return ob_get_clean();
     }
 }

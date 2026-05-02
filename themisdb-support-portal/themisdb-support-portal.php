@@ -84,6 +84,7 @@ require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-queue-router.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-incident-log.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-observability.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-mail-orchestrator.php';
+require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-status-resolver.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-ticket-manager.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-shortcodes.php';
