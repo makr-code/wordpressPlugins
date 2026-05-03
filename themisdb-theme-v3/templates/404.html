@@ -2,7 +2,39 @@
 
 <!-- wp:group {"tagName":"main","anchor":"wp--skip-link--target","className":"site-main","layout":{"type":"constrained","contentSize":"720px"}} -->
 <main id="wp--skip-link--target" class="wp-block-group site-main">
-	<!-- wp:template-part {"slug":"404-content","tagName":"main"} /-->
+	<!-- wp:group {"className":"tv3-404-section","style":{"spacing":{"padding":{"top":"var:preset|spacing|24","bottom":"var:preset|spacing|24"}}},"layout":{"type":"constrained","contentSize":"640px"}} -->
+	<div class="wp-block-group tv3-404-section">
+		<!-- wp:html --><div class="tv3-404-code">404</div><!-- /wp:html -->
+
+		<!-- wp:heading {"level":1,"textAlign":"center","style":{"typography":{"fontSize":"clamp(1.5rem,3vw,2.25rem)","fontWeight":"700","letterSpacing":"-0.02em"},"color":{"text":"#111827"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
+		<h1 class="wp-block-heading has-text-align-center tv3-404-title">Seite nicht gefunden</h1>
+		<!-- /wp:heading -->
+
+		<!-- wp:paragraph {"textAlign":"center","style":{"typography":{"fontSize":"1.0625rem","lineHeight":"1.65"},"color":{"text":"#647e96"},"spacing":{"margin":{"bottom":"var:preset|spacing|8"}}}} -->
+		<p class="has-text-align-center tv3-404-text">Die gesuchte Seite existiert nicht oder wurde verschoben. Nutze die Suche oder stöbere durch unsere Dokumentation und Features.</p>
+		<!-- /wp:paragraph -->
+
+		<!-- wp:search {"label":"ThemisDB durchsuchen","showLabel":false,"placeholder":"Docs, Features, Downloads suchen…","buttonText":"Suchen","buttonUseIcon":false,"style":{"border":{"radius":"8px","color":"#dce4ef","width":"1px"},"spacing":{"margin":{"bottom":"var:preset|spacing|8"}}}} /-->
+
+		<!-- wp:paragraph {"textAlign":"center","style":{"typography":{"fontSize":"0.875rem","fontWeight":"600","textTransform":"uppercase","letterSpacing":"0.06em"},"color":{"text":"#647e96"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
+		<p class="has-text-align-center tv3-404-quicklinks">Direktlinks</p>
+		<!-- /wp:paragraph -->
+
+		<!-- wp:buttons {"layout":{"type":"flex","justifyContent":"center","flexWrap":"wrap"},"style":{"spacing":{"blockGap":"var:preset|spacing|3"}}} -->
+		<div class="wp-block-buttons tv3-404-buttons">
+			<!-- wp:button {"style":{"color":{"background":"#1e6fba","text":"#ffffff"},"border":{"radius":"8px"},"spacing":{"padding":{"top":"0.625rem","bottom":"0.625rem","left":"1.25rem","right":"1.25rem"}}},"fontSize":"sm"} -->
+			<div class="wp-block-button"><a href="/" class="wp-block-button__link has-sm-font-size wp-element-button tv3-404-link-primary">Startseite</a></div>
+			<!-- /wp:button -->
+			<!-- wp:button {"className":"is-style-outline","style":{"color":{"text":"#1e6fba"},"border":{"radius":"8px","color":"#1e6fba","width":"1.5px"},"spacing":{"padding":{"top":"0.625rem","bottom":"0.625rem","left":"1.25rem","right":"1.25rem"}}},"fontSize":"sm"} -->
+			<div class="wp-block-button is-style-outline"><a href="/downloads" class="wp-block-button__link has-sm-font-size wp-element-button tv3-404-link-outline">Downloads</a></div>
+			<!-- /wp:button -->
+			<!-- wp:button {"className":"is-style-outline","style":{"color":{"text":"#1e6fba"},"border":{"radius":"8px","color":"#1e6fba","width":"1.5px"},"spacing":{"padding":{"top":"0.625rem","bottom":"0.625rem","left":"1.25rem","right":"1.25rem"}}},"fontSize":"sm"} -->
+			<div class="wp-block-button is-style-outline"><a href="/blog" class="wp-block-button__link has-sm-font-size wp-element-button tv3-404-link-outline">Blog</a></div>
+			<!-- /wp:button -->
+		</div>
+		<!-- /wp:buttons -->
+	</div>
+	<!-- /wp:group -->
 </main>
 <!-- /wp:group -->
 

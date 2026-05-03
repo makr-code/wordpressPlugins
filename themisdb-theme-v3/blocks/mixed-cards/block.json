@@ -1,0 +1,25 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "themisdb/mixed-cards",
+    "title": "ThemisDB Mixed Cards",
+    "category": "theme",
+    "icon": "screenoptions",
+    "description": "Dynamic mixed content cards with filtering, sorting and progressive loading.",
+    "textdomain": "themisdb-v3",
+    "attributes": {
+        "limit": {
+            "type": "number",
+            "default": 12
+        },
+        "type": {
+            "type": "string",
+            "default": ""
+        }
+    },
+    "supports": {
+        "html": false,
+        "multiple": true,
+        "inserter": true
+    }
+}
