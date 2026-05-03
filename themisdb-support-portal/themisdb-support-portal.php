@@ -10,7 +10,7 @@
 ║ ThemisDB - Hybrid Database System                                   ║
 ╠═════════════════════════════════════════════════════════════════════╣
   File:            themisdb-support-portal.php                        ║
-  Version:         1.0.0                                              ║
+    Version:         1.0.1                                              ║
   Last Modified:   2026-03-15                                         ║
   Author:          ThemisDB Team                                      ║
 ╠═════════════════════════════════════════════════════════════════════╣
@@ -30,7 +30,7 @@
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Exklusives Support-Portal für lizensierte ThemisDB-Kunden. Zugang nur mit gültiger Lizenzdatei. Ticket-System für Kundensupport.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT

@@ -1,6 +1,6 @@
 {
   "name": "ThemisDB Wiki Integration",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "homepage": "https://github.com/makr-code/wordpressPlugins",
   "description": "Integrates ThemisDB documentation/wiki from GitHub into WordPress. Fetches markdown files on-demand and displays them with proper formatting.",
   "author": "ThemisDB Team",
