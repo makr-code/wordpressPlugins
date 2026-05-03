@@ -1,0 +1,11 @@
+{
+  "name": "ThemisDB Theme v3",
+  "version": "3.2.0",
+  "homepage": "https://github.com/makr-code/wordpressPlugins",
+  "description": "Modernes Block-Theme fuer ThemisDB – vollstaendig mit dem Gutenberg-Editor kompatibel.",
+  "author": "ThemisDB Team",
+  "author_uri": "https://github.com/makr-code/wordpressPlugins",
+  "requires": "6.0",
+  "tested": "6.7",
+  "requires_php": "7.4"
+}

@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'THEMISDB_V3_VERSION', '3.1.0' );
+define( 'THEMISDB_V3_VERSION', '3.2.0' );
 
 // Required plugin map: slug => main plugin file path.
 define(

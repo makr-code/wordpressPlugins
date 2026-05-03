@@ -1,0 +1,11 @@
+{
+  "name": "ThemisDB Theme Plain",
+  "version": "1.0.0",
+  "homepage": "https://github.com/makr-code/wordpressPlugins",
+  "description": "Minimalistisches ThemisDB-Theme ohne Layout-Overhead.",
+  "author": "ThemisDB Team",
+  "author_uri": "https://github.com/makr-code/wordpressPlugins",
+  "requires": "5.0",
+  "tested": "6.7",
+  "requires_php": "7.4"
+}
