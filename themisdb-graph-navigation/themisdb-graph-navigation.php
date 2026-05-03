@@ -12,7 +12,7 @@
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Lagert die Graph-Navigation aus dem Theme in ein eigenstaendiges Plugin aus.
- * Version: 1.1.1
+ * Version: 1.1.2
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('THEMISDB_GRAPH_NAV_VERSION', '1.1.1');
+define('THEMISDB_GRAPH_NAV_VERSION', '1.1.2');
 define('THEMISDB_GRAPH_NAV_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_GRAPH_NAV_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_GRAPH_NAV_PLUGIN_FILE', __FILE__);
