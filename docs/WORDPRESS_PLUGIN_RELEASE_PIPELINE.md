@@ -50,3 +50,18 @@ Beide Skripte unterstuetzen Flat und Nested Layout.
 
 ## Runbook
 - Zentrales Betriebs-Runbook: `docs/ci-cd/WORDPRESS_PLUGIN_OPERATIONS.md`
+
+## Theme-Releases
+- Workflow: `.github/workflows/wordpress-theme-release.yml`
+- Trigger: `workflow_dispatch`
+- Inputs: `theme_slug`, `version`, `target_ref`, `dry_run`
+- Validierung:
+	- Theme-Verzeichnis vorhanden
+	- `style.css` vorhanden
+	- `Version:` in `style.css` entspricht Input `version`
+- Packaging:
+	- ZIP-Name: `dist/<theme-slug>.zip`
+- Release-Konvention:
+	- Tag: `<theme-slug>/v<version>`
+	- Release-Name: `<theme-slug> v<version>`
+	- Asset: `<theme-slug>.zip`

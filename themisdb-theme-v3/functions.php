@@ -11,6 +11,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'THEMISDB_V3_VERSION', '3.1.0' );
 
+// Required plugin map: slug => main plugin file path.
+define(
+    'THEMISDB_V3_REQUIRED_PLUGINS',
+    array(
+        'themisdb-quality-meter' => 'themisdb-quality-meter/themisdb-quality-meter.php',
+    )
+);
+
 add_action( 'after_setup_theme', 'themisdb_v3_setup' );
 function themisdb_v3_setup() {
     load_theme_textdomain( 'themisdb-v3', get_template_directory() . '/languages' );
@@ -44,6 +52,85 @@ function themisdb_v3_setup() {
     );
 }
 
+add_action( 'admin_init', 'themisdb_v3_collect_missing_required_plugins' );
+add_action( 'admin_notices', 'themisdb_v3_render_missing_required_plugins_notice' );
+
+/**
+ * Collect missing required plugins for this theme.
+ */
+function themisdb_v3_collect_missing_required_plugins() {
+    if ( ! is_admin() ) {
+        return;
+    }
+
+    if ( ! function_exists( 'is_plugin_active' ) ) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+
+    $missing = array();
+    foreach ( THEMISDB_V3_REQUIRED_PLUGINS as $slug => $plugin_file ) {
+        if ( ! is_plugin_active( $plugin_file ) ) {
+            $missing[ $slug ] = $plugin_file;
+        }
+    }
+
+    set_transient( 'themisdb_v3_missing_required_plugins', $missing, 60 );
+}
+
+/**
+ * Show admin notice when required plugins are inactive.
+ */
+function themisdb_v3_render_missing_required_plugins_notice() {
+    if ( ! current_user_can( 'activate_plugins' ) ) {
+        return;
+    }
+
+    $missing = get_transient( 'themisdb_v3_missing_required_plugins' );
+    if ( ! is_array( $missing ) || empty( $missing ) ) {
+        return;
+    }
+
+    $items = array();
+    foreach ( $missing as $slug => $plugin_file ) {
+        $label = ucwords( str_replace( '-', ' ', $slug ) );
+        $install_url = self_admin_url( 'plugin-install.php?tab=search&type=term&s=' . rawurlencode( $slug ) );
+
+        $action_link = sprintf(
+            '<a href="%1$s">%2$s</a>',
+            esc_url( $install_url ),
+            esc_html__( 'Installieren/Aktivieren', 'themisdb-v3' )
+        );
+
+        if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) ) {
+            $activate_url = wp_nonce_url(
+                self_admin_url( 'plugins.php?action=activate&plugin=' . rawurlencode( $plugin_file ) ),
+                'activate-plugin_' . $plugin_file
+            );
+            $action_link = sprintf(
+                '<a href="%1$s">%2$s</a>',
+                esc_url( $activate_url ),
+                esc_html__( 'Jetzt aktivieren', 'themisdb-v3' )
+            );
+        }
+
+        $items[] = sprintf( '%1$s (%2$s)', esc_html( $label ), $action_link );
+    }
+
+    if ( empty( $items ) ) {
+        return;
+    }
+
+    echo '<div class="notice notice-warning"><p>';
+    echo wp_kses_post(
+        sprintf(
+            /* translators: %s: list of plugin names with actions */
+            __( 'ThemisDB v3 benoetigt folgende Plugins fuer den vollen Funktionsumfang: %s', 'themisdb-v3' ),
+            implode( ', ', $items )
+        )
+    );
+    echo '</p></div>';
+}
+
 add_action( 'init', 'themisdb_v3_register_shortcodes', 15 );
 /**
  * Register frontend shortcodes used by template parts.
@@ -53,9 +140,12 @@ function themisdb_v3_register_shortcodes() {
     add_shortcode( 'themisdb_v3_read_time', 'themisdb_v3_render_read_time_shortcode' );
     add_shortcode( 'themisdb_v3_modified_date', 'themisdb_v3_render_modified_date_shortcode' );
     add_shortcode( 'themisdb_v3_authors_compact', 'themisdb_v3_render_authors_compact_shortcode' );
+    add_shortcode( 'themisdb_v3_author_cards', 'themisdb_v3_render_author_cards_shortcode' );
     add_shortcode( 'themisdb_v3_author_bio', 'themisdb_v3_render_author_bio_shortcode' );
     add_shortcode( 'themisdb_v3_author_stats', 'themisdb_v3_render_author_stats_shortcode' );
     add_shortcode( 'themisdb_v3_author_focus', 'themisdb_v3_render_author_focus_shortcode' );
+    add_shortcode( 'themisdb_v3_quality_meta', 'themisdb_v3_render_quality_meta_shortcode' );
+    add_shortcode( 'themisdb_v3_article_media', 'themisdb_v3_render_article_media_shortcode' );
 }
 
 /**
@@ -122,6 +212,93 @@ function themisdb_v3_get_post_author_items( int $post_id, int $avatar_size = 40,
                     'url'    => $url,
                     'avatar' => $avatar,
                     'bio'    => $bio,
+                );
+            }
+        }
+    }
+
+    // Append AI co-authors stored as comma-separated names in the post meta.
+    $ai_meta = trim( (string) get_post_meta( $post_id, 'tv3_ai_coauthors', true ) );
+    if ( '' !== $ai_meta ) {
+        foreach ( explode( ',', $ai_meta ) as $ai_name ) {
+            $ai_name = trim( $ai_name );
+            if ( '' === $ai_name ) {
+                continue;
+            }
+            $ai_slug  = sanitize_title( $ai_name );
+            $ai_brand = themisdb_v3_detect_ai_author_brand( $ai_name, $ai_slug );
+            $ai_avatar = '';
+            if ( '' !== $ai_brand ) {
+                $ai_avatar = themisdb_v3_get_ai_author_avatar_markup( $ai_brand, $ai_name, $avatar_size );
+            }
+            $items[] = array(
+                'id'     => 0,
+                'name'   => $ai_name,
+                'slug'   => $ai_slug,
+                'url'    => '',
+                'avatar' => $ai_avatar,
+                'bio'    => '',
+            );
+        }
+    }
+
+    // Ensure the primary post author is always represented (and has bio data).
+    $primary_author_id = (int) get_post_field( 'post_author', $post_id );
+    if ( $primary_author_id > 0 ) {
+        $primary_name = trim( (string) get_the_author_meta( 'display_name', $primary_author_id ) );
+        if ( '' !== $primary_name ) {
+            $primary_slug = trim( (string) get_the_author_meta( 'user_nicename', $primary_author_id ) );
+            $primary_bio  = trim( (string) get_the_author_meta( 'description', $primary_author_id ) );
+            $primary_url  = ( $linked && '' !== $primary_slug ) ? get_author_posts_url( $primary_author_id, $primary_slug ) : '';
+            $primary_avatar = (string) get_avatar(
+                $primary_author_id,
+                $avatar_size,
+                '',
+                $primary_name,
+                array( 'class' => 'tv3-card-author-avatar' )
+            );
+
+            $primary_brand = themisdb_v3_detect_ai_author_brand( $primary_name, $primary_slug );
+            if ( '' !== $primary_brand ) {
+                $primary_brand_avatar = themisdb_v3_get_ai_author_avatar_markup( $primary_brand, $primary_name, $avatar_size );
+                if ( '' !== $primary_brand_avatar ) {
+                    $primary_avatar = $primary_brand_avatar;
+                }
+            }
+
+            $primary_found = false;
+            foreach ( $items as $index => $item ) {
+                $item_id   = isset( $item['id'] ) ? absint( (int) $item['id'] ) : 0;
+                $item_slug = isset( $item['slug'] ) ? sanitize_title( (string) $item['slug'] ) : '';
+
+                if ( $item_id === $primary_author_id || ( '' !== $primary_slug && $item_slug === sanitize_title( $primary_slug ) ) ) {
+                    $primary_found = true;
+
+                    // Hydrate missing profile fields if a partial record already exists.
+                    if ( empty( $items[ $index ]['bio'] ) && '' !== $primary_bio ) {
+                        $items[ $index ]['bio'] = $primary_bio;
+                    }
+                    if ( empty( $items[ $index ]['url'] ) && '' !== $primary_url ) {
+                        $items[ $index ]['url'] = $primary_url;
+                    }
+                    if ( empty( $items[ $index ]['avatar'] ) && '' !== $primary_avatar ) {
+                        $items[ $index ]['avatar'] = $primary_avatar;
+                    }
+                    break;
+                }
+            }
+
+            if ( ! $primary_found ) {
+                array_unshift(
+                    $items,
+                    array(
+                        'id'     => $primary_author_id,
+                        'name'   => $primary_name,
+                        'slug'   => $primary_slug,
+                        'url'    => $primary_url,
+                        'avatar' => $primary_avatar,
+                        'bio'    => $primary_bio,
+                    )
                 );
             }
         }
@@ -200,6 +377,111 @@ function themisdb_v3_sort_author_items_prioritize_humans( array $items ): array 
     }
 
     return array_merge( $human_items, $ai_items );
+}
+
+/**
+ * Map pixel avatar size to a semantic size token.
+ *
+ * @param int $size Avatar size in px.
+ * @return string One of: sm|md|lg.
+ */
+function themisdb_v3_get_avatar_size_token( int $size ): string {
+    if ( $size <= 40 ) {
+        return 'sm';
+    }
+
+    if ( $size <= 48 ) {
+        return 'md';
+    }
+
+    return 'lg';
+}
+
+/**
+ * Render the avatar element for a normalised author item.
+ *
+ * Priority: AI-brand logo → real avatar img → WordPress default avatar.
+ * Returns ready-to-output HTML (not escaped further by callers).
+ *
+ * @param array<string,mixed> $author    Author item from themisdb_v3_get_post_author_items().
+ * @param int                 $size      Avatar size in px.
+ * @param string              $wrap_class Extra class(es) added to the wrapper span.
+ * @return string
+ */
+function themisdb_v3_render_author_avatar_html( array $author, int $size = 40, string $wrap_class = '' ): string {
+    $name   = trim( (string) ( $author['name'] ?? '' ) );
+    $avatar = (string) ( $author['avatar'] ?? '' );
+    $size   = max( 24, min( 120, $size ) );
+
+    $size_token = themisdb_v3_get_avatar_size_token( $size );
+    $base_class = 'tv3-author-avatar-wrap tv3-author-avatar-wrap--' . $size_token;
+    if ( '' !== $wrap_class ) {
+        $base_class .= ' ' . $wrap_class;
+    }
+
+    if ( '' !== $avatar ) {
+        // Real avatar (img tag) or AI-brand SVG already built by get_post_author_items().
+        return '<span class="' . esc_attr( $base_class ) . '">' . $avatar . '</span>';
+    }
+
+    // Fallback: use the configured WordPress default avatar (usually silhouette icon).
+    $fallback_url = get_avatar_url(
+        0,
+        array(
+            'size'          => $size,
+            'force_default' => true,
+        )
+    );
+    $alt = '' !== $name ? $name : __( 'Standard Avatar', 'themisdb-v3' );
+
+    return '<span class="' . esc_attr( $base_class ) . '">'
+        . '<img class="tv3-card-author-avatar tv3-card-author-avatar-placeholder" src="' . esc_url( $fallback_url ) . '" alt="' . esc_attr( $alt ) . '" loading="lazy" decoding="async" width="' . esc_attr( (string) $size ) . '" height="' . esc_attr( (string) $size ) . '" />'
+        . '</span>';
+}
+
+/**
+ * Render a single author card (avatar + name + bio + archive link).
+ *
+ * Pure function – no template file needed.
+ *
+ * @param array<string,mixed> $author    Normalised author item.
+ * @param int                 $size      Avatar size in px.
+ * @param int                 $bio_words Maximum bio words.
+ * @return string
+ */
+function themisdb_v3_render_single_author_card_html( array $author, int $size = 56, int $bio_words = 30 ): string {
+    $name = trim( (string) ( $author['name'] ?? '' ) );
+    if ( '' === $name ) {
+        return '';
+    }
+
+    $url = (string) ( $author['url'] ?? '' );
+    $bio = trim( (string) ( $author['bio'] ?? '' ) );
+
+    $avatar_html = themisdb_v3_render_author_avatar_html( $author, $size, 'tv3-author-card-avatar' );
+
+    $name_html = '' !== $url
+        ? '<a class="tv3-author-card-name" href="' . esc_url( $url ) . '">' . esc_html( $name ) . '</a>'
+        : '<span class="tv3-author-card-name">' . esc_html( $name ) . '</span>';
+
+    $bio_html = '';
+    if ( '' !== $bio ) {
+        $short    = wp_trim_words( wp_strip_all_tags( $bio ), $bio_words, ' …' );
+        $bio_html = '<p class="tv3-author-card-bio">' . esc_html( $short ) . '</p>';
+    }
+
+    $more_html = '' !== $url
+        ? '<p><a class="tv3-author-card-link" href="' . esc_url( $url ) . '">Alle Beiträge →</a></p>'
+        : '';
+
+    return '<div class="tv3-author-card">'
+        . '<div class="tv3-author-card-head">'
+        . $avatar_html
+        . '<div class="tv3-author-card-meta">' . $name_html . '</div>'
+        . '</div>'
+        . $bio_html
+        . $more_html
+        . '</div>';
 }
 
 /**
@@ -412,20 +694,22 @@ function themisdb_v3_render_authors_compact_shortcode( array $atts = array() ): 
 
     $avatars_html = '';
     if ( $show_avatars ) {
-        $avatar_nodes = array();
+        $avatar_nodes    = array();
         $visible_authors = array_slice( $authors, 0, 3 );
         $visible_count   = count( $visible_authors );
 
         foreach ( $visible_authors as $avatar_index => $author ) {
-            $avatar = (string) ( $author['avatar'] ?? '' );
-            if ( '' === $avatar ) {
-                continue;
-            }
+            // Use centralised helper – always returns markup (image or initials).
+            $avatar_markup = themisdb_v3_render_author_avatar_html(
+                $author,
+                $avatar_size,
+                'tv3-authors-compact-avatar-inner'
+            );
 
             $avatar_nodes[] = '<span class="tv3-authors-compact-avatar" style="--tv3-avatar-layer:'
                 . esc_attr( (string) ( $visible_count - (int) $avatar_index ) )
                 . ';--tv3-author-avatar-size:' . esc_attr( (string) $avatar_size ) . 'px'
-                . '">' . $avatar . '</span>';
+                . '">' . $avatar_markup . '</span>';
         }
         if ( ! empty( $avatar_nodes ) ) {
             $avatars_html = '<span class="tv3-authors-compact-avatars">' . implode( '', $avatar_nodes ) . '</span>';
@@ -436,6 +720,45 @@ function themisdb_v3_render_authors_compact_shortcode( array $atts = array() ): 
         . $avatars_html
         . '<span class="tv3-authors-compact-names">' . implode( '<span class="tv3-post-meta-sep">·</span>', $names ) . '</span>'
         . '</span>';
+}
+
+/**
+ * Render one card per author (avatar + name + bio).
+ *
+ * @param array $atts Shortcode attributes.
+ * @return string
+ */
+function themisdb_v3_render_author_cards_shortcode( array $atts = array() ): string {
+    $atts = shortcode_atts(
+        array(
+            'size'      => '56',
+            'bio_words' => '30',
+            'linked'    => '1',
+        ),
+        $atts,
+        'themisdb_v3_author_cards'
+    );
+
+    $post_id     = (int) get_the_ID();
+    $avatar_size = max( 32, min( 120, absint( $atts['size'] ) ) );
+    $bio_words   = max( 5, min( 80, absint( $atts['bio_words'] ) ) );
+    $linked      = '0' !== (string) $atts['linked'];
+    $authors     = themisdb_v3_get_post_author_items( $post_id, $avatar_size, $linked );
+
+    if ( empty( $authors ) ) {
+        return '';
+    }
+
+    ob_start();
+    echo '<div class="tv3-author-cards">';
+    foreach ( $authors as $author ) {
+        if ( '' === trim( (string) ( $author['name'] ?? '' ) ) ) {
+            continue;
+        }
+        echo themisdb_v3_render_single_author_card_html( $author, $avatar_size, $bio_words ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    }
+    echo '</div>';
+    return (string) ob_get_clean();
 }
 
 /**
@@ -1370,6 +1693,8 @@ function themisdb_v3_enqueue_assets() {
     $kernthese_js_ver      = file_exists( $kernthese_js_file ) ? (string) filemtime( $kernthese_js_file ) : THEMISDB_V3_VERSION;
     $code_highlight_js_file = get_template_directory() . '/assets/js/code-highlight.js';
     $code_highlight_js_ver  = file_exists( $code_highlight_js_file ) ? (string) filemtime( $code_highlight_js_file ) : THEMISDB_V3_VERSION;
+    $image_lightbox_js_file = get_template_directory() . '/assets/js/image-lightbox.js';
+    $image_lightbox_js_ver  = file_exists( $image_lightbox_js_file ) ? (string) filemtime( $image_lightbox_js_file ) : THEMISDB_V3_VERSION;
     $podcast_audio_js_file  = get_template_directory() . '/assets/js/podcast-audio-single.js';
     $podcast_audio_js_ver   = file_exists( $podcast_audio_js_file ) ? (string) filemtime( $podcast_audio_js_file ) : THEMISDB_V3_VERSION;
 
@@ -1431,6 +1756,24 @@ function themisdb_v3_enqueue_assets() {
             get_template_directory_uri() . '/assets/js/code-highlight.js',
             array(),
             $code_highlight_js_ver,
+            true
+        );
+        wp_enqueue_script(
+            'themisdb-v3-image-lightbox',
+            get_template_directory_uri() . '/assets/js/image-lightbox.js',
+            array(),
+            $image_lightbox_js_ver,
+            true
+        );
+
+        // Quality feedback slider (nur auf Einzelseiten mit quality_meta)
+        $qf_js_file = get_template_directory() . '/assets/js/quality-feedback.js';
+        $qf_js_ver  = file_exists( $qf_js_file ) ? (string) filemtime( $qf_js_file ) : THEMISDB_V3_VERSION;
+        wp_enqueue_script(
+            'themisdb-v3-quality-feedback',
+            get_template_directory_uri() . '/assets/js/quality-feedback.js',
+            array(),
+            $qf_js_ver,
             true
         );
     }
@@ -1507,22 +1850,7 @@ add_action( 'wp_footer', 'themisdb_v3_print_skip_link_target_fallback', 99 );
  * Ensure a skip-link target exists even when customized templates omit the ID.
  */
 function themisdb_v3_print_skip_link_target_fallback() {
-    ?>
-    <script>
-    (function(){
-        var main = document.querySelector('main');
-        if(!main){
-            return;
-        }
-        if(!main.id){
-            main.id = 'wp--skip-link--target';
-        }
-        if(!main.hasAttribute('tabindex')){
-            main.setAttribute('tabindex', '-1');
-        }
-    })();
-    </script>
-    <?php
+    echo '<script>(function(){var main=document.querySelector("main");if(!main){return;}if(!main.id){main.id="wp--skip-link--target";}if(!main.hasAttribute("tabindex")){main.setAttribute("tabindex","-1");}})();</script>';
 }
 
 add_action( 'init', 'themisdb_v3_register_content_object_post_types', 5 );
@@ -1851,133 +2179,75 @@ function themisdb_v3_render_relationship_metabox( $post ) {
     $posts_field_id   = 'themisdb-v3-related-posts-' . $picker_id_suffix;
     $object_type_list = 'themisdb-v3-object-type-list-' . $picker_id_suffix;
     $ajax_nonce       = wp_create_nonce( 'themisdb_v3_relationship_search' );
-    ?>
-    <p>
-        <label for="<?php echo esc_attr( $object_input_id ); ?>"><strong><?php esc_html_e( 'Objekt suchen und ID hinzufuegen', 'themisdb-v3' ); ?></strong></label>
-        <input id="<?php echo esc_attr( $object_input_id ); ?>" type="text" style="width:100%;" placeholder="Podcast/Video/Tutorial nach Titel suchen" autocomplete="off" />
-        <div id="<?php echo esc_attr( $object_results_id ); ?>" class="themisdb-v3-picker-results"></div>
-    </p>
-    <p>
-        <label for="<?php echo esc_attr( $objects_field_id ); ?>"><strong><?php esc_html_e( 'Related object IDs', 'themisdb-v3' ); ?></strong></label>
-        <input id="<?php echo esc_attr( $objects_field_id ); ?>" name="themisdb_v3_related_object_ids" type="text" value="<?php echo esc_attr( $related_objects ); ?>" style="width:100%;" placeholder="8, 9, 10" />
-    </p>
-    <p>
-        <label for="<?php echo esc_attr( $post_input_id ); ?>"><strong><?php esc_html_e( 'Beitrag suchen und ID hinzufuegen', 'themisdb-v3' ); ?></strong></label>
-        <input id="<?php echo esc_attr( $post_input_id ); ?>" type="text" style="width:100%;" placeholder="Artikel/Seite nach Titel suchen" autocomplete="off" />
-        <div id="<?php echo esc_attr( $post_results_id ); ?>" class="themisdb-v3-picker-results"></div>
-    </p>
-    <p>
-        <label for="<?php echo esc_attr( $posts_field_id ); ?>"><strong><?php esc_html_e( 'Related post IDs', 'themisdb-v3' ); ?></strong></label>
-        <input id="<?php echo esc_attr( $posts_field_id ); ?>" name="themisdb_v3_related_post_ids" type="text" value="<?php echo esc_attr( $related_posts ); ?>" style="width:100%;" placeholder="1, 2" />
-    </p>
-    <p>
-        <label for="themisdb-v3-object-type"><strong><?php esc_html_e( 'Object type', 'themisdb-v3' ); ?></strong></label>
-        <input id="themisdb-v3-object-type" name="themisdb_v3_content_object_type" type="text" value="<?php echo esc_attr( $object_type ); ?>" style="width:100%;" list="<?php echo esc_attr( $object_type_list ); ?>" placeholder="podcast, video, screencast, tutorial" />
-        <datalist id="<?php echo esc_attr( $object_type_list ); ?>">
-            <?php foreach ( $object_types as $type ) : ?>
-                <option value="<?php echo esc_attr( sanitize_key( $type ) ); ?>"><?php echo esc_html( themisdb_v3_get_content_type_label( $type ) ); ?></option>
-            <?php endforeach; ?>
-        </datalist>
-    </p>
-    <p style="margin-bottom:0;color:#50575e;">
-        <?php esc_html_e( 'Dynamische Kriterien: Suche basiert auf vorhandenen Content-Typen und vorhandenen Titeln im System.', 'themisdb-v3' ); ?>
-    </p>
-    <?php if ( $autofix_at > 0 && '' !== $autofix_slug ) : ?>
-        <p style="margin-top:0.75rem;padding:0.6rem 0.7rem;border:1px solid #c9d7e6;border-radius:6px;background:#f4f8fc;color:#2d4c68;">
-            <?php
-            echo esc_html(
+
+    $object_options = '';
+    foreach ( $object_types as $type ) {
+        $object_options .= sprintf(
+            '<option value="%1$s">%2$s</option>',
+            esc_attr( sanitize_key( $type ) ),
+            esc_html( themisdb_v3_get_content_type_label( $type ) )
+        );
+    }
+
+    $autofix_notice = '';
+    if ( $autofix_at > 0 && '' !== $autofix_slug ) {
+        $autofix_notice = sprintf(
+            '<p style="margin-top:0.75rem;padding:0.6rem 0.7rem;border:1px solid #c9d7e6;border-radius:6px;background:#f4f8fc;color:#2d4c68;">%s</p>',
+            esc_html(
                 sprintf(
                     /* translators: 1: category slug, 2: datetime */
                     __( 'Media category auto-set: %1$s at %2$s', 'themisdb-v3' ),
                     $autofix_slug,
                     wp_date( 'Y-m-d H:i', $autofix_at )
                 )
-            );
-            ?>
-        </p>
-    <?php endif; ?>
-    <style>
-    .themisdb-v3-picker-results { margin-top: 0.35rem; display: grid; gap: 0.3rem; }
-    .themisdb-v3-picker-result { width: 100%; text-align: left; border: 1px solid #d0d7de; background: #fff; border-radius: 6px; padding: 0.38rem 0.5rem; cursor: pointer; }
-    .themisdb-v3-picker-result strong { display: block; }
-    .themisdb-v3-picker-result span { color: #50575e; font-size: 11px; }
-    </style>
-    <script>
-    (function(){
-        var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
-        var ajaxNonce = <?php echo wp_json_encode( $ajax_nonce ); ?>;
+            )
+        );
+    }
 
-        function appendId(target, id){
-            var raw = (target.value || '').trim();
-            var parts = raw ? raw.split(/[\s,;|]+/) : [];
-            var map = {};
-            parts.forEach(function(part){
-                var parsed = parseInt(part, 10);
-                if(parsed){
-                    map[String(parsed)] = true;
-                }
-            });
-            map[String(id)] = true;
+    $script = sprintf(
+        '<script>(function(){var ajaxUrl=%1$s;var ajaxNonce=%2$s;function appendId(target,id){var raw=(target.value||"").trim();var parts=raw?raw.split(/[\\s,;|]+/):[];var map={};parts.forEach(function(part){var parsed=parseInt(part,10);if(parsed){map[String(parsed)]=true;}});map[String(id)]=true;var merged=Object.keys(map).map(function(key){return parseInt(key,10);}).filter(function(v){return !!v;});merged.sort(function(a,b){return a-b;});target.value=merged.join(", ");}function bindSearch(pickerId,resultsId,targetId,mode){var picker=document.getElementById(pickerId);var results=document.getElementById(resultsId);var target=document.getElementById(targetId);var timer=null;if(!picker||!results||!target){return;}picker.addEventListener("input",function(){var term=(picker.value||"").trim();results.innerHTML="";if(timer){clearTimeout(timer);}if(term.length<2){return;}timer=setTimeout(function(){var url=ajaxUrl+"?action=themisdb_v3_search_relationship_targets&_ajax_nonce="+encodeURIComponent(ajaxNonce)+"&mode="+encodeURIComponent(mode)+"&term="+encodeURIComponent(term);fetch(url,{credentials:"same-origin"}).then(function(response){return response.json();}).then(function(payload){results.innerHTML="";if(!payload||!payload.success||!Array.isArray(payload.data)){return;}payload.data.forEach(function(item){var button=document.createElement("button");button.type="button";button.className="themisdb-v3-picker-result";button.innerHTML="<strong>"+item.title+"</strong><span>"+item.label+" · ID "+item.id+"</span>";button.addEventListener("click",function(){appendId(target,parseInt(item.id,10));picker.value="";results.innerHTML="";});results.appendChild(button);});});},180);});}bindSearch(%3$s,%4$s,%5$s,"object");bindSearch(%6$s,%7$s,%8$s,"post");})();</script>',
+        wp_json_encode( admin_url( 'admin-ajax.php' ) ),
+        wp_json_encode( $ajax_nonce ),
+        wp_json_encode( $object_input_id ),
+        wp_json_encode( $object_results_id ),
+        wp_json_encode( $objects_field_id ),
+        wp_json_encode( $post_input_id ),
+        wp_json_encode( $post_results_id ),
+        wp_json_encode( $posts_field_id )
+    );
 
-            var merged = Object.keys(map).map(function(key){ return parseInt(key, 10); }).filter(function(v){ return !!v; });
-            merged.sort(function(a, b){ return a - b; });
-            target.value = merged.join(', ');
-        }
+    echo '<p>';
+    echo '<label for="' . esc_attr( $object_input_id ) . '"><strong>' . esc_html__( 'Objekt suchen und ID hinzufuegen', 'themisdb-v3' ) . '</strong></label>';
+    echo '<input id="' . esc_attr( $object_input_id ) . '" type="text" style="width:100%;" placeholder="Podcast/Video/Tutorial nach Titel suchen" autocomplete="off" />';
+    echo '<div id="' . esc_attr( $object_results_id ) . '" class="themisdb-v3-picker-results"></div>';
+    echo '</p>';
 
-        function bindSearch(pickerId, resultsId, targetId, mode){
-            var picker = document.getElementById(pickerId);
-            var results = document.getElementById(resultsId);
-            var target = document.getElementById(targetId);
-            var timer = null;
+    echo '<p>';
+    echo '<label for="' . esc_attr( $objects_field_id ) . '"><strong>' . esc_html__( 'Related object IDs', 'themisdb-v3' ) . '</strong></label>';
+    echo '<input id="' . esc_attr( $objects_field_id ) . '" name="themisdb_v3_related_object_ids" type="text" value="' . esc_attr( $related_objects ) . '" style="width:100%;" placeholder="8, 9, 10" />';
+    echo '</p>';
 
-            if(!picker || !results || !target){
-                return;
-            }
+    echo '<p>';
+    echo '<label for="' . esc_attr( $post_input_id ) . '"><strong>' . esc_html__( 'Beitrag suchen und ID hinzufuegen', 'themisdb-v3' ) . '</strong></label>';
+    echo '<input id="' . esc_attr( $post_input_id ) . '" type="text" style="width:100%;" placeholder="Artikel/Seite nach Titel suchen" autocomplete="off" />';
+    echo '<div id="' . esc_attr( $post_results_id ) . '" class="themisdb-v3-picker-results"></div>';
+    echo '</p>';
 
-            picker.addEventListener('input', function(){
-                var term = (picker.value || '').trim();
-                results.innerHTML = '';
+    echo '<p>';
+    echo '<label for="' . esc_attr( $posts_field_id ) . '"><strong>' . esc_html__( 'Related post IDs', 'themisdb-v3' ) . '</strong></label>';
+    echo '<input id="' . esc_attr( $posts_field_id ) . '" name="themisdb_v3_related_post_ids" type="text" value="' . esc_attr( $related_posts ) . '" style="width:100%;" placeholder="1, 2" />';
+    echo '</p>';
 
-                if(timer){
-                    clearTimeout(timer);
-                }
+    echo '<p>';
+    echo '<label for="themisdb-v3-object-type"><strong>' . esc_html__( 'Object type', 'themisdb-v3' ) . '</strong></label>';
+    echo '<input id="themisdb-v3-object-type" name="themisdb_v3_content_object_type" type="text" value="' . esc_attr( $object_type ) . '" style="width:100%;" list="' . esc_attr( $object_type_list ) . '" placeholder="podcast, video, screencast, tutorial" />';
+    echo '<datalist id="' . esc_attr( $object_type_list ) . '">' . $object_options . '</datalist>';
+    echo '</p>';
 
-                if(term.length < 2){
-                    return;
-                }
-
-                timer = setTimeout(function(){
-                    var url = ajaxUrl + '?action=themisdb_v3_search_relationship_targets&_ajax_nonce=' + encodeURIComponent(ajaxNonce) + '&mode=' + encodeURIComponent(mode) + '&term=' + encodeURIComponent(term);
-                    fetch(url, { credentials: 'same-origin' })
-                        .then(function(response){ return response.json(); })
-                        .then(function(payload){
-                            results.innerHTML = '';
-                            if(!payload || !payload.success || !Array.isArray(payload.data)){
-                                return;
-                            }
-
-                            payload.data.forEach(function(item){
-                                var button = document.createElement('button');
-                                button.type = 'button';
-                                button.className = 'themisdb-v3-picker-result';
-                                button.innerHTML = '<strong>' + item.title + '</strong><span>' + item.label + ' · ID ' + item.id + '</span>';
-                                button.addEventListener('click', function(){
-                                    appendId(target, parseInt(item.id, 10));
-                                    picker.value = '';
-                                    results.innerHTML = '';
-                                });
-                                results.appendChild(button);
-                            });
-                        });
-                }, 180);
-            });
-        }
-
-        bindSearch('<?php echo esc_js( $object_input_id ); ?>', '<?php echo esc_js( $object_results_id ); ?>', '<?php echo esc_js( $objects_field_id ); ?>', 'object');
-        bindSearch('<?php echo esc_js( $post_input_id ); ?>', '<?php echo esc_js( $post_results_id ); ?>', '<?php echo esc_js( $posts_field_id ); ?>', 'post');
-    })();
-    </script>
-    <?php
+    echo '<p style="margin-bottom:0;color:#50575e;">' . esc_html__( 'Dynamische Kriterien: Suche basiert auf vorhandenen Content-Typen und vorhandenen Titeln im System.', 'themisdb-v3' ) . '</p>';
+    echo $autofix_notice;
+    echo '<style>.themisdb-v3-picker-results{margin-top:0.35rem;display:grid;gap:0.3rem;}.themisdb-v3-picker-result{width:100%;text-align:left;border:1px solid #d0d7de;background:#fff;border-radius:6px;padding:0.38rem 0.5rem;cursor:pointer;}.themisdb-v3-picker-result strong{display:block;}.themisdb-v3-picker-result span{color:#50575e;font-size:11px;}</style>';
+    echo $script;
 }
 
 add_action( 'save_post', 'themisdb_v3_save_relationship_metabox' );
@@ -2130,8 +2400,37 @@ function themisdb_v3_get_card_metrics( $post_id ) {
     $relevance_meta = absint( get_post_meta( $post_id, 'relevance_score', true ) );
     $priority_meta  = absint( get_post_meta( $post_id, 'priority', true ) );
     $relationship_count = themisdb_v3_get_relationship_count( $post_id );
-    $audio_url      = (string) get_post_meta( $post_id, 'audio_url', true );
+    $audio_url      = (string) themisdb_v3_get_episode_audio_url( $post_id );
     $comment_count  = (int) get_comments_number( $post_id );
+
+    // KI-Qualitätsscores aus Post-Meta (gesetzt beim Import).
+    $ki_quality     = (int) get_post_meta( $post_id, 'tv3_quality_score',     true );
+    $ki_impact      = (int) get_post_meta( $post_id, 'tv3_impact_score',      true );
+    $ki_readability = (int) get_post_meta( $post_id, 'tv3_readability_score', true );
+    $ki_fidelity    = (int) get_post_meta( $post_id, 'tv3_fidelity_score',    true );
+    $ki_scores      = array_filter( array( $ki_quality, $ki_impact, $ki_readability, $ki_fidelity ) );
+    $ki_avg         = count( $ki_scores ) > 0 ? (int) round( array_sum( $ki_scores ) / count( $ki_scores ) ) : 0;
+
+    // Gleitender Benutzer-Feedback-Durchschnitt (persistent in WP post meta).
+    $uf_count       = (int) get_post_meta( $post_id, 'tv3_uf_count',       true );
+    $uf_quality     = (int) get_post_meta( $post_id, 'tv3_uf_quality',     true );
+    $uf_impact      = (int) get_post_meta( $post_id, 'tv3_uf_impact',      true );
+    $uf_readability = (int) get_post_meta( $post_id, 'tv3_uf_readability', true );
+    $uf_fidelity    = (int) get_post_meta( $post_id, 'tv3_uf_fidelity',    true );
+    $uf_scores      = array_filter( array( $uf_quality, $uf_impact, $uf_readability, $uf_fidelity ) );
+    $uf_avg         = ( $uf_count >= 1 && count( $uf_scores ) > 0 )
+        ? (int) round( array_sum( $uf_scores ) / count( $uf_scores ) )
+        : 0;
+    // Kombinierten Qualitäts-Score aus KI + User bilden.
+    // Ab 3 User-Stimmen erhält User-Feedback 40 % Gewicht, KI 60 %.
+    // Unter 3 Stimmen zählt nur KI (User-Signal noch nicht belastbar).
+    if ( $uf_count >= 3 && $uf_avg > 0 && $ki_avg > 0 ) {
+        $combined_quality_avg = (int) round( $ki_avg * 0.60 + $uf_avg * 0.40 );
+    } elseif ( $uf_count >= 1 && $uf_avg > 0 && $ki_avg > 0 ) {
+        $combined_quality_avg = (int) round( $ki_avg * 0.80 + $uf_avg * 0.20 );
+    } else {
+        $combined_quality_avg = $ki_avg ?: $uf_avg;
+    }
     $tag_terms      = get_the_terms( $post_id, 'post_tag' );
     $tag_count      = ( ! empty( $tag_terms ) && ! is_wp_error( $tag_terms ) ) ? count( $tag_terms ) : 0;
     $days_since     = max( 0, (int) floor( ( time() - get_post_timestamp( $post_id ) ) / DAY_IN_SECONDS ) );
@@ -2141,6 +2440,7 @@ function themisdb_v3_get_card_metrics( $post_id ) {
     $bookmark_score = $relevance_meta;
     if ( $bookmark_score <= 0 ) {
         // Build only from observable signals; avoid synthetic base values.
+        // ki_avg (0–100) beiträgt bis zu 20 Punkte proportional zum KI-Qualitätsdurchschnitt.
         $bookmark_score = min(
             99,
             ( $comment_count * 6 ) +
@@ -2148,7 +2448,8 @@ function themisdb_v3_get_card_metrics( $post_id ) {
             ( $has_thumbnail ? 8 : 0 ) +
             ( $is_featured ? 12 : 0 ) +
             ( ! empty( $audio_url ) ? 10 : 0 ) +
-            min( 18, $relationship_count * 4 )
+            min( 18, $relationship_count * 4 ) +
+            (int) round( $combined_quality_avg * 0.20 )
         );
     }
 
@@ -2167,7 +2468,8 @@ function themisdb_v3_get_card_metrics( $post_id ) {
                 min( 0.9, $comment_count / 10 ) +
                 min( 0.5, $tag_count / 8 ) +
                 ( ! empty( $audio_url ) ? 0.4 : 0 ) +
-                ( $days_since <= 14 ? 0.2 : 0 )
+                ( $days_since <= 14 ? 0.2 : 0 ) +
+                ( $combined_quality_avg >= 70 ? 0.4 : ( $combined_quality_avg >= 50 ? 0.2 : 0 ) )
             )
         );
     }
@@ -2181,6 +2483,8 @@ function themisdb_v3_get_card_metrics( $post_id ) {
     $engagement_evidence += ! empty( $audio_url ) ? 1 : 0;
     $engagement_evidence += $priority_meta > 0 ? 1 : 0;
     $engagement_evidence += $relevance_meta > 0 ? 1 : 0;
+    $engagement_evidence += $ki_avg > 0 ? 1 : 0;
+    $engagement_evidence += $uf_count > 0 ? 1 : 0;
 
     if ( $priority_meta <= 0 && $engagement_evidence < 2 ) {
         $star_score = 0;
@@ -2492,6 +2796,25 @@ function themisdb_v3_extract_audio_url_from_post( $post_id ) {
     }
 
     $post_content = (string) get_post_field( 'post_content', $post_id );
+
+    // Import-Pipeline stores media snippets in tv3_media_html; check it before content-only fallbacks.
+    $media_html = (string) get_post_meta( $post_id, 'tv3_media_html', true );
+    if ( $media_html !== '' ) {
+        if ( preg_match( '/<audio[^>]+src=["\']([^"\']+)["\']/i', $media_html, $audio_tag_match ) ) {
+            $candidate = esc_url_raw( trim( (string) $audio_tag_match[1] ) );
+            if ( $candidate !== '' ) {
+                return $candidate;
+            }
+        }
+
+        if ( preg_match( '/https?:\/\/[^\s"\']+\.(?:mp3|m4a|wav|ogg)(?:\?[^\s"\']*)?/i', $media_html, $audio_file_match ) ) {
+            $candidate = esc_url_raw( trim( (string) $audio_file_match[0] ) );
+            if ( $candidate !== '' ) {
+                return $candidate;
+            }
+        }
+    }
+
     if ( $post_content === '' ) {
         return '';
     }
@@ -3377,7 +3700,6 @@ function themisdb_v3_render_mixed_cards_grid( array $posts, array $state = array
             $author_items      = themisdb_v3_get_post_author_items( $post_id, 48, true );
             $author_names      = array();
             $author_name_links = array();
-            $author_face_nodes = array();
             $author_faces      = array();
             foreach ( $author_items as $author_item ) {
                 $author_name = trim( (string) ( $author_item['name'] ?? '' ) );
@@ -3395,18 +3717,16 @@ function themisdb_v3_render_mixed_cards_grid( array $posts, array $state = array
                         $author_name_links[] = esc_html( $author_name );
                     }
                 }
-
-                if ( ! empty( $author_item['avatar'] ) ) {
-                    $author_face_nodes[] = (string) $author_item['avatar'];
-                }
             }
 
-            if ( ! empty( $author_face_nodes ) ) {
-                $author_face_count = count( $author_face_nodes );
-                foreach ( $author_face_nodes as $face_index => $face_markup ) {
+            if ( ! empty( $author_items ) ) {
+                $visible_items = array_slice( $author_items, 0, 3 );
+                $face_count    = count( $visible_items );
+                foreach ( $visible_items as $face_index => $author_item ) {
+                    $face_markup    = themisdb_v3_render_author_avatar_html( $author_item, 48, 'tv3-card-author-face-inner' );
                     $author_faces[] = sprintf(
                         '<span class="tv3-card-author-face-item" style="--tv3-avatar-layer:%1$s">%2$s</span>',
-                        esc_attr( (string) ( $author_face_count - (int) $face_index ) ),
+                        esc_attr( (string) ( $face_count - (int) $face_index ) ),
                         $face_markup
                     );
                 }
@@ -3414,11 +3734,15 @@ function themisdb_v3_render_mixed_cards_grid( array $posts, array $state = array
             $author = ! empty( $author_name_links ) ? implode( ', ', $author_name_links ) : implode( ', ', $author_names );
             $metrics            = themisdb_v3_get_card_metrics( $post_id );
             $post_type          = $metrics['post_type'];
+            $episode_audio_url   = trim( (string) themisdb_v3_get_episode_audio_url( $post_id ) );
+            $has_audio_player    = '' !== $episode_audio_url;
             $media_category_type = themisdb_v3_get_media_category_type( $post_id );
+            if ( '' === $media_category_type && $has_audio_player ) {
+                $media_category_type = 'audio';
+            }
             $media_presentation  = themisdb_v3_get_media_category_presentation( $media_category_type );
-            $is_media_entry      = '' !== $media_category_type;
-            $episode_audio_url   = $is_media_entry ? themisdb_v3_get_episode_audio_url( $post_id ) : '';
-            $episode_duration    = $is_media_entry ? themisdb_v3_get_episode_duration_label( $post_id ) : '';
+            $is_media_entry      = $has_audio_player || '' !== $media_category_type;
+            $episode_duration    = $has_audio_player ? themisdb_v3_get_episode_duration_label( $post_id ) : '';
             $episode_audio_label = (string) $media_presentation['audio_label'];
             $excerpt            = get_the_excerpt( $post_id );
             $is_hero            = false;
@@ -3732,14 +4056,12 @@ add_action( 'wp_ajax_themisdb_v3_mixed_cards', 'themisdb_v3_ajax_mixed_cards' );
 add_action( 'wp_ajax_nopriv_themisdb_v3_mixed_cards', 'themisdb_v3_ajax_mixed_cards' );
 
 /**
- * Render mixed content cards with search, sorting and progressive loading.
+ * Render callback for the dynamic mixed-cards block.
  *
- * @param array<string,mixed> $atts Shortcode attributes.
+ * @param array<string,mixed> $attributes Block attributes.
  * @return string
  */
-function themisdb_v3_render_mixed_cards_shortcode( $atts ) {
-    // Prevent accidental card-section rendering at the end of singular content
-    // (post/page), unless explicitly re-enabled via filter.
+function themisdb_v3_render_mixed_cards_block( array $attributes = array() ) {
     if ( is_singular() ) {
         $allow_on_singular = (bool) apply_filters( 'themisdb_v3_enable_mixed_cards_on_singular', false, get_queried_object_id() );
         if ( ! $allow_on_singular ) {
@@ -3747,20 +4069,318 @@ function themisdb_v3_render_mixed_cards_shortcode( $atts ) {
         }
     }
 
-    $atts  = shortcode_atts(
-        array(
-            'limit' => 12,
-            'type'  => '',
-        ),
-        $atts,
-        'themisdb_v3_mixed_cards'
+    $atts = array(
+        'limit' => isset( $attributes['limit'] ) ? absint( $attributes['limit'] ) : 12,
+        'type'  => isset( $attributes['type'] ) ? sanitize_key( (string) $attributes['type'] ) : '',
     );
+
     $state = themisdb_v3_get_mixed_cards_state( $atts );
     $data  = themisdb_v3_prepare_mixed_cards_data( $state );
 
     return themisdb_v3_render_mixed_cards_section( $data );
 }
-add_shortcode( 'themisdb_v3_mixed_cards', 'themisdb_v3_render_mixed_cards_shortcode' );
+
+/**
+ * Register the dynamic mixed-cards block so templates can use block markup
+ * instead of shortcodes.
+ */
+add_action( 'init', 'themisdb_v3_register_mixed_cards_block' );
+function themisdb_v3_register_mixed_cards_block() {
+    register_block_type(
+        __DIR__ . '/blocks/mixed-cards',
+        array(
+            'render_callback' => 'themisdb_v3_render_mixed_cards_block',
+        )
+    );
+}
+
+/* =====================================================================
+   ARTIKEL-FOOTER: QUALITÄTS-METADATEN & MEDIA
+   ===================================================================== */
+
+/**
+ * Register tv3_ article meta fields so the WP REST API can write them.
+ */
+add_action( 'init', 'themisdb_v3_register_article_meta' );
+function themisdb_v3_register_article_meta(): void {
+    $string_field = array(
+        'type'              => 'string',
+        'single'            => true,
+        'show_in_rest'      => true,
+        'default'           => '',
+        'sanitize_callback' => 'sanitize_text_field',
+        'auth_callback'     => static function () {
+            return current_user_can( 'edit_posts' );
+        },
+    );
+    $html_field = array(
+        'type'              => 'string',
+        'single'            => true,
+        'show_in_rest'      => true,
+        'default'           => '',
+        'sanitize_callback' => static function ( $v ) { return wp_kses_post( $v ); },
+        'auth_callback'     => static function () {
+            return current_user_can( 'edit_posts' );
+        },
+    );
+
+    foreach ( array( 'post', 'page' ) as $pt ) {
+        register_post_meta( $pt, 'tv3_quality_score',     $string_field );
+        register_post_meta( $pt, 'tv3_impact_score',      $string_field );
+        register_post_meta( $pt, 'tv3_readability_score', $string_field );
+        register_post_meta( $pt, 'tv3_fidelity_score',    $string_field );
+        register_post_meta( $pt, 'tv3_quality_summary',   $string_field );
+        register_post_meta( $pt, 'tv3_ai_coauthors',      $string_field );
+        register_post_meta( $pt, 'tv3_media_html',        $html_field );
+        // Persistenter gleitender Durchschnitt aus Benutzer-Feedback (ohne Auth-Einschränkung,
+        // da Community-Werte von nicht eingeloggten Besuchern stammen können).
+        $uf_field = array(
+            'type'              => 'integer',
+            'single'            => true,
+            'show_in_rest'      => false,
+            'default'           => 0,
+            'sanitize_callback' => 'absint',
+            'auth_callback'     => '__return_true',
+        );
+        register_post_meta( $pt, 'tv3_uf_quality',     $uf_field );
+        register_post_meta( $pt, 'tv3_uf_impact',      $uf_field );
+        register_post_meta( $pt, 'tv3_uf_readability', $uf_field );
+        register_post_meta( $pt, 'tv3_uf_fidelity',    $uf_field );
+        register_post_meta( $pt, 'tv3_uf_count',       $uf_field );
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Quality Feedback REST Endpoint
+// ─────────────────────────────────────────────────────────────────────────────
+
+add_action( 'rest_api_init', 'themisdb_v3_register_quality_feedback_endpoint' );
+
+function themisdb_v3_register_quality_feedback_endpoint(): void {
+    register_rest_route( 'themisdb/v1', '/quality-feedback', array(
+        array(
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => 'themisdb_v3_get_quality_feedback',
+            'permission_callback' => '__return_true',
+            'args'                => array(
+                'post_id' => array( 'required' => true, 'type' => 'integer', 'minimum' => 1 ),
+            ),
+        ),
+        array(
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => 'themisdb_v3_save_quality_feedback',
+            'permission_callback' => '__return_true',
+            'args'                => array(
+                'post_id'     => array( 'required' => true, 'type' => 'integer', 'minimum' => 1 ),
+                'quality'     => array( 'required' => false, 'type' => 'integer', 'minimum' => 0, 'maximum' => 100 ),
+                'impact'      => array( 'required' => false, 'type' => 'integer', 'minimum' => 0, 'maximum' => 100 ),
+                'readability' => array( 'required' => false, 'type' => 'integer', 'minimum' => 0, 'maximum' => 100 ),
+                'fidelity'    => array( 'required' => false, 'type' => 'integer', 'minimum' => 0, 'maximum' => 100 ),
+            ),
+        ),
+    ) );
+}
+
+/**
+ * Liest Session-Feedback für einen Post (Session-basiert via PHP-Session).
+ */
+function themisdb_v3_get_quality_feedback( WP_REST_Request $req ): WP_REST_Response {
+    if ( session_status() === PHP_SESSION_NONE ) {
+        session_start();
+    }
+    $post_id = (int) $req->get_param( 'post_id' );
+    $key     = 'tv3_qf_' . $post_id;
+    $data    = isset( $_SESSION[ $key ] ) ? $_SESSION[ $key ] : null;
+    return new WP_REST_Response( array( 'feedback' => $data ), 200 );
+}
+
+/**
+ * Speichert Session-Feedback für einen Post.
+ */
+function themisdb_v3_save_quality_feedback( WP_REST_Request $req ): WP_REST_Response {
+    if ( session_status() === PHP_SESSION_NONE ) {
+        session_start();
+    }
+    $post_id = (int) $req->get_param( 'post_id' );
+    $key     = 'tv3_qf_' . $post_id;
+
+    $criteria = array( 'quality', 'impact', 'readability', 'fidelity' );
+    $stored   = isset( $_SESSION[ $key ] ) ? (array) $_SESSION[ $key ] : array();
+
+    // Prüfen ob diese Session bereits einen Beitrag gezählt hat (Doppelzählung vermeiden).
+    $session_counted_key = 'tv3_qf_counted_' . $post_id;
+    $already_counted     = ! empty( $_SESSION[ $session_counted_key ] );
+
+    $new_values = array();
+    foreach ( $criteria as $c ) {
+        $val = $req->get_param( $c );
+        if ( null !== $val ) {
+            $new_values[ $c ] = max( 0, min( 100, (int) $val ) );
+            $stored[ $c ]     = $new_values[ $c ];
+        }
+    }
+    $_SESSION[ $key ] = $stored;
+
+    // Gleitenden Durchschnitt in WP post meta persistieren.
+    if ( ! empty( $new_values ) && get_post( $post_id ) ) {
+        $old_count = (int) get_post_meta( $post_id, 'tv3_uf_count', true );
+        // Bei erstmaliger Session-Submission Zähler erhöhen, bei Korrektur gleich lassen.
+        $new_count = $already_counted ? max( 1, $old_count ) : $old_count + 1;
+        $meta_map  = array(
+            'quality'     => 'tv3_uf_quality',
+            'impact'      => 'tv3_uf_impact',
+            'readability' => 'tv3_uf_readability',
+            'fidelity'    => 'tv3_uf_fidelity',
+        );
+        foreach ( $new_values as $c => $val ) {
+            $meta_key = $meta_map[ $c ] ?? '';
+            if ( ! $meta_key ) {
+                continue;
+            }
+            $old_avg = (int) get_post_meta( $post_id, $meta_key, true );
+            if ( $already_counted && $old_count >= 1 ) {
+                // Korrektur: alten Beitrag dieser Session herausrechnen und neuen einsetzen.
+                $old_session_val = isset( $stored[ $c ] ) ? (int) $stored[ $c ] : $val;
+                $new_avg = (int) round( ( $old_avg * $old_count - $old_session_val + $val ) / $old_count );
+            } else {
+                $new_avg = $new_count > 1
+                    ? (int) round( ( $old_avg * $old_count + $val ) / $new_count )
+                    : $val;
+            }
+            update_post_meta( $post_id, $meta_key, max( 0, min( 100, $new_avg ) ) );
+        }
+        update_post_meta( $post_id, 'tv3_uf_count', $new_count );
+        $_SESSION[ $session_counted_key ] = true;
+    }
+
+    return new WP_REST_Response( array( 'saved' => true, 'feedback' => $stored ), 200 );
+}
+
+// Start session early if not already started.
+add_action( 'init', static function (): void {
+    if ( session_status() === PHP_SESSION_NONE && ! headers_sent() ) {
+        session_start();
+    }
+} );
+
+/**
+ * Shortcode [themisdb_v3_quality_meta] – zeigt KI-Qualitätsbewertung mit interaktivem Benutzer-Feedback.
+ */
+function themisdb_v3_render_quality_meta_shortcode( array $atts ): string {
+    $post_id = get_the_ID();
+    if ( ! $post_id ) {
+        return '';
+    }
+
+    $quality     = (string) get_post_meta( $post_id, 'tv3_quality_score', true );
+    $impact      = (string) get_post_meta( $post_id, 'tv3_impact_score', true );
+    $readability = (string) get_post_meta( $post_id, 'tv3_readability_score', true );
+    $fidelity    = (string) get_post_meta( $post_id, 'tv3_fidelity_score', true );
+    $summary     = (string) get_post_meta( $post_id, 'tv3_quality_summary', true );
+
+    $has_any_ai_score = '' !== $quality || '' !== $impact || '' !== $readability || '' !== $fidelity;
+
+    // Session-Feedback laden
+    if ( session_status() === PHP_SESSION_NONE ) {
+        session_start();
+    }
+    $session_key = 'tv3_qf_' . $post_id;
+    $user_fb     = isset( $_SESSION[ $session_key ] ) ? (array) $_SESSION[ $session_key ] : array();
+
+    /**
+     * Hilfsfunktion: Balken + interaktiver Slider.
+     *
+     * @param string $label   Label text.
+     * @param string $key     Criterion key (quality|impact|readability|fidelity).
+     * @param string $raw     KI-Score (numeric string or empty).
+     * @param array  $user_fb User session feedback.
+     * @return string HTML.
+     */
+    $score_row = static function ( string $label, string $key, string $raw, array $user_fb ): string {
+        $has_ai = '' !== $raw && is_numeric( $raw );
+        // Ohne KI-Metrik nutzen wir einen neutralen Startwert, damit das Feedback-System nutzbar bleibt.
+        $ai_val  = $has_ai ? max( 0, min( 100, (int) $raw ) ) : 50;
+        $has_ufb = isset( $user_fb[ $key ] );
+        $ufb_val = $has_ufb ? (int) $user_fb[ $key ] : $ai_val;
+
+        // Combined score: average of AI and user (50/50 when user has rated)
+        $display_val = $has_ufb ? (int) round( ( $ai_val + $ufb_val ) / 2 ) : $ai_val;
+        $hue         = (int) round( $display_val * 1.2 );
+        $color       = 'hsl(' . $hue . ',60%,42%)';
+
+        $ai_hue   = (int) round( $ai_val * 1.2 );
+        $ai_color = 'hsl(' . $ai_hue . ',60%,42%)';
+
+        return '<div class="tv3-qm-row" data-criterion="' . esc_attr( $key ) . '">'
+            . '<span class="tv3-qm-label">'
+            .   esc_html( $label )
+            .   '<span class="tv3-qm-ai-hint" title="KI-Wert: ' . $ai_val . '"> · ' . $ai_val . '</span>'
+            . '</span>'
+            . '<span class="tv3-qm-bars">'
+            .   '<span class="tv3-qm-bar-wrap">'
+            .     '<span class="tv3-qm-bar" style="width:' . $display_val . '%;background:' . $color . '"></span>'
+            .   '</span>'
+            .   '<input type="range" class="tv3-qm-slider" '
+            .          'min="0" max="100" step="1" '
+            .          'value="' . esc_attr( (string) $ufb_val ) . '" '
+            .          'data-ai="' . esc_attr( (string) $ai_val ) . '" '
+            .          'data-key="' . esc_attr( $key ) . '" '
+            .          ( $has_ufb ? 'data-active="1"' : '' ) . ' '
+            .          'aria-label="' . esc_attr( $label ) . ' Ihre Bewertung">'
+            . '</span>'
+            . '<span class="tv3-qm-val">' . $display_val . '</span>'
+            . '</div>';
+    };
+
+    $rows  = $score_row( 'Qualität',   'quality',     $quality,     $user_fb );
+    $rows .= $score_row( 'Impact',     'impact',      $impact,      $user_fb );
+    $rows .= $score_row( 'Lesbarkeit', 'readability', $readability, $user_fb );
+    $rows .= $score_row( 'Treue',      'fidelity',    $fidelity,    $user_fb );
+
+    $summary_html = '';
+    if ( $summary ) {
+        $summary_html = '<p class="tv3-qm-summary">' . esc_html( $summary ) . '</p>';
+    } elseif ( ! $has_any_ai_score ) {
+        $summary_html = '<p class="tv3-qm-summary">Für diese Seite liegen keine KI-Metriken vor. Sie können die Kriterien dennoch manuell bewerten.</p>';
+    }
+
+    $has_any_feedback = ! empty( $user_fb );
+    $feedback_note    = $has_any_feedback
+        ? '<span class="tv3-qm-feedback-note tv3-qm-feedback-active">Ihre Bewertung ist eingeflossen <button class="tv3-qm-reset" type="button" aria-label="Bewertung zurücksetzen">↺</button></span>'
+        : '<span class="tv3-qm-feedback-note">Schieberegler: Ihre Bewertung</span>';
+
+    // Inline JSON für JS
+    $js_data = wp_json_encode( array(
+        'postId'  => $post_id,
+        'restUrl' => esc_url_raw( rest_url( 'themisdb/v1/quality-feedback' ) ),
+        'nonce'   => wp_create_nonce( 'wp_rest' ),
+    ) );
+
+    return '<div class="tv3-quality-meta" data-qf=\'' . $js_data . '\'>'
+        . '<h4 class="tv3-qm-title">KI-Bewertung <span class="tv3-qm-model">gemma4</span>' . $feedback_note . '</h4>'
+        . '<div class="tv3-qm-legend"><span class="tv3-qm-leg-ki">■ KI</span><span class="tv3-qm-leg-combined">■ Kombiniert</span></div>'
+        . $rows
+        . $summary_html
+        . '</div>';
+}
+
+/**
+ * Shortcode [themisdb_v3_article_media] – zeigt Audio/Video-Anhänge des Artikels.
+ */
+function themisdb_v3_render_article_media_shortcode( array $atts ): string {
+    $post_id = get_the_ID();
+    if ( ! $post_id ) {
+        return '';
+    }
+
+    $media_html = (string) get_post_meta( $post_id, 'tv3_media_html', true );
+
+    if ( '' === $media_html ) {
+        return '<p class="tv3-media-empty">Kein Medienanhang vorhanden.</p>';
+    }
+
+    return '<div class="tv3-article-media">' . $media_html . '</div>';
+}
 
 /* =====================================================================
    GITHUB UPDATE CHECK

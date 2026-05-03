@@ -1,0 +1,137 @@
+name: Release WordPress Theme
+
+on:
+  workflow_dispatch:
+    inputs:
+      theme_slug:
+        description: "Theme directory name (e.g. themisdb-theme-v3)"
+        required: true
+        type: string
+      version:
+        description: "Theme version (e.g. 3.1.1)"
+        required: true
+        type: string
+      target_ref:
+        description: "Branch or tag to release from"
+        required: false
+        default: "main"
+        type: string
+      dry_run:
+        description: "If true, build and validate only (no tag push, no GitHub release)"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.target_ref }}
+
+      - name: Validate theme inputs
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          THEME_SLUG="${{ github.event.inputs.theme_slug }}"
+          VERSION="${{ github.event.inputs.version }}"
+
+          if [[ -d "${THEME_SLUG}" ]]; then
+            THEME_DIR="${THEME_SLUG}"
+          elif [[ -d "wordpress-themes/${THEME_SLUG}" ]]; then
+            THEME_DIR="wordpress-themes/${THEME_SLUG}"
+          else
+            echo "Theme directory does not exist: ${THEME_SLUG}" >&2
+            exit 1
+          fi
+
+          STYLE_FILE="${THEME_DIR}/style.css"
+          if [[ ! -f "${STYLE_FILE}" ]]; then
+            echo "Missing style.css: ${STYLE_FILE}" >&2
+            exit 1
+          fi
+
+          STYLE_VERSION=$(grep -iE '^Version:\s*' "${STYLE_FILE}" | head -n1 | sed -E 's/^Version:\s*//I' | tr -d '\r')
+          if [[ -z "${STYLE_VERSION}" ]]; then
+            echo "Could not read Version header from ${STYLE_FILE}" >&2
+            exit 1
+          fi
+
+          if [[ "${STYLE_VERSION}" != "${VERSION}" ]]; then
+            echo "style.css version (${STYLE_VERSION}) does not match workflow input (${VERSION})." >&2
+            exit 1
+          fi
+
+          echo "theme_slug=${THEME_SLUG}" >> "$GITHUB_OUTPUT"
+          echo "theme_dir=${THEME_DIR}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${THEME_SLUG}/v${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build theme zip
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          THEME_SLUG="${{ steps.validate.outputs.theme_slug }}"
+          THEME_DIR="${{ steps.validate.outputs.theme_dir }}"
+
+          mkdir -p dist
+          ZIP_FILE="dist/${THEME_SLUG}.zip"
+          rm -f "${ZIP_FILE}"
+
+          zip -r "${ZIP_FILE}" "${THEME_DIR}" \
+            -x "${THEME_DIR}/.git/*" \
+            -x "${THEME_DIR}/.DS_Store" \
+            -x "${THEME_DIR}/node_modules/*" \
+            -x "${THEME_DIR}/dist/*"
+
+          if [[ ! -f "${ZIP_FILE}" ]]; then
+            echo "ZIP package was not created." >&2
+            exit 1
+          fi
+
+          echo "zip_file=${ZIP_FILE}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push release tag
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG_NAME="${{ steps.validate.outputs.tag_name }}"
+
+          if git rev-parse "${TAG_NAME}" >/dev/null 2>&1; then
+            echo "Tag already exists: ${TAG_NAME}"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "${TAG_NAME}" -m "Release ${TAG_NAME}"
+            git push origin "${TAG_NAME}"
+          fi
+
+      - name: Create GitHub release
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.validate.outputs.tag_name }}
+          name: ${{ steps.validate.outputs.theme_slug }} v${{ steps.validate.outputs.version }}
+          generate_release_notes: true
+          files: ${{ steps.package.outputs.zip_file }}
+
+      - name: Dry-run summary
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        shell: bash
+        run: |
+          echo "Dry-run completed for theme '${{ steps.validate.outputs.theme_slug }}' version '${{ steps.validate.outputs.version }}'."
+          echo "Built artifact: ${{ steps.package.outputs.zip_file }}"
+          echo "Would create tag: ${{ steps.validate.outputs.tag_name }}"
