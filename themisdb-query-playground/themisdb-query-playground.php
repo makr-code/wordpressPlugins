@@ -10,7 +10,7 @@
 ║ ThemisDB - Hybrid Database System                                   ║
 ╠═════════════════════════════════════════════════════════════════════╣
   File:            themisdb-query-playground.php                      ║
-  Version:         0.0.2                                              ║
+    Version:         1.0.1                                              ║
   Last Modified:   2026-03-09 04:08:20                                ║
   Author:          unknown                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
@@ -36,7 +36,7 @@
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Interactive AQL query playground for ThemisDB. Execute queries, view results, and explore query execution plans. Use shortcode [themisdb_query_playground] to embed.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT

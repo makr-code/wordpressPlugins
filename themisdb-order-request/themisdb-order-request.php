@@ -10,7 +10,7 @@
 ║ ThemisDB - Hybrid Database System                                   ║
 ╠═════════════════════════════════════════════════════════════════════╣
   File:            themisdb-order-request.php                         ║
-  Version:         1.1.0                                              ║
+    Version:         1.1.1                                              ║
   Last Modified:   2026-03-20 00:00:00                                ║
   Author:          unknown                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
@@ -36,7 +36,7 @@
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Dialog-basiertes Bestellanfrage-System für ThemisDB mit Vertragsrecht-CRUD, automatischer PDF-Generierung und E-Mail-Versand. Integriert mit epServer für Stammdaten.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT

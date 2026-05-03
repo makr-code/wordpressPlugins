@@ -10,7 +10,7 @@
 ║ ThemisDB - Hybrid Database System                                   ║
 ╠═════════════════════════════════════════════════════════════════════╣
   File:            themisdb-wiki-integration.php                      ║
-  Version:         0.0.2                                              ║
+    Version:         1.0.2                                              ║
   Last Modified:   2026-03-09 04:08:23                                ║
   Author:          unknown                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
@@ -36,7 +36,7 @@
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Integrates ThemisDB documentation/wiki from GitHub into WordPress. Fetches markdown files on-demand and displays them with proper formatting. Manual sync recommended.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code
  * License: MIT

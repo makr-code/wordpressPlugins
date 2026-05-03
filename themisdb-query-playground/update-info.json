@@ -1,6 +1,6 @@
 {
   "name": "ThemisDB Query Playground",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/makr-code/wordpressPlugins",
   "description": "Interactive AQL query playground for ThemisDB. Execute queries, view results, and explore query execution plans.",
   "author": "ThemisDB Team",

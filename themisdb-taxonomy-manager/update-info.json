@@ -1,6 +1,6 @@
 {
   "name": "ThemisDB Taxonomy Manager",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/makr-code/wordpressPlugins",
   "description": "Manage custom taxonomies for ThemisDB features, use-cases, and industries with visual tree view",
   "author": "ThemisDB Team",
