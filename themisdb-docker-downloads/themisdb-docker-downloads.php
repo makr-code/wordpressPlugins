@@ -10,7 +10,7 @@
 ║ ThemisDB - Hybrid Database System                                   ║
 ╠═════════════════════════════════════════════════════════════════════╣
   File:            themisdb-docker-downloads.php                      ║
-  Version:         0.0.2                                              ║
+  Version:         1.0.1                                              ║
   Last Modified:   2026-03-09 04:08:17                                ║
   Author:          unknown                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
@@ -36,7 +36,7 @@
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Automatisch die neuesten ThemisDB Docker Images von Docker Hub abrufen und als Download-Links mit SHA256-Digests anzeigen.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT

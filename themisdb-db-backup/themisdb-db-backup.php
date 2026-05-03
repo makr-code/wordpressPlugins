@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Erstellt revisionssichere Datenbank-Backups als ZIP mit Hash-Chain und Integritaetspruefung.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT

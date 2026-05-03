@@ -1,6 +1,6 @@
 {
   "name": "ThemisDB GitHub Bridge",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/makr-code/wordpressPlugins",
   "description": "Zentrale GitHub-Kommunikation fuer ThemisDB-Plugins inklusive API-Client und Bridge-Layer.",
   "author": "ThemisDB Team",

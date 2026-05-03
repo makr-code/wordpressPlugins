@@ -7,7 +7,7 @@
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Titelseiten-Slider mit Timer, der die neuesten Artikel auf der Hauptseite darstellt. Shortcode: [themisdb_front_slider]
- * Version:     1.1.0
+ * Version:     1.1.1
  * Author:      ThemisDB Team
  * License:     MIT
  * Text Domain: themisdb-front-slider

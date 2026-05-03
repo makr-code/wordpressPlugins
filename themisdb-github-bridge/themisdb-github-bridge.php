@@ -12,7 +12,7 @@
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Zentrale GitHub-Kommunikation fuer ThemisDB Order Request und ThemisDB Support Portal. Erstellt Issues automatisiert aus Tickets.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT

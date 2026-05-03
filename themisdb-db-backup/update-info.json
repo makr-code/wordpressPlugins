@@ -1,6 +1,6 @@
 {
   "name": "ThemisDB DB Backup",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/makr-code/wordpressPlugins",
   "description": "Revisionssichere Datenbank-Backups als ZIP mit Hash-Chain und Integritaetspruefung.",
   "author": "ThemisDB Team",

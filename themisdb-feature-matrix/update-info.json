@@ -1,6 +1,6 @@
 {
   "name": "ThemisDB Feature Matrix",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/makr-code/wordpressPlugins",
   "description": "Interactive feature comparison matrix for ThemisDB vs PostgreSQL, MongoDB, Neo4j",
   "author": "ThemisDB Team",
