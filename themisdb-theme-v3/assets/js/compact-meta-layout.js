@@ -1,6 +1,42 @@
 (function () {
     'use strict';
 
+    function moveReferencesBelowContent() {
+        var isSingle = document.body.classList.contains('single') || document.body.classList.contains('single-post');
+        if (!isSingle) {
+            return;
+        }
+
+        var mainRoot = document.querySelector('.tv3-single-main, main');
+        var contentRoot = document.querySelector('.tv3-rich-post-content, .wp-block-post-content');
+        if (!mainRoot || !contentRoot) {
+            return;
+        }
+
+        var references = contentRoot.querySelector('.tv3-references-details');
+        if (!references) {
+            return;
+        }
+
+        if (references.dataset.tv3RefsMoved === '1') {
+            return;
+        }
+
+        var wrapper = document.createElement('div');
+        wrapper.className = 'tv3-references-block';
+        references.insertAdjacentElement('beforebegin', wrapper);
+        wrapper.appendChild(references);
+
+        var footerGrid = mainRoot.querySelector('.tv3-article-footer-grid');
+        if (footerGrid && footerGrid.parentNode === mainRoot) {
+            mainRoot.insertBefore(wrapper, footerGrid);
+        } else {
+            mainRoot.appendChild(wrapper);
+        }
+
+        references.dataset.tv3RefsMoved = '1';
+    }
+
     function normalizeLabel(value) {
         return String(value || '')
             .toLowerCase()
@@ -127,6 +163,26 @@
         return result;
     }
 
+    function gatherQuality(nodes) {
+        var qualityIndex = findIndexByLabel(nodes, function (label) {
+            return label.indexOf('qualitaets metadaten') !== -1
+                || label.indexOf('qualitats metadaten') !== -1
+                || label.indexOf('qualitaetsmetadaten') !== -1
+                || label.indexOf('qualitatsmetadaten') !== -1;
+        });
+
+        if (qualityIndex < 0) {
+            return [];
+        }
+
+        var result = [nodes[qualityIndex]];
+        var nextNode = nodes[qualityIndex + 1];
+        if (nextNode && nextNode.tagName && nextNode.tagName.toLowerCase() === 'pre') {
+            result.push(nextNode);
+        }
+        return result;
+    }
+
     function buildPanel(titleClass, nodes) {
         var section = document.createElement('section');
         section.className = 'tv3-compact-meta-panel ' + titleClass;
@@ -203,37 +259,46 @@
             ? gatherReferences(nodes, referencesIndex, -1, podcastIndex)
             : createFallbackNodes('Referenzen', 'Keine Referenzen hinterlegt.');
         var authorNodes = authorBundle.nodes;
+        var qualityNodes = gatherQuality(nodes);
         var podcastNodes = podcastIndex >= 0
             ? gatherPodcast(nodes, podcastIndex)
             : createFallbackNodes('Podcast', 'Keine Podcast-Episode hinterlegt.');
 
-        if (podcastNodes.length < 2) {
-            podcastNodes = createFallbackNodes('Podcast', 'Keine Podcast-Episode hinterlegt.');
+        var tertiaryNodes = qualityNodes.length
+            ? qualityNodes
+            : podcastNodes;
+        var tertiaryClass = qualityNodes.length
+            ? 'tv3-compact-meta-panel-quality'
+            : 'tv3-compact-meta-panel-podcast';
+
+        if (!qualityNodes.length && podcastNodes.length < 2) {
+            tertiaryNodes = createFallbackNodes('Podcast', 'Keine Podcast-Episode hinterlegt.');
         }
 
-        if (!referenceNodes.length || !authorNodes.length || !podcastNodes.length) {
+        if (!referenceNodes.length || !authorNodes.length || !tertiaryNodes.length) {
             return;
-        }
-
-        var anchorNode = null;
-        if (referencesIndex >= 0) {
-            anchorNode = nodes[referencesIndex];
-        } else if (podcastIndex >= 0) {
-            anchorNode = nodes[podcastIndex];
         }
 
         var grid = document.createElement('div');
         grid.className = 'tv3-compact-meta-grid';
 
-        if (anchorNode) {
-            root.insertBefore(grid, anchorNode);
+        var referencesDetails = root.querySelector('.tv3-references-details');
+        var mainRoot = root.closest('.tv3-single-main, main');
+        var templateAnchor = mainRoot
+            ? mainRoot.querySelector('.tv3-compact-meta-anchor')
+            : document.querySelector('.tv3-compact-meta-anchor');
+
+        if (referencesDetails && referencesDetails.parentNode) {
+            referencesDetails.insertAdjacentElement('afterend', grid);
+        } else if (templateAnchor) {
+            templateAnchor.appendChild(grid);
         } else {
             root.appendChild(grid);
         }
 
         grid.appendChild(buildReferencesPanel(referenceNodes));
         grid.appendChild(buildPanel('tv3-compact-meta-panel-author', authorNodes));
-        grid.appendChild(buildPanel('tv3-compact-meta-panel-podcast', podcastNodes));
+        grid.appendChild(buildPanel(tertiaryClass, tertiaryNodes));
 
         if (authorBundle.source && authorBundle.source.parentNode) {
             authorBundle.source.parentNode.removeChild(authorBundle.source);
@@ -242,6 +307,8 @@
     }
 
     function boot() {
+        moveReferencesBelowContent();
+        return;
         var roots = [];
         var formulaRoots = document.querySelectorAll('.wp-block-post-content .themisdb-formula-content');
         var directRoots = document.querySelectorAll('.wp-block-post-content');
