@@ -1,0 +1,198 @@
+/*
+ * ThemisDB Quality Meter – Basis-Stylesheet
+ *
+ * Alle visuellen Werte sind als CSS Custom Properties definiert.
+ * Themes überschreiben sie per :root oder spezifischerem Selektor.
+ *
+ * Beispiel (im Theme):
+ *   :root {
+ *       --aqm-bar-fill:       #0ea5e9;
+ *       --aqm-slider-accent:  #0ea5e9;
+ *   }
+ */
+
+/* ── Design Tokens ────────────────────────────────────────────────────────── */
+:root {
+    --aqm-widget-gap:      1rem;
+    --aqm-widget-radius:   8px;
+    --aqm-font-size:       0.875rem;
+    --aqm-label-min-width: 7rem;
+
+    --aqm-bar-height:   8px;
+    --aqm-bar-bg:       #e5e7eb;
+    --aqm-bar-fill:     hsl(240,60%,55%);   /* wird per JS inline überschrieben */
+    --aqm-bar-radius:   4px;
+
+    --aqm-slider-accent: #4f46e5;
+
+    --aqm-val-width:    2.8ch;
+    --aqm-row-gap:      0.5rem;
+    --aqm-row-margin:   0.4rem 0;
+
+    --aqm-title-size:   0.95rem;
+    --aqm-hint-color:   #6b7280;
+
+    --aqm-btn-color:    #374151;
+    --aqm-btn-hover:    #111827;
+
+    --aqm-toast-bg:     #1e293b;
+    --aqm-toast-color:  #f8fafc;
+    --aqm-toast-radius: 6px;
+    --aqm-toast-z:      9999;
+}
+
+/* ── Widget-Container ─────────────────────────────────────────────────────── */
+.aqm-widget,
+.tv3-quality-meta {
+    container-type: inline-size;
+}
+
+/* ── Titel ────────────────────────────────────────────────────────────────── */
+.tv3-qm-title,
+.aqm-title {
+    font-size: var(--aqm-title-size);
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+}
+
+/* ── Zeilen ───────────────────────────────────────────────────────────────── */
+.tv3-qm-row,
+.aqm-row {
+    display: flex;
+    align-items: center;
+    gap: var(--aqm-row-gap);
+    margin: var(--aqm-row-margin);
+    font-size: var(--aqm-font-size);
+}
+
+/* ── Label ────────────────────────────────────────────────────────────────── */
+.tv3-qm-label {
+    min-width: var(--aqm-label-min-width);
+    flex-shrink: 0;
+    line-height: 1.2;
+}
+
+.tv3-qm-ai-hint {
+    color: var(--aqm-hint-color);
+    font-size: 0.78em;
+}
+
+/* ── Bars-Bereich ─────────────────────────────────────────────────────────── */
+.tv3-qm-bars {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.tv3-qm-bar-wrap {
+    display: block;
+    width: 100%;
+    background: var(--aqm-bar-bg);
+    border-radius: var(--aqm-bar-radius);
+    height: var(--aqm-bar-height);
+    overflow: hidden;
+}
+
+.tv3-qm-bar {
+    display: block;
+    height: 100%;
+    background: var(--aqm-bar-fill);
+    border-radius: var(--aqm-bar-radius);
+    transition: width 0.2s ease, background 0.2s ease;
+    will-change: width;
+}
+
+/* ── Slider ───────────────────────────────────────────────────────────────── */
+.tv3-qm-slider {
+    width: 100%;
+    accent-color: var(--aqm-slider-accent);
+    cursor: pointer;
+    margin: 0;
+}
+
+/* ── Zahlenwert ───────────────────────────────────────────────────────────── */
+.tv3-qm-val {
+    min-width: var(--aqm-val-width);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--aqm-font-size);
+    flex-shrink: 0;
+}
+
+/* ── Summary ──────────────────────────────────────────────────────────────── */
+.tv3-qm-summary,
+.aqm-summary {
+    margin-top: 0.75rem;
+    font-size: var(--aqm-font-size);
+    color: var(--aqm-hint-color);
+    line-height: 1.5;
+}
+
+/* ── Feedback-Info ────────────────────────────────────────────────────────── */
+.tv3-qm-feedback-info,
+.aqm-feedback-info {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--aqm-hint-color);
+    margin-top: 0.4rem;
+}
+
+/* ── Reset-Bereich ────────────────────────────────────────────────────────── */
+.tv3-qm-reset-wrap,
+.aqm-reset-wrap {
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.tv3-qm-reset,
+.aqm-reset {
+    background: none;
+    border: 1px solid currentColor;
+    color: var(--aqm-btn-color);
+    font-size: 0.78rem;
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1.4;
+    transition: color 0.15s;
+}
+
+.tv3-qm-reset:hover,
+.aqm-reset:hover {
+    color: var(--aqm-btn-hover);
+}
+
+/* ── Toast ────────────────────────────────────────────────────────────────── */
+.tv3-qm-toast,
+.aqm-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    padding: 0.45rem 1rem;
+    background: var(--aqm-toast-bg);
+    color: var(--aqm-toast-color);
+    border-radius: var(--aqm-toast-radius);
+    font-size: 0.85rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: var(--aqm-toast-z);
+}
+
+.tv3-qm-toast--visible {
+    opacity: 1;
+}
+
+/* ── Responsive: bei schmalen Containern Label oben ─────────────────────── */
+@container (max-width: 360px) {
+    .tv3-qm-row,
+    .aqm-row {
+        flex-wrap: wrap;
+    }
+    .tv3-qm-label {
+        min-width: 100%;
+    }
+}
