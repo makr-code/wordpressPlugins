@@ -136,13 +136,19 @@ class ThemisDB_Plugin_Updater {
             return $transient;
         }
 
+        if (!isset($transient->response) || !is_array($transient->response)) {
+            $transient->response = array();
+        }
+
+        if (!isset($transient->no_update) || !is_array($transient->no_update)) {
+            $transient->no_update = array();
+        }
+
         // Get remote version information
         $remote_version = $this->get_remote_version();
 
         if (!$remote_version) {
-            if (!isset($transient->no_update) || !is_array($transient->no_update)) {
-                $transient->no_update = array();
-            }
+            unset($transient->response[$this->plugin_file]);
             $transient->no_update[$this->plugin_file] = (object) array(
                 'slug' => $this->plugin_slug,
                 'new_version' => $this->version,
@@ -157,9 +163,12 @@ class ThemisDB_Plugin_Updater {
             return $transient;
         }
 
+        $local_version = $this->normalize_version($this->version);
+        $remote_version_number = $this->normalize_version($remote_version->version);
+
         $plugin_data = array(
             'slug' => $this->plugin_slug,
-            'new_version' => $remote_version->version,
+            'new_version' => $remote_version_number,
             'url' => $remote_version->homepage,
             'package' => $remote_version->download_url,
             'tested' => $remote_version->tested,
@@ -169,12 +178,11 @@ class ThemisDB_Plugin_Updater {
             'id' => $this->plugin_slug,
         );
 
-        if (version_compare($this->version, $remote_version->version, '<')) {
+        if (version_compare($local_version, $remote_version_number, '<')) {
             $transient->response[$this->plugin_file] = (object) $plugin_data;
+            unset($transient->no_update[$this->plugin_file]);
         } else {
-            if (!isset($transient->no_update) || !is_array($transient->no_update)) {
-                $transient->no_update = array();
-            }
+            unset($transient->response[$this->plugin_file]);
             $transient->no_update[$this->plugin_file] = (object) $plugin_data;
         }
 
@@ -303,8 +311,14 @@ class ThemisDB_Plugin_Updater {
             return false;
         }
         
+        $release_version = $this->extract_version_from_tag($release->tag_name);
+        $resolved_version = $this->resolve_remote_version(
+            isset($metadata['version']) ? (string) $metadata['version'] : '',
+            $release_version
+        );
+
         $remote_version = (object) array(
-            'version' => isset($metadata['version']) ? $metadata['version'] : $this->extract_version_from_tag($release->tag_name),
+            'version' => $resolved_version,
             'name' => isset($metadata['name']) ? $metadata['name'] : $this->plugin_slug,
             'slug' => $this->plugin_slug,
             'homepage' => isset($metadata['homepage']) ? $metadata['homepage'] : "https://github.com/{$this->username}/{$this->repository}",
@@ -548,6 +562,43 @@ class ThemisDB_Plugin_Updater {
         
         // Fallback to zipball URL
         return "https://github.com/{$this->username}/{$this->repository}/releases/download/{$release->tag_name}/{$this->plugin_slug}.zip";
+    }
+
+    /**
+     * Normalize version strings for stable version_compare checks.
+     *
+     * @param string $version
+     * @return string
+     */
+    private function normalize_version($version) {
+        $normalized = ltrim(trim((string) $version), 'vV');
+
+        return $normalized === '' ? '0.0.0' : $normalized;
+    }
+
+    /**
+     * Resolve remote version from metadata and release tag.
+     *
+     * If both differ, prefer the release tag version so update metadata and
+     * downloadable package always refer to the same artifact.
+     *
+     * @param string $metadata_version
+     * @param string $release_version
+     * @return string
+     */
+    private function resolve_remote_version($metadata_version, $release_version) {
+        $metadata_normalized = $this->normalize_version($metadata_version);
+        $release_normalized = $this->normalize_version($release_version);
+
+        if ($metadata_normalized === '0.0.0') {
+            return $release_normalized;
+        }
+
+        if ($metadata_normalized === $release_normalized) {
+            return $metadata_normalized;
+        }
+
+        return $release_normalized;
     }
     
     /**
