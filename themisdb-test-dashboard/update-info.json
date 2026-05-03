@@ -1,6 +1,6 @@
 {
   "name": "ThemisDB Test Dashboard",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/makr-code/wordpressPlugins",
   "description": "Comprehensive testing and quality metrics dashboard for ThemisDB. Monitor CI/CD pipelines, test coverage, and quality gates.",
   "author": "ThemisDB Team",

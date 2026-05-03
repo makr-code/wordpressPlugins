@@ -3,7 +3,7 @@
  * Plugin Name: ThemisDB Engagement Tracker
  * Plugin URI:  https://themisdb.de
  * Description: Tracks post views, read completions and podcast plays. Exposes an engagement bonus via filter so any theme can incorporate runtime signals into its relevance score.
- * Version:     1.0.0
+ * Version:     1.0.1
  * Author:      ThemisDB
  * Text Domain: themisdb-engagement-tracker
  * License:     GPL-2.0-or-later

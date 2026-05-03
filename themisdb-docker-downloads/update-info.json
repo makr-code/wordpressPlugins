@@ -1,6 +1,6 @@
 {
   "name": "ThemisDB Docker Downloads",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/makr-code/wordpressPlugins",
   "description": "Automatisch die neuesten ThemisDB Docker Images von Docker Hub abrufen und als Download-Links mit SHA256-Digests anzeigen.",
   "author": "ThemisDB Team",

@@ -24,7 +24,7 @@ function themisdb_rt_should_enqueue_assets() {
     return has_shortcode($content, 'themisdb_release_timeline');
 }
 
-  Version:         0.0.2                                              ║
+  Version:         1.0.3                                              ║
     if (!themisdb_rt_should_enqueue_assets()) {
         return;
     }
@@ -54,7 +54,7 @@ function themisdb_rt_should_enqueue_assets() {
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Interactive release timeline visualization with Mermaid.js for ThemisDB versions, featuring GitHub API integration, CHANGELOG parsing, and multiple timeline views.
- * Version: 1.0.2
+ * Version: 1.0.3
  * Author: ThemisDB Team
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT

@@ -1,6 +1,6 @@
 {
   "name": "ThemisDB Compendium Downloads",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/makr-code/wordpressPlugins",
   "description": "Bietet ThemisDB Kompendium PDF-Versionen als Downloads auf der Website an, analog zu Docker und GitHub Releases.",
   "author": "ThemisDB Team",

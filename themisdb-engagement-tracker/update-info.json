@@ -1,6 +1,6 @@
 {
   "name": "ThemisDB Engagement Tracker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/makr-code/wordpressPlugins",
   "description": "Tracks post engagement (views, read completions, podcast plays) and feeds a time-decayed bonus score into the ThemisDB card relevance system.",
   "author": "ThemisDB Team",
