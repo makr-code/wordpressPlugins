@@ -81,26 +81,40 @@ class ThemisDB_Theme_Updater {
             return $transient;
         }
 
+        if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
+            $transient->response = array();
+        }
+
+        if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) {
+            $transient->no_update = array();
+        }
+
         $remote = $this->get_remote_version();
 
         if ( ! $remote ) {
+            unset( $transient->response[ $this->theme_slug ] );
             return $transient;
         }
 
-        if ( version_compare( $this->version, $remote->version, '<' ) ) {
+        $local_version  = $this->normalize_version( $this->version );
+        $remote_version = $this->normalize_version( $remote->version );
+
+        if ( version_compare( $local_version, $remote_version, '<' ) ) {
             $transient->response[ $this->theme_slug ] = array(
                 'theme'       => $this->theme_slug,
-                'new_version' => $remote->version,
+                'new_version' => $remote_version,
                 'url'         => $remote->homepage,
                 'package'     => $remote->download_url,
                 'requires'    => $remote->requires,
                 'requires_php'=> $remote->requires_php,
             );
+            unset( $transient->no_update[ $this->theme_slug ] );
         } else {
             // Tell WordPress the theme is current so it does not disappear from the list.
+            unset( $transient->response[ $this->theme_slug ] );
             $transient->no_update[ $this->theme_slug ] = array(
                 'theme'       => $this->theme_slug,
-                'new_version' => $remote->version,
+                'new_version' => $remote_version,
                 'url'         => $remote->homepage,
                 'package'     => $remote->download_url,
             );
@@ -232,13 +246,14 @@ class ThemisDB_Theme_Updater {
             return false;
         }
 
-        $download_url = $this->get_download_url( $release );
-        $remote       = $this->build_remote_object( $metadata, $download_url, $release->published_at, isset( $release->body ) ? $release->body : '' );
+        $download_url    = $this->get_download_url( $release );
+        $release_version = $this->extract_version_from_tag( $release->tag_name );
+        $remote          = $this->build_remote_object( $metadata, $download_url, $release->published_at, isset( $release->body ) ? $release->body : '' );
 
-        // Use release tag as fallback version when metadata is missing.
-        if ( empty( $remote->version ) ) {
-            $remote->version = $this->extract_version_from_tag( $release->tag_name );
-        }
+        $remote->version = $this->resolve_remote_version(
+            isset( $metadata['version'] ) ? (string) $metadata['version'] : '',
+            $release_version
+        );
 
         set_transient( $cache_key, $remote, $this->cache_duration );
         return $remote;
@@ -492,6 +507,43 @@ class ThemisDB_Theme_Updater {
         }
 
         return $tag;
+    }
+
+    /**
+     * Normalize version strings for reliable comparisons.
+     *
+     * @param string $version
+     * @return string
+     */
+    private function normalize_version( $version ) {
+        $normalized = ltrim( trim( (string) $version ), 'vV' );
+
+        return $normalized === '' ? '0.0.0' : $normalized;
+    }
+
+    /**
+     * Resolve remote version using metadata and release tag.
+     *
+     * If values diverge, prefer the release version so WordPress compares
+     * against the actually downloadable artifact.
+     *
+     * @param string $metadata_version
+     * @param string $release_version
+     * @return string
+     */
+    private function resolve_remote_version( $metadata_version, $release_version ) {
+        $metadata_normalized = $this->normalize_version( $metadata_version );
+        $release_normalized  = $this->normalize_version( $release_version );
+
+        if ( $metadata_normalized === '0.0.0' ) {
+            return $release_normalized;
+        }
+
+        if ( $metadata_normalized === $release_normalized ) {
+            return $metadata_normalized;
+        }
+
+        return $release_normalized;
     }
 
     // -------------------------------------------------------------------------

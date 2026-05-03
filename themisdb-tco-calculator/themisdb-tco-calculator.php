@@ -542,24 +542,35 @@ class ThemisDB_TCO_Calculator {
         if (empty($transient->checked)) {
             return $transient;
         }
+
+        if (!isset($transient->response) || !is_array($transient->response)) {
+            $transient->response = array();
+        }
         
         $plugin_slug = plugin_basename(THEMISDB_TCO_PLUGIN_FILE);
         
         // Get the latest release info from GitHub
         $remote_version = $this->get_github_release_info();
+
+        $local_version_number = ltrim((string) THEMISDB_TCO_VERSION, 'vV');
+        $remote_version_number = $remote_version && isset($remote_version->tag_name)
+            ? ltrim((string) $remote_version->tag_name, 'vV')
+            : '';
         
-        if ($remote_version && version_compare(THEMISDB_TCO_VERSION, $remote_version->tag_name, '<')) {
+        if ($remote_version && $remote_version_number !== '' && version_compare($local_version_number, $remote_version_number, '<')) {
             $plugin_data = array(
                 'slug' => dirname($plugin_slug),
                 'plugin' => $plugin_slug,
-                'new_version' => $remote_version->tag_name,
+                'new_version' => $remote_version_number,
                 'url' => $remote_version->html_url,
-                'package' => $this->get_github_download_url($remote_version->tag_name),
+                'package' => $this->get_github_download_url($remote_version_number),
                 'tested' => '6.7',
                 'requires_php' => '7.4',
             );
             
             $transient->response[$plugin_slug] = (object) $plugin_data;
+        } else {
+            unset($transient->response[$plugin_slug]);
         }
         
         return $transient;

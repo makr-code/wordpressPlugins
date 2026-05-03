@@ -53,7 +53,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('THEMISDB_AD_VERSION', '1.1.0');
+define('THEMISDB_AD_VERSION', '1.1.1');
 define('THEMISDB_AD_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_AD_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_AD_PLUGIN_FILE', __FILE__);
