@@ -480,3 +480,88 @@ body {
     background: var(--themisdb-slate-50);
 }
 
+/* ============================================================================
+   ARTIKEL-PIPELINE: KERNTHESEN-BOXEN (QUOTE_ANCHOR / QUOTE_PROMPT)
+   Injiziert von wp_import.py aus QUOTE_ANCHOR/QUOTE_PROMPT-Markern.
+   Auch für redaktionelle QUOTE_ANCHOR-Kommentare und Markdown-Blockquotes.
+   ============================================================================ */
+
+.quote {
+    position: relative;
+    margin: 2rem 0;
+    padding: 1.25rem 1.5rem 1.25rem 1.75rem;
+    border-radius: 0.5rem;
+    background: var(--themisdb-sky-pale);
+    border-left: 4px solid var(--themisdb-sky);
+    font-style: normal;
+    color: var(--themisdb-text-primary);
+    line-height: 1.65;
+}
+
+.quote strong {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--themisdb-sky);
+    margin-bottom: 0.4rem;
+}
+
+.quote.center {
+    border-left: none;
+    border-top: 4px solid var(--themisdb-sky);
+    text-align: center;
+    padding: 1.5rem 2rem;
+    max-width: 680px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.quote.right {
+    border-left: none;
+    border-right: 4px solid var(--themisdb-sky);
+    text-align: right;
+    padding: 1.25rem 1.75rem 1.25rem 1.5rem;
+}
+
+/* Kernthese-Variante (automatisch von Ollama generiert) */
+.quote.kernthese {
+    background: var(--themisdb-emerald-pale);
+    border-color: var(--themisdb-emerald);
+}
+
+.quote.kernthese strong {
+    color: var(--themisdb-emerald);
+}
+
+/* WordPress blockquote-Reset – Markdown-Blockquotes in Artikeln */
+.entry-content blockquote.quote,
+.wp-block-post-content blockquote.quote {
+    border-left: 4px solid var(--themisdb-sky);
+    background: var(--themisdb-sky-pale);
+    padding: 1.25rem 1.5rem 1.25rem 1.75rem;
+    border-radius: 0.5rem;
+    font-style: italic;
+    color: var(--themisdb-text-primary);
+    margin: 2rem 0;
+}
+
+.entry-content blockquote.quote.kernthese,
+.wp-block-post-content blockquote.quote.kernthese {
+    background: var(--themisdb-emerald-pale);
+    border-color: var(--themisdb-emerald);
+    font-style: normal;
+}
+
+@media (max-width: 640px) {
+    .quote {
+        padding: 1rem 1.125rem 1rem 1.25rem;
+        margin: 1.5rem 0;
+    }
+    .quote.center {
+        padding: 1.25rem 1.25rem;
+    }
+}
+
+

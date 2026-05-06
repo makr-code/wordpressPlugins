@@ -1,0 +1,29 @@
+<!-- wp:template-part {"slug":"announcement-bar","area":"uncategorized","tagName":"div"} /-->
+<!-- wp:template-part {"slug":"header","tagName":"header","area":"header"} /-->
+
+<!-- wp:group {"tagName":"main","anchor":"wp--skip-link--target","className":"site-main tv3-front-main tv3-layout-editorial tv3-doku-archive-main","layout":{"type":"constrained","contentSize":"1200px"},"style":{"spacing":{"padding":{"top":"var:preset|spacing|8","bottom":"var:preset|spacing|12"}}}} -->
+<main id="wp--skip-link--target" class="wp-block-group site-main tv3-front-main tv3-layout-editorial tv3-doku-archive-main">
+	<!-- wp:group {"className":"tv3-doku-archive-hero","layout":{"type":"constrained","contentSize":"960px"}} -->
+	<div class="wp-block-group tv3-doku-archive-hero">
+		<!-- wp:paragraph {"className":"tv3-doku-archive-kicker"} -->
+		<p class="tv3-doku-archive-kicker">Dokumentation und Analysen</p>
+		<!-- /wp:paragraph -->
+
+		<!-- wp:query-title {"type":"archive","textAlign":"left","className":"tv3-doku-archive-title"} /-->
+
+		<!-- wp:term-description {"className":"tv3-doku-archive-text"} /-->
+
+		<!-- wp:paragraph {"className":"tv3-doku-archive-intro"} -->
+		<p class="tv3-doku-archive-intro">Hier liegen die aus ThemisDB_Doku importierten Fachbeiträge, Strategiepapiere und Architekturanalysen als echte WordPress-Beiträge. Die Übersicht ist suchbar, indexierbar und für die weitere redaktionelle Freigabe vorbereitet.</p>
+		<!-- /wp:paragraph -->
+	</div>
+	<!-- /wp:group -->
+
+	<!-- wp:shortcode -->
+	[themisdb_v3_mixed_cards limit="12"]
+	<!-- /wp:shortcode -->
+</main>
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"cta-banner","area":"uncategorized","tagName":"section"} /-->
+<!-- wp:template-part {"slug":"footer","tagName":"footer","area":"footer"} /-->
