@@ -10,8 +10,8 @@ if (-not (Test-Path $ThemePath)) {
 }
 
 $targets = @(
-    Join-Path $ThemePath "patterns",
-    Join-Path $ThemePath "templates"
+    (Join-Path $ThemePath "patterns"),
+    (Join-Path $ThemePath "templates")
 )
 
 $files = @()
