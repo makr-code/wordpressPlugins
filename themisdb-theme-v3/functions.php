@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'THEMISDB_V3_VERSION', '3.2.0' );
+define( 'THEMISDB_V3_VERSION', '3.3.0' );
 
 // Required plugin map: slug => main plugin file path.
 define(
@@ -4092,6 +4092,14 @@ function themisdb_v3_register_mixed_cards_block() {
             'render_callback' => 'themisdb_v3_render_mixed_cards_block',
         )
     );
+}
+
+/**
+ * Register the reusable stats counter block used by landing page patterns.
+ */
+add_action( 'init', 'themisdb_v3_register_stats_counter_block' );
+function themisdb_v3_register_stats_counter_block() {
+    register_block_type( __DIR__ . '/blocks/stats-counter' );
 }
 
 /* =====================================================================

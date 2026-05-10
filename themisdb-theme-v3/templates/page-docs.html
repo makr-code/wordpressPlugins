@@ -3,16 +3,16 @@
 
 <!-- wp:template-part {"slug":"page-hero","area":"uncategorized","tagName":"div"} /-->
 
-<!-- wp:group {"tagName":"main","anchor":"wp--skip-link--target","className":"site-main tv3-docs-main","layout":{"type":"constrained","contentSize":"1200px"},"style":{"spacing":{"padding":{"top":"var:preset|spacing|10","bottom":"var:preset|spacing|20"}}}} -->
-<main id="wp--skip-link--target" class="wp-block-group site-main tv3-docs-main" style="padding-top:var(--wp--preset--spacing--10);padding-bottom:var(--wp--preset--spacing--20)">
+<!-- wp:group {"tagName":"main","anchor":"wp--skip-link--target","className":"site-main tv3-docs-main tv3-docs-main-shell","layout":{"type":"constrained","contentSize":"1200px"}} -->
+<main id="wp--skip-link--target" class="wp-block-group site-main tv3-docs-main tv3-docs-main-shell">
 
 	<!-- Two-column docs layout: sidebar + content -->
-	<!-- wp:columns {"className":"tv3-docs-layout","verticalAlignment":"top","style":{"spacing":{"blockGap":{"left":"var:preset|spacing|8"}}}} -->
-	<div class="wp-block-columns tv3-docs-layout" style="align-items:start;column-gap:var(--wp--preset--spacing--8)">
+	<!-- wp:columns {"className":"tv3-docs-layout tv3-docs-layout-columns","verticalAlignment":"top"} -->
+	<div class="wp-block-columns tv3-docs-layout tv3-docs-layout-columns">
 
 		<!-- Docs Sidebar (sticky) -->
-		<!-- wp:column {"width":"280px","className":"tv3-docs-sidebar-col"} -->
-		<div class="wp-block-column tv3-docs-sidebar-col" style="flex-basis:280px">
+		<!-- wp:column {"width":"280px","className":"tv3-docs-sidebar-col tv3-docs-sidebar-col-fixed"} -->
+		<div class="wp-block-column tv3-docs-sidebar-col tv3-docs-sidebar-col-fixed">
 			<!-- wp:template-part {"slug":"sidebar-docs","area":"uncategorized","tagName":"aside"} /-->
 		</div>
 		<!-- /wp:column -->

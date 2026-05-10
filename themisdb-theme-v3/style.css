@@ -4,7 +4,7 @@ Theme URI: https://github.com/makr-code/wordpressPlugins
 Author: ThemisDB Team
 Author URI: https://github.com/makr-code
 Description: Minimal generic WordPress block theme baseline for stable local testing.
-Version: 3.2.0
+Version: 3.3.0
 Requires at least: 6.3
 Tested up to: 6.7
 Requires PHP: 7.4
@@ -158,6 +158,836 @@ main code {
     padding: 0.1em 0.4em;
     border-radius: 4px;
     border: 1px solid #dde3ec;
+}
+
+/* ── Mermaid diagrams (Frontend) ── */
+main pre.mermaid {
+    background: linear-gradient(180deg, #f7fbff 0%, #edf5fd 100%);
+    border: 1px solid var(--tv3-border-soft);
+    color: var(--tv3-text-primary);
+    box-shadow: 0 8px 26px rgba(22, 40, 61, 0.08);
+}
+
+main pre.mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* ── Feature cards pattern (class-based, no inline styles) ── */
+.tv3-feature-section {
+    background: var(--tv3-surface-base);
+    padding-top: var(--wp--preset--spacing--20);
+    padding-bottom: var(--wp--preset--spacing--20);
+}
+
+.tv3-feature-section__badge-wrap {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.tv3-feature-section__badge {
+    display: inline-block;
+    background: #cfe4fc;
+    color: #0078d4;
+    border-radius: 9999px;
+    padding: 0.25rem 0.875rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.tv3-feature-section__title {
+    color: #12202f;
+    font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin: 0 0 var(--wp--preset--spacing--4);
+    text-align: center;
+}
+
+.tv3-feature-section__lead {
+    color: #6c7f96;
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    margin: 0 0 var(--wp--preset--spacing--12);
+    text-align: center;
+}
+
+.tv3-product-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.tv3-product-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    padding: 1.75rem;
+    border: 1px solid #dde3ec;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.25s;
+    background: #fff;
+    position: relative;
+    overflow: hidden;
+}
+
+.tv3-product-card:hover,
+.tv3-product-card:focus-visible {
+    transform: translateY(-3px);
+    border-color: #bfd0e3;
+    box-shadow: 0 14px 28px rgba(31, 54, 80, 0.14);
+}
+
+.tv3-card-top-border {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+}
+
+.tv3-product-card:hover .tv3-card-top-border,
+.tv3-product-card:focus-visible .tv3-card-top-border {
+    transform: scaleX(1);
+}
+
+.tv3-card-top-border--blue { background: linear-gradient(135deg, #0078d4, #005a9e); }
+.tv3-card-top-border--navy { background: linear-gradient(135deg, #003366, #00509e); }
+.tv3-card-top-border--green { background: linear-gradient(135deg, #107c10, #55b056); }
+.tv3-card-top-border--cyan { background: linear-gradient(135deg, #00b7c3, #50e6ff); }
+.tv3-card-top-border--amber { background: linear-gradient(135deg, #ffb900, #e66200); }
+.tv3-card-top-border--red { background: linear-gradient(135deg, #d13438, #750b1c); }
+
+.tv3-product-card__icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.tv3-product-card__icon--blue { background: linear-gradient(135deg, #0078d4, #005a9e); }
+.tv3-product-card__icon--navy { background: linear-gradient(135deg, #003366, #00509e); }
+.tv3-product-card__icon--green { background: linear-gradient(135deg, #107c10, #55b056); }
+.tv3-product-card__icon--cyan { background: linear-gradient(135deg, #00b7c3, #50e6ff); }
+.tv3-product-card__icon--amber { background: linear-gradient(135deg, #ffb900, #e66200); }
+.tv3-product-card__icon--red { background: linear-gradient(135deg, #d13438, #750b1c); }
+
+.tv3-product-card__title {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: #12202f;
+    margin-bottom: 0.375rem;
+    letter-spacing: -0.01em;
+}
+
+.tv3-product-card__desc {
+    font-size: 0.875rem;
+    color: #6c7f96;
+    line-height: 1.6;
+}
+
+.tv3-product-card__cta {
+    font-size: 0.8125rem;
+    color: #0078d4;
+    font-weight: 600;
+    margin-top: auto;
+}
+
+.tv3-product-card__cta a {
+    color: inherit;
+    text-decoration: none;
+}
+
+@media (max-width: 1024px) {
+    .tv3-product-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .tv3-product-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Pricing section pattern (class-based, no inline styles) ── */
+.tv3-pricing-section {
+    background: #f5f7fa;
+    padding-top: var(--wp--preset--spacing--20);
+    padding-bottom: var(--wp--preset--spacing--20);
+}
+
+.tv3-pricing-section__badge-wrap {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.tv3-pricing-section__badge {
+    display: inline-block;
+    background: #cfe4fc;
+    color: #0078d4;
+    border-radius: 9999px;
+    padding: 0.25rem 0.875rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.tv3-pricing-section__title {
+    color: #12202f;
+    font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin: 0 0 var(--wp--preset--spacing--4);
+    text-align: center;
+}
+
+.tv3-pricing-section__lead {
+    color: #6c7f96;
+    font-size: 1.0625rem;
+    margin: 0 0 var(--wp--preset--spacing--12);
+    text-align: center;
+}
+
+.tv3-pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.tv3-pricing-card {
+    background: #fff;
+    border: 1px solid #dde3ec;
+    border-radius: 12px;
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.tv3-pricing-card--featured {
+    border: 2px solid #0078d4;
+    box-shadow: 0 4px 24px rgba(0, 120, 212, 0.18);
+    position: relative;
+}
+
+.tv3-pricing-card__flag {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: #0078d4;
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.75rem;
+    border-radius: 9999px;
+}
+
+.tv3-pricing-card__tier {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.875rem;
+}
+
+.tv3-pricing-card__tier--community,
+.tv3-pricing-card__tier--enterprise {
+    color: #0078d4;
+}
+
+.tv3-pricing-card__tier--cloud {
+    color: #008080;
+}
+
+.tv3-pricing-card__price {
+    font-size: 3rem;
+    font-weight: 800;
+    color: #003366;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.tv3-pricing-card__price sup {
+    font-size: 1.5rem;
+    vertical-align: top;
+    margin-top: 0.5rem;
+}
+
+.tv3-pricing-card__subline {
+    font-size: 0.875rem;
+    color: #6c7f96;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.tv3-pricing-card__features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2.5rem;
+}
+
+.tv3-pricing-card__feature {
+    font-size: 0.875rem;
+    color: #3b4a5e;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eef2f7;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.tv3-pricing-card__feature--muted {
+    color: #6c7f96;
+}
+
+.tv3-pricing-card__feature--last {
+    border-bottom: 0;
+}
+
+.tv3-pricing-card__mark {
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.tv3-pricing-card__mark--yes {
+    color: #107c10;
+}
+
+.tv3-pricing-card__mark--no {
+    color: #bdc8d8;
+}
+
+.tv3-pricing-card__cta {
+    display: block;
+    text-align: center;
+    border-radius: 8px;
+    padding: 0.875rem;
+    font-weight: 700;
+    font-size: 0.9375rem;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.tv3-pricing-card__cta--outline {
+    background: transparent;
+    color: #0078d4;
+    border: 1.5px solid #0078d4;
+}
+
+.tv3-pricing-card__cta--solid {
+    background: #0078d4;
+    color: #fff;
+    border: 2px solid #0078d4;
+}
+
+.tv3-pricing-card__cta--muted {
+    background: #f5f7fa;
+    color: #3b4a5e;
+    border: 1.5px solid #dde3ec;
+}
+
+@media (max-width: 1024px) {
+    .tv3-pricing-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Query showcase pattern (class-based, no inline styles) ── */
+.tv3-showcase-section {
+    background: #f5f7fa;
+    padding-top: var(--wp--preset--spacing--20);
+    padding-bottom: var(--wp--preset--spacing--20);
+}
+
+.tv3-showcase-section__badge-wrap {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.tv3-showcase-section__badge {
+    display: inline-block;
+    background: #cfe4fc;
+    color: #0078d4;
+    border-radius: 9999px;
+    padding: 0.25rem 0.875rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.tv3-showcase-section__title {
+    color: #12202f;
+    font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin: 0 0 var(--wp--preset--spacing--4);
+    text-align: center;
+}
+
+.tv3-showcase-section__lead {
+    color: #6c7f96;
+    font-size: 1.0625rem;
+    margin: 0 0 var(--wp--preset--spacing--10);
+    text-align: center;
+}
+
+.tv3-showcase-tabs {
+    border: 1px solid #dde3ec;
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 900px;
+    margin: 0 auto;
+    background: #fff;
+}
+
+.tv3-showcase-tabs__nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    background: #f5f7fa;
+    border-bottom: 1px solid #dde3ec;
+}
+
+.tv3-showcase-tabs__link {
+    display: block;
+    padding: 0.875rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #6c7f96;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+}
+
+.tv3-showcase-tabs__link--active {
+    color: #0078d4;
+    border-bottom-color: #0078d4;
+}
+
+.tv3-showcase-tabs__panel {
+    padding: 0;
+    background: #0d1821;
+}
+
+.tv3-showcase-tabs__panel--hidden {
+    display: none;
+}
+
+.tv3-showcase-tabs__panel-head {
+    padding: 0.625rem 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tv3-showcase-tabs__panel-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}
+
+.tv3-showcase-tabs__copy {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tv3-showcase-tabs__code {
+    margin: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 1.75rem;
+    font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    font-size: 0.9rem;
+    color: #cdd9e5;
+    line-height: 1.8;
+    overflow-x: auto;
+}
+
+.tv3-showcase-tabs__code code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    border: 0;
+}
+
+.tv3-code-comment {
+    color: #6c7f96;
+}
+
+.tv3-code-keyword {
+    color: #0078d4;
+}
+
+.tv3-code-string {
+    color: #55b056;
+}
+
+.tv3-code-number {
+    color: #50e6ff;
+}
+
+@media (max-width: 640px) {
+    .tv3-showcase-tabs__nav {
+        flex-wrap: wrap;
+    }
+}
+
+/* ── Feature tabs section (progressive migration) ── */
+.tv3-tabs-section {
+    background: #ffffff;
+    padding-top: var(--wp--preset--spacing--20);
+    padding-bottom: var(--wp--preset--spacing--20);
+}
+
+.tv3-tabs-section__badge-wrap {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.tv3-tabs-section__badge {
+    display: inline-block;
+    background: #cfe4fc;
+    color: #0078d4;
+    border-radius: 9999px;
+    padding: 0.25rem 0.875rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.tv3-tabs-section__title {
+    color: #12202f;
+    font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin: 0 0 var(--wp--preset--spacing--4);
+    text-align: center;
+}
+
+.tv3-tabs-section__lead {
+    color: #6c7f96;
+    font-size: 1.0625rem;
+    margin: 0 0 var(--wp--preset--spacing--10);
+    text-align: center;
+}
+
+.tv3-feature-tabs {
+    border: 1px solid #dde3ec;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.tv3-feature-tabs__nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    background: #f5f7fa;
+    border-bottom: 1px solid #dde3ec;
+    overflow-x: auto;
+}
+
+.tv3-feature-tabs__link {
+    display: block;
+    padding: 1rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #6c7f96;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+}
+
+.tv3-feature-tabs__link--active {
+    color: #0078d4;
+    border-bottom-color: #0078d4;
+}
+
+.tv3-feature-tabs__panel {
+    padding: 3rem;
+}
+
+.tv3-feature-tabs__panel--hidden {
+    display: none;
+}
+
+.tv3-feature-tabs__layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+}
+
+.tv3-feature-tabs__h3 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #12202f;
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+}
+
+.tv3-feature-tabs__text {
+    font-size: 1rem;
+    color: #6c7f96;
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+}
+
+.tv3-feature-tabs__icon-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.tv3-feature-tabs__icon-item {
+    background: #f5f7fa;
+    border-radius: 8px;
+    padding: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tv3-feature-tabs__emoji {
+    font-size: 1.25rem;
+}
+
+.tv3-feature-tabs__label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #12202f;
+}
+
+.tv3-feature-tabs__cta {
+    display: inline-block;
+    color: #fff;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 700;
+    font-size: 0.9375rem;
+    text-decoration: none;
+}
+
+.tv3-feature-tabs__cta--blue { background: #0078d4; }
+.tv3-feature-tabs__cta--navy { background: #003366; }
+.tv3-feature-tabs__cta--green { background: #107c10; }
+.tv3-feature-tabs__cta--cyan { background: #00b7c3; }
+
+.tv3-feature-tabs__codebox {
+    background: linear-gradient(135deg, #001a33, #003366);
+    border-radius: 12px;
+    padding: 1.75rem;
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.85rem;
+    color: #cdd9e5;
+    line-height: 1.9;
+}
+
+.tv3-feature-tabs__code-title {
+    color: #6c7f96;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+}
+
+.tv3-feature-tabs__list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+}
+
+.tv3-feature-tabs__list-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eef2f7;
+    font-size: 0.9rem;
+    color: #3b4a5e;
+}
+
+.tv3-feature-tabs__list-item--last {
+    border-bottom: 0;
+}
+
+.tv3-feature-tabs__check {
+    color: #107c10;
+    font-weight: 700;
+}
+
+.tv3-feature-tabs__metrics {
+    margin-bottom: 1.5rem;
+}
+
+.tv3-feature-tabs__metric {
+    margin-bottom: 0.75rem;
+}
+
+.tv3-feature-tabs__metric--last {
+    margin-bottom: 0;
+}
+
+.tv3-feature-tabs__metric-head {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+}
+
+.tv3-feature-tabs__metric-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #12202f;
+}
+
+.tv3-feature-tabs__metric-gain {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #107c10;
+}
+
+.tv3-feature-tabs__meter {
+    background: #eef2f7;
+    border-radius: 100px;
+    height: 8px;
+    overflow: hidden;
+}
+
+.tv3-feature-tabs__meter-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #0078d4, #50e6ff);
+    border-radius: 100px;
+}
+
+.tv3-feature-tabs__meter-fill--90 { width: 90%; }
+.tv3-feature-tabs__meter-fill--95 { width: 95%; }
+.tv3-feature-tabs__meter-fill--98 { width: 98%; }
+
+.tv3-feature-tabs__benchmark-box {
+    background: #f5f7fa;
+    border: 1px solid #dde3ec;
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.tv3-feature-tabs__benchmark-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #12202f;
+    margin-bottom: 1.25rem;
+    text-align: center;
+}
+
+.tv3-feature-tabs__benchmark-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.tv3-feature-tabs__benchmark-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.tv3-feature-tabs__benchmark-name {
+    font-size: 0.8125rem;
+    color: #3b4a5e;
+    width: 100px;
+    flex-shrink: 0;
+}
+
+.tv3-feature-tabs__benchmark-track {
+    flex: 1;
+    background: #eef2f7;
+    border-radius: 100px;
+    height: 28px;
+    overflow: hidden;
+    position: relative;
+}
+
+.tv3-feature-tabs__benchmark-fill {
+    height: 100%;
+    border-radius: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tv3-feature-tabs__benchmark-fill--primary {
+    background: linear-gradient(135deg, #0078d4, #50e6ff);
+}
+
+.tv3-feature-tabs__benchmark-fill--secondary {
+    background: linear-gradient(135deg, #6c7f96, #8fa3bc);
+}
+
+.tv3-feature-tabs__benchmark-fill--tertiary {
+    background: linear-gradient(135deg, #8fa3bc, #bdc8d8);
+}
+
+.tv3-feature-tabs__benchmark-fill--12 { width: 12%; }
+.tv3-feature-tabs__benchmark-fill--78 { width: 78%; }
+.tv3-feature-tabs__benchmark-fill--60 { width: 60%; }
+
+.tv3-feature-tabs__benchmark-pill {
+    font-size: 0.75rem;
+    color: #fff;
+    font-weight: 700;
+    white-space: nowrap;
+    padding: 0 0.5rem;
+}
+
+@media (max-width: 960px) {
+    .tv3-feature-tabs__layout {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
+/* ── 404 Page Styling ── */
+.tv3-404-code-display {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: #1e6fba;
+}
+
+.tv3-404-title {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #111827;
 }
 
 /* ── Blockquotes / Kernthesen (Frontend) ── */
@@ -4538,6 +5368,11 @@ body.admin-bar .tv3-reading-progress__label {
     font-size: 0.8125rem;
     color: #0078d4;
     font-weight: 600;
+}
+
+.tv3-docs-grid-card-link a {
+    color: inherit;
+    text-decoration: none;
 }
 
 .tv3-download-section {

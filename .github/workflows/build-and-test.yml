@@ -31,6 +31,16 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: Theme inline-style gate (v3)
+        shell: pwsh
+        run: |
+          ./scripts/check-theme-inline-styles.ps1 -ThemePath themisdb-theme-v3 -MaxAllowed 0
+
+      - name: Theme wp:html gate (v3)
+        shell: pwsh
+        run: |
+          ./scripts/check-theme-wp-html-blocks.ps1 -ThemePath themisdb-theme-v3 -MaxAllowed 0
       
       - name: Setup PHP
         uses: shivammathur/setup-php@v2

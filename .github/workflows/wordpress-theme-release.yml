@@ -102,6 +102,18 @@ jobs:
 
           echo "zip_file=${ZIP_FILE}" >> "$GITHUB_OUTPUT"
 
+      - name: Theme inline-style gate (v3)
+        if: ${{ steps.validate.outputs.theme_slug == 'themisdb-theme-v3' }}
+        shell: pwsh
+        run: |
+          ./scripts/check-theme-inline-styles.ps1 -ThemePath ${{ steps.validate.outputs.theme_dir }} -MaxAllowed 0
+
+      - name: Theme wp:html gate (v3)
+        if: ${{ steps.validate.outputs.theme_slug == 'themisdb-theme-v3' }}
+        shell: pwsh
+        run: |
+          ./scripts/check-theme-wp-html-blocks.ps1 -ThemePath ${{ steps.validate.outputs.theme_dir }} -MaxAllowed 0
+
       - name: Create and push release tag
         if: ${{ github.event.inputs.dry_run != 'true' }}
         shell: bash

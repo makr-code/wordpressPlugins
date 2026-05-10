@@ -7,83 +7,167 @@
  * Description: Six feature cards in a 3-column grid with Azure-style blue top border on hover.
  */
 ?>
-<!-- wp:group {"style":{"color":{"background":"#ffffff"},"spacing":{"padding":{"top":"var:preset|spacing|20","bottom":"var:preset|spacing|20"}}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
-<div class="wp-block-group" style="background-color:#ffffff;padding-top:var(--wp--preset--spacing--20);padding-bottom:var(--wp--preset--spacing--20)">
+<!-- wp:group {"className":"tv3-feature-section","layout":{"type":"constrained","contentSize":"1200px"}} -->
+<div class="wp-block-group tv3-feature-section">
 
-	<!-- wp:html --><div style="text-align:center;margin-bottom:1rem"><span style="display:inline-block;background:#cfe4fc;color:#0078d4;border-radius:9999px;padding:0.25rem 0.875rem;font-size:0.75rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase">Features</span></div><!-- /wp:html -->
-
-	<!-- wp:heading {"level":2,"textAlign":"center","style":{"typography":{"fontSize":"clamp(1.75rem,3.5vw,2.75rem)","fontWeight":"700","letterSpacing":"-0.03em"},"color":{"text":"#12202f"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
-	<h2 class="wp-block-heading has-text-align-center" style="color:#12202f;font-size:clamp(1.75rem,3.5vw,2.75rem);font-weight:700;letter-spacing:-0.03em;margin-bottom:var(--wp--preset--spacing--4)">Everything you need in one database</h2>
-	<!-- /wp:heading -->
-
-	<!-- wp:paragraph {"textAlign":"center","style":{"typography":{"fontSize":"1.0625rem","lineHeight":"1.65"},"color":{"text":"#6c7f96"},"spacing":{"margin":{"bottom":"var:preset|spacing|12"}}}} -->
-	<p class="has-text-align-center" style="color:#6c7f96;font-size:1.0625rem;line-height:1.65;margin-bottom:var(--wp--preset--spacing--12)">Designed from the ground up for modern applications that need speed, flexibility, and intelligence.</p>
+	<!-- wp:paragraph {"align":"center","className":"tv3-feature-section__badge-wrap"} -->
+	<p class="has-text-align-center tv3-feature-section__badge-wrap"><span class="tv3-feature-section__badge">Features</span></p>
 	<!-- /wp:paragraph -->
 
-	<!-- wp:html -->
-	<div class="tv3-product-grid themis-v3-fade-in" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;">
+	<!-- wp:heading {"level":2,"className":"tv3-feature-section__title"} -->
+	<h2 class="wp-block-heading tv3-feature-section__title">Everything you need in one database</h2>
+	<!-- /wp:heading -->
 
-		<a href="/features/multi-model" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s;background:#fff;position:relative;overflow:hidden;">
-			<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(135deg,#0078d4,#005a9e);transform:scaleX(0);transform-origin:left;transition:transform 0.3s ease;" class="tv3-card-top-border"></div>
-			<div style="width:52px;height:52px;background:linear-gradient(135deg,#0078d4,#005a9e);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🗄️</div>
-			<div>
-				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Multi-Model Storage</div>
-				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Relational, document, graph, time-series — one engine, one query language, zero compromise on consistency.</div>
+	<!-- wp:paragraph {"className":"tv3-feature-section__lead"} -->
+	<p class="tv3-feature-section__lead">Designed from the ground up for modern applications that need speed, flexibility, and intelligence.</p>
+	<!-- /wp:paragraph -->
+
+	<!-- wp:group {"className":"tv3-product-grid themis-v3-fade-in","layout":{"type":"default"}} -->
+	<div class="wp-block-group tv3-product-grid themis-v3-fade-in">
+		<!-- wp:group {"className":"tv3-product-card","layout":{"type":"constrained"}} -->
+		<div class="wp-block-group tv3-product-card">
+			<!-- wp:group {"className":"tv3-card-top-border tv3-card-top-border--blue","layout":{"type":"constrained"}} -->
+			<div class="wp-block-group tv3-card-top-border tv3-card-top-border--blue"></div>
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__icon tv3-product-card__icon--blue"} -->
+			<p class="tv3-product-card__icon tv3-product-card__icon--blue">🗄️</p>
+			<!-- /wp:paragraph -->
+			<!-- wp:group {"layout":{"type":"constrained"}} -->
+			<div class="wp-block-group">
+				<!-- wp:heading {"level":3,"className":"tv3-product-card__title"} -->
+				<h3 class="wp-block-heading tv3-product-card__title">Multi-Model Storage</h3>
+				<!-- /wp:heading -->
+				<!-- wp:paragraph {"className":"tv3-product-card__desc"} -->
+				<p class="tv3-product-card__desc">Relational, document, graph, time-series — one engine, one query language, zero compromise on consistency.</p>
+				<!-- /wp:paragraph -->
 			</div>
-			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">Learn more →</div>
-		</a>
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__cta"} -->
+			<p class="tv3-product-card__cta"><a href="/features/multi-model">Learn more →</a></p>
+			<!-- /wp:paragraph -->
+		</div>
+		<!-- /wp:group -->
 
-		<a href="/features/ai-integration" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s;background:#fff;position:relative;overflow:hidden;">
-			<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(135deg,#003366,#00509e);transform:scaleX(0);transform-origin:left;transition:transform 0.3s ease;" class="tv3-card-top-border"></div>
-			<div style="width:52px;height:52px;background:linear-gradient(135deg,#003366,#00509e);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🤖</div>
-			<div>
-				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Native AI/LLM Integration</div>
-				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Vector search, semantic queries, and LLM pipelines run natively inside the database engine.</div>
+		<!-- wp:group {"className":"tv3-product-card","layout":{"type":"constrained"}} -->
+		<div class="wp-block-group tv3-product-card">
+			<!-- wp:group {"className":"tv3-card-top-border tv3-card-top-border--navy","layout":{"type":"constrained"}} -->
+			<div class="wp-block-group tv3-card-top-border tv3-card-top-border--navy"></div>
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__icon tv3-product-card__icon--navy"} -->
+			<p class="tv3-product-card__icon tv3-product-card__icon--navy">🤖</p>
+			<!-- /wp:paragraph -->
+			<!-- wp:group {"layout":{"type":"constrained"}} -->
+			<div class="wp-block-group">
+				<!-- wp:heading {"level":3,"className":"tv3-product-card__title"} -->
+				<h3 class="wp-block-heading tv3-product-card__title">Native AI/LLM Integration</h3>
+				<!-- /wp:heading -->
+				<!-- wp:paragraph {"className":"tv3-product-card__desc"} -->
+				<p class="tv3-product-card__desc">Vector search, semantic queries, and LLM pipelines run natively inside the database engine.</p>
+				<!-- /wp:paragraph -->
 			</div>
-			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">Learn more →</div>
-		</a>
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__cta"} -->
+			<p class="tv3-product-card__cta"><a href="/features/ai-integration">Learn more →</a></p>
+			<!-- /wp:paragraph -->
+		</div>
+		<!-- /wp:group -->
 
-		<a href="/benchmarks" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s;background:#fff;position:relative;overflow:hidden;">
-			<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(135deg,#107c10,#55b056);transform:scaleX(0);transform-origin:left;transition:transform 0.3s ease;" class="tv3-card-top-border"></div>
-			<div style="width:52px;height:52px;background:linear-gradient(135deg,#107c10,#55b056);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">⚡</div>
-			<div>
-				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Extreme Performance</div>
-				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Up to 10× faster than PostgreSQL. Independent benchmarks covering OLTP, OLAP, and vector workloads.</div>
+		<!-- wp:group {"className":"tv3-product-card","layout":{"type":"constrained"}} -->
+		<div class="wp-block-group tv3-product-card">
+			<!-- wp:group {"className":"tv3-card-top-border tv3-card-top-border--green","layout":{"type":"constrained"}} -->
+			<div class="wp-block-group tv3-card-top-border tv3-card-top-border--green"></div>
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__icon tv3-product-card__icon--green"} -->
+			<p class="tv3-product-card__icon tv3-product-card__icon--green">⚡</p>
+			<!-- /wp:paragraph -->
+			<!-- wp:group {"layout":{"type":"constrained"}} -->
+			<div class="wp-block-group">
+				<!-- wp:heading {"level":3,"className":"tv3-product-card__title"} -->
+				<h3 class="wp-block-heading tv3-product-card__title">Extreme Performance</h3>
+				<!-- /wp:heading -->
+				<!-- wp:paragraph {"className":"tv3-product-card__desc"} -->
+				<p class="tv3-product-card__desc">Up to 10× faster than PostgreSQL. Independent benchmarks covering OLTP, OLAP, and vector workloads.</p>
+				<!-- /wp:paragraph -->
 			</div>
-			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">View benchmarks →</div>
-		</a>
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__cta"} -->
+			<p class="tv3-product-card__cta"><a href="/benchmarks">View benchmarks →</a></p>
+			<!-- /wp:paragraph -->
+		</div>
+		<!-- /wp:group -->
 
-		<a href="/docker" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s;background:#fff;position:relative;overflow:hidden;">
-			<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(135deg,#00b7c3,#50e6ff);transform:scaleX(0);transform-origin:left;transition:transform 0.3s ease;" class="tv3-card-top-border"></div>
-			<div style="width:52px;height:52px;background:linear-gradient(135deg,#00b7c3,#50e6ff);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🐳</div>
-			<div>
-				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Docker Ready</div>
-				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Official images with one-line setup. Deploy on Kubernetes, Docker Compose, or standalone in 60 seconds.</div>
+		<!-- wp:group {"className":"tv3-product-card","layout":{"type":"constrained"}} -->
+		<div class="wp-block-group tv3-product-card">
+			<!-- wp:group {"className":"tv3-card-top-border tv3-card-top-border--cyan","layout":{"type":"constrained"}} -->
+			<div class="wp-block-group tv3-card-top-border tv3-card-top-border--cyan"></div>
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__icon tv3-product-card__icon--cyan"} -->
+			<p class="tv3-product-card__icon tv3-product-card__icon--cyan">🐳</p>
+			<!-- /wp:paragraph -->
+			<!-- wp:group {"layout":{"type":"constrained"}} -->
+			<div class="wp-block-group">
+				<!-- wp:heading {"level":3,"className":"tv3-product-card__title"} -->
+				<h3 class="wp-block-heading tv3-product-card__title">Docker Ready</h3>
+				<!-- /wp:heading -->
+				<!-- wp:paragraph {"className":"tv3-product-card__desc"} -->
+				<p class="tv3-product-card__desc">Official images with one-line setup. Deploy on Kubernetes, Docker Compose, or standalone in 60 seconds.</p>
+				<!-- /wp:paragraph -->
 			</div>
-			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">Docker Hub →</div>
-		</a>
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__cta"} -->
+			<p class="tv3-product-card__cta"><a href="/docker">Docker Hub →</a></p>
+			<!-- /wp:paragraph -->
+		</div>
+		<!-- /wp:group -->
 
-		<a href="/query-playground" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s;background:#fff;position:relative;overflow:hidden;">
-			<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(135deg,#ffb900,#e66200);transform:scaleX(0);transform-origin:left;transition:transform 0.3s ease;" class="tv3-card-top-border"></div>
-			<div style="width:52px;height:52px;background:linear-gradient(135deg,#ffb900,#e66200);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🧪</div>
-			<div>
-				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Interactive Query Playground</div>
-				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Write and execute SQL, JSON, and vector queries in-browser. No installation required.</div>
+		<!-- wp:group {"className":"tv3-product-card","layout":{"type":"constrained"}} -->
+		<div class="wp-block-group tv3-product-card">
+			<!-- wp:group {"className":"tv3-card-top-border tv3-card-top-border--amber","layout":{"type":"constrained"}} -->
+			<div class="wp-block-group tv3-card-top-border tv3-card-top-border--amber"></div>
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__icon tv3-product-card__icon--amber"} -->
+			<p class="tv3-product-card__icon tv3-product-card__icon--amber">🧪</p>
+			<!-- /wp:paragraph -->
+			<!-- wp:group {"layout":{"type":"constrained"}} -->
+			<div class="wp-block-group">
+				<!-- wp:heading {"level":3,"className":"tv3-product-card__title"} -->
+				<h3 class="wp-block-heading tv3-product-card__title">Interactive Query Playground</h3>
+				<!-- /wp:heading -->
+				<!-- wp:paragraph {"className":"tv3-product-card__desc"} -->
+				<p class="tv3-product-card__desc">Write and execute SQL, JSON, and vector queries in-browser. No installation required.</p>
+				<!-- /wp:paragraph -->
 			</div>
-			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">Try it now →</div>
-		</a>
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__cta"} -->
+			<p class="tv3-product-card__cta"><a href="/query-playground">Try it now →</a></p>
+			<!-- /wp:paragraph -->
+		</div>
+		<!-- /wp:group -->
 
-		<a href="/features/analytics" class="tv3-product-card" style="display:flex;flex-direction:column;gap:0.875rem;padding:1.75rem;border:1px solid #dde3ec;border-radius:12px;text-decoration:none;transition:all 0.25s;background:#fff;position:relative;overflow:hidden;">
-			<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(135deg,#d13438,#750b1c);transform:scaleX(0);transform-origin:left;transition:transform 0.3s ease;" class="tv3-card-top-border"></div>
-			<div style="width:52px;height:52px;background:linear-gradient(135deg,#d13438,#750b1c);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📊</div>
-			<div>
-				<div style="font-size:1.0625rem;font-weight:700;color:#12202f;margin-bottom:0.375rem;letter-spacing:-0.01em;">Built-in Analytics</div>
-				<div style="font-size:0.875rem;color:#6c7f96;line-height:1.6;">Real-time metrics, performance dashboards, and query analytics — no external monitoring tools needed.</div>
+		<!-- wp:group {"className":"tv3-product-card","layout":{"type":"constrained"}} -->
+		<div class="wp-block-group tv3-product-card">
+			<!-- wp:group {"className":"tv3-card-top-border tv3-card-top-border--red","layout":{"type":"constrained"}} -->
+			<div class="wp-block-group tv3-card-top-border tv3-card-top-border--red"></div>
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__icon tv3-product-card__icon--red"} -->
+			<p class="tv3-product-card__icon tv3-product-card__icon--red">📊</p>
+			<!-- /wp:paragraph -->
+			<!-- wp:group {"layout":{"type":"constrained"}} -->
+			<div class="wp-block-group">
+				<!-- wp:heading {"level":3,"className":"tv3-product-card__title"} -->
+				<h3 class="wp-block-heading tv3-product-card__title">Built-in Analytics</h3>
+				<!-- /wp:heading -->
+				<!-- wp:paragraph {"className":"tv3-product-card__desc"} -->
+				<p class="tv3-product-card__desc">Real-time metrics, performance dashboards, and query analytics — no external monitoring tools needed.</p>
+				<!-- /wp:paragraph -->
 			</div>
-			<div style="font-size:0.8125rem;color:#0078d4;font-weight:600;margin-top:auto;">Learn more →</div>
-		</a>
-
+			<!-- /wp:group -->
+			<!-- wp:paragraph {"className":"tv3-product-card__cta"} -->
+			<p class="tv3-product-card__cta"><a href="/features/analytics">Learn more →</a></p>
+			<!-- /wp:paragraph -->
+		</div>
+		<!-- /wp:group -->
 	</div>
-	<!-- /wp:html -->
+	<!-- /wp:group -->
 </div>
 <!-- /wp:group -->

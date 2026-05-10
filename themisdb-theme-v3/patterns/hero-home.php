@@ -16,14 +16,9 @@
 		<!-- wp:spacer {"height":"48px"} --><div aria-hidden="true" class="wp-block-spacer tv3-spacer-48"></div><!-- /wp:spacer -->
 
 		<!-- Animated badge -->
-		<!-- wp:html -->
-		<div class="tv3-hero-badge-wrap">
-			<a href="/docs/changelog" class="tv3-hero-badge themis-v3-slide-up">
-				<span class="tv3-hero-badge-pill">NEW</span>
-				ThemisDB v3 · Fluent Design + jQuery Animations →
-			</a>
-		</div>
-		<!-- /wp:html -->
+		<!-- wp:paragraph {"align":"center","className":"tv3-hero-badge-wrap"} -->
+		<p class="has-text-align-center tv3-hero-badge-wrap"><a href="/docs/changelog" class="tv3-hero-badge themis-v3-slide-up"><span class="tv3-hero-badge-pill">NEW</span>ThemisDB v3 · Fluent Design + jQuery Animations →</a></p>
+		<!-- /wp:paragraph -->
 
 		<!-- wp:heading {"level":1,"textAlign":"center","style":{"typography":{"fontSize":"clamp(2.25rem,5.5vw,4rem)","fontWeight":"800","lineHeight":"1.1","letterSpacing":"-0.04em"},"color":{"text":"#ffffff"},"spacing":{"margin":{"bottom":"var:preset|spacing|5"}}}} -->
 		<h1 class="wp-block-heading has-text-align-center tv3-hero-title">ThemisDB v3 – The Database<br>Built for the AI Era</h1>
@@ -45,8 +40,8 @@
 		<!-- /wp:buttons -->
 
 		<!-- Docker command snippet -->
-		<!-- wp:html -->
-		<div class="tv3-hero-command-wrap">
+		<!-- wp:group {"className":"tv3-hero-command-wrap","layout":{"type":"constrained"}} -->
+		<div class="wp-block-group tv3-hero-command-wrap">
 			<div class="tv3-hero-command">
 				<span class="tv3-hero-command-prompt">$</span>
 				<code class="tv3-hero-command-code">docker pull themisdb/themisdb:v3-latest</code>
@@ -54,7 +49,7 @@
 			</div>
 			<p class="tv3-hero-command-links">Also available: <a href="/downloads" class="tv3-hero-command-link">binary</a> · <a href="https://github.com/makr-code/wordpressPlugins" class="tv3-hero-command-link">source</a></p>
 		</div>
-		<!-- /wp:html -->
+		<!-- /wp:group -->
 
 		<!-- wp:spacer {"height":"48px"} --><div aria-hidden="true" class="wp-block-spacer tv3-spacer-48"></div><!-- /wp:spacer -->
 	</div>
