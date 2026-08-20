@@ -369,6 +369,16 @@ function themisdb_benchmark_visualizer_shortcode( $atts ) {
 
 add_action( 'init', 'themisdb_register_download_family_theme_adapters', 45 );
 function themisdb_register_download_family_theme_adapters() {
+	// Only register theme adapters if NOT using themisdb-pulse theme
+	// themisdb-pulse has its own native rendering for sliders and plugins
+	$current_theme = wp_get_theme();
+	$theme_stylesheet = $current_theme->get_stylesheet();
+	
+	if ( 'themisdb-pulse' === $theme_stylesheet ) {
+		// themisdb-pulse handles its own rendering
+		return;
+	}
+	
 	add_filter( 'themisdb_downloads_shortcode_html', 'themisdb_theme_render_downloads_from_plugin', 10, 3 );
 	add_filter( 'themisdb_latest_shortcode_html', 'themisdb_theme_render_latest_from_plugin', 10, 3 );
 	add_filter( 'themisdb_verify_shortcode_html', 'themisdb_theme_render_verify_from_plugin', 10, 3 );
