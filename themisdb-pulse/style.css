@@ -375,9 +375,10 @@ main pre.mermaid svg {
 
 .tv3-pricing-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1.5rem;
-    align-items: start;
+    align-items: stretch;
+    overflow: visible;
 }
 
 .tv3-pricing-card {
@@ -387,6 +388,7 @@ main pre.mermaid svg {
     padding: 2.5rem;
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
 .tv3-pricing-card--featured {
@@ -989,6 +991,89 @@ main pre.mermaid svg {
 }
 
 /* ── 404 Page Styling ── */
+
+/* ------------------------------------------------------------------
+ * Breadcrumb System V4 (stable baseline)
+ * Single sticky container without JS-driven DOM relocation.
+ * ------------------------------------------------------------------ */
+.tv3-breadcrumbs-frontpage.wp-block-template-part {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 40;
+    display: block;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+body.admin-bar .tv3-breadcrumbs-frontpage.wp-block-template-part {
+    top: 32px !important;
+}
+
+@media (max-width: 782px) {
+    body.admin-bar .tv3-breadcrumbs-frontpage.wp-block-template-part {
+        top: 46px !important;
+    }
+}
+
+.tv3-breadcrumbs-shell {
+    position: relative;
+    top: auto;
+    z-index: 1;
+    border-top: 1px solid rgba(187, 205, 220, 0.9);
+    border-bottom: 1px solid rgba(187, 205, 220, 0.9);
+    background: rgba(247, 251, 255, 0.96);
+    box-shadow: none;
+}
+
+.tv3-breadcrumbs-shell .tv3-breadcrumbs-inner {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.85rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0.5rem 1rem 0.72rem;
+}
+
+.tv3-breadcrumbs-shell .tv3-breadcrumbs-static-slot,
+.tv3-breadcrumbs-shell .tv3-breadcrumbs-floating-slot,
+.tv3-breadcrumbs-shell .tv3-breadcrumbs-static-wrapper,
+.tv3-breadcrumbs-shell .tv3-breadcrumbs-floating-wrapper {
+    display: none !important;
+}
+
+.tv3-breadcrumbs-shell .tv3-hero-context-nav {
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.tv3-breadcrumbs-shell .tv3-hero-context-nav-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.56rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.tv3-breadcrumbs-shell .tv3-hero-context-progress {
+    flex: 0 0 100%;
+    width: 100%;
+    position: relative;
+    height: 3px;
+    margin-top: 0.35rem;
+}
+
+.tv3-hero-context-nav-part,
+.tv3-hero-context-nav-shell {
+    display: none !important;
+}
 .tv3-404-code-display {
     font-size: clamp(2.5rem, 5vw, 4rem);
     font-weight: 800;
@@ -6955,6 +7040,26 @@ body.admin-bar .tv3-reading-progress__label {
     text-decoration: none;
     transition: all 0.25s;
     background: #fff;
+}
+
+.tv3-docs-grid-card.is-priority {
+    border-color: #7fb5df;
+    background: linear-gradient(180deg, rgba(231, 241, 252, 0.95) 0%, rgba(255, 255, 255, 1) 100%);
+    box-shadow: 0 10px 24px rgba(30, 111, 186, 0.12);
+}
+
+.tv3-docs-grid-highlight {
+    display: inline-flex;
+    align-self: flex-start;
+    margin: 0;
+    padding: 0.16rem 0.56rem;
+    border-radius: 9999px;
+    background: #1e6fba;
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 .tv3-docs-grid-icon {

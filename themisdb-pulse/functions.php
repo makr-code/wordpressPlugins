@@ -232,6 +232,7 @@ function themisdb_v3_register_shortcodes() {
     add_shortcode( 'themisdb_v3_hero_context_nav', 'themisdb_v3_render_hero_context_nav_shortcode' );
     add_shortcode( 'themisdb_v3_feature_cards', 'themisdb_v3_render_feature_cards_shortcode' );
     add_shortcode( 'themisdb_v3_docs_cards', 'themisdb_v3_render_docs_cards_shortcode' );
+    add_shortcode( 'themisdb_v3_pricing_cards', 'themisdb_v3_render_pricing_cards_shortcode' );
     add_shortcode( 'themisdb_v3_read_time', 'themisdb_v3_render_read_time_shortcode' );
     add_shortcode( 'themisdb_v3_modified_date', 'themisdb_v3_render_modified_date_shortcode' );
     add_shortcode( 'themisdb_v3_authors_compact', 'themisdb_v3_render_authors_compact_shortcode' );
@@ -1684,7 +1685,7 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
         'themisdb_v3_feature_cards'
     );
 
-    $limit = max( 1, min( 12, absint( $atts['limit'] ) ) );
+    $limit_value = max( 1, min( 12, absint( $atts['limit'] ) ) );
     $words = max( 8, min( 60, absint( $atts['excerpt_words'] ) ) );
 
     $supported_types = themisdb_v3_get_supported_content_post_types();
@@ -1717,7 +1718,7 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
         )
     );
 
-    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
 
     if ( empty( $posts ) ) {
         return '';
@@ -1787,6 +1788,178 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
     return (string) preg_replace( '/>\s+</', '><', $html );
 }
 
+function themisdb_v3_render_pricing_cards_shortcode( $atts = array() ) {
+    $atts = shortcode_atts(
+        array(
+            'limit'         => 3,
+            'post_types'    => 'page,post',
+            'category'      => 'pricing',
+            'priority_tag'  => 'pricing-featured,most-popular,recommended,frontpage-feature',
+            'ids'           => '',
+            'orderby'       => 'menu_order',
+            'order'         => 'ASC',
+            'excerpt_words' => 18,
+        ),
+        $atts,
+        'themisdb_v3_pricing_cards'
+    );
+
+    $limit_value = max( 1, min( 3, absint( $atts['limit'] ) ) );
+    $words       = max( 8, min( 48, absint( $atts['excerpt_words'] ) ) );
+
+    $supported_types = themisdb_v3_get_supported_content_post_types();
+    $requested_types = array_filter(
+        array_map(
+            'sanitize_key',
+            array_map( 'trim', explode( ',', (string) $atts['post_types'] ) )
+        )
+    );
+
+    $post_types = array_values( array_intersect( $requested_types, $supported_types ) );
+    if ( empty( $post_types ) ) {
+        $post_types = $supported_types;
+    }
+
+    $ids = array_values(
+        array_filter(
+            array_map( 'absint', array_map( 'trim', explode( ',', (string) $atts['ids'] ) ) )
+        )
+    );
+
+    $category_slugs = array_values(
+        array_filter(
+            array_map( 'sanitize_title', array_map( 'trim', explode( ',', (string) $atts['category'] ) ) )
+        )
+    );
+    $priority_tag_slugs = array_values(
+        array_filter(
+            array_map( 'sanitize_title', array_map( 'trim', explode( ',', (string) $atts['priority_tag'] ) ) )
+        )
+    );
+
+    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+
+    if ( empty( $posts ) ) {
+        $pricing_page = get_page_by_path( 'pricing', OBJECT, $post_types );
+        if ( $pricing_page instanceof WP_Post ) {
+            $posts = array( $pricing_page );
+        }
+    }
+
+    if ( empty( $posts ) ) {
+        return '';
+    }
+
+    $priority_tag_lookup = array_fill_keys( $priority_tag_slugs, true );
+
+    ob_start();
+    ?>
+    <div class="tv3-pricing-grid tv3-pricing-grid--dynamic tv3-pricing-grid--compact">
+        <?php foreach ( $posts as $post ) : ?>
+            <?php
+            $post_id      = (int) $post->ID;
+            $permalink    = get_permalink( $post_id );
+            $raw_excerpt  = get_the_excerpt( $post_id );
+            $content      = trim( (string) wp_strip_all_tags( (string) get_post_field( 'post_content', $post_id ) ) );
+            $excerpt      = '' !== trim( (string) $raw_excerpt ) ? (string) $raw_excerpt : wp_trim_words( $content, $words, '…' );
+            $cta_label    = trim( (string) get_post_meta( $post_id, 'tv3_pricing_cta_label', true ) );
+            if ( '' === $cta_label ) {
+                $cta_label = __( 'Details ansehen →', 'themisdb-v3' );
+            }
+
+            $price_label = trim( (string) get_post_meta( $post_id, 'tv3_price_label', true ) );
+            if ( '' === $price_label ) {
+                $price_label = trim( (string) get_post_meta( $post_id, 'tv3_pricing_price', true ) );
+            }
+            if ( '' === $price_label ) {
+                $price_label = trim( (string) get_post_meta( $post_id, 'tv3_price', true ) );
+            }
+            if ( '' === $price_label ) {
+                $price_label = __( 'Details', 'themisdb-v3' );
+            }
+
+            $tier_label = trim( (string) get_post_meta( $post_id, 'tv3_pricing_tier', true ) );
+            $tier_class = 'tv3-pricing-card__tier--community';
+
+            $post_tags = wp_get_post_terms( $post_id, 'post_tag', array( 'fields' => 'slugs' ) );
+            if ( is_wp_error( $post_tags ) ) {
+                $post_tags = array();
+            }
+
+            $matching_tags = array_intersect( (array) $post_tags, array_keys( $priority_tag_lookup ) );
+            $is_priority   = ! empty( $matching_tags );
+            $card_classes  = array( 'wp-block-group', 'tv3-pricing-card' );
+            if ( $is_priority ) {
+                $card_classes[] = 'tv3-pricing-card--featured';
+            }
+
+            if ( '' === $tier_label ) {
+                if ( in_array( 'enterprise', (array) $post_tags, true ) || in_array( 'pro', (array) $post_tags, true ) ) {
+                    $tier_label = __( 'Enterprise', 'themisdb-v3' );
+                    $tier_class = 'tv3-pricing-card__tier--enterprise';
+                } elseif ( in_array( 'cloud', (array) $post_tags, true ) || in_array( 'managed', (array) $post_tags, true ) ) {
+                    $tier_label = __( 'Cloud', 'themisdb-v3' );
+                    $tier_class = 'tv3-pricing-card__tier--cloud';
+                } else {
+                    $tier_label = __( 'Community', 'themisdb-v3' );
+                    $tier_class = 'tv3-pricing-card__tier--community';
+                }
+            } else {
+                $normalized_tier = sanitize_title( $tier_label );
+                if ( in_array( $normalized_tier, array( 'enterprise', 'pro' ), true ) ) {
+                    $tier_class = 'tv3-pricing-card__tier--enterprise';
+                } elseif ( in_array( $normalized_tier, array( 'cloud', 'managed' ), true ) ) {
+                    $tier_class = 'tv3-pricing-card__tier--cloud';
+                } else {
+                    $tier_class = 'tv3-pricing-card__tier--community';
+                }
+            }
+
+            $feature_lines = array();
+            if ( '' !== $content ) {
+                $split_lines = preg_split( '/[\r\n•*]+/u', $content ) ?: array();
+                foreach ( $split_lines as $line ) {
+                    $line = trim( (string) $line );
+                    if ( '' === $line || mb_strlen( $line ) < 8 ) {
+                        continue;
+                    }
+                    $feature_lines[] = wp_trim_words( $line, 14, '…' );
+                    if ( count( $feature_lines ) >= 4 ) {
+                        break;
+                    }
+                }
+            }
+            if ( empty( $feature_lines ) ) {
+                $feature_lines[] = wp_trim_words( $excerpt, 12, '…' );
+            }
+
+            $flag_label = $is_priority ? __( 'Empfohlen', 'themisdb-v3' ) : '';
+            ?>
+            <div class="<?php echo esc_attr( implode( ' ', array_filter( $card_classes ) ) ); ?>" data-pricing-tier="<?php echo esc_attr( sanitize_title( $tier_label ) ); ?>">
+                <?php if ( '' !== $flag_label ) : ?>
+                    <p class="tv3-pricing-card__flag"><?php echo esc_html( $flag_label ); ?></p>
+                <?php endif; ?>
+                <p class="tv3-pricing-card__tier <?php echo esc_attr( $tier_class ); ?>"><?php echo esc_html( $tier_label ); ?></p>
+                <p class="tv3-pricing-card__price"><?php echo esc_html( $price_label ); ?></p>
+                <p class="tv3-pricing-card__subline"><?php echo esc_html( $excerpt ); ?></p>
+                <ul class="wp-block-list tv3-pricing-card__features">
+                    <?php foreach ( $feature_lines as $index => $feature_line ) : ?>
+                        <li class="tv3-pricing-card__feature<?php echo esc_attr( count( $feature_lines ) - 1 === $index ? ' tv3-pricing-card__feature--last' : '' ); ?>">
+                            <span class="tv3-pricing-card__mark tv3-pricing-card__mark--yes">✓</span>
+                            <span><?php echo esc_html( $feature_line ); ?></span>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+                <p><a href="<?php echo esc_url( $permalink ); ?>" class="tv3-pricing-card__cta <?php echo esc_attr( $is_priority ? 'tv3-pricing-card__cta--solid' : 'tv3-pricing-card__cta--outline' ); ?>"><?php echo esc_html( $cta_label ); ?></a></p>
+            </div>
+        <?php endforeach; ?>
+    </div>
+    <?php
+
+    $html = trim( (string) ob_get_clean() );
+    return (string) preg_replace( '/>\s+</', '><', $html );
+}
+
 /**
  * Render dynamic documentation cards from WP pages with documentation tags.
  *
@@ -1809,7 +1982,7 @@ function themisdb_v3_render_docs_cards_shortcode( $atts = array() ) {
         'themisdb_v3_docs_cards'
     );
 
-    $limit = max( 1, min( 12, absint( $atts['limit'] ) ) );
+    $limit_value = max( 1, min( 12, absint( $atts['limit'] ) ) );
     $words = max( 8, min( 60, absint( $atts['excerpt_words'] ) ) );
 
     $supported_types = themisdb_v3_get_supported_content_post_types();
@@ -1842,7 +2015,7 @@ function themisdb_v3_render_docs_cards_shortcode( $atts = array() ) {
         )
     );
 
-    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
 
     if ( empty( $posts ) ) {
         return '';

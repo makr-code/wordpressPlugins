@@ -251,180 +251,27 @@
     }
 
     function dedupeContextNavShells() {
-        var shells = Array.prototype.slice.call(document.querySelectorAll('.tv3-hero-context-nav-shell'));
-        if (shells.length <= 1) {
-            return;
-        }
-
-        var primary = null;
-        shells.forEach(function (shell) {
-            if (!primary && shell.querySelector('[data-tv3-anchor-nav], .tv3-hero-context-nav')) {
-                primary = shell;
-            }
-        });
-
-        if (!primary) {
-            primary = shells[0];
-        }
-
-        shells.forEach(function (shell) {
-            if (shell !== primary) {
-                shell.remove();
-            }
-        });
+        return;
     }
 
     function getPrimaryContextNavPart() {
-        var parts = Array.prototype.slice.call(document.querySelectorAll('.tv3-hero-context-nav-part'));
-        if (!parts.length) {
-            return null;
-        }
-
-        var primary = null;
-        parts.forEach(function (part) {
-            if (!primary && part.querySelector('.tv3-hero-context-nav-shell, .tv3-hero-context-nav')) {
-                primary = part;
-            }
-        });
-
-        return primary || parts[0];
+        return null;
     }
 
     function dedupeContextNavParts() {
-        var parts = Array.prototype.slice.call(document.querySelectorAll('.tv3-hero-context-nav-part'));
-        if (parts.length <= 1) {
-            return;
-        }
-
-        var primary = getPrimaryContextNavPart() || parts[0];
-        parts.forEach(function (part) {
-            if (part !== primary) {
-                part.remove();
-            }
-        });
+        return;
     }
 
     function relocateContextNavPart() {
-        var part = getPrimaryContextNavPart();
-        if (!part || !part.parentNode) {
-            return;
-        }
-
-        var hero = document.querySelector('.tv3-hero-slider-shell');
-        var pageHero = document.querySelector('.tv3-page-hero-shell, .tv3-page-hero');
-        var header = document.querySelector('.site-header');
-        var anchor = hero || pageHero || header;
-
-        if (!anchor || !anchor.parentNode) {
-            return;
-        }
-
-        // Keep the context bar directly after the selected anchor block.
-        var desiredParent = anchor.parentNode;
-        var desiredNext = anchor.nextSibling;
-        var alreadyPlaced = part.parentNode === desiredParent && part.previousSibling === anchor;
-        if (alreadyPlaced) {
-            return;
-        }
-
-        desiredParent.insertBefore(part, desiredNext);
+        return;
     }
 
     function initContextFloatingState() {
-        var part = getPrimaryContextNavPart();
-        var header = document.querySelector('.site-header');
-        if (!part || !header) {
-            return;
-        }
-
-        var raf = false;
-
-        function recalc() {
-            raf = false;
-            var headerRect = header.getBoundingClientRect();
-            var shouldFloat = headerRect.bottom <= 0;
-            part.classList.toggle('is-floating', shouldFloat);
-        }
-
-        function schedule() {
-            if (raf) {
-                return;
-            }
-            raf = true;
-            window.requestAnimationFrame(recalc);
-        }
-
-        window.addEventListener('scroll', schedule, { passive: true });
-        window.addEventListener('resize', schedule);
-        window.addEventListener('orientationchange', schedule);
-        window.addEventListener('load', schedule, { once: true });
-
-        var pollingId = window.setInterval(schedule, 250);
-        window.addEventListener('pagehide', function () {
-            window.clearInterval(pollingId);
-        }, { once: true });
-
-        schedule();
+        return;
     }
 
     function initBreadcrumbFloatingState() {
-        var shell = document.querySelector('[data-tv3-breadcrumbs-shell]');
-        if (!shell) {
-            return;
-        }
-
-        var staticSlot = shell.querySelector('[data-tv3-breadcrumbs-static-slot]');
-        var floatingSlot = shell.querySelector('[data-tv3-breadcrumbs-floating-slot]');
-        var breadcrumbNav = shell.querySelector('.tv3-breadcrumbs');
-        if (!staticSlot || !floatingSlot || !breadcrumbNav) {
-            return;
-        }
-
-        if (!document.body) {
-            return;
-        }
-
-        function getFloatTop() {
-            var adminBar = document.getElementById('wpadminbar');
-            if (adminBar) {
-                return Math.max(0, Math.round(adminBar.getBoundingClientRect().height));
-            }
-
-            return 0;
-        }
-
-        function recalc() {
-            var threshold = getFloatTop();
-            var shellRect = shell.getBoundingClientRect();
-            var shouldFloat = shellRect.top <= threshold;
-
-            shell.classList.toggle('is-floating', shouldFloat);
-
-            if (shouldFloat) {
-                if (breadcrumbNav.parentNode !== floatingSlot) {
-                    floatingSlot.appendChild(breadcrumbNav);
-                }
-                staticSlot.classList.add('is-placeholder');
-                staticSlot.style.minHeight = String(Math.max(0, Math.round(breadcrumbNav.getBoundingClientRect().height))) + 'px';
-            } else {
-                if (breadcrumbNav.parentNode !== staticSlot) {
-                    staticSlot.appendChild(breadcrumbNav);
-                }
-                staticSlot.classList.remove('is-placeholder');
-                staticSlot.style.minHeight = '';
-            }
-        }
-
-        function schedule() {
-            recalc();
-        }
-
-        window.addEventListener('scroll', schedule, { passive: true });
-        window.addEventListener('resize', schedule);
-        window.addEventListener('orientationchange', schedule);
-        window.addEventListener('load', schedule, { once: true });
-
-        schedule();
+        return;
     }
 
     function initContextAnchorNav() {
@@ -470,13 +317,13 @@
         });
 
         function getStickyOffset() {
-            var stickyPart = getPrimaryContextNavPart();
-            if (!stickyPart) {
+            var shell = document.querySelector('[data-tv3-breadcrumbs-shell]');
+            if (!shell) {
                 return 0;
             }
 
-            var top = parseFloat(window.getComputedStyle(stickyPart).top || '0');
-            return Number.isFinite(top) ? top : 0;
+            var rect = shell.getBoundingClientRect();
+            return Math.max(0, Math.round(rect.height));
         }
 
         items.forEach(function (entry) {
@@ -677,11 +524,9 @@
         tryInitReadingProgress();
         window.addEventListener('load', tryInitReadingProgress, { once: true });
 
-        // Run once more after full load in case async blocks moved layout anchors.
         window.addEventListener('load', function () {
-            relocateContextNavPart();
-            initContextFloatingState();
-            initBreadcrumbFloatingState();
+            initContextAnchorNav();
+            initReadingProgress();
         }, { once: true });
     }
 
