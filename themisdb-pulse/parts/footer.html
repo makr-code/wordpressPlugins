@@ -1,19 +1,44 @@
 <!-- wp:group {"tagName":"footer","align":"full","className":"site-footer tv3-footer-shell","style":{"spacing":{"padding":{"top":"var:preset|spacing|6","bottom":"var:preset|spacing|6","left":"var:preset|spacing|5","right":"var:preset|spacing|5"}},"border":{"top":{"color":"#dce4ef","width":"1px"}}},"layout":{"type":"constrained"}} -->
 <footer class="wp-block-group alignfull site-footer tv3-footer-shell">
-    <!-- wp:group {"className":"tv3-footer-main-row","layout":{"type":"flex","justifyContent":"space-between","verticalAlignment":"center","flexWrap":"wrap"},"style":{"spacing":{"blockGap":"var:preset|spacing|4"}}} -->
-    <div class="wp-block-group tv3-footer-main-row">
-        <!-- wp:group {"className":"tv3-footer-brand","layout":{"type":"flex","orientation":"vertical"},"style":{"spacing":{"blockGap":"0.25rem"}}} -->
-        <div class="wp-block-group tv3-footer-brand">
-            <!-- wp:site-title {"level":0,"fontSize":"small"} /-->
-            <!-- wp:site-tagline {"fontSize":"small"} /-->
-            <!-- wp:paragraph {"fontSize":"small","className":"tv3-footer-meta","style":{"color":{"text":"#647e96"}}} -->
-            <p class="has-small-font-size tv3-footer-meta">Powered by WordPress Block Theme.</p>
-            <!-- /wp:paragraph -->
+    <!-- wp:columns {"className":"tv3-footer-columns","verticalAlignment":"top","style":{"spacing":{"blockGap":{"top":"var:preset|spacing|5","left":"var:preset|spacing|6"}}}} -->
+    <div class="wp-block-columns are-vertically-aligned-top tv3-footer-columns">
+        <!-- wp:column {"className":"tv3-footer-col tv3-footer-col-brand"} -->
+        <div class="wp-block-column tv3-footer-col tv3-footer-col-brand">
+            <!-- wp:group {"className":"tv3-footer-brand","layout":{"type":"flex","orientation":"vertical"},"style":{"spacing":{"blockGap":"0.35rem"}}} -->
+            <div class="wp-block-group tv3-footer-brand">
+                <!-- wp:site-logo {"width":36,"shouldSyncIcon":true} /-->
+                <!-- wp:site-title {"level":0,"fontSize":"small"} /-->
+                <!-- wp:site-tagline {"fontSize":"small"} /-->
+            </div>
+            <!-- /wp:group -->
         </div>
-        <!-- /wp:group -->
+        <!-- /wp:column -->
 
-        <!-- wp:navigation {"overlayMenu":"never","className":"tv3-footer-nav","layout":{"type":"flex","justifyContent":"right"},"ariaLabel":"Footer-Navigation","__unstableLocation":"footer"} /-->
+        <!-- wp:column {"className":"tv3-footer-col"} -->
+        <div class="wp-block-column tv3-footer-col">
+            <!-- wp:heading {"level":6,"fontSize":"small"} -->
+            <h6 class="wp-block-heading has-small-font-size">Navigation</h6>
+            <!-- /wp:heading -->
+            <!-- wp:navigation {"overlayMenu":"never","className":"tv3-footer-nav","layout":{"type":"flex","orientation":"vertical","justifyContent":"left"},"ariaLabel":"Footer-Navigation","__unstableLocation":"footer"} /-->
+        </div>
+        <!-- /wp:column -->
+
+        <!-- wp:column {"className":"tv3-footer-col"} -->
+        <div class="wp-block-column tv3-footer-col">
+            <!-- wp:heading {"level":6,"fontSize":"small"} -->
+            <h6 class="wp-block-heading has-small-font-size">Rechtliches</h6>
+            <!-- /wp:heading -->
+            <!-- wp:privacy-policy {"fontSize":"small"} /-->
+            <!-- wp:social-links {"iconColor":"contrast","iconColorValue":"#17334e","openInNewTab":true,"size":"has-small-icon-size","className":"is-style-logos-only","layout":{"type":"flex","justifyContent":"left"}} -->
+            <ul class="wp-block-social-links has-small-icon-size has-icon-color is-style-logos-only"><!-- wp:social-link {"service":"github","url":"#"} /--><!-- wp:social-link {"service":"linkedin","url":"#"} /--></ul>
+            <!-- /wp:social-links -->
+        </div>
+        <!-- /wp:column -->
     </div>
-    <!-- /wp:group -->
+    <!-- /wp:columns -->
+
+    <!-- wp:paragraph {"fontSize":"small","className":"tv3-footer-meta","style":{"color":{"text":"#647e96"},"spacing":{"margin":{"top":"var:preset|spacing|4"}}}} -->
+    <p class="has-small-font-size tv3-footer-meta">Powered by WordPress.</p>
+    <!-- /wp:paragraph -->
 </footer>
 <!-- /wp:group -->

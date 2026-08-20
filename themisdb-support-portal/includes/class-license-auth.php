@@ -53,6 +53,10 @@ class ThemisDB_Support_License_Auth {
      * }
      */
     public static function authenticate_with_license_file($file_content) {
+        if (self::should_use_customer_sessions()) {
+            return ThemisDB_Support_Customer_Auth::authenticate_with_license_file($file_content);
+        }
+
         // Delegate to the order-request plugin's manager when available – it
         // handles the full license lifecycle (status, tier limits, audit log).
         if (class_exists('ThemisDB_License_Manager')) {
@@ -69,13 +73,16 @@ class ThemisDB_Support_License_Auth {
      * @return bool
      */
     public static function current_user_has_license() {
-        if (!is_user_logged_in()) {
-            return false;
-        }
-
-        // Administrators always have access to the support portal
         if (current_user_can('manage_options')) {
             return true;
+        }
+
+        if (self::should_use_customer_sessions()) {
+            return ThemisDB_Support_Customer_Context::is_customer_authenticated();
+        }
+
+        if (!is_user_logged_in()) {
+            return false;
         }
 
         $user_id = get_current_user_id();
@@ -128,7 +135,7 @@ class ThemisDB_Support_License_Auth {
             ));
         }
 
-        $redirect = get_option('themisdb_support_redirect_url', home_url('/'));
+        $redirect = get_option('themisdb_support_redirect_url', home_url('/support/'));
 
         wp_send_json_success(array(
             'message'  => __('Erfolgreich mit Lizenz angemeldet!', 'themisdb-support-portal'),
@@ -142,7 +149,11 @@ class ThemisDB_Support_License_Auth {
     public function handle_logout() {
         check_ajax_referer('themisdb_support_nonce', 'nonce');
 
-        wp_logout();
+        if (self::should_use_customer_sessions()) {
+            ThemisDB_Support_Customer_Auth::logout_customer();
+        } else {
+            wp_logout();
+        }
 
         wp_send_json_success(array(
             'redirect' => home_url('/'),
@@ -364,5 +375,14 @@ class ThemisDB_Support_License_Auth {
         update_user_meta($user->ID, 'themisdb_support_license_key', $license_key);
 
         return $user;
+    }
+
+    /**
+     * Determine whether the customer-session auth path is enabled.
+     *
+     * @return bool
+     */
+    private static function should_use_customer_sessions() {
+        return 'customer_session' === (string) get_option('themisdb_support_customer_auth_mode', 'wp_user');
     }
 }

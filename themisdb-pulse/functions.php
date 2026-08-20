@@ -79,6 +79,7 @@ function themisdb_v3_setup() {
     register_nav_menus(
         array(
             'primary'        => __( 'Primary Navigation', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'support_primary' => __( 'Support Primary Navigation', THEMISDB_PULSE_TEXT_DOMAIN ),
             'header_utility' => __( 'Header Utility Navigation', THEMISDB_PULSE_TEXT_DOMAIN ),
             'docs'           => __( 'Documentation Navigation', THEMISDB_PULSE_TEXT_DOMAIN ),
             'footer'         => __( 'Footer Navigation', THEMISDB_PULSE_TEXT_DOMAIN ),
@@ -115,6 +116,7 @@ function themisdb_v3_ensure_default_nav_menus() {
 
     $default_locations = array(
         'primary'        => 'Primary Navigation',
+        'support_primary' => 'Support Primary Navigation',
         'header_utility' => 'Header Utility Navigation',
         'docs'           => 'Documentation Navigation',
         'footer'         => 'Footer Navigation',
@@ -136,11 +138,72 @@ function themisdb_v3_ensure_default_nav_menus() {
 
         if ( $menu && ! is_wp_error( $menu ) ) {
             $locations[ $location ] = (int) $menu->term_id;
+
+            if ( 'support_primary' === $location ) {
+                themisdb_v3_seed_support_primary_menu_items( (int) $menu->term_id );
+            }
         }
     }
 
     if ( $locations !== get_theme_mod( 'nav_menu_locations', array() ) ) {
         set_theme_mod( 'nav_menu_locations', $locations );
+    }
+
+    if ( ! empty( $locations['support_primary'] ) ) {
+        themisdb_v3_seed_support_primary_menu_items( (int) $locations['support_primary'] );
+    }
+}
+
+/**
+ * Seed default support navigation entries when the support menu is still empty.
+ *
+ * @param int $menu_id Support menu term ID.
+ */
+function themisdb_v3_seed_support_primary_menu_items( $menu_id ) {
+    $menu_id = (int) $menu_id;
+    if ( $menu_id <= 0 ) {
+        return;
+    }
+
+    $existing_items = wp_get_nav_menu_items( $menu_id, array( 'update_post_term_cache' => false ) );
+    if ( is_array( $existing_items ) && ! empty( $existing_items ) ) {
+        return;
+    }
+
+    $support_url = home_url( '/support/' );
+    $items       = array(
+        array(
+            'title' => __( 'Support-Portal', 'themisdb-v3' ),
+            'url'   => $support_url,
+        ),
+        array(
+            'title' => __( 'Neues Ticket', 'themisdb-v3' ),
+            'url'   => $support_url . '#themisdb-support-new-ticket-section',
+        ),
+        array(
+            'title' => __( 'Meine Tickets', 'themisdb-v3' ),
+            'url'   => $support_url . '#themisdb-support-ticket-list-section',
+        ),
+    );
+
+    if ( class_exists( 'ThemisDB_Contract_Lifecycle' ) ) {
+        $items[] = array(
+            'title' => __( 'Vertragsmanagement', 'themisdb-v3' ),
+            'url'   => $support_url . '#themisdb-lifecycle-section',
+        );
+    }
+
+    foreach ( $items as $item ) {
+        wp_update_nav_menu_item(
+            $menu_id,
+            0,
+            array(
+                'menu-item-title'  => (string) $item['title'],
+                'menu-item-url'    => (string) $item['url'],
+                'menu-item-status' => 'publish',
+                'menu-item-type'   => 'custom',
+            )
+        );
     }
 }
 
@@ -228,10 +291,12 @@ add_action( 'init', 'themisdb_v3_register_shortcodes', 15 );
  * Register frontend shortcodes used by template parts.
  */
 function themisdb_v3_register_shortcodes() {
+    add_shortcode( 'themisdb_v3_announcement_bar', 'themisdb_v3_render_announcement_bar_shortcode' );
     add_shortcode( 'themisdb_v3_breadcrumbs', 'themisdb_v3_render_breadcrumbs_shortcode' );
     add_shortcode( 'themisdb_v3_hero_context_nav', 'themisdb_v3_render_hero_context_nav_shortcode' );
     add_shortcode( 'themisdb_v3_feature_cards', 'themisdb_v3_render_feature_cards_shortcode' );
     add_shortcode( 'themisdb_v3_docs_cards', 'themisdb_v3_render_docs_cards_shortcode' );
+    add_shortcode( 'themisdb_v3_blog_cards', 'themisdb_v3_render_blog_cards_shortcode' );
     add_shortcode( 'themisdb_v3_pricing_cards', 'themisdb_v3_render_pricing_cards_shortcode' );
     add_shortcode( 'themisdb_v3_read_time', 'themisdb_v3_render_read_time_shortcode' );
     add_shortcode( 'themisdb_v3_modified_date', 'themisdb_v3_render_modified_date_shortcode' );
@@ -242,6 +307,162 @@ function themisdb_v3_register_shortcodes() {
     add_shortcode( 'themisdb_v3_author_focus', 'themisdb_v3_render_author_focus_shortcode' );
     add_shortcode( 'themisdb_v3_quality_meta', 'themisdb_v3_render_quality_meta_shortcode' );
     add_shortcode( 'themisdb_v3_article_media', 'themisdb_v3_render_article_media_shortcode' );
+}
+
+/**
+ * Parse a local datetime-like string into a timestamp.
+ *
+ * Supported formats include full datetime and date-only values.
+ * Date-only values are treated as inclusive until end-of-day.
+ *
+ * @param string $raw Raw meta value.
+ * @return int|null
+ */
+function themisdb_v3_parse_local_datetime_to_timestamp( $raw ) {
+    $raw = trim( (string) $raw );
+    if ( '' === $raw ) {
+        return null;
+    }
+
+    $timezone = wp_timezone();
+    $formats  = array(
+        'Y-m-d H:i:s',
+        'Y-m-d\\TH:i:s',
+        'Y-m-d',
+    );
+
+    foreach ( $formats as $format ) {
+        $date = DateTimeImmutable::createFromFormat( $format, $raw, $timezone );
+        if ( $date instanceof DateTimeImmutable ) {
+            if ( 'Y-m-d' === $format ) {
+                $date = $date->setTime( 23, 59, 59 );
+            }
+            return $date->getTimestamp();
+        }
+    }
+
+    $fallback = strtotime( $raw );
+    if ( false === $fallback ) {
+        return null;
+    }
+
+    return (int) $fallback;
+}
+
+/**
+ * Render an announcement bar based on active timed posts.
+ *
+ * Start time uses the post publish date. End time can be provided via meta.
+ *
+ * @param array<string,mixed> $atts Shortcode attributes.
+ * @return string
+ */
+function themisdb_v3_render_announcement_bar_shortcode( $atts = array() ) {
+    $atts = shortcode_atts(
+        array(
+            'category'         => 'announcement',
+            'limit'            => 5,
+            'end_meta_key'     => 'announcement_end_at',
+            'link_label'       => __( 'Mehr erfahren ->', 'themisdb-v3' ),
+            'excerpt_words'    => 22,
+            'fallback_excerpt' => '',
+        ),
+        $atts,
+        'themisdb_v3_announcement_bar'
+    );
+
+    $limit         = max( 1, min( 12, (int) $atts['limit'] ) );
+    $category_slug = sanitize_title( (string) $atts['category'] );
+    $end_meta_key  = sanitize_key( (string) $atts['end_meta_key'] );
+    $excerpt_words = max( 8, min( 60, (int) $atts['excerpt_words'] ) );
+    $now_ts        = current_time( 'timestamp' );
+
+    if ( '' === $category_slug ) {
+        return '';
+    }
+
+    $query = new WP_Query(
+        array(
+            'post_type'              => 'post',
+            'post_status'            => 'publish',
+            'posts_per_page'         => $limit,
+            'ignore_sticky_posts'    => true,
+            'no_found_rows'          => true,
+            'orderby'                => 'date',
+            'order'                  => 'DESC',
+            'category_name'          => $category_slug,
+            'update_post_meta_cache' => true,
+            'update_post_term_cache' => false,
+        )
+    );
+
+    if ( ! $query->have_posts() ) {
+        return '';
+    }
+
+    $active_post = null;
+    foreach ( $query->posts as $candidate ) {
+        if ( ! $candidate instanceof WP_Post ) {
+            continue;
+        }
+
+        $start_dt = get_post_datetime( $candidate, 'date', wp_timezone() );
+        $start_ts = $start_dt instanceof DateTimeImmutable ? $start_dt->getTimestamp() : 0;
+        if ( $start_ts > $now_ts ) {
+            continue;
+        }
+
+        $end_ts = null;
+        if ( '' !== $end_meta_key ) {
+            $end_ts = themisdb_v3_parse_local_datetime_to_timestamp( get_post_meta( $candidate->ID, $end_meta_key, true ) );
+        }
+
+        if ( null !== $end_ts && $end_ts < $now_ts ) {
+            continue;
+        }
+
+        $active_post = $candidate;
+        break;
+    }
+
+    wp_reset_postdata();
+
+    if ( ! $active_post instanceof WP_Post ) {
+        return '';
+    }
+
+    $title   = wp_strip_all_tags( get_the_title( $active_post ) );
+    $excerpt = trim( wp_strip_all_tags( (string) get_the_excerpt( $active_post ) ) );
+    if ( '' === $excerpt ) {
+        $excerpt = trim( wp_strip_all_tags( (string) get_post_field( 'post_content', $active_post->ID ) ) );
+        if ( '' !== $excerpt ) {
+            $excerpt = wp_trim_words( $excerpt, $excerpt_words, '…' );
+        }
+    }
+
+    if ( '' === $excerpt ) {
+        $excerpt = trim( (string) $atts['fallback_excerpt'] );
+    }
+
+    $link_url   = get_permalink( $active_post );
+    $link_label = trim( (string) $atts['link_label'] );
+    if ( '' === $link_label ) {
+        $link_label = __( 'Mehr erfahren ->', 'themisdb-v3' );
+    }
+
+    $html  = '<div class="wp-block-group tv3-announcement-bar">';
+    $html .= '<div class="wp-block-group tv3-announcement-inner">';
+    $html .= '<p class="tv3-announcement-text">';
+    $html .= '<span class="tv3-announcement-headline">' . esc_html( $title ) . '</span>';
+    if ( '' !== $excerpt ) {
+        $html .= '<span class="tv3-announcement-snippet">' . esc_html( $excerpt ) . '</span>';
+    }
+    $html .= '</p>';
+    $html .= '<p class="tv3-announcement-link"><a class="tv3-announcement-link-anchor" href="' . esc_url( $link_url ) . '">' . esc_html( $link_label ) . '</a></p>';
+    $html .= '</div>';
+    $html .= '</div>';
+
+    return $html;
 }
 
 /**
@@ -1466,35 +1687,14 @@ function themisdb_v3_render_breadcrumbs_shortcode() {
     foreach ( $items as $item ) {
         $label = isset( $item['label'] ) ? trim( (string) $item['label'] ) : '';
         $url   = isset( $item['url'] ) ? (string) $item['url'] : '';
-        $is_home_button = ! empty( $item['is_home_button'] );
         if ( '' === $label ) {
             continue;
         }
 
-        $item_class = $is_home_button ? 'tv3-breadcrumbs-item tv3-breadcrumbs-item-home' : 'tv3-breadcrumbs-item';
+        $item_class = 'tv3-breadcrumbs-item';
         $html .= '<li class="' . esc_attr( $item_class ) . '" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">';
         if ( '' !== $url ) {
             $html .= '<a href="' . esc_url( $url ) . '" itemprop="item">';
-            if ( $is_home_button ) {
-                $icon_url = '';
-                $custom_logo_id = (int) get_theme_mod( 'custom_logo' );
-                if ( $custom_logo_id > 0 ) {
-                    $custom_logo = wp_get_attachment_image_src( $custom_logo_id, 'thumbnail' );
-                    if ( is_array( $custom_logo ) && ! empty( $custom_logo[0] ) ) {
-                        $icon_url = (string) $custom_logo[0];
-                    }
-                }
-
-                if ( '' === $icon_url ) {
-                    $icon_url = (string) get_site_icon_url( 20 );
-                }
-
-                if ( '' !== $icon_url ) {
-                    $html .= '<span class="tv3-breadcrumbs-home-icon" aria-hidden="true"><img src="' . esc_url( $icon_url ) . '" alt="" loading="lazy" decoding="async" /></span>';
-                } else {
-                    $html .= '<span class="tv3-breadcrumbs-home-icon" aria-hidden="true">&#8962;</span>';
-                }
-            }
             $html .= '<span itemprop="name">' . esc_html( $label ) . '</span>';
             $html .= '</a>';
         } else {
@@ -2045,6 +2245,131 @@ function themisdb_v3_render_docs_cards_shortcode( $atts = array() ) {
     return (string) preg_replace( '/>\s+</', '><', $html );
 }
 
+/**
+ * Render dynamic blog cards from latest posts with optional priority tags.
+ *
+ * @param array $atts Shortcode attributes.
+ * @return string
+ */
+function themisdb_v3_render_blog_cards_shortcode( $atts = array() ) {
+    $atts = shortcode_atts(
+        array(
+            'limit'         => 9,
+            'post_types'    => 'post',
+            'category'      => 'blog',
+            'priority_tag'  => 'lesenswert,recommended,editor-pick,hero,frontpage-feature',
+            'ids'           => '',
+            'orderby'       => 'date',
+            'order'         => 'DESC',
+            'excerpt_words' => 24,
+        ),
+        $atts,
+        'themisdb_v3_blog_cards'
+    );
+
+    $limit_value = max( 1, min( 9, absint( $atts['limit'] ) ) );
+    $words       = max( 12, min( 80, absint( $atts['excerpt_words'] ) ) );
+
+    $supported_types = themisdb_v3_get_supported_content_post_types();
+    $requested_types = array_filter(
+        array_map(
+            'sanitize_key',
+            array_map( 'trim', explode( ',', (string) $atts['post_types'] ) )
+        )
+    );
+
+    $post_types = array_values( array_intersect( $requested_types, $supported_types ) );
+    if ( empty( $post_types ) ) {
+        $post_types = array( 'post' );
+    }
+
+    $ids = array_values(
+        array_filter(
+            array_map( 'absint', array_map( 'trim', explode( ',', (string) $atts['ids'] ) ) )
+        )
+    );
+
+    $category_slugs = array_values(
+        array_filter(
+            array_map( 'sanitize_title', array_map( 'trim', explode( ',', (string) $atts['category'] ) ) )
+        )
+    );
+    $priority_tag_slugs = array_values(
+        array_filter(
+            array_map( 'sanitize_title', array_map( 'trim', explode( ',', (string) $atts['priority_tag'] ) ) )
+        )
+    );
+
+    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+    if ( empty( $posts ) ) {
+        return '';
+    }
+
+    $priority_tag_lookup = array_fill_keys( $priority_tag_slugs, true );
+
+    ob_start();
+    ?>
+    <div class="tv3-docs-grid-cards tv3-blog-grid-cards">
+        <?php foreach ( $posts as $post ) :
+            $post_id      = (int) $post->ID;
+            $title        = wp_kses_post( get_the_title( $post_id ) );
+            $raw_excerpt  = get_the_excerpt( $post_id );
+            $description  = wp_trim_words(
+                '' !== trim( (string) $raw_excerpt ) ? (string) $raw_excerpt : wp_strip_all_tags( (string) get_post_field( 'post_content', $post_id ) ),
+                $words,
+                '...'
+            );
+            $permalink    = esc_url( get_permalink( $post_id ) );
+            $cta_label    = __( 'Beitrag lesen →', 'themisdb-v3' );
+            $post_tags    = wp_get_post_terms( $post_id, 'post_tag', array( 'fields' => 'slugs' ) );
+            $episode_audio_url = trim( (string) themisdb_v3_get_episode_audio_url( $post_id ) );
+            $has_audio_player  = '' !== $episode_audio_url;
+            $media_type        = themisdb_v3_get_media_category_type( $post_id );
+            if ( '' === $media_type && $has_audio_player ) {
+                $media_type = 'audio';
+            }
+            $media_presentation = themisdb_v3_get_media_category_presentation( $media_type );
+            $episode_duration   = $has_audio_player ? themisdb_v3_get_episode_duration_label( $post_id ) : '';
+            $episode_audio_label = (string) $media_presentation['audio_label'];
+            if ( is_wp_error( $post_tags ) ) {
+                $post_tags = array();
+            }
+            $is_priority = ! empty( array_intersect( (array) $post_tags, array_keys( $priority_tag_lookup ) ) );
+            $card_class  = 'wp-block-group tv3-docs-grid-card' . ( $is_priority ? ' is-priority' : '' );
+            $thumb_url   = get_the_post_thumbnail_url( $post_id, 'medium_large' );
+            ?>
+            <div class="<?php echo esc_attr( $card_class ); ?>">
+                <?php if ( $is_priority ) : ?>
+                    <p class="tv3-docs-grid-highlight"><?php esc_html_e( 'Lesenswert', 'themisdb-v3' ); ?></p>
+                <?php endif; ?>
+                <?php if ( ! empty( $thumb_url ) ) : ?>
+                    <figure class="tv3-blog-grid-card-media<?php echo esc_attr( $is_priority ? ' is-priority' : '' ); ?>">
+                        <img src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( wp_strip_all_tags( get_the_title( $post_id ) ) ); ?>" loading="lazy" decoding="async">
+                    </figure>
+                <?php else : ?>
+                    <p class="tv3-docs-grid-icon">📰</p>
+                <?php endif; ?>
+                <h3 class="wp-block-heading tv3-docs-grid-card-title"><?php echo esc_html( $title ); ?></h3>
+                <p class="tv3-docs-grid-card-text"><?php echo esc_html( $description ); ?></p>
+                <?php if ( $has_audio_player ) : ?>
+                    <div class="tv3-card-audio">
+                        <div class="tv3-card-audio-meta">
+                            <span class="tv3-card-audio-label"><?php echo esc_html( $episode_audio_label ); ?></span>
+                            <span class="tv3-card-audio-duration"><?php echo esc_html( $episode_duration ); ?></span>
+                        </div>
+                        <?php echo wp_audio_shortcode( array( 'src' => esc_url( $episode_audio_url ), 'preload' => 'none' ) ); ?>
+                    </div>
+                <?php endif; ?>
+                <p class="tv3-docs-grid-card-link"><a href="<?php echo esc_url( $permalink ); ?>"><?php echo esc_html( $cta_label ); ?></a></p>
+            </div>
+        <?php endforeach; ?>
+    </div>
+    <?php
+
+    $html = trim( (string) ob_get_clean() );
+    return (string) preg_replace( '/>\s+</', '><', $html );
+}
+
 add_action( 'init', 'themisdb_v3_sync_navigation_template_parts', 20 );
 /**
  * Keep block navigation refs in header/footer aligned with configured menu locations.
@@ -2076,7 +2401,7 @@ function themisdb_v3_get_navigation_sync_signature() {
     $locations = (array) get_theme_mod( 'nav_menu_locations', array() );
     $parts     = array( get_stylesheet() );
 
-    foreach ( array( 'primary', 'footer' ) as $location ) {
+    foreach ( array( 'primary', 'support_primary', 'footer' ) as $location ) {
         $term_id = isset( $locations[ $location ] ) ? (int) $locations[ $location ] : 0;
         $parts[] = $location . ':' . $term_id;
 
@@ -2113,11 +2438,12 @@ function themisdb_v3_get_navigation_sync_signature() {
  */
 function themisdb_v3_apply_navigation_template_part_sync() {
     $primary_navigation_id = themisdb_v3_ensure_navigation_post_from_location( 'primary', 'TV3 Primary Navigation' );
+    $support_navigation_id = themisdb_v3_ensure_navigation_post_from_location( 'support_primary', 'TV3 Support Primary Navigation' );
     $utility_navigation_id = themisdb_v3_ensure_navigation_post_from_location( 'header_utility', 'TV3 Header Utility Navigation' );
     $docs_navigation_id    = themisdb_v3_ensure_navigation_post_from_location( 'docs', 'TV3 Documentation Navigation' );
     $footer_navigation_id  = themisdb_v3_ensure_navigation_post_from_location( 'footer', 'TV3 Footer Navigation' );
 
-    if ( $primary_navigation_id <= 0 && $utility_navigation_id <= 0 && $docs_navigation_id <= 0 && $footer_navigation_id <= 0 ) {
+    if ( $primary_navigation_id <= 0 && $support_navigation_id <= 0 && $utility_navigation_id <= 0 && $docs_navigation_id <= 0 && $footer_navigation_id <= 0 ) {
         return false;
     }
 
@@ -2357,6 +2683,7 @@ function themisdb_v3_get_navigation_post_id_for_location( $location ) {
 
     $title_map = array(
         'primary'        => 'TV3 Primary Navigation',
+        'support_primary' => 'TV3 Support Primary Navigation',
         'header_utility' => 'TV3 Header Utility Navigation',
         'docs'           => 'TV3 Documentation Navigation',
         'footer'         => 'TV3 Footer Navigation',
@@ -2377,6 +2704,188 @@ function themisdb_v3_get_navigation_post_id_for_location( $location ) {
     );
 
     return ! empty( $found ) ? (int) $found[0] : 0;
+}
+
+/**
+ * Determine whether current user has support portal access.
+ *
+ * @return bool
+ */
+function themisdb_v3_current_user_has_support_access() {
+    if ( ! is_user_logged_in() ) {
+        return false;
+    }
+
+    if ( class_exists( 'ThemisDB_Support_License_Auth' ) && method_exists( 'ThemisDB_Support_License_Auth', 'current_user_has_license' ) ) {
+        return (bool) ThemisDB_Support_License_Auth::current_user_has_license();
+    }
+
+    return is_user_logged_in();
+}
+
+/**
+ * Detect if the current request is within support UX context.
+ *
+ * @return bool
+ */
+function themisdb_v3_is_support_runtime_context() {
+    if ( themisdb_v3_is_support_page_bridge() ) {
+        return true;
+    }
+
+    if ( themisdb_v3_current_page_uses_plugin_login_ui() ) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Decide when the support-specific primary menu should be rendered.
+ *
+ * @return bool
+ */
+function themisdb_v3_should_use_support_main_menu() {
+    return themisdb_v3_current_user_has_support_access() && themisdb_v3_is_support_runtime_context();
+}
+
+add_filter( 'render_block', 'themisdb_v3_append_support_splitbutton_to_utility_navigation', 25, 2 );
+/**
+ * Append support split-button to right header utility navigation in support context.
+ *
+ * @param string              $block_content Rendered block content.
+ * @param array<string,mixed> $block         Parsed block data.
+ * @return string
+ */
+function themisdb_v3_append_support_splitbutton_to_utility_navigation( $block_content, $block ) {
+    if ( ! themisdb_v3_should_use_support_main_menu() || ! is_string( $block_content ) || '' === $block_content ) {
+        return $block_content;
+    }
+
+    if ( ! is_array( $block ) || empty( $block['blockName'] ) || 'core/navigation' !== $block['blockName'] ) {
+        return $block_content;
+    }
+
+    $location = '';
+    if ( isset( $block['attrs']['__unstableLocation'] ) ) {
+        $location = (string) $block['attrs']['__unstableLocation'];
+    }
+
+    if ( 'header_utility' !== $location && false === strpos( $block_content, 'tv3-header-utility-nav' ) ) {
+        return $block_content;
+    }
+
+    if ( false !== strpos( $block_content, 'tv3-support-splitbutton' ) ) {
+        return $block_content;
+    }
+
+    $splitbutton_html = themisdb_v3_build_support_splitbutton_markup();
+    if ( '' === $splitbutton_html ) {
+        return $block_content;
+    }
+
+    if ( false === strpos( $block_content, '</nav>' ) ) {
+        return $block_content . $splitbutton_html;
+    }
+
+    return (string) preg_replace( '/<\/nav>\s*$/', $splitbutton_html . '</nav>', $block_content, 1 );
+}
+
+/**
+ * Build support split-button markup from support_primary menu items.
+ *
+ * @return string
+ */
+function themisdb_v3_build_support_splitbutton_markup() {
+    $items = themisdb_v3_get_support_primary_menu_items();
+    if ( empty( $items ) ) {
+        return '';
+    }
+
+    $base_url = home_url( '/support/' );
+
+    $html  = '<div class="tv3-support-splitbutton" role="navigation" aria-label="' . esc_attr__( 'Support-Funktionen', 'themisdb-v3' ) . '">';
+    $html .= '<a class="tv3-support-splitbutton__main" href="' . esc_url( $base_url ) . '">' . esc_html__( 'Support', 'themisdb-v3' ) . '</a>';
+    $html .= '<details class="tv3-support-splitbutton__menu-wrap">';
+    $html .= '<summary class="tv3-support-splitbutton__toggle" aria-label="' . esc_attr__( 'Support-Menue oeffnen', 'themisdb-v3' ) . '"><span aria-hidden="true">▾</span></summary>';
+    $html .= '<ul class="wp-block-navigation__submenu-container tv3-support-splitbutton__menu">';
+
+    $has_local_items = false;
+
+    foreach ( $items as $item ) {
+        $title = isset( $item['title'] ) ? (string) $item['title'] : '';
+        $url   = isset( $item['url'] ) ? (string) $item['url'] : '';
+        if ( '' === $title || '' === $url ) {
+            continue;
+        }
+
+        $is_local = ( '#' === substr( $url, 0, 1 ) );
+        if ( $is_local ) {
+            $has_local_items = true;
+        } elseif ( $has_local_items ) {
+            $html .= '<li class="wp-block-navigation-item tv3-support-splitbutton__divider" role="separator" aria-hidden="true"></li>';
+            $has_local_items = false;
+        }
+
+        $html .= '<li class="wp-block-navigation-item">';
+        $html .= '<a class="wp-block-navigation-item__content" href="' . esc_url( $url ) . '">' . esc_html( $title ) . '</a>';
+        $html .= '</li>';
+    }
+
+    $html .= '</ul>';
+    $html .= '</details>';
+    $html .= '</div>';
+
+    return $html;
+}
+
+/**
+ * Return top-level support menu items from support_primary location.
+ *
+ * @return array<int,array<string,string>>
+ */
+function themisdb_v3_get_support_primary_menu_items() {
+    $locations = (array) get_theme_mod( 'nav_menu_locations', array() );
+    $term_id   = isset( $locations['support_primary'] ) ? (int) $locations['support_primary'] : 0;
+    if ( $term_id <= 0 ) {
+        return array();
+    }
+
+    $items = wp_get_nav_menu_items( $term_id, array( 'update_post_term_cache' => false ) );
+    if ( ! is_array( $items ) || empty( $items ) ) {
+        return array();
+    }
+
+    $normalized = array();
+
+    foreach ( $items as $item ) {
+        if ( ! empty( $item->menu_item_parent ) ) {
+            continue;
+        }
+
+        $normalized[] = array(
+            'title' => (string) $item->title,
+            'url'   => (string) $item->url,
+        );
+    }
+
+    if ( themisdb_v3_is_support_page_bridge() ) {
+        $local_items = apply_filters(
+            'themisdb_v3_support_splitbutton_items',
+            array(
+                array( 'title' => __( 'Support', THEMISDB_PULSE_TEXT_DOMAIN ), 'url' => '#themisdb-hub-support' ),
+                array( 'title' => __( 'Lizenzen', THEMISDB_PULSE_TEXT_DOMAIN ), 'url' => '#themisdb-hub-licenses' ),
+                array( 'title' => __( 'Aufträge', THEMISDB_PULSE_TEXT_DOMAIN ), 'url' => '#themisdb-hub-orders' ),
+                array( 'title' => __( 'B2B', THEMISDB_PULSE_TEXT_DOMAIN ), 'url' => '#themisdb-hub-b2b' ),
+            )
+        );
+
+        if ( is_array( $local_items ) && ! empty( $local_items ) ) {
+            $normalized = array_merge( array_values( $local_items ), $normalized );
+        }
+    }
+
+    return $normalized;
 }
 
 add_filter( 'render_block', 'themisdb_v3_rewrite_root_relative_links', 20, 2 );
@@ -2450,6 +2959,51 @@ function themisdb_v3_ensure_image_alt_text( $content ) {
     );
 }
 
+add_filter( 'render_block', 'themisdb_v3_adjust_header_login_button', 20, 2 );
+/**
+ * Keep header login button consistent with session state on every page.
+ *
+ * @param string $block_content Rendered block HTML.
+ * @param array  $block         Parsed block data.
+ * @return string
+ */
+function themisdb_v3_adjust_header_login_button( $block_content, $block ) {
+    if ( ! is_string( $block_content ) || '' === $block_content ) {
+        return $block_content;
+    }
+
+    if ( false === strpos( $block_content, 'tv3-header-login' ) ) {
+        return $block_content;
+    }
+
+    if ( ! is_array( $block ) || ! isset( $block['blockName'] ) || 'core/button' !== $block['blockName'] ) {
+        return $block_content;
+    }
+
+    $target_url = is_user_logged_in() ? home_url( '/support/' ) : home_url( '/login/' );
+    $label = is_user_logged_in() ? __( 'Portal', 'themisdb-v3' ) : __( 'Anmelden', 'themisdb-v3' );
+
+    $updated = preg_replace(
+        '/<a\b([^>]*?)href=("|\")(.*?)("|\")(.*?)>/i',
+        '<a$1href="' . esc_url( $target_url ) . '"$5>',
+        $block_content,
+        1
+    );
+
+    if ( ! is_string( $updated ) || '' === $updated ) {
+        $updated = $block_content;
+    }
+
+    $updated = preg_replace(
+        '/(<a\b[^>]*class=("|\")[^"\']*wp-block-button__link[^"\']*("|\")[^>]*>)(.*?)(<\/a>)/is',
+        '$1' . esc_html( $label ) . '$5',
+        $updated,
+        1
+    );
+
+    return is_string( $updated ) ? $updated : $block_content;
+}
+
 add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue_assets' );
 
 /**
@@ -2475,6 +3029,10 @@ function themisdb_v3_enqueue_assets() {
     $image_lightbox_js_ver  = file_exists( $image_lightbox_js_file ) ? (string) filemtime( $image_lightbox_js_file ) : THEMISDB_V3_VERSION;
     $podcast_audio_js_file  = get_template_directory() . '/assets/js/podcast-audio-single.js';
     $podcast_audio_js_ver   = file_exists( $podcast_audio_js_file ) ? (string) filemtime( $podcast_audio_js_file ) : THEMISDB_V3_VERSION;
+    $login_overlay_js_file  = get_template_directory() . '/assets/js/login-overlay.js';
+    $login_overlay_js_ver   = file_exists( $login_overlay_js_file ) ? (string) filemtime( $login_overlay_js_file ) : THEMISDB_V3_VERSION;
+    $order_overlay_js_file  = get_template_directory() . '/assets/js/order-overlay.js';
+    $order_overlay_js_ver   = file_exists( $order_overlay_js_file ) ? (string) filemtime( $order_overlay_js_file ) : THEMISDB_V3_VERSION;
 
     wp_enqueue_style( 'themisdb-v3-style', get_stylesheet_uri(), array(), $style_version );
     wp_enqueue_style(
@@ -2565,6 +3123,239 @@ function themisdb_v3_enqueue_assets() {
             true
         );
     }
+
+    $should_boot_support_ui = shortcode_exists( 'themisdb_support_portal' )
+        && ( themisdb_v3_has_plugin_login_overlay() || themisdb_v3_is_support_page_bridge() );
+
+    if ( themisdb_v3_has_plugin_login_overlay() ) {
+        wp_enqueue_script(
+            'themisdb-v3-login-overlay',
+            get_template_directory_uri() . '/assets/js/login-overlay.js',
+            array(),
+            $login_overlay_js_ver,
+            true
+        );
+
+        wp_localize_script(
+            'themisdb-v3-login-overlay',
+            'themisdbV3LoginOverlay',
+            array(
+                'openLabel'  => __( 'Login-Overlay oeffnen', 'themisdb-v3' ),
+                'closeLabel' => __( 'Login-Overlay schliessen', 'themisdb-v3' ),
+                'isLoggedIn' => is_user_logged_in(),
+                'supportUrl' => esc_url_raw( home_url( '/support/' ) ),
+            )
+        );
+
+        if ( $should_boot_support_ui && defined( 'THEMISDB_SUPPORT_PLUGIN_URL' ) ) {
+            wp_enqueue_style(
+                'themisdb-support-portal-style',
+                THEMISDB_SUPPORT_PLUGIN_URL . 'assets/css/support-portal.css',
+                array(),
+                defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_V3_VERSION
+            );
+
+            wp_enqueue_script(
+                'themisdb-support-portal-script',
+                THEMISDB_SUPPORT_PLUGIN_URL . 'assets/js/support-portal.js',
+                array( 'jquery' ),
+                defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_V3_VERSION,
+                true
+            );
+
+            wp_localize_script(
+                'themisdb-support-portal-script',
+                'themisdbSupport',
+                array(
+                    'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                    'nonce'   => wp_create_nonce( 'themisdb_support_nonce' ),
+                    'strings' => array(
+                        'loading'               => __( 'Laedt...', 'themisdb-support-portal' ),
+                        'error'                 => __( 'Ein Fehler ist aufgetreten', 'themisdb-support-portal' ),
+                        'success'               => __( 'Erfolgreich gespeichert', 'themisdb-support-portal' ),
+                        'verifying'             => __( 'Lizenz wird verifiziert...', 'themisdb-support-portal' ),
+                        'submitting'            => __( 'Ticket wird uebermittelt...', 'themisdb-support-portal' ),
+                        'select_file'           => __( 'Bitte waehlen Sie eine Lizenzdatei aus', 'themisdb-support-portal' ),
+                        'auth_with_license'     => __( 'Mit Lizenz anmelden', 'themisdb-support-portal' ),
+                        'submit_ticket'         => __( 'Ticket senden', 'themisdb-support-portal' ),
+                        'fill_required_fields'  => __( 'Bitte fuellen Sie Betreff und Nachricht aus.', 'themisdb-support-portal' ),
+                    ),
+                )
+            );
+        }
+    }
+
+    if ( themisdb_v3_is_support_page_bridge() || themisdb_v3_current_page_uses_plugin_login_ui() ) {
+        wp_enqueue_script(
+            'themisdb-v3-order-overlay',
+            get_template_directory_uri() . '/assets/js/order-overlay.js',
+            array(),
+            $order_overlay_js_ver,
+            true
+        );
+
+        wp_localize_script(
+            'themisdb-v3-order-overlay',
+            'themisdbV3OrderOverlay',
+            array(
+                'openLabel'  => __( 'Neuen Auftrag oeffnen', 'themisdb-v3' ),
+                'closeLabel' => __( 'Auftragsdialog schliessen', 'themisdb-v3' ),
+            )
+        );
+    }
+
+    if ( $should_boot_support_ui && ! wp_script_is( 'themisdb-support-portal-script', 'enqueued' ) && defined( 'THEMISDB_SUPPORT_PLUGIN_URL' ) ) {
+        wp_enqueue_style(
+            'themisdb-support-portal-style',
+            THEMISDB_SUPPORT_PLUGIN_URL . 'assets/css/support-portal.css',
+            array(),
+            defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_V3_VERSION
+        );
+
+        wp_enqueue_script(
+            'themisdb-support-portal-script',
+            THEMISDB_SUPPORT_PLUGIN_URL . 'assets/js/support-portal.js',
+            array( 'jquery' ),
+            defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_V3_VERSION,
+            true
+        );
+
+        wp_localize_script(
+            'themisdb-support-portal-script',
+            'themisdbSupport',
+            array(
+                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                'nonce'   => wp_create_nonce( 'themisdb_support_nonce' ),
+                'strings' => array(
+                    'loading'               => __( 'Laedt...', 'themisdb-support-portal' ),
+                    'error'                 => __( 'Ein Fehler ist aufgetreten', 'themisdb-support-portal' ),
+                    'success'               => __( 'Erfolgreich gespeichert', 'themisdb-support-portal' ),
+                    'verifying'             => __( 'Lizenz wird verifiziert...', 'themisdb-support-portal' ),
+                    'submitting'            => __( 'Ticket wird uebermittelt...', 'themisdb-support-portal' ),
+                    'select_file'           => __( 'Bitte waehlen Sie eine Lizenzdatei aus', 'themisdb-support-portal' ),
+                    'auth_with_license'     => __( 'Mit Lizenz anmelden', 'themisdb-support-portal' ),
+                    'submit_ticket'         => __( 'Ticket senden', 'themisdb-support-portal' ),
+                    'fill_required_fields'  => __( 'Bitte fuellen Sie Betreff und Nachricht aus.', 'themisdb-support-portal' ),
+                ),
+            )
+        );
+    }
+}
+
+/**
+ * Determine whether plugin-driven login overlay should be rendered.
+ *
+ * @return bool
+ */
+function themisdb_v3_has_plugin_login_overlay() {
+    if ( themisdb_v3_is_support_page_bridge() || themisdb_v3_current_page_uses_plugin_login_ui() ) {
+        return false;
+    }
+
+    return shortcode_exists( 'themisdb_support_portal' ) || shortcode_exists( 'themisdb_login' );
+}
+
+/**
+ * Check if current page already contains plugin-owned login/support shortcodes.
+ *
+ * @return bool
+ */
+function themisdb_v3_current_page_uses_plugin_login_ui() {
+    if ( ! is_singular() ) {
+        return false;
+    }
+
+    global $post;
+    if ( ! ( $post instanceof WP_Post ) ) {
+        return false;
+    }
+
+    $content = (string) $post->post_content;
+    if ( '' === $content ) {
+        return false;
+    }
+
+    foreach ( array( 'themisdb_support_portal', 'themisdb_support_login', 'themisdb_support_hub', 'themisdb_login' ) as $tag ) {
+        if ( shortcode_exists( $tag ) && has_shortcode( $content, $tag ) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Return true when /support should render the plugin portal via theme bridge.
+ *
+ * @return bool
+ */
+function themisdb_v3_is_support_page_bridge() {
+    return shortcode_exists( 'themisdb_support_portal' ) && is_page( 'support' );
+}
+
+add_filter( 'the_content', 'themisdb_v3_inject_support_portal_on_support_page', 30 );
+/**
+ * Inject support portal on /support when editor content has no portal shortcode.
+ *
+ * @param string $content Original content.
+ * @return string
+ */
+function themisdb_v3_inject_support_portal_on_support_page( $content ) {
+    $content = (string) $content;
+    if ( is_admin() || ! themisdb_v3_is_support_page_bridge() ) {
+        return $content;
+    }
+
+    if ( shortcode_exists( 'themisdb_support_portal' ) && ( has_shortcode( $content, 'themisdb_support_portal' ) || has_shortcode( $content, 'themisdb_support_hub' ) ) ) {
+        return $content;
+    }
+
+    return $content . "\n\n" . do_shortcode( '[themisdb_support_portal]' );
+}
+
+add_action( 'wp_footer', 'themisdb_v3_render_plugin_login_overlay', 40 );
+/**
+ * Render global login overlay driven by support/order plugin shortcodes.
+ */
+function themisdb_v3_render_plugin_login_overlay() {
+    if ( is_admin() || ! themisdb_v3_has_plugin_login_overlay() ) {
+        return;
+    }
+
+    $has_support_portal = shortcode_exists( 'themisdb_support_portal' );
+    $has_order_login    = shortcode_exists( 'themisdb_login' );
+    $active_panel       = $has_support_portal ? 'support' : 'order';
+
+    echo '<div class="tv3-login-overlay" id="tv3-login-overlay" hidden aria-hidden="true">';
+    echo '<div class="tv3-login-overlay__backdrop" data-tv3-login-close></div>';
+    echo '<div class="tv3-login-overlay__dialog" role="dialog" aria-modal="true" aria-label="' . esc_attr__( 'Anmeldung', 'themisdb-v3' ) . '">';
+    echo '<button type="button" class="tv3-login-overlay__close" data-tv3-login-close aria-label="' . esc_attr__( 'Schliessen', 'themisdb-v3' ) . '">x</button>';
+
+    if ( $has_support_portal && $has_order_login ) {
+        echo '<div class="tv3-login-overlay__tabs" role="tablist" aria-label="' . esc_attr__( 'Login-Anbieter', 'themisdb-v3' ) . '">';
+        echo '<button type="button" class="tv3-login-overlay__tab is-active" role="tab" data-tv3-login-tab="support" aria-selected="true">' . esc_html__( 'Support-Portal', 'themisdb-v3' ) . '</button>';
+        echo '<button type="button" class="tv3-login-overlay__tab" role="tab" data-tv3-login-tab="order" aria-selected="false">' . esc_html__( 'Kundenkonto', 'themisdb-v3' ) . '</button>';
+        echo '</div>';
+    }
+
+    echo '<div class="tv3-login-overlay__panels">';
+
+    if ( $has_support_portal ) {
+        echo '<section class="tv3-login-overlay__panel' . ( 'support' === $active_panel ? ' is-active' : '' ) . '" data-tv3-login-panel="support">';
+        echo do_shortcode( '[themisdb_support_portal]' );
+        echo '</section>';
+    }
+
+    if ( $has_order_login ) {
+        echo '<section class="tv3-login-overlay__panel' . ( ( ! $has_support_portal && 'order' === $active_panel ) ? ' is-active' : '' ) . '" data-tv3-login-panel="order">';
+        echo '<script>window.themisdbOrder = window.themisdbOrder || { ajaxUrl: ' . wp_json_encode( admin_url( 'admin-ajax.php' ) ) . ' };</script>';
+        echo do_shortcode( '[themisdb_login]' );
+        echo '</section>';
+    }
+
+    echo '</div>';
+    echo '</div>';
+    echo '</div>';
 }
 
 add_filter( 'body_class', 'themisdb_v3_apply_color_scheme_body_class' );

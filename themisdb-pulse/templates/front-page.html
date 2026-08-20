@@ -1,14 +1,16 @@
 <!-- wp:template-part {"slug":"header","tagName":"header","area":"header"} /-->
 
-<!-- wp:template-part {"slug":"breadcrumbs","area":"uncategorized","tagName":"nav","className":"tv3-breadcrumbs-frontpage"} /-->
+<!-- wp:template-part {"slug":"announcement-bar","area":"uncategorized","tagName":"div","className":"tv3-announcement-slot"} /-->
 
 <!-- wp:group {"align":"full","className":"tv3-hero-slider-shell","layout":{"type":"default"}} -->
 <div class="wp-block-group alignfull tv3-hero-slider-shell">
 <!-- wp:shortcode -->
-[themisdb_front_slider posts="5" interval="6500" autoplay="1" excerpt="1" date="1" cat_label="1" img_size="large" layout_preset="standard" hero_label="hero"]
+[themisdb_front_slider posts="5" interval="6500" autoplay="1" excerpt="1" date="1" cat_label="1" img_size="large" layout_preset="standard" hero_label="hero" respect_reduced_motion="0"]
 <!-- /wp:shortcode -->
 </div>
 <!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"breadcrumbs","area":"uncategorized","tagName":"nav","className":"tv3-breadcrumbs-frontpage"} /-->
 
 <!-- wp:group {"tagName":"main","anchor":"wp--skip-link--target","className":"site-main tv3-front-main tv3-layout-editorial","layout":{"type":"constrained","contentSize":"1200px"},"style":{"spacing":{"padding":{"top":"var:preset|spacing|8","bottom":"var:preset|spacing|12"}}}} -->
 <main id="wp--skip-link--target" class="wp-block-group site-main tv3-front-main tv3-layout-editorial">
@@ -41,39 +43,25 @@
 
 <!-- wp:pattern {"slug":"themisdb-v3/cta-download"} /-->
 
-<!-- wp:group {"align":"wide","className":"tv3-front-discovery","layout":{"type":"constrained"}} -->
-<div class="wp-block-group alignwide tv3-front-discovery">
-<!-- wp:heading {"level":2,"fontSize":"2xl"} -->
-<h2 class="wp-block-heading has-2-xl-font-size">Blog</h2>
-<!-- /wp:heading -->
+<!-- wp:group {"style":{"color":{"background":"#ffffff"},"spacing":{"padding":{"top":"var:preset|spacing|20","bottom":"var:preset|spacing|20"}}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
+<div class="wp-block-group tv3-docs-grid-section tv3-blog-grid-section">
 
-<!-- wp:paragraph -->
-<p>Kuratierte Blog-Beiträge aus der Kategorie <strong>Blog</strong> mit Suche, Filtern, Sortierung und dynamischem Nachladen.</p>
+<!-- wp:paragraph {"align":"center","className":"tv3-docs-grid-kicker-wrap"} -->
+<p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker">Blog</span></p>
 <!-- /wp:paragraph -->
 
-<!-- wp:columns {"verticalAlignment":"top","className":"tv3-front-discovery-layout"} -->
-<div class="wp-block-columns are-vertically-aligned-top tv3-front-discovery-layout">
-<!-- wp:column {"className":"tv3-front-discovery-primary"} -->
-<div class="wp-block-column tv3-front-discovery-primary">
-
-<!-- wp:themisdb/mixed-cards {"limit":9,"category":"blog","postType":"post"} /-->
-
-</div>
-<!-- /wp:column -->
-
-<!-- wp:column {"className":"tv3-front-discovery-aside"} -->
-<div class="wp-block-column tv3-front-discovery-aside">
-<!-- wp:heading {"level":3,"fontSize":"lg"} -->
-<h3 class="wp-block-heading has-lg-font-size">Schnellzugriff</h3>
+<!-- wp:heading {"level":2,"textAlign":"center","style":{"typography":{"fontSize":"clamp(1.75rem,3.5vw,2.75rem)","fontWeight":"700","letterSpacing":"-0.03em"},"color":{"text":"#12202f"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
+<h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title">Aktuelle Blog-Beiträge</h2>
 <!-- /wp:heading -->
 
-<!-- wp:list {"className":"tv3-front-discovery-links"} -->
-<ul class="wp-block-list tv3-front-discovery-links"><li><a href="/docs/getting-started">Getting Started</a></li><li><a href="/docs/api">API Reference</a></li><li><a href="/benchmarks">Benchmarks</a></li><li><a href="/category/themisdb-doku">Dokumentation</a></li><li><a href="/tag/release">Release Notes</a></li></ul>
-<!-- /wp:list -->
-</div>
-<!-- /wp:column -->
-</div>
-<!-- /wp:columns -->
+<!-- wp:paragraph {"textAlign":"center","style":{"typography":{"fontSize":"1.0625rem"},"color":{"text":"#6c7f96"},"spacing":{"margin":{"bottom":"var:preset|spacing|12"}}}} -->
+<p class="has-text-align-center tv3-docs-grid-subtitle">Die letzten 9 Artikel als Kartenansicht. Lesenswerte Beiträge werden hervorgehoben.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:shortcode -->
+[themisdb_v3_blog_cards limit="9" post_types="post" category="blog" priority_tag="lesenswert,recommended,editor-pick,hero" excerpt_words="24"]
+<!-- /wp:shortcode -->
+
 </div>
 <!-- /wp:group -->
 

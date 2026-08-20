@@ -38,7 +38,8 @@
         var current     = 0;
         var interval    = parseInt(wrapper.getAttribute('data-interval'), 10) || 5000;
         var autoplay    = wrapper.getAttribute('data-autoplay') !== '0';
-        var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var respectReduced = wrapper.getAttribute('data-respect-reduced-motion') !== '0';
+        var prefersReduced = respectReduced && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         var timerID        = null;
         var timerStartedAt = null;
@@ -49,6 +50,9 @@
 
         if (prefersReduced) {
             wrapper.classList.add('is-reduced-motion');
+            autoplay = false;
+        } else {
+            wrapper.classList.remove('is-reduced-motion');
         }
 
         function assignSlideImageEffects() {

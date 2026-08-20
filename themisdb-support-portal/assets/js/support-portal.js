@@ -272,4 +272,32 @@
         });
     });
 
+    // -------------------------------------------------------------------------
+    // Dashboard tabs
+    // -------------------------------------------------------------------------
+
+    $(document).on('click', '[data-themisdb-dashboard-tab]', function () {
+        var $tab = $(this);
+        var $tabs = $tab.closest('[data-themisdb-dashboard-tabs]');
+        var target = $tab.data('themisdb-dashboard-tab');
+
+        if (!$tabs.length || !target) {
+            return;
+        }
+
+        $tabs.find('[data-themisdb-dashboard-tab]').each(function () {
+            var $button = $(this);
+            var isActive = $button.is($tab);
+            $button.toggleClass('tv3-feature-tabs__link--active', isActive);
+            $button.attr('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        $tabs.find('.tv3-feature-tabs__panel').each(function () {
+            var $panel = $(this);
+            var isTarget = $panel.attr('id') === 'themisdb-dashboard-panel-' + target;
+            $panel.toggleClass('tv3-feature-tabs__panel--hidden', !isTarget);
+            $panel.attr('hidden', isTarget ? null : 'hidden');
+        });
+    });
+
 }(jQuery));

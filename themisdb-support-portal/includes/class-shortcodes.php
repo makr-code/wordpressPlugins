@@ -29,6 +29,7 @@ class ThemisDB_Support_Shortcodes {
     public function __construct() {
         add_shortcode('themisdb_support_portal', array($this, 'portal_shortcode'));
         add_shortcode('themisdb_support_login',  array($this, 'login_shortcode'));
+        add_shortcode('themisdb_support_hub',     array($this, 'hub_shortcode'));
 
         // AJAX handler for new ticket submission
         add_action('wp_ajax_themisdb_support_new_ticket',        array($this, 'handle_new_ticket'));
@@ -46,6 +47,9 @@ class ThemisDB_Support_Shortcodes {
 
         // Unified customer cockpit (ARCHITECTUR.md §8.5)
         add_shortcode('themisdb_cockpit', array($this, 'cockpit_shortcode'));
+
+        add_filter('themisdb_v3_hero_context_links', array($this, 'filter_hub_context_links'), 10, 2);
+        add_filter('themisdb_v3_support_splitbutton_items', array($this, 'filter_support_splitbutton_items'), 10, 1);
     }
 
     /**
@@ -77,6 +81,170 @@ class ThemisDB_Support_Shortcodes {
         return apply_filters($shortcode_tag . '_shortcode_html_output', (string) $html, $payload, $atts);
     }
 
+    /**
+     * Central access policy for the customer hub.
+     *
+     * @return array<string,array<string,mixed>>
+     */
+    private function get_hub_access_policy() {
+        $is_authenticated = ThemisDB_Support_License_Auth::current_user_has_license();
+        $can_manage = current_user_can('manage_options');
+        $is_logged_in = is_user_logged_in();
+
+        $policy = array(
+            'support' => array(
+                'label' => __('Support', 'themisdb-support-portal'),
+                'visible' => $is_authenticated || $can_manage,
+                'priority' => 10,
+            ),
+            'licenses' => array(
+                'label' => __('Lizenzen', 'themisdb-support-portal'),
+                'visible' => $is_logged_in || $can_manage,
+                'priority' => 20,
+            ),
+            'orders' => array(
+                'label' => __('Aufträge', 'themisdb-support-portal'),
+                'visible' => $is_logged_in || $can_manage,
+                'priority' => 30,
+            ),
+            'b2b' => array(
+                'label' => __('B2B', 'themisdb-support-portal'),
+                'visible' => $can_manage || $is_logged_in,
+                'priority' => 40,
+            ),
+            'admin' => array(
+                'label' => __('Administration', 'themisdb-support-portal'),
+                'visible' => $can_manage,
+                'priority' => 50,
+            ),
+        );
+
+        return apply_filters('themisdb_support_hub_access_policy', $policy, $is_authenticated, $can_manage, $is_logged_in);
+    }
+
+    /**
+     * Return the ordered list of visible hub areas.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private function get_visible_hub_areas() {
+        $policy = $this->get_hub_access_policy();
+        $areas = array();
+
+        foreach ($policy as $area_key => $config) {
+            if (empty($config['visible'])) {
+                continue;
+            }
+
+            $areas[] = array_merge(array('key' => $area_key), $config);
+        }
+
+        usort($areas, static function ($left, $right) {
+            return intval($left['priority'] ?? 0) <=> intval($right['priority'] ?? 0);
+        });
+
+        return $areas;
+    }
+
+    /**
+     * Return a stable anchor for a hub area.
+     *
+     * @param string $area_key Area key.
+     * @return string
+     */
+    private function get_hub_area_anchor($area_key) {
+        $area_key = sanitize_key((string) $area_key);
+        if ($area_key === '') {
+            return 'themisdb-hub';
+        }
+
+        return 'themisdb-hub-' . $area_key;
+    }
+
+    /**
+     * Build localized breadcrumb targets for the hub.
+     *
+     * @param array<int,array<string,mixed>> $links Existing links.
+     * @param int                           $limit Maximum count.
+     * @return array<int,array<string,mixed>>
+     */
+    public function filter_hub_context_links( $links, $limit = 8 ) {
+        if ( ! $this->is_support_hub_context() ) {
+            return $links;
+        }
+
+        $visible_areas = $this->get_visible_hub_areas();
+        $hub_links     = array();
+
+        foreach ( $visible_areas as $area ) {
+            $area_key = isset( $area['key'] ) ? (string) $area['key'] : '';
+            $label    = isset( $area['label'] ) ? (string) $area['label'] : $area_key;
+            if ( '' === $area_key || '' === $label ) {
+                continue;
+            }
+
+            $hub_links[] = array(
+                'label'      => $label,
+                'url'        => '#' . $this->get_hub_area_anchor( $area_key ),
+                'is_current' => false,
+            );
+        }
+
+        return array_slice( $hub_links, 0, max( 1, (int) $limit ) );
+    }
+
+    /**
+     * Extend the support splitbutton with local hub anchors.
+     *
+     * @param array<int,array<string,string>> $items Existing menu items.
+     * @return array<int,array<string,string>>
+     */
+    public function filter_support_splitbutton_items( $items ) {
+        if ( ! $this->is_support_hub_context() ) {
+            return $items;
+        }
+
+        $items = is_array( $items ) ? $items : array();
+        $hub_items = array();
+
+        foreach ( $this->get_visible_hub_areas() as $area ) {
+            $area_key = isset( $area['key'] ) ? (string) $area['key'] : '';
+            $label    = isset( $area['label'] ) ? (string) $area['label'] : $area_key;
+            if ( '' === $area_key || '' === $label ) {
+                continue;
+            }
+
+            $hub_items[] = array(
+                'title' => $label,
+                'url'   => '#' . $this->get_hub_area_anchor( $area_key ),
+            );
+        }
+
+        return array_merge( $hub_items, $items );
+    }
+
+    /**
+     * Whether the current request is rendering the support hub.
+     *
+     * @return bool
+     */
+    private function is_support_hub_context() {
+        if ( ! is_singular( 'page' ) ) {
+            return false;
+        }
+
+        global $post;
+        if ( ! ( $post instanceof WP_Post ) ) {
+            return false;
+        }
+
+        if ( 'support' !== sanitize_title( (string) $post->post_name ) ) {
+            return false;
+        }
+
+        return has_shortcode( (string) $post->post_content, 'themisdb_support_hub' );
+    }
+
     // -------------------------------------------------------------------------
     // Shortcodes
     // -------------------------------------------------------------------------
@@ -89,8 +257,10 @@ class ThemisDB_Support_Shortcodes {
      */
     public function portal_shortcode($atts) {
         list($atts, $payload) = $this->prepare_shortcode_context('themisdb_support_portal', $atts, array());
+        $customer_context = $this->get_current_customer_context();
         $payload = array_merge($payload, array(
             'has_license' => ThemisDB_Support_License_Auth::current_user_has_license(),
+            'customer_context' => $customer_context,
         ));
 
         if (!$payload['has_license']) {
@@ -104,16 +274,18 @@ class ThemisDB_Support_Shortcodes {
             return $this->finalize_shortcode_html('themisdb_support_portal', $this->render_login_form(), $payload, $atts);
         }
 
-        $user = wp_get_current_user();
-        $tickets = ThemisDB_SupportPortal_Ticket_Manager::get_user_tickets($user->ID);
-        $license_info = $this->get_current_user_license_info($user->ID);
-        $support_benefit_info = $this->get_current_user_support_benefit_info($user->ID);
+        $customer_context = $this->get_current_customer_context();
+        $tickets = $this->get_current_customer_tickets($customer_context);
+        $license_info = $this->get_current_user_license_info($customer_context);
+        $support_benefit_info = $this->get_current_user_support_benefit_info($customer_context);
+        $display_name = $this->get_current_customer_display_name($customer_context);
         $payload = array_merge($payload, array(
-            'user_id' => $user->ID,
+            'user_id' => !empty($customer_context['user_id']) ? (int) $customer_context['user_id'] : 0,
             'tickets' => $tickets,
             'ticket_count' => is_array($tickets) ? count($tickets) : 0,
             'license_info' => $license_info,
             'support_benefit_info' => $support_benefit_info,
+            'display_name' => $display_name,
         ));
         $payload = apply_filters('themisdb_support_portal_shortcode_payload', $payload, $atts);
         $override_html = $this->resolve_shortcode_html_override('themisdb_support_portal', $payload, $atts);
@@ -163,6 +335,246 @@ class ThemisDB_Support_Shortcodes {
         return $this->finalize_shortcode_html('themisdb_support_login', $this->render_login_form(), $payload, $atts);
     }
 
+    /**
+     * Unified hub that combines support, login, and order-request entry points.
+     *
+     * @param array $atts Shortcode attributes.
+     * @return string
+     */
+    public function hub_shortcode($atts) {
+        list($atts, $payload) = $this->prepare_shortcode_context('themisdb_support_hub', $atts, array());
+
+        $is_authenticated = ThemisDB_Support_License_Auth::current_user_has_license();
+        $can_manage = current_user_can('manage_options');
+        $policy = $this->get_hub_access_policy();
+        $visible_areas = $this->get_visible_hub_areas();
+        $customer_context = $this->get_current_customer_context();
+        $license_info = $this->get_current_user_license_info($customer_context);
+        $support_benefit_info = $this->get_current_user_support_benefit_info($customer_context);
+        $status_summary = array();
+
+        if (class_exists('ThemisDB_Status_Resolver')) {
+            $status_summary = ThemisDB_Status_Resolver::for_context($customer_context);
+        }
+
+        $can_view_support = !empty($policy['support']['visible']);
+        $can_view_orders = !empty($policy['orders']['visible']);
+        $can_view_license_portal = !empty($policy['licenses']['visible']);
+        $can_view_b2b = !empty($policy['b2b']['visible']);
+        $payload = array_merge($payload, array(
+            'is_authenticated' => $is_authenticated,
+            'can_manage' => $can_manage,
+            'access_policy' => $policy,
+            'visible_areas' => $visible_areas,
+            'can_view_support' => $can_view_support,
+            'can_view_orders' => $can_view_orders,
+            'can_view_license_portal' => $can_view_license_portal,
+            'can_view_b2b' => $can_view_b2b,
+            'has_support_login' => shortcode_exists('themisdb_support_login'),
+            'has_order_login' => shortcode_exists('themisdb_login'),
+            'has_license_portal' => shortcode_exists('themisdb_license_portal'),
+            'has_order_flow' => shortcode_exists('themisdb_order_flow'),
+            'has_my_orders' => shortcode_exists('themisdb_my_orders'),
+            'has_my_contracts' => shortcode_exists('themisdb_my_contracts'),
+            'has_b2b_portal' => shortcode_exists('themisdb_b2b_portal'),
+        ));
+
+        $payload = apply_filters('themisdb_support_hub_shortcode_payload', $payload, $atts);
+        $override_html = $this->resolve_shortcode_html_override('themisdb_support_hub', $payload, $atts);
+        if (null !== $override_html) {
+            return $override_html;
+        }
+
+        $tabs = array(
+            array('key' => 'overview', 'label' => __('Übersicht', 'themisdb-support-portal'), 'visible' => true),
+            array('key' => 'support', 'label' => __('Support', 'themisdb-support-portal'), 'visible' => $can_view_support),
+            array('key' => 'licenses', 'label' => __('Lizenzen', 'themisdb-support-portal'), 'visible' => $can_view_license_portal),
+            array('key' => 'orders', 'label' => __('Aufträge', 'themisdb-support-portal'), 'visible' => $can_view_orders),
+            array('key' => 'b2b', 'label' => __('B2B', 'themisdb-support-portal'), 'visible' => $can_view_b2b),
+            array('key' => 'admin', 'label' => __('Administration', 'themisdb-support-portal'), 'visible' => $can_manage),
+        );
+        $visible_tabs = array_values(array_filter($tabs, static function ($tab) {
+            return !empty($tab['visible']);
+        }));
+        $default_tab = !empty($visible_tabs[0]['key']) ? $visible_tabs[0]['key'] : 'overview';
+        ?>
+        <div class="themisdb-support-hub-wrap">
+            <div class="themisdb-support-hub-breadcrumbs">
+                <div class="wp-block-group alignfull tv3-breadcrumbs-shell" data-tv3-breadcrumbs-shell="true">
+                    <div class="tv3-breadcrumbs-inner" data-tv3-breadcrumbs-inner="true">
+                        <?php echo do_shortcode('[themisdb_v3_breadcrumbs]'); ?>
+                        <?php echo do_shortcode('[themisdb_v3_hero_context_nav limit="8"]'); ?>
+                    </div>
+                </div>
+            </div>
+
+            <article class="tv3-feature-tabs themisdb-support-hub-tabs" data-themisdb-dashboard-tabs>
+                <div class="themisdb-support-hub-tabs__toolbar tv3-card-toolbar-row">
+                    <div class="wp-block-buttons">
+                        <div class="wp-block-button">
+                            <a class="wp-block-button__link wp-element-button" href="#themisdb-support-hub-tab-overview"><?php esc_html_e('Übersicht', 'themisdb-support-portal'); ?></a>
+                        </div>
+                        <?php foreach ($visible_tabs as $tab) : ?>
+                            <?php if ('overview' === $tab['key']) { continue; } ?>
+                            <div class="wp-block-button">
+                                <a class="wp-block-button__link wp-element-button" href="#themisdb-support-hub-tab-<?php echo esc_attr($tab['key']); ?>"><?php echo esc_html($tab['label']); ?></a>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <div class="themisdb-support-hub-tabs__tabs">
+                    <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-support-hub-tab-radio-overview"<?php checked($default_tab, 'overview'); ?> />
+                    <?php foreach ($visible_tabs as $tab) : ?>
+                        <?php if ('overview' === $tab['key']) { continue; } ?>
+                        <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-support-hub-tab-radio-<?php echo esc_attr($tab['key']); ?>"<?php checked($default_tab, $tab['key']); ?> />
+                    <?php endforeach; ?>
+
+                    <nav class="tv3-feature-tabs__nav" role="tablist" aria-label="<?php echo esc_attr__('Support-Bereiche', 'themisdb-support-portal'); ?>">
+                        <label id="themisdb-support-hub-tab-overview" class="tv3-feature-tabs__link" role="tab" aria-selected="<?php echo esc_attr('overview' === $default_tab ? 'true' : 'false'); ?>" aria-controls="themisdb-support-hub-panel-overview" for="themisdb-support-hub-tab-radio-overview"><?php esc_html_e('Übersicht', 'themisdb-support-portal'); ?></label>
+                        <?php foreach ($visible_tabs as $tab) : ?>
+                            <?php if ('overview' === $tab['key']) { continue; } ?>
+                            <label id="themisdb-support-hub-tab-<?php echo esc_attr($tab['key']); ?>" class="tv3-feature-tabs__link" role="tab" aria-selected="false" aria-controls="themisdb-support-hub-panel-<?php echo esc_attr($tab['key']); ?>" for="themisdb-support-hub-tab-radio-<?php echo esc_attr($tab['key']); ?>"><?php echo esc_html($tab['label']); ?></label>
+                        <?php endforeach; ?>
+                    </nav>
+
+                    <div class="themisdb-support-hub-tabs__panels">
+                        <section class="tv3-feature-tabs__panel" role="tabpanel" tabindex="0" aria-labelledby="themisdb-support-hub-tab-overview" id="themisdb-support-hub-panel-overview">
+                            <div class="tv3-feature-tabs__layout">
+                                <div>
+                                    <h2 class="tv3-feature-tabs__h3"><?php esc_html_e('Kundenüberblick', 'themisdb-support-portal'); ?></h2>
+                                    <p class="tv3-feature-tabs__text"><?php esc_html_e('Erste Grundstruktur: Profil, Status und direkte Sprünge in die Fachbereiche.', 'themisdb-support-portal'); ?></p>
+                                    <div class="tv3-feature-tabs__list">
+                                        <?php if (!empty($visible_areas)) : ?>
+                                            <?php foreach (array_slice($visible_areas, 0, 4) as $area) : ?>
+                                                <div class="tv3-feature-tabs__list-item">
+                                                    <span class="tv3-feature-tabs__check">•</span>
+                                                    <span><?php echo esc_html($area['label']); ?></span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <div class="tv3-feature-tabs__benchmark-box">
+                                    <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Account-Profil', 'themisdb-support-portal'); ?></div>
+                                    <?php echo $this->render_hub_profile_card($customer_context, $license_info, $support_benefit_info, $status_summary, $is_authenticated); ?>
+                                </div>
+                            </div>
+                        </section>
+
+                        <?php if ($can_view_support) : ?>
+                            <section class="tv3-feature-tabs__panel tv3-feature-tabs__panel--hidden" role="tabpanel" tabindex="0" aria-labelledby="themisdb-support-hub-tab-support" id="themisdb-support-hub-panel-support" hidden>
+                                <div class="tv3-feature-tabs__layout">
+                                    <div>
+                                        <h2 class="tv3-feature-tabs__h3"><?php esc_html_e('Support', 'themisdb-support-portal'); ?></h2>
+                                        <p class="tv3-feature-tabs__text"><?php esc_html_e('Grundstruktur für den Support-Bereich.', 'themisdb-support-portal'); ?></p>
+                                    </div>
+                                    <div class="tv3-feature-tabs__benchmark-box">
+                                        <?php echo do_shortcode('[themisdb_support_portal]'); ?>
+                                    </div>
+                                </div>
+                            </section>
+                        <?php endif; ?>
+
+                        <?php if ($can_view_license_portal && shortcode_exists('themisdb_license_portal')) : ?>
+                            <section class="tv3-feature-tabs__panel tv3-feature-tabs__panel--hidden" role="tabpanel" tabindex="0" aria-labelledby="themisdb-support-hub-tab-licenses" id="themisdb-support-hub-panel-licenses" hidden>
+                                <div class="tv3-feature-tabs__layout">
+                                    <div>
+                                        <h2 class="tv3-feature-tabs__h3"><?php esc_html_e('Lizenzen', 'themisdb-support-portal'); ?></h2>
+                                        <p class="tv3-feature-tabs__text"><?php esc_html_e('Grundstruktur für die Lizenzverwaltung.', 'themisdb-support-portal'); ?></p>
+                                    </div>
+                                    <div class="tv3-feature-tabs__benchmark-box">
+                                        <?php echo do_shortcode('[themisdb_license_portal]'); ?>
+                                    </div>
+                                </div>
+                            </section>
+                        <?php endif; ?>
+
+                        <?php if ($can_view_orders && (shortcode_exists('themisdb_order_flow') || shortcode_exists('themisdb_my_orders') || shortcode_exists('themisdb_my_contracts'))) : ?>
+                            <section class="tv3-feature-tabs__panel tv3-feature-tabs__panel--hidden" role="tabpanel" tabindex="0" aria-labelledby="themisdb-support-hub-tab-orders" id="themisdb-support-hub-panel-orders" hidden>
+                                <div class="tv3-feature-tabs__layout">
+                                    <div>
+                                        <h2 class="tv3-feature-tabs__h3"><?php esc_html_e('Aufträge', 'themisdb-support-portal'); ?></h2>
+                                        <p class="tv3-feature-tabs__text"><?php esc_html_e('Neue Aufträge und bestehende Vorgänge in einer klaren Tab-Struktur.', 'themisdb-support-portal'); ?></p>
+                                    </div>
+                                    <div class="tv3-feature-tabs__benchmark-box">
+                                        <div class="wp-block-buttons">
+                                            <?php if (shortcode_exists('themisdb_order_flow')) : ?>
+                                                <div class="wp-block-button">
+                                                    <button type="button" class="wp-block-button__link wp-element-button themisdb-hub-open-order-overlay" data-themisdb-open-order-overlay><?php esc_html_e('Neuer Auftrag', 'themisdb-support-portal'); ?></button>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="themisdb-support-hub-stack">
+                                            <?php
+                                            if (shortcode_exists('themisdb_my_orders')) {
+                                                echo do_shortcode('[themisdb_my_orders]');
+                                            }
+                                            if (shortcode_exists('themisdb_my_contracts')) {
+                                                echo do_shortcode('[themisdb_my_contracts]');
+                                            }
+                                            ?>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <?php if (shortcode_exists('themisdb_order_flow')) : ?>
+                                    <div class="themisdb-support-modal themisdb-order-overlay" id="themisdb-order-overlay" hidden aria-hidden="true">
+                                        <div class="themisdb-support-modal-backdrop" data-themisdb-close-order-overlay></div>
+                                        <div class="themisdb-support-modal-content themisdb-order-overlay-content" role="dialog" aria-modal="true" aria-label="<?php echo esc_attr__('Neuer Auftrag', 'themisdb-support-portal'); ?>">
+                                            <button type="button" class="themisdb-support-modal-close" data-themisdb-close-order-overlay aria-label="<?php esc_attr_e('Schliessen', 'themisdb-support-portal'); ?>">&times;</button>
+                                            <h2><?php esc_html_e('Neuer Auftrag', 'themisdb-support-portal'); ?></h2>
+                                            <?php echo do_shortcode('[themisdb_order_flow]'); ?>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                            </section>
+                        <?php endif; ?>
+
+                        <?php if ($can_view_b2b && shortcode_exists('themisdb_b2b_portal')) : ?>
+                            <section class="tv3-feature-tabs__panel tv3-feature-tabs__panel--hidden" role="tabpanel" tabindex="0" aria-labelledby="themisdb-support-hub-tab-b2b" id="themisdb-support-hub-panel-b2b" hidden>
+                                <div class="tv3-feature-tabs__layout">
+                                    <div>
+                                        <h2 class="tv3-feature-tabs__h3"><?php esc_html_e('B2B', 'themisdb-support-portal'); ?></h2>
+                                        <p class="tv3-feature-tabs__text"><?php esc_html_e('Grundstruktur für das B2B-Portal.', 'themisdb-support-portal'); ?></p>
+                                    </div>
+                                    <div class="tv3-feature-tabs__benchmark-box">
+                                        <?php echo do_shortcode('[themisdb_b2b_portal]'); ?>
+                                    </div>
+                                </div>
+                            </section>
+                        <?php endif; ?>
+
+                        <?php if ($can_manage) : ?>
+                            <section class="tv3-feature-tabs__panel tv3-feature-tabs__panel--hidden" role="tabpanel" tabindex="0" aria-labelledby="themisdb-support-hub-tab-admin" id="themisdb-support-hub-panel-admin" hidden>
+                                <div class="tv3-feature-tabs__layout">
+                                    <div>
+                                        <h2 class="tv3-feature-tabs__h3"><?php esc_html_e('Administration', 'themisdb-support-portal'); ?></h2>
+                                        <p class="tv3-feature-tabs__text"><?php esc_html_e('Klarer Einstieg in die Verwaltungsfunktionen.', 'themisdb-support-portal'); ?></p>
+                                    </div>
+                                    <div class="tv3-feature-tabs__benchmark-box">
+                                        <div class="wp-block-buttons">
+                                            <div class="wp-block-button">
+                                                <a class="wp-block-button__link wp-element-button" href="<?php echo esc_url(admin_url('index.php')); ?>"><?php esc_html_e('WordPress-Dashboard öffnen', 'themisdb-support-portal'); ?></a>
+                                            </div>
+                                            <div class="wp-block-button">
+                                                <a class="wp-block-button__link wp-element-button" href="<?php echo esc_url(admin_url('plugins.php')); ?>"><?php esc_html_e('Plugins verwalten', 'themisdb-support-portal'); ?></a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </article>
+        <?php
+
+        $html = ob_get_clean();
+        return $this->finalize_shortcode_html('themisdb_support_hub', $html, $payload, $atts);
+    }
+
     // -------------------------------------------------------------------------
     // AJAX Handlers
     // -------------------------------------------------------------------------
@@ -189,12 +601,12 @@ class ThemisDB_Support_Shortcodes {
             ));
         }
 
-        $user         = wp_get_current_user();
-        $license_key  = get_user_meta($user->ID, 'themisdb_support_license_key', true);
+        $customer_context = $this->get_current_customer_context();
+        $license_key  = $this->get_current_customer_license_key($customer_context);
 
         // Try to get the license key from the order-request plugin as well
-        if (empty($license_key) && class_exists('ThemisDB_License_Manager')) {
-            $license_id = get_user_meta($user->ID, 'themisdb_license_id', true);
+        if (empty($license_key) && class_exists('ThemisDB_License_Manager') && !empty($customer_context['user_id'])) {
+            $license_id = get_user_meta((int) $customer_context['user_id'], 'themisdb_license_id', true);
             if ($license_id) {
                 $license = ThemisDB_License_Manager::get_license(intval($license_id));
                 if ($license) {
@@ -203,17 +615,18 @@ class ThemisDB_Support_Shortcodes {
             }
         }
 
-        $company = get_user_meta($user->ID, 'company', true) ?: '';
+        $company = $this->get_current_customer_company($customer_context);
 
         $ticket_id = ThemisDB_SupportPortal_Ticket_Manager::create_ticket(array(
             'subject'          => $subject,
             'message'          => $message,
             'priority'         => $priority,
-            'customer_name'    => $user->display_name,
-            'customer_email'   => $user->user_email,
+            'customer_name'    => $this->get_current_customer_display_name($customer_context),
+            'customer_email'   => $this->get_current_customer_email($customer_context),
             'customer_company' => $company,
             'license_key'      => $license_key,
-            'user_id'          => $user->ID,
+            'customer_account_id' => !empty($customer_context['customer_account_id']) ? (int) $customer_context['customer_account_id'] : null,
+            'user_id'          => !empty($customer_context['user_id']) ? (int) $customer_context['user_id'] : null,
         ));
 
         if (!$ticket_id) {
@@ -256,13 +669,14 @@ class ThemisDB_Support_Shortcodes {
 
         $ticket_id = isset($_POST['ticket_id']) ? intval($_POST['ticket_id']) : 0;
         $ticket    = ThemisDB_SupportPortal_Ticket_Manager::get_ticket($ticket_id);
+        $customer_context = $this->get_current_customer_context();
 
         if (!$ticket) {
             wp_send_json_error(array('message' => __('Ticket nicht gefunden', 'themisdb-support-portal')));
         }
 
-        // Non-admin users may only view their own tickets
-        if (!current_user_can('manage_options') && intval($ticket['user_id']) !== get_current_user_id()) {
+        // Non-admin users may only view their own tickets or their own customer-account tickets.
+        if (!current_user_can('manage_options') && !$this->current_customer_owns_ticket($ticket, $customer_context)) {
             wp_send_json_error(array('message' => __('Zugriff verweigert', 'themisdb-support-portal')));
         }
 
@@ -342,15 +756,16 @@ class ThemisDB_Support_Shortcodes {
      * @return string
      */
     private function render_portal() {
-        $user    = wp_get_current_user();
-        $tickets = ThemisDB_SupportPortal_Ticket_Manager::get_user_tickets($user->ID);
+        $customer_context = $this->get_current_customer_context();
+        $tickets = $this->get_current_customer_tickets($customer_context);
 
         $status_labels   = ThemisDB_SupportPortal_Ticket_Manager::get_status_labels();
         $priority_labels = ThemisDB_SupportPortal_Ticket_Manager::get_priority_labels();
 
         // Retrieve license info for display
-        $license_info = $this->get_current_user_license_info($user->ID);
-        $support_benefit_info = $this->get_current_user_support_benefit_info($user->ID);
+        $license_info = $this->get_current_user_license_info($customer_context);
+        $support_benefit_info = $this->get_current_user_support_benefit_info($customer_context);
+        $display_name = $this->get_current_customer_display_name($customer_context);
 
         $new_ticket_allowed = true;
         $limit_reason = '';
@@ -378,7 +793,7 @@ class ThemisDB_Support_Shortcodes {
                             <?php echo esc_html(strtoupper($license_info['edition'])); ?>
                         </span>
                     <?php endif; ?>
-                    <span class="themisdb-support-user-name"><?php echo esc_html($user->display_name); ?></span>
+                    <span class="themisdb-support-user-name"><?php echo esc_html($display_name); ?></span>
                     <a href="#" id="themisdb-support-logout-btn" class="themisdb-support-btn themisdb-support-btn-secondary themisdb-support-btn-sm">
                         <?php esc_html_e('Abmelden', 'themisdb-support-portal'); ?>
                     </a>
@@ -414,7 +829,7 @@ class ThemisDB_Support_Shortcodes {
             <?php endif; ?>
 
             <!-- New Ticket Form -->
-            <div class="themisdb-support-section">
+            <div class="themisdb-support-section" id="themisdb-support-new-ticket-section">
                 <div class="themisdb-support-section-header">
                     <h3><?php esc_html_e('Neues Ticket erstellen', 'themisdb-support-portal'); ?></h3>
                     <button type="button" id="themisdb-support-toggle-form" class="themisdb-support-btn themisdb-support-btn-primary" <?php disabled(!$new_ticket_allowed); ?>>
@@ -479,7 +894,7 @@ class ThemisDB_Support_Shortcodes {
             </div>
 
             <!-- Ticket List -->
-            <div class="themisdb-support-section">
+            <div class="themisdb-support-section" id="themisdb-support-ticket-list-section">
                 <div class="themisdb-support-section-header">
                     <h3><?php esc_html_e('Meine Tickets', 'themisdb-support-portal'); ?></h3>
                     <span class="themisdb-support-ticket-count">
@@ -1063,16 +1478,16 @@ class ThemisDB_Support_Shortcodes {
 
         $type   = isset($_POST['request_type']) ? sanitize_key((string) wp_unslash($_POST['request_type'])) : '';
         $reason = isset($_POST['reason'])       ? sanitize_textarea_field((string) wp_unslash($_POST['reason'])) : '';
-        $user   = wp_get_current_user();
+        $customer_context = $this->get_current_customer_context();
 
         // Resolve license ID from order plugin
         $license_id = 0;
-        if (class_exists('ThemisDB_License_Manager')) {
-            $lid = get_user_meta($user->ID, 'themisdb_license_id', true);
+        if (class_exists('ThemisDB_License_Manager') && !empty($customer_context['user_id'])) {
+            $lid = get_user_meta((int) $customer_context['user_id'], 'themisdb_license_id', true);
             if ($lid) {
                 $license_id = intval($lid);
             } else {
-                $license_key = get_user_meta($user->ID, 'themisdb_support_license_key', true);
+                $license_key = $this->get_current_customer_license_key($customer_context);
                 if ($license_key) {
                     $lic = ThemisDB_License_Manager::get_license_by_key($license_key);
                     if (!empty($lic['id'])) {
@@ -1088,7 +1503,7 @@ class ThemisDB_Support_Shortcodes {
 
         if ($type === 'termination') {
             $end_date = isset($_POST['requested_end_date']) ? sanitize_text_field((string) wp_unslash($_POST['requested_end_date'])) : '';
-            $result   = ThemisDB_Contract_Lifecycle::request_termination($license_id, $end_date, $reason, $user->ID);
+            $result   = ThemisDB_Contract_Lifecycle::request_termination($license_id, $end_date, $reason, !empty($customer_context['user_id']) ? (int) $customer_context['user_id'] : 0);
         } elseif ($type === 'change') {
             $payload  = array();
             $allowed  = array('product_edition', 'license_type', 'max_nodes', 'max_cores', 'max_storage_gb', 'expiry_date');
@@ -1106,7 +1521,7 @@ class ThemisDB_Support_Shortcodes {
             if (empty($payload)) {
                 wp_send_json_error(array('message' => __('Bitte mindestens ein Feld fuer den Aenderungsantrag angeben.', 'themisdb-support-portal')));
             }
-            $result = ThemisDB_Contract_Lifecycle::request_change($license_id, $payload, $reason, $user->ID);
+            $result = ThemisDB_Contract_Lifecycle::request_change($license_id, $payload, $reason, !empty($customer_context['user_id']) ? (int) $customer_context['user_id'] : 0);
         } else {
             wp_send_json_error(array('message' => __('Unbekannter Antragstyp.', 'themisdb-support-portal')));
         }
@@ -1137,14 +1552,14 @@ class ThemisDB_Support_Shortcodes {
             wp_send_json_success(array('requests' => array()));
         }
 
-        $user       = wp_get_current_user();
+        $customer_context = $this->get_current_customer_context();
         $license_id = 0;
-        if (class_exists('ThemisDB_License_Manager')) {
-            $lid = get_user_meta($user->ID, 'themisdb_license_id', true);
+        if (class_exists('ThemisDB_License_Manager') && !empty($customer_context['user_id'])) {
+            $lid = get_user_meta((int) $customer_context['user_id'], 'themisdb_license_id', true);
             if ($lid) {
                 $license_id = intval($lid);
             } else {
-                $lk = get_user_meta($user->ID, 'themisdb_support_license_key', true);
+                $lk = $this->get_current_customer_license_key($customer_context);
                 if ($lk) {
                     $lic = ThemisDB_License_Manager::get_license_by_key($lk);
                     if (!empty($lic['id'])) {
@@ -1193,8 +1608,10 @@ class ThemisDB_Support_Shortcodes {
      * @param int $user_id
      * @return array|null
      */
-    private function get_current_user_license_info($user_id) {
-        if (class_exists('ThemisDB_License_Manager')) {
+    private function get_current_user_license_info($context) {
+        $user_id = is_array($context) ? (int) ($context['user_id'] ?? 0) : (int) $context;
+
+        if (class_exists('ThemisDB_License_Manager') && $user_id > 0) {
             $license_id = get_user_meta($user_id, 'themisdb_license_id', true);
             if ($license_id) {
                 $license = ThemisDB_License_Manager::get_license(intval($license_id));
@@ -1207,7 +1624,7 @@ class ThemisDB_Support_Shortcodes {
             }
         }
 
-        $license_key = get_user_meta($user_id, 'themisdb_support_license_key', true);
+        $license_key = $this->get_current_customer_license_key(is_array($context) ? $context : array('user_id' => $user_id));
         if ($license_key) {
             // Derive edition from key tier code (THEMIS-{TIER}-…)
             $parts   = explode('-', $license_key);
@@ -1234,14 +1651,15 @@ class ThemisDB_Support_Shortcodes {
      * @param int $user_id
      * @return array|null
      */
-    private function get_current_user_support_benefit_info($user_id) {
+    private function get_current_user_support_benefit_info($context) {
         if (!class_exists('ThemisDB_Support_Benefits_Manager')) {
             return null;
         }
 
-        $license_id = get_user_meta($user_id, 'themisdb_license_id', true);
+        $user_id = is_array($context) ? (int) ($context['user_id'] ?? 0) : (int) $context;
+        $license_id = $user_id > 0 ? get_user_meta($user_id, 'themisdb_license_id', true) : 0;
         if (!$license_id && class_exists('ThemisDB_License_Manager')) {
-            $license_key = get_user_meta($user_id, 'themisdb_support_license_key', true);
+            $license_key = $this->get_current_customer_license_key(is_array($context) ? $context : array('user_id' => $user_id));
             if ($license_key) {
                 $license = ThemisDB_License_Manager::get_license_by_key($license_key);
                 if (!empty($license['id'])) {
@@ -1285,6 +1703,530 @@ class ThemisDB_Support_Shortcodes {
         );
     }
 
+    /**
+     * Resolve the current request context as either customer-account or WP-user backed identity.
+     *
+     * @return array
+     */
+    private function get_current_customer_context() {
+        $context = ThemisDB_Support_Customer_Context::current_customer();
+        if (is_array($context)) {
+            return $context;
+        }
+
+        $user = wp_get_current_user();
+        return array(
+            'user_id' => $user && !empty($user->ID) ? (int) $user->ID : 0,
+            'customer_account_id' => 0,
+            'customer_email' => $user ? (string) $user->user_email : '',
+            'customer_name' => $user ? (string) $user->display_name : '',
+            'customer_company' => $user ? (string) get_user_meta((int) $user->ID, 'company', true) : '',
+        );
+    }
+
+    /**
+     * @param array $context
+     * @return array
+     */
+    private function get_current_customer_tickets(array $context) {
+        if (!empty($context['customer_account_id'])) {
+            return ThemisDB_SupportPortal_Ticket_Manager::get_customer_tickets((int) $context['customer_account_id']);
+        }
+
+        if (!empty($context['user_id'])) {
+            return ThemisDB_SupportPortal_Ticket_Manager::get_user_tickets((int) $context['user_id']);
+        }
+
+        return array();
+    }
+
+    /**
+     * @param array $context
+     * @return string
+     */
+    private function get_current_customer_license_key(array $context) {
+        if (!empty($context['license_key'])) {
+            return sanitize_text_field((string) $context['license_key']);
+        }
+
+        if (!empty($context['user_id'])) {
+            $license_key = get_user_meta((int) $context['user_id'], 'themisdb_support_license_key', true);
+            if (!empty($license_key)) {
+                return sanitize_text_field((string) $license_key);
+            }
+        }
+
+        if (!empty($context['customer_account_id']) && class_exists('ThemisDB_License_Manager')) {
+            $account = ThemisDB_Support_Customer_Account_Repository::find_by_id((int) $context['customer_account_id']);
+            if ($account && !empty($account['primary_license_id'])) {
+                $license = ThemisDB_License_Manager::get_license((int) $account['primary_license_id']);
+                if ($license && !empty($license['license_key'])) {
+                    return sanitize_text_field((string) $license['license_key']);
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param array $context
+     * @return string
+     */
+    private function get_current_customer_display_name(array $context) {
+        return !empty($context['customer_name']) ? sanitize_text_field((string) $context['customer_name']) : '';
+    }
+
+    /**
+     * @param array $context
+     * @return string
+     */
+    private function get_current_customer_email(array $context) {
+        return !empty($context['customer_email']) ? sanitize_email((string) $context['customer_email']) : '';
+    }
+
+    /**
+     * @param array $context
+     * @return string
+     */
+    private function get_current_customer_company(array $context) {
+        return !empty($context['customer_company']) ? sanitize_text_field((string) $context['customer_company']) : '';
+    }
+
+    /**
+     * Render the first card in the hub: the customer account profile.
+     *
+     * @param array $context Customer context.
+     * @param array|null $license_info License summary.
+     * @param array|null $support_benefit_info Support entitlement summary.
+     * @param array|null $status_summary Aggregated status summary.
+     * @param bool $is_authenticated Whether the customer is authenticated.
+     * @return string
+     */
+    private function render_hub_profile_card(array $context, $license_info = null, $support_benefit_info = null, $status_summary = null, $is_authenticated = false) {
+        $license_info = is_array($license_info) ? $license_info : array();
+        $support_benefit_info = is_array($support_benefit_info) ? $support_benefit_info : array();
+        $status_summary = is_array($status_summary) ? $status_summary : array();
+
+        $tickets = !empty($status_summary['tickets']) && is_array($status_summary['tickets']) ? $status_summary['tickets'] : array();
+        $orders = !empty($status_summary['orders']) && is_array($status_summary['orders']) ? $status_summary['orders'] : array();
+        $lifecycle = !empty($status_summary['lifecycle']) && is_array($status_summary['lifecycle']) ? $status_summary['lifecycle'] : array();
+        $builds = !empty($status_summary['builds']) && is_array($status_summary['builds']) ? $status_summary['builds'] : array();
+
+        $company = $this->get_current_customer_company($context);
+        $contact = $this->get_current_customer_display_name($context);
+        $email = $this->get_current_customer_email($context);
+        $account_id = !empty($context['customer_account_id']) ? (int) $context['customer_account_id'] : 0;
+        $account_uuid = !empty($context['customer_uuid']) ? sanitize_text_field((string) $context['customer_uuid']) : '';
+        $account_status = !empty($context['account_status']) ? sanitize_text_field((string) $context['account_status']) : '';
+        $support_tier = !empty($context['support_tier']) ? sanitize_text_field((string) $context['support_tier']) : '';
+        $created_at = !empty($context['created_at']) ? sanitize_text_field((string) $context['created_at']) : '';
+        $updated_at = !empty($context['updated_at']) ? sanitize_text_field((string) $context['updated_at']) : '';
+        $last_login_at = !empty($context['last_login_at']) ? sanitize_text_field((string) $context['last_login_at']) : '';
+        $session_last_seen = !empty($context['session']['last_seen_at']) ? sanitize_text_field((string) $context['session']['last_seen_at']) : '';
+        $health_level = !empty($status_summary['health']['level']) ? sanitize_text_field((string) $status_summary['health']['level']) : '';
+        $health_reasons = !empty($status_summary['health']['reasons']) && is_array($status_summary['health']['reasons']) ? $status_summary['health']['reasons'] : array();
+        $recent_ticket = !empty($tickets[0]) && is_array($tickets[0]) ? $tickets[0] : array();
+        $recent_order = !empty($orders[0]) && is_array($orders[0]) ? $orders[0] : array();
+        $recent_lifecycle = !empty($lifecycle[0]) && is_array($lifecycle[0]) ? $lifecycle[0] : array();
+
+        $rows = array();
+
+        if ('' !== $company) {
+            $rows[] = array(
+                'label' => __('Organisation', 'themisdb-support-portal'),
+                'value' => $company,
+            );
+        }
+
+        if ('' !== $contact) {
+            $rows[] = array(
+                'label' => __('Ansprechpartner', 'themisdb-support-portal'),
+                'value' => $contact,
+            );
+        }
+
+        if ('' !== $email) {
+            $rows[] = array(
+                'label' => __('E-Mail', 'themisdb-support-portal'),
+                'value' => esc_html($email),
+            );
+        }
+
+        if ($account_id > 0) {
+            $rows[] = array(
+                'label' => __('Kundenkonto-ID', 'themisdb-support-portal'),
+                'value' => (string) $account_id,
+            );
+        }
+
+        if ('' !== $account_uuid) {
+            $rows[] = array(
+                'label' => __('Kunden-UUID', 'themisdb-support-portal'),
+                'value' => $account_uuid,
+            );
+        }
+
+        if ('' !== $account_status) {
+            $rows[] = array(
+                'label' => __('Kontostatus', 'themisdb-support-portal'),
+                'value' => ucfirst($account_status),
+            );
+        }
+
+        if ('' !== $support_tier) {
+            $rows[] = array(
+                'label' => __('Support-Tier', 'themisdb-support-portal'),
+                'value' => ucfirst($support_tier),
+            );
+        }
+
+        if (!empty($license_info['edition'])) {
+            $rows[] = array(
+                'label' => __('Lizenzedition', 'themisdb-support-portal'),
+                'value' => ucfirst((string) $license_info['edition']),
+            );
+        }
+
+        if (!empty($license_info['key'])) {
+            $rows[] = array(
+                'label' => __('Lizenzschlüssel', 'themisdb-support-portal'),
+                'value' => '<code>' . esc_html((string) $license_info['key']) . '</code>',
+            );
+        }
+
+        if (!empty($support_benefit_info['tier_label'])) {
+            $rows[] = array(
+                'label' => __('Leistungsebene', 'themisdb-support-portal'),
+                'value' => (string) $support_benefit_info['tier_label'],
+            );
+        }
+
+        if (!empty($support_benefit_info['status_label'])) {
+            $rows[] = array(
+                'label' => __('Support-Status', 'themisdb-support-portal'),
+                'value' => (string) $support_benefit_info['status_label'],
+            );
+        }
+
+        if (!empty($support_benefit_info['sla_label'])) {
+            $rows[] = array(
+                'label' => __('Antwortzeit-SLA', 'themisdb-support-portal'),
+                'value' => (string) $support_benefit_info['sla_label'],
+            );
+        }
+
+        if (!empty($support_benefit_info['open_tickets_label'])) {
+            $rows[] = array(
+                'label' => __('Offene Tickets', 'themisdb-support-portal'),
+                'value' => (string) $support_benefit_info['open_tickets_label'],
+            );
+        }
+
+        if (!empty($support_benefit_info['expires_at_label'])) {
+            $rows[] = array(
+                'label' => __('Gültigkeit', 'themisdb-support-portal'),
+                'value' => (string) $support_benefit_info['expires_at_label'],
+            );
+        }
+
+        if ('' !== $created_at) {
+            $rows[] = array(
+                'label' => __('Angelegt', 'themisdb-support-portal'),
+                'value' => mysql2date(get_option('date_format'), $created_at) ?: $created_at,
+            );
+        }
+
+        if ('' !== $updated_at) {
+            $rows[] = array(
+                'label' => __('Zuletzt aktualisiert', 'themisdb-support-portal'),
+                'value' => mysql2date(get_option('date_format'), $updated_at) ?: $updated_at,
+            );
+        }
+
+        if ('' !== $last_login_at) {
+            $rows[] = array(
+                'label' => __('Letzter Login', 'themisdb-support-portal'),
+                'value' => mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $last_login_at) ?: $last_login_at,
+            );
+        } elseif ('' !== $session_last_seen) {
+            $rows[] = array(
+                'label' => __('Letzte Aktivität', 'themisdb-support-portal'),
+                'value' => mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $session_last_seen) ?: $session_last_seen,
+            );
+        }
+
+        ob_start();
+        ?>
+        <article class="tv3-feature-tabs themisdb-support-hub-dashboard" data-themisdb-dashboard-tabs>
+            <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-dashboard-tab-radio-overview" checked />
+            <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-dashboard-tab-radio-profile" />
+            <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-dashboard-tab-radio-activity" />
+            <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-dashboard-tab-radio-access" />
+
+            <nav class="tv3-feature-tabs__nav" role="tablist" aria-label="<?php echo esc_attr__('Dashboard', 'themisdb-support-portal'); ?>">
+                <label class="tv3-feature-tabs__link tv3-feature-tabs__link--active" role="tab" aria-selected="true" aria-controls="themisdb-dashboard-panel-overview" for="themisdb-dashboard-tab-radio-overview"><?php esc_html_e('Übersicht', 'themisdb-support-portal'); ?></label>
+                <label class="tv3-feature-tabs__link" role="tab" aria-selected="false" aria-controls="themisdb-dashboard-panel-profile" for="themisdb-dashboard-tab-radio-profile"><?php esc_html_e('Profil', 'themisdb-support-portal'); ?></label>
+                <label class="tv3-feature-tabs__link" role="tab" aria-selected="false" aria-controls="themisdb-dashboard-panel-activity" for="themisdb-dashboard-tab-radio-activity"><?php esc_html_e('Aktivität', 'themisdb-support-portal'); ?></label>
+                <label class="tv3-feature-tabs__link" role="tab" aria-selected="false" aria-controls="themisdb-dashboard-panel-access" for="themisdb-dashboard-tab-radio-access"><?php esc_html_e('Zugriff', 'themisdb-support-portal'); ?></label>
+            </nav>
+
+            <div class="themisdb-support-hub-dashboard-panels">
+
+            <section class="tv3-feature-tabs__panel" role="tabpanel" tabindex="0" aria-labelledby="themisdb-dashboard-tab-overview" id="themisdb-dashboard-panel-overview">
+                <div class="tv3-feature-tabs__layout">
+                    <div>
+                        <h2 class="tv3-feature-tabs__h3"><?php esc_html_e('Kundenüberblick', 'themisdb-support-portal'); ?></h2>
+                        <p class="tv3-feature-tabs__text"><?php esc_html_e('Relevante Kundendaten, aktuelle Vorgänge und direkte Einstiege in einem kompakten Business-Dashboard.', 'themisdb-support-portal'); ?></p>
+                        <div class="tv3-feature-tabs__list">
+                            <div class="tv3-feature-tabs__list-item">
+                                <span class="tv3-feature-tabs__check">•</span>
+                                <span><?php esc_html_e('Profil, Support-Status und letzte Aktivität auf einen Blick.', 'themisdb-support-portal'); ?></span>
+                            </div>
+                            <div class="tv3-feature-tabs__list-item">
+                                <span class="tv3-feature-tabs__check">•</span>
+                                <span><?php esc_html_e('Kurzüberblick über offene Tickets, Aufträge und Lifecycle-Anträge.', 'themisdb-support-portal'); ?></span>
+                            </div>
+                            <div class="tv3-feature-tabs__list-item tv3-feature-tabs__list-item--last">
+                                <span class="tv3-feature-tabs__check">•</span>
+                                <span><?php esc_html_e('Direkte Sprungmarken zu Support, Aufträgen und B2B.', 'themisdb-support-portal'); ?></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tv3-feature-tabs__benchmark-box">
+                        <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Status-Signal', 'themisdb-support-portal'); ?></div>
+                        <div class="tv3-feature-tabs__benchmark-list">
+                            <div class="tv3-feature-tabs__benchmark-row">
+                                <div class="tv3-feature-tabs__benchmark-name"><?php esc_html_e('Tickets', 'themisdb-support-portal'); ?></div>
+                                <div class="tv3-feature-tabs__benchmark-track"><div class="tv3-feature-tabs__benchmark-fill tv3-feature-tabs__benchmark-fill--primary" style="width: <?php echo esc_attr(min(100, count($tickets) * 20)); ?>%;"></div></div>
+                            </div>
+                            <div class="tv3-feature-tabs__benchmark-row">
+                                <div class="tv3-feature-tabs__benchmark-name"><?php esc_html_e('Bestellungen', 'themisdb-support-portal'); ?></div>
+                                <div class="tv3-feature-tabs__benchmark-track"><div class="tv3-feature-tabs__benchmark-fill tv3-feature-tabs__benchmark-fill--secondary" style="width: <?php echo esc_attr(min(100, count($orders) * 25)); ?>%;"></div></div>
+                            </div>
+                            <div class="tv3-feature-tabs__benchmark-row">
+                                <div class="tv3-feature-tabs__benchmark-name"><?php esc_html_e('Lifecycle', 'themisdb-support-portal'); ?></div>
+                                <div class="tv3-feature-tabs__benchmark-track"><div class="tv3-feature-tabs__benchmark-fill tv3-feature-tabs__benchmark-fill--tertiary" style="width: <?php echo esc_attr(min(100, count($lifecycle) * 25)); ?>%;"></div></div>
+                            </div>
+                        </div>
+                        <?php if ($is_authenticated) : ?>
+                            <p class="tv3-feature-tabs__copy" style="margin-top:1rem;"><?php echo esc_html__('Angemeldet', 'themisdb-support-portal'); ?><?php echo '' !== $health_level ? ' · ' . esc_html(ucfirst($health_level)) : ''; ?></p>
+                        <?php else : ?>
+                            <p class="tv3-feature-tabs__copy" style="margin-top:1rem;"><?php esc_html_e('Anmeldung erforderlich', 'themisdb-support-portal'); ?></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tv3-feature-tabs__panel tv3-feature-tabs__panel--hidden" role="tabpanel" tabindex="0" aria-labelledby="themisdb-dashboard-tab-profile" id="themisdb-dashboard-panel-profile" hidden>
+                <div class="tv3-feature-tabs__layout">
+                    <div class="tv3-feature-tabs__codebox">
+                        <div class="tv3-feature-tabs__code-title"><?php esc_html_e('Account-Profil', 'themisdb-support-portal'); ?></div>
+                        <dl>
+                            <?php foreach ($rows as $row) : ?>
+                                <dt><?php echo esc_html((string) $row['label']); ?></dt>
+                                <dd><?php echo wp_kses_post((string) $row['value']); ?></dd>
+                            <?php endforeach; ?>
+                        </dl>
+                    </div>
+
+                    <div class="tv3-feature-tabs__benchmark-box">
+                        <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Geschäftsdaten', 'themisdb-support-portal'); ?></div>
+                        <ul class="tv3-feature-tabs__metrics">
+                            <li class="tv3-feature-tabs__metric">
+                                <div class="tv3-feature-tabs__metric-head"><span class="tv3-feature-tabs__metric-label"><?php esc_html_e('Kontostatus', 'themisdb-support-portal'); ?></span></div>
+                                <div class="tv3-feature-tabs__metric-gain"><?php echo esc_html(ucfirst($account_status ?: __('Nicht gesetzt', 'themisdb-support-portal'))); ?></div>
+                            </li>
+                            <li class="tv3-feature-tabs__metric">
+                                <div class="tv3-feature-tabs__metric-head"><span class="tv3-feature-tabs__metric-label"><?php esc_html_e('Support-Tier', 'themisdb-support-portal'); ?></span></div>
+                                <div class="tv3-feature-tabs__metric-gain"><?php echo esc_html($support_tier ? ucfirst($support_tier) : __('Nicht gesetzt', 'themisdb-support-portal')); ?></div>
+                            </li>
+                            <li class="tv3-feature-tabs__metric tv3-feature-tabs__metric--last">
+                                <div class="tv3-feature-tabs__metric-head"><span class="tv3-feature-tabs__metric-label"><?php esc_html_e('Letzte Aktivität', 'themisdb-support-portal'); ?></span></div>
+                                <div class="tv3-feature-tabs__metric-gain"><?php echo esc_html($last_login_at || $session_last_seen ? ($last_login_at ?: $session_last_seen) : __('Keine Angabe', 'themisdb-support-portal')); ?></div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <?php if (!$is_authenticated) : ?>
+                    <div class="tv3-feature-tabs__layout" style="margin-top:1.5rem;">
+                        <?php if (shortcode_exists('themisdb_support_login')) : ?>
+                            <div class="tv3-feature-tabs__benchmark-box">
+                                <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Support-Anmeldung', 'themisdb-support-portal'); ?></div>
+                                <?php echo do_shortcode('[themisdb_support_login]'); ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (shortcode_exists('themisdb_login')) : ?>
+                            <div class="tv3-feature-tabs__benchmark-box">
+                                <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Order-Anmeldung', 'themisdb-support-portal'); ?></div>
+                                <?php echo do_shortcode('[themisdb_login]'); ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            <section class="tv3-feature-tabs__panel tv3-feature-tabs__panel--hidden" role="tabpanel" tabindex="0" aria-labelledby="themisdb-dashboard-tab-activity" id="themisdb-dashboard-panel-activity" hidden>
+                <div class="tv3-feature-tabs__layout">
+                    <div class="tv3-feature-tabs__benchmark-box">
+                        <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Letzte Tickets', 'themisdb-support-portal'); ?></div>
+                        <?php if (!empty($tickets)) : ?>
+                            <ul class="tv3-feature-tabs__list">
+                                <?php foreach (array_slice($tickets, 0, 3) as $ticket) : ?>
+                                    <li class="tv3-feature-tabs__list-item">
+                                        <span class="tv3-feature-tabs__check">•</span>
+                                        <span><?php echo esc_html((string) ($ticket['ticket_number'] ?? '')); ?><?php echo !empty($ticket['subject']) ? ' - ' . esc_html((string) $ticket['subject']) : ''; ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else : ?>
+                            <p class="tv3-feature-tabs__text"><?php esc_html_e('Keine Tickets vorhanden.', 'themisdb-support-portal'); ?></p>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="tv3-feature-tabs__benchmark-box">
+                        <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Letzte Bestellungen', 'themisdb-support-portal'); ?></div>
+                        <?php if (!empty($orders)) : ?>
+                            <ul class="tv3-feature-tabs__list">
+                                <?php foreach (array_slice($orders, 0, 3) as $order) : ?>
+                                    <li class="tv3-feature-tabs__list-item">
+                                        <span class="tv3-feature-tabs__check">•</span>
+                                        <span><?php echo esc_html((string) ($order['order_number'] ?? ($order['id'] ?? ''))); ?><?php echo !empty($order['status']) ? ' - ' . esc_html(ucfirst((string) $order['status'])) : ''; ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else : ?>
+                            <p class="tv3-feature-tabs__text"><?php esc_html_e('Keine Bestellungen vorhanden.', 'themisdb-support-portal'); ?></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div class="tv3-feature-tabs__layout" style="margin-top:1.25rem;">
+                    <div class="tv3-feature-tabs__benchmark-box">
+                        <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Lifecycle-Anträge', 'themisdb-support-portal'); ?></div>
+                        <?php if (!empty($lifecycle)) : ?>
+                            <ul class="tv3-feature-tabs__list">
+                                <?php foreach (array_slice($lifecycle, 0, 3) as $request) : ?>
+                                    <li class="tv3-feature-tabs__list-item">
+                                        <span class="tv3-feature-tabs__check">•</span>
+                                        <span><?php echo esc_html((string) ($request['type'] ?? ($request['request_type'] ?? ''))); ?><?php echo !empty($request['status']) ? ' - ' . esc_html(ucfirst((string) $request['status'])) : ''; ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else : ?>
+                            <p class="tv3-feature-tabs__text"><?php esc_html_e('Keine offenen Lifecycle-Anträge vorhanden.', 'themisdb-support-portal'); ?></p>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="tv3-feature-tabs__benchmark-box">
+                        <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Hinweise', 'themisdb-support-portal'); ?></div>
+                        <?php if (!empty($health_reasons)) : ?>
+                            <ul class="tv3-feature-tabs__list">
+                                <?php foreach ($health_reasons as $reason) : ?>
+                                    <li class="tv3-feature-tabs__list-item">
+                                        <span class="tv3-feature-tabs__check">•</span>
+                                        <span><?php echo esc_html((string) $reason); ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else : ?>
+                            <p class="tv3-feature-tabs__text"><?php esc_html_e('Kein akuter Hinweisbedarf.', 'themisdb-support-portal'); ?></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tv3-feature-tabs__panel tv3-feature-tabs__panel--hidden" role="tabpanel" tabindex="0" aria-labelledby="themisdb-dashboard-tab-access" id="themisdb-dashboard-panel-access" hidden>
+                <div class="tv3-feature-tabs__layout">
+                    <div class="tv3-feature-tabs__benchmark-box">
+                        <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Freigeschaltete Bereiche', 'themisdb-support-portal'); ?></div>
+                        <?php if (!empty($visible_areas)) : ?>
+                            <div class="tv3-feature-tabs__icon-grid">
+                                <?php foreach ($visible_areas as $area) : ?>
+                                    <div class="tv3-feature-tabs__icon-item">
+                                        <span class="tv3-feature-tabs__emoji">•</span>
+                                        <span class="tv3-feature-tabs__label"><?php echo esc_html($area['label']); ?></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="tv3-feature-tabs__benchmark-box">
+                        <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Schnellzugriff', 'themisdb-support-portal'); ?></div>
+                        <div class="wp-block-buttons">
+                            <div class="wp-block-button">
+                                <a class="wp-block-button__link wp-element-button" href="#<?php echo esc_attr($this->get_hub_area_anchor('support')); ?>"><?php esc_html_e('Support öffnen', 'themisdb-support-portal'); ?></a>
+                            </div>
+                            <div class="wp-block-button">
+                                <a class="wp-block-button__link wp-element-button" href="#<?php echo esc_attr($this->get_hub_area_anchor('orders')); ?>"><?php esc_html_e('Aufträge öffnen', 'themisdb-support-portal'); ?></a>
+                            </div>
+                            <div class="wp-block-button">
+                                <a class="wp-block-button__link wp-element-button" href="#<?php echo esc_attr($this->get_hub_area_anchor('b2b')); ?>"><?php esc_html_e('B2B öffnen', 'themisdb-support-portal'); ?></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <?php if ($can_manage) : ?>
+                    <div class="tv3-feature-tabs__layout" style="margin-top:1.25rem;">
+                        <div class="tv3-feature-tabs__benchmark-box">
+                            <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Administration', 'themisdb-support-portal'); ?></div>
+                            <div class="wp-block-buttons">
+                                <div class="wp-block-button">
+                                    <a class="wp-block-button__link wp-element-button" href="<?php echo esc_url(admin_url('index.php')); ?>"><?php esc_html_e('WordPress-Dashboard öffnen', 'themisdb-support-portal'); ?></a>
+                                </div>
+                                <div class="wp-block-button">
+                                    <a class="wp-block-button__link wp-element-button" href="<?php echo esc_url(admin_url('plugins.php')); ?>"><?php esc_html_e('Plugins verwalten', 'themisdb-support-portal'); ?></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (!$is_authenticated && shortcode_exists('themisdb_support_login')) : ?>
+                    <div class="tv3-feature-tabs__layout" style="margin-top:1.25rem;">
+                        <div class="tv3-feature-tabs__benchmark-box">
+                            <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Support-Anmeldung', 'themisdb-support-portal'); ?></div>
+                            <?php echo do_shortcode('[themisdb_support_login]'); ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            </div>
+        </article>
+        <?php
+
+        $html = ob_get_clean();
+        return $html ? $html : '';
+    }
+
+    /**
+     * Determine whether the current customer context owns a ticket.
+     *
+     * @param array $ticket
+     * @param array $context
+     * @return bool
+     */
+    private function current_customer_owns_ticket(array $ticket, array $context) {
+        $ticket_user_id = isset($ticket['user_id']) ? (int) $ticket['user_id'] : 0;
+        $ticket_account_id = isset($ticket['customer_account_id']) ? (int) $ticket['customer_account_id'] : 0;
+
+        if (!empty($context['customer_account_id']) && $ticket_account_id > 0) {
+            return $ticket_account_id === (int) $context['customer_account_id'];
+        }
+
+        if (!empty($context['user_id']) && $ticket_user_id > 0) {
+            return $ticket_user_id === (int) $context['user_id'];
+        }
+
+        return false;
+    }
+
     // -------------------------------------------------------------------------
     // Unified Customer Cockpit (ARCHITECTUR.md §8.5)
     // -------------------------------------------------------------------------
@@ -1309,8 +2251,8 @@ class ThemisDB_Support_Shortcodes {
                 . '</p>';
         }
 
-        $user    = wp_get_current_user();
-        $summary = ThemisDB_Status_Resolver::for_user($user->ID);
+        $customer_context = $this->get_current_customer_context();
+        $summary = ThemisDB_Status_Resolver::for_context($customer_context);
 
         $license   = $summary['license'];
         $tickets   = $summary['tickets'];

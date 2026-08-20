@@ -114,6 +114,7 @@ class Persistent_Podcast_Player {
         add_action('save_post_pod_episode', array($this, 'save_audio_meta'), 10, 2);
         add_action('save_post_post', array($this, 'save_audio_meta_for_post'), 10, 2);
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
+        add_action('wp_ajax_ppp_search_related_posts', array($this, 'ajax_search_related_posts'));
         add_filter('redirect_post_location', array($this, 'add_audio_notice_redirect_arg'), 10, 2);
         add_action('admin_notices', array($this, 'render_audio_admin_notice'));
         // Admin settings page
@@ -417,7 +418,122 @@ class Persistent_Podcast_Player {
                 <?php esc_html_e('Legacy audio_url gefunden. Bitte Datei in die Mediathek übernehmen und neu auswählen, um strikt mediathekbasiert zu arbeiten.', 'persistent-podcast-player'); ?>
             </p>
         <?php endif; ?>
+
+        <?php if ( 'pod_episode' === get_post_type( $post ) ) : ?>
+            <?php
+            $related_post_id = (int) get_post_meta( $post->ID, 'related_post_id', true );
+            $related_post_title = '';
+            if ( $related_post_id > 0 ) {
+                $related_post_title = (string) get_the_title( $related_post_id );
+            }
+            ?>
+            <hr style="margin:16px 0;" />
+            <p>
+                <strong><?php esc_html_e('Zugehoeriger Artikel (fuer Hero-CTA):', 'persistent-podcast-player'); ?></strong>
+            </p>
+            <p>
+                <input type="hidden" name="ppp_related_post_id" id="ppp_related_post_id" value="<?php echo esc_attr( $related_post_id ); ?>" />
+                <input
+                    type="text"
+                    id="ppp_related_post_search"
+                    class="widefat"
+                    value="<?php echo esc_attr( $related_post_title ); ?>"
+                    placeholder="<?php esc_attr_e('Titel oder ID suchen…', 'persistent-podcast-player'); ?>"
+                    autocomplete="off"
+                />
+                <div id="ppp_related_post_results" class="ppp-related-search-results" style="display:none; margin-top:8px;"></div>
+            </p>
+            <p>
+                <button type="button" id="ppp_related_post_clear" class="button button-secondary"><?php esc_html_e('Verknuepfung entfernen', 'persistent-podcast-player'); ?></button>
+            </p>
+            <p id="ppp_related_post_state" class="description">
+                <?php
+                if ( $related_post_id > 0 && '' !== $related_post_title ) {
+                    echo esc_html( sprintf( 'Aktuell verknuepft: #%d - %s', $related_post_id, $related_post_title ) );
+                } else {
+                    esc_html_e( 'Aktuell ist kein Artikel verknuepft.', 'persistent-podcast-player' );
+                }
+                ?>
+            </p>
+            <p class="description">
+                <?php esc_html_e('Wenn ein Artikel verknuepft ist, erscheint im Hero-Slider automatisch ein Podcast-Button auf diesem Artikel-Slide.', 'persistent-podcast-player'); ?>
+            </p>
+        <?php endif; ?>
         <?php
+    }
+
+    /**
+     * AJAX: Search published posts/pages for related episode binding.
+     */
+    public function ajax_search_related_posts() {
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_send_json_error( array( 'message' => 'forbidden' ), 403 );
+        }
+
+        $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+        if ( ! wp_verify_nonce( $nonce, 'ppp_search_related_posts' ) ) {
+            wp_send_json_error( array( 'message' => 'invalid_nonce' ), 403 );
+        }
+
+        $raw_query = isset( $_POST['query'] ) ? sanitize_text_field( wp_unslash( $_POST['query'] ) ) : '';
+        $query_text = trim( $raw_query );
+        if ( '' === $query_text || strlen( $query_text ) < 2 ) {
+            wp_send_json_success( array() );
+        }
+
+        $items = array();
+        if ( ctype_digit( $query_text ) ) {
+            $candidate = get_post( (int) $query_text );
+            if ( $candidate instanceof WP_Post && 'publish' === $candidate->post_status && in_array( $candidate->post_type, array( 'post', 'page' ), true ) ) {
+                $items[] = array(
+                    'id'    => (int) $candidate->ID,
+                    'title' => (string) get_the_title( $candidate->ID ),
+                    'type'  => (string) $candidate->post_type,
+                    'date'  => (string) get_the_date( 'Y-m-d', $candidate->ID ),
+                );
+            }
+        }
+
+        $search_query = new WP_Query(
+            array(
+                'post_type'              => array( 'post', 'page' ),
+                'post_status'            => 'publish',
+                'posts_per_page'         => 15,
+                's'                      => $query_text,
+                'orderby'                => 'date',
+                'order'                  => 'DESC',
+                'ignore_sticky_posts'    => true,
+                'no_found_rows'          => true,
+                'update_post_meta_cache' => false,
+                'update_post_term_cache' => false,
+            )
+        );
+
+        if ( $search_query->have_posts() ) {
+            foreach ( $search_query->posts as $candidate ) {
+                $candidate_id = (int) $candidate->ID;
+                $items[] = array(
+                    'id'    => $candidate_id,
+                    'title' => (string) get_the_title( $candidate_id ),
+                    'type'  => (string) $candidate->post_type,
+                    'date'  => (string) get_the_date( 'Y-m-d', $candidate_id ),
+                );
+            }
+        }
+
+        $items = array_values(
+            array_map(
+                'unserialize',
+                array_unique(
+                    array_map(
+                        'serialize',
+                        $items
+                    )
+                )
+            )
+        );
+
+        wp_send_json_success( $items );
     }
     
     /**
@@ -441,6 +557,20 @@ class Persistent_Podcast_Player {
         // Check permissions
         if (!current_user_can('edit_post', $post_id)) {
             return;
+        }
+
+        if ( isset( $_POST['ppp_related_post_id'] ) ) {
+            $related_post_id = absint( wp_unslash( $_POST['ppp_related_post_id'] ) );
+            if ( $related_post_id > 0 ) {
+                $related_post = get_post( $related_post_id );
+                if ( $related_post instanceof WP_Post && 'publish' === $related_post->post_status && in_array( $related_post->post_type, array( 'post', 'page' ), true ) ) {
+                    update_post_meta( $post_id, 'related_post_id', $related_post_id );
+                } else {
+                    delete_post_meta( $post_id, 'related_post_id' );
+                }
+            } else {
+                delete_post_meta( $post_id, 'related_post_id' );
+            }
         }
         
         $attachment_saved = false;
@@ -690,6 +820,17 @@ class Persistent_Podcast_Player {
             'pickerButtonText' => __('Diese Datei verwenden', 'persistent-podcast-player'),
             'publishBlockedReason' => __('Veröffentlichen ist blockiert, bis eine gültige Audio-Datei aus der Mediathek ausgewählt wurde.', 'persistent-podcast-player'),
             'allowedFilesAlert' => __('Es sind nur Audio-Dateien der Typen mp3, m4a, wav oder ogg erlaubt.', 'persistent-podcast-player'),
+            'relatedSearchMinChars' => __('Bitte mindestens 2 Zeichen eingeben.', 'persistent-podcast-player'),
+            'relatedSearchNoResults' => __('Keine Treffer gefunden.', 'persistent-podcast-player'),
+            'relatedSearchLoading' => __('Suche laeuft…', 'persistent-podcast-player'),
+            'relatedSearchRemoveState' => __('Aktuell ist kein Artikel verknuepft.', 'persistent-podcast-player'),
+            'relatedSearchSelectedState' => __('Aktuell verknuepft:', 'persistent-podcast-player'),
+            'relatedSearchTypePost' => __('Beitrag', 'persistent-podcast-player'),
+            'relatedSearchTypePage' => __('Seite', 'persistent-podcast-player'),
+            'relatedSearchError' => __('Suche fehlgeschlagen. Bitte erneut versuchen.', 'persistent-podcast-player'),
+            'relatedSearchAction' => 'ppp_search_related_posts',
+            'relatedSearchNonce' => wp_create_nonce('ppp_search_related_posts'),
+            'relatedSearchUrl' => admin_url('admin-ajax.php'),
         );
     }
     
@@ -716,6 +857,7 @@ jQuery(document).ready(function($) {
         'wav': true,
         'ogg': true
     };
+    var relatedSearchTimer = null;
 
     function getExtension(filename) {
         var normalized = String(filename || '').toLowerCase();
@@ -768,6 +910,89 @@ jQuery(document).ready(function($) {
         }
     }
 
+    function relatedTypeLabel(type) {
+        if (type === 'page') {
+            return i18n.relatedSearchTypePage || 'Seite';
+        }
+        return i18n.relatedSearchTypePost || 'Beitrag';
+    }
+
+    function setRelatedState(id, title) {
+        var $state = $('#ppp_related_post_state');
+        if (!$state.length) {
+            return;
+        }
+
+        if (!id) {
+            $state.text(i18n.relatedSearchRemoveState || 'Aktuell ist kein Artikel verknuepft.');
+            return;
+        }
+
+        var prefix = i18n.relatedSearchSelectedState || 'Aktuell verknuepft:';
+        $state.text(prefix + ' #' + id + ' - ' + title);
+    }
+
+    function renderRelatedResults(items) {
+        var $results = $('#ppp_related_post_results');
+        if (!$results.length) {
+            return;
+        }
+
+        if (!items || !items.length) {
+            $results.html('<p class="description" style="margin:0;">' + (i18n.relatedSearchNoResults || 'Keine Treffer gefunden.') + '</p>').show();
+            return;
+        }
+
+        var html = '<ul style="margin:0; padding:0; list-style:none; border:1px solid #d0d7de; border-radius:4px; background:#fff; max-height:220px; overflow:auto;">';
+        items.forEach(function(item) {
+            var id = Number(item.id || 0);
+            if (!id) {
+                return;
+            }
+            var title = String(item.title || '');
+            var date = String(item.date || '');
+            var type = String(item.type || 'post');
+            var label = '#' + id + ' - ' + title + ' (' + relatedTypeLabel(type) + ', ' + date + ')';
+            html += '<li><button type="button" class="button-link ppp-related-result" data-id="' + id + '" data-title="' + $('<div/>').text(title).html() + '" style="display:block; width:100%; text-align:left; padding:8px 10px; border:0; background:transparent; cursor:pointer;">' + $('<div/>').text(label).html() + '</button></li>';
+        });
+        html += '</ul>';
+        $results.html(html).show();
+    }
+
+    function runRelatedSearch(term) {
+        var $results = $('#ppp_related_post_results');
+        if (!$results.length) {
+            return;
+        }
+
+        var minChars = 2;
+        if (term.length < minChars) {
+            $results.html('<p class="description" style="margin:0;">' + (i18n.relatedSearchMinChars || 'Bitte mindestens 2 Zeichen eingeben.') + '</p>').show();
+            return;
+        }
+
+        $results.html('<p class="description" style="margin:0;">' + (i18n.relatedSearchLoading || 'Suche laeuft…') + '</p>').show();
+
+        $.ajax({
+            url: i18n.relatedSearchUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                action: i18n.relatedSearchAction || 'ppp_search_related_posts',
+                nonce: i18n.relatedSearchNonce || '',
+                query: term
+            }
+        }).done(function(resp) {
+            if (!resp || !resp.success) {
+                $results.html('<p class="description" style="margin:0;">' + (i18n.relatedSearchError || 'Suche fehlgeschlagen. Bitte erneut versuchen.') + '</p>').show();
+                return;
+            }
+            renderRelatedResults(resp.data || []);
+        }).fail(function() {
+            $results.html('<p class="description" style="margin:0;">' + (i18n.relatedSearchError || 'Suche fehlgeschlagen. Bitte erneut versuchen.') + '</p>').show();
+        });
+    }
+
     $('#ppp_select_audio_btn').on('click', function(e) {
         e.preventDefault();
 
@@ -810,6 +1035,44 @@ jQuery(document).ready(function($) {
         $('#ppp_audio_attachment_url_display').val('');
         $(this).hide();
         updatePublishGuard();
+    });
+
+    $('#ppp_related_post_search').on('input', function() {
+        var term = String($(this).val() || '').trim();
+        clearTimeout(relatedSearchTimer);
+        relatedSearchTimer = setTimeout(function() {
+            runRelatedSearch(term);
+        }, 220);
+    });
+
+    $(document).on('click', '.ppp-related-result', function(e) {
+        e.preventDefault();
+        var id = parseInt($(this).attr('data-id'), 10);
+        var title = String($(this).attr('data-title') || '');
+        if (isNaN(id) || id <= 0) {
+            return;
+        }
+
+        $('#ppp_related_post_id').val(String(id));
+        $('#ppp_related_post_search').val(title);
+        $('#ppp_related_post_results').hide().empty();
+        setRelatedState(id, title);
+    });
+
+    $('#ppp_related_post_clear').on('click', function(e) {
+        e.preventDefault();
+        $('#ppp_related_post_id').val('0');
+        $('#ppp_related_post_search').val('');
+        $('#ppp_related_post_results').hide().empty();
+        setRelatedState(0, '');
+    });
+
+    $(document).on('click', function(e) {
+        var $target = $(e.target);
+        if ($target.closest('#ppp_related_post_results').length || $target.is('#ppp_related_post_search')) {
+            return;
+        }
+        $('#ppp_related_post_results').hide();
     });
 
     updatePublishGuard();

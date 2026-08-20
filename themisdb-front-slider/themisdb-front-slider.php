@@ -7,7 +7,7 @@
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Titelseiten-Slider mit Timer, der die neuesten Artikel auf der Hauptseite darstellt. Shortcode: [themisdb_front_slider]
- * Version:     1.1.3
+ * Version:     1.1.4
  * Author:      ThemisDB Team
  * License:     MIT
  * Text Domain: themisdb-front-slider
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define('THEMISDB_FS_VERSION', '1.1.3');
+define('THEMISDB_FS_VERSION', '1.1.4');
 define( 'THEMISDB_FS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'THEMISDB_FS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'THEMISDB_FS_PLUGIN_FILE', __FILE__ );
@@ -214,6 +214,139 @@ function themisdb_fs_compact_markup( $html ) {
     return trim( (string) $html );
 }
 
+/**
+ * Resolve a published podcast episode linked to a post via related_post_id.
+ *
+ * @param int $post_id Post ID.
+ * @return array{url:string,label:string,style:string}|null
+ */
+function themisdb_fs_get_related_podcast_cta( $post_id ) {
+    $post_id = (int) $post_id;
+    if ( $post_id <= 0 || ! post_type_exists( 'pod_episode' ) ) {
+        return null;
+    }
+
+    static $cache = array();
+    if ( array_key_exists( $post_id, $cache ) ) {
+        return $cache[ $post_id ];
+    }
+
+    $episode_query = new WP_Query(
+        array(
+            'post_type'              => 'pod_episode',
+            'post_status'            => 'publish',
+            'posts_per_page'         => 1,
+            'orderby'                => 'date',
+            'order'                  => 'DESC',
+            'ignore_sticky_posts'    => true,
+            'no_found_rows'          => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+            'meta_query'             => array(
+                array(
+                    'key'     => 'related_post_id',
+                    'value'   => $post_id,
+                    'compare' => '=',
+                    'type'    => 'NUMERIC',
+                ),
+            ),
+        )
+    );
+
+    if ( ! $episode_query->have_posts() ) {
+        $cache[ $post_id ] = null;
+        return null;
+    }
+
+    $episode_id = (int) $episode_query->posts[0]->ID;
+    $episode_url = (string) get_permalink( $episode_id );
+    if ( '' === $episode_url ) {
+        $cache[ $post_id ] = null;
+        return null;
+    }
+
+    $cache[ $post_id ] = array(
+        'label' => esc_html__( 'Podcast anhoeren', 'themisdb-front-slider' ),
+        'url'   => esc_url_raw( $episode_url ),
+        'style' => 'tertiary',
+    );
+
+    return $cache[ $post_id ];
+}
+
+/**
+ * Collect optional per-post CTA buttons for hero slides.
+ *
+ * Supported meta formats:
+ * - themisdb_hero_cta_buttons (JSON array of objects with label/url/style)
+ * - themisdb_hero_cta_1_label + themisdb_hero_cta_1_url (+ optional _style)
+ * - themisdb_hero_cta_2_label + themisdb_hero_cta_2_url (+ optional _style)
+ *
+ * @param int $post_id Post ID.
+ * @param int $limit   Maximum number of additional buttons.
+ * @return array<int,array<string,string>>
+ */
+function themisdb_fs_get_post_cta_buttons( $post_id, $limit = 2 ) {
+    $post_id = (int) $post_id;
+    $limit = max( 0, min( 4, (int) $limit ) );
+    if ( $post_id <= 0 || 0 === $limit ) {
+        return array();
+    }
+
+    $items = array();
+
+    $json_raw = get_post_meta( $post_id, 'themisdb_hero_cta_buttons', true );
+    if ( is_string( $json_raw ) && '' !== trim( $json_raw ) ) {
+        $decoded = json_decode( $json_raw, true );
+        if ( is_array( $decoded ) ) {
+            foreach ( $decoded as $entry ) {
+                if ( ! is_array( $entry ) ) {
+                    continue;
+                }
+                $label = isset( $entry['label'] ) ? sanitize_text_field( (string) $entry['label'] ) : '';
+                $url = isset( $entry['url'] ) ? esc_url_raw( (string) $entry['url'] ) : '';
+                $style = isset( $entry['style'] ) ? sanitize_key( (string) $entry['style'] ) : '';
+
+                if ( '' === $label || '' === $url ) {
+                    continue;
+                }
+
+                $items[] = array(
+                    'label' => $label,
+                    'url'   => $url,
+                    'style' => in_array( $style, array( 'secondary', 'tertiary' ), true ) ? $style : 'secondary',
+                );
+            }
+        }
+    }
+
+    for ( $i = 1; $i <= 2; $i++ ) {
+        $label = sanitize_text_field( (string) get_post_meta( $post_id, 'themisdb_hero_cta_' . $i . '_label', true ) );
+        $url = esc_url_raw( (string) get_post_meta( $post_id, 'themisdb_hero_cta_' . $i . '_url', true ) );
+        $style = sanitize_key( (string) get_post_meta( $post_id, 'themisdb_hero_cta_' . $i . '_style', true ) );
+
+        if ( '' === $label || '' === $url ) {
+            continue;
+        }
+
+        $items[] = array(
+            'label' => $label,
+            'url'   => $url,
+            'style' => in_array( $style, array( 'secondary', 'tertiary' ), true ) ? $style : 'secondary',
+        );
+    }
+
+    $podcast_cta = themisdb_fs_get_related_podcast_cta( $post_id );
+    if ( is_array( $podcast_cta ) ) {
+        $items[] = $podcast_cta;
+    }
+
+    $items = array_values( array_unique( $items, SORT_REGULAR ) );
+    $items = array_slice( $items, 0, $limit );
+
+    return apply_filters( 'themisdb_front_slider_post_cta_buttons', $items, $post_id, $limit );
+}
+
 /* --------------------------------------------------------------------------
  * Shortcode  [themisdb_front_slider]
  *
@@ -262,6 +395,7 @@ function themisdb_fs_shortcode( $atts ) {
             'accent_color'  => '#0284c7',
             'img_size'      => 'large',
             'layout_preset' => 'standard',
+            'respect_reduced_motion' => true,
         ),
         $raw_atts,
         'themisdb_front_slider'
@@ -285,6 +419,7 @@ function themisdb_fs_shortcode( $atts ) {
     $image_size    = in_array( $image_size, array( 'thumbnail', 'medium', 'medium_large', 'large', 'full' ), true ) ? $image_size : 'large';
     $layout_preset = sanitize_key( (string) $atts['layout_preset'] );
     $layout_preset = in_array( $layout_preset, array( 'standard', 'compact', 'magazine' ), true ) ? $layout_preset : 'standard';
+    $respect_reduced_motion = filter_var( $atts['respect_reduced_motion'], FILTER_VALIDATE_BOOLEAN );
     $labels        = themisdb_fs_get_slider_labels( $category, $readmore_text );
 
     // Query posts.
@@ -338,6 +473,7 @@ function themisdb_fs_shortcode( $atts ) {
         'readmore_text' => $readmore_text,
         'image_size'    => $image_size,
         'layout_preset' => $layout_preset,
+        'respect_reduced_motion' => $respect_reduced_motion,
         'labels'        => $labels,
         'query_args'    => $query_args,
         'slides'        => $slides,

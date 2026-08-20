@@ -13,6 +13,7 @@
  * aufgerufen werden:
  *
  *   $summary = ThemisDB_Status_Resolver::for_user($user_id);
+ *   $summary = ThemisDB_Status_Resolver::for_context($context);
  *
  * Gibt immer ein vollständiges Array zurück, auch wenn Teilbereiche nicht
  * verfügbar sind (graceful degradation).
@@ -51,6 +52,30 @@ class ThemisDB_Status_Resolver {
         $health   = self::compute_health($license, $tickets, $builds);
 
         return compact('license', 'tickets', 'orders', 'builds', 'lifecycle', 'health');
+    }
+
+    /**
+     * Aggregated status for a normalized customer context.
+     *
+     * @param array $context
+     * @return array
+     */
+    public static function for_context(array $context) {
+        $customer_account_id = isset($context['customer_account_id']) ? (int) $context['customer_account_id'] : 0;
+        $user_id = isset($context['user_id']) ? (int) $context['user_id'] : 0;
+
+        if ($customer_account_id > 0) {
+            $license = self::resolve_license_for_customer_account($context);
+            $tickets = self::resolve_tickets_for_customer_account($customer_account_id, $license);
+            $orders = self::resolve_orders_for_customer_account($context, $license);
+            $builds = self::resolve_builds_for_customer_account($context, $license);
+            $lifecycle = self::resolve_lifecycle_for_customer_account($context, $license);
+            $health = self::compute_health($license, $tickets, $builds);
+
+            return compact('license', 'tickets', 'orders', 'builds', 'lifecycle', 'health');
+        }
+
+        return self::for_user($user_id);
     }
 
     // ------------------------------------------------------------------
@@ -119,6 +144,48 @@ class ThemisDB_Status_Resolver {
     }
 
     /**
+     * Resolve license for a customer account.
+     *
+     * @param array $context
+     * @return array
+     */
+    public static function resolve_license_for_customer_account(array $context) {
+        $account_id = isset($context['customer_account_id']) ? (int) $context['customer_account_id'] : 0;
+        if ($account_id <= 0 || !class_exists('ThemisDB_Support_Customer_Account_Repository')) {
+            return self::resolve_license(isset($context['user_id']) ? (int) $context['user_id'] : 0);
+        }
+
+        $account = ThemisDB_Support_Customer_Account_Repository::find_by_id($account_id);
+        if (!$account) {
+            return self::resolve_license(isset($context['user_id']) ? (int) $context['user_id'] : 0);
+        }
+
+        $license_id = !empty($account['primary_license_id']) ? (int) $account['primary_license_id'] : 0;
+        if ($license_id > 0 && class_exists('ThemisDB_License_Manager')) {
+            $lic = ThemisDB_License_Manager::get_license($license_id);
+            if (is_array($lic)) {
+                return array(
+                    'id'          => $license_id,
+                    'license_key' => self::mask_key(isset($lic['license_key']) ? (string) $lic['license_key'] : ''),
+                    'tier'        => isset($lic['product_edition']) ? (string) $lic['product_edition'] : (isset($lic['tier']) ? (string) $lic['tier'] : ''),
+                    'status'      => isset($lic['license_status']) ? (string) $lic['license_status'] : (isset($lic['status']) ? (string) $lic['status'] : ''),
+                    'expires_at'  => isset($lic['expiry_date']) ? (string) $lic['expiry_date'] : (isset($lic['expires_at']) ? (string) $lic['expires_at'] : null),
+                    'available'   => true,
+                );
+            }
+        }
+
+        return array(
+            'id'          => $license_id > 0 ? $license_id : null,
+            'license_key' => self::mask_key(isset($account['customer_email']) ? (string) $account['customer_email'] : ''),
+            'tier'        => isset($account['support_tier']) ? (string) $account['support_tier'] : '',
+            'status'      => isset($account['account_status']) ? (string) $account['account_status'] : 'active',
+            'expires_at'  => null,
+            'available'   => true,
+        );
+    }
+
+    /**
      * Offene + kürzlich abgeschlossene Tickets des Benutzers (max. 5).
      *
      * @param int   $user_id
@@ -140,6 +207,29 @@ class ThemisDB_Status_Resolver {
 
         $result = $manager::get_tickets(array(
             'user_id' => $user_id,
+            'limit'   => 5,
+            'orderby' => 'updated_at',
+            'order'   => 'DESC',
+        ));
+
+        return isset($result['tickets']) ? (array) $result['tickets'] : array();
+    }
+
+    public static function resolve_tickets_for_customer_account($customer_account_id, array $license) {
+        if (!class_exists('ThemisDB_SupportPortal_Ticket_Manager') && !class_exists('ThemisDB_Ticket_Manager')) {
+            return array();
+        }
+
+        $manager = class_exists('ThemisDB_SupportPortal_Ticket_Manager')
+            ? 'ThemisDB_SupportPortal_Ticket_Manager'
+            : 'ThemisDB_Ticket_Manager';
+
+        if (!method_exists($manager, 'get_tickets')) {
+            return array();
+        }
+
+        $result = $manager::get_tickets(array(
+            'customer_account_id' => (int) $customer_account_id,
             'limit'   => 5,
             'orderby' => 'updated_at',
             'order'   => 'DESC',
@@ -177,6 +267,31 @@ class ThemisDB_Status_Resolver {
         return isset($result['orders']) ? (array) $result['orders'] : (is_array($result) ? $result : array());
     }
 
+    public static function resolve_orders_for_customer_account(array $context, array $license) {
+        if (!class_exists('ThemisDB_Order_Manager') || !method_exists('ThemisDB_Order_Manager', 'get_orders')) {
+            return array();
+        }
+
+        $email = isset($context['customer_email']) ? sanitize_email((string) $context['customer_email']) : '';
+        if (empty($email) && !empty($context['user_id'])) {
+            $user = get_userdata((int) $context['user_id']);
+            $email = $user ? (string) $user->user_email : '';
+        }
+
+        if (empty($email)) {
+            return array();
+        }
+
+        $result = ThemisDB_Order_Manager::get_orders(array(
+            'customer_email' => $email,
+            'limit'          => 3,
+            'orderby'        => 'created_at',
+            'order'          => 'DESC',
+        ));
+
+        return isset($result['orders']) ? (array) $result['orders'] : (is_array($result) ? $result : array());
+    }
+
     /**
      * Letzte Build-Dispatch-Ergebnisse für die Lizenz des Kunden (max. 3).
      *
@@ -197,6 +312,10 @@ class ThemisDB_Status_Resolver {
         return is_array($history) ? $history : array();
     }
 
+    public static function resolve_builds_for_customer_account(array $context, array $license) {
+        return self::resolve_builds(isset($context['user_id']) ? (int) $context['user_id'] : 0, $license);
+    }
+
     /**
      * Offene Vertragliche Lifecycle-Anträge (Kündigung / Änderung).
      *
@@ -211,6 +330,10 @@ class ThemisDB_Status_Resolver {
 
         $reqs = ThemisDB_Contract_Lifecycle::get_requests_for_user($user_id, array('status' => 'pending'));
         return is_array($reqs) ? $reqs : array();
+    }
+
+    public static function resolve_lifecycle_for_customer_account(array $context, array $license) {
+        return self::resolve_lifecycle(isset($context['user_id']) ? (int) $context['user_id'] : 0, $license);
     }
 
     /**

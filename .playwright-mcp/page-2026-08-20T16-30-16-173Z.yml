@@ -1,0 +1,204 @@
+- generic [active] [ref=e1]:
+  - link "Zum Inhalt springen" [ref=e2] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - link "Zum Inhalt springen" [ref=e3] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - banner [ref=e6]:
+        - button "Toggle Navigation Graph" [ref=e7] [cursor=pointer]
+        - generic [ref=e10]:
+          - generic [ref=e11]:
+            - link [ref=e13] [cursor=pointer]:
+              - /url: http://localhost/wordpress/
+              - img "WordPress Lokal" [ref=e14]
+            - paragraph [ref=e15]:
+              - link "WordPress Lokal" [ref=e16] [cursor=pointer]:
+                - /url: http://localhost/wordpress
+          - navigation "Produktnavigation Produktnavigation" [ref=e18]:
+            - list "Produktnavigation" [ref=e19]:
+              - listitem [ref=e20]:
+                - link "Produkte" [ref=e21] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/products/
+              - listitem [ref=e22]:
+                - link "Lösungen" [ref=e23] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/solutions/
+              - listitem [ref=e24]:
+                - link "Preis" [ref=e25] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/pricing/
+              - listitem [ref=e26]:
+                - link "Dokumentation" [ref=e27] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/docs/
+          - navigation "Hilfsnavigation Hilfsnavigation" [ref=e29]:
+            - list "Hilfsnavigation" [ref=e30]:
+              - listitem [ref=e31]:
+                - link "Partner" [ref=e32] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/partners/
+              - listitem [ref=e33]:
+                - link "Support" [ref=e34] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/support/
+              - listitem [ref=e35]:
+                - link "Ressourcen" [ref=e36] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/resources/
+          - generic [ref=e37]:
+            - search [ref=e38]:
+              - generic [ref=e39]: Suche
+              - generic [ref=e40]:
+                - searchbox "Suche" [ref=e41]
+                - button "Suchen" [ref=e42] [cursor=pointer]
+            - link "Anmelden" [ref=e46] [cursor=pointer]:
+              - /url: http://localhost/wordpress/login/
+    - main [ref=e47]:
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - paragraph [ref=e50]: ThemisDB Kundenbereich
+          - heading "Support, Lizenzen und Aufträge an einem Ort" [level=1] [ref=e51]
+          - paragraph [ref=e52]: Die Navigation oben und die Breadcrumbs darunter springen direkt zu den sichtbaren Bereichen.
+          - navigation "Kontextnavigation" [ref=e54]:
+            - navigation "Abschnitte auf dieser Seite" [ref=e56]:
+              - list [ref=e57]:
+                - listitem [ref=e58]:
+                  - link "Zugang" [ref=e59] [cursor=pointer]:
+                    - /url: "#zugang"
+                - listitem [ref=e60]:
+                  - link "ThemisDB Support-Portal" [ref=e61] [cursor=pointer]:
+                    - /url: "#themisdb-support-portal"
+                - listitem [ref=e62]:
+                  - link "Anmeldung" [ref=e63] [cursor=pointer]:
+                    - /url: "#anmeldung"
+                - listitem [ref=e64]:
+                  - link "Freigeschaltete Bereiche" [ref=e65] [cursor=pointer]:
+                    - /url: "#freigeschaltete-bereiche"
+                - listitem [ref=e66]:
+                  - link "Nächster Schritt" [ref=e67] [cursor=pointer]:
+                    - /url: "#nachster-schritt"
+            - generic: 0% · 1 Min. uebrig
+        - generic [ref=e68]:
+          - generic [ref=e69]:
+            - heading "Zugang" [level=2] [ref=e70]
+            - generic [ref=e71]:
+              - generic [ref=e72]:
+                - heading "Support-Zugang" [level=3] [ref=e73]
+                - generic [ref=e74]:
+                  - generic [ref=e75]:
+                    - generic [ref=e76]:
+                      - paragraph
+                      - heading "ThemisDB Support-Portal" [level=2] [ref=e77]
+                      - paragraph [ref=e78]: Bitte melden Sie sich mit Ihrer ThemisDB-Lizenzdatei an, um Zugang zum Support-System zu erhalten.
+                      - paragraph
+                    - generic [ref=e79]:
+                      - paragraph
+                      - generic [ref=e80] [cursor=pointer]:
+                        - paragraph
+                        - paragraph [ref=e81]: Lizenzdatei hierher ziehen oder klicken zum Auswählen
+                        - paragraph [ref=e82]: Nur .json Dateien werden akzeptiert
+                        - paragraph:
+                          - button "Choose File" [ref=e83]
+                      - button "Mit Lizenz anmelden" [disabled] [ref=e85]
+                      - paragraph
+                    - generic [ref=e86]:
+                      - paragraph [ref=e87]:
+                        - text: Sie haben noch keine Lizenz?
+                        - link "Jetzt erwerben" [ref=e88] [cursor=pointer]:
+                          - /url: http://localhost/wordpress/
+                      - paragraph
+                    - paragraph
+                  - paragraph
+                - paragraph
+              - generic [ref=e89]:
+                - heading "Order-Login" [level=3] [ref=e90]
+                - generic [ref=e91]:
+                  - heading "Anmeldung" [level=2] [ref=e92]
+                  - generic [ref=e93]:
+                    - button "Standard-Anmeldung" [ref=e94]
+                    - button "Lizenz-Anmeldung" [ref=e95]
+                  - paragraph
+                  - generic [ref=e96]:
+                    - generic [ref=e97]:
+                      - paragraph
+                      - generic [ref=e98]:
+                        - generic [ref=e99]: E-Mail oder Benutzername
+                        - textbox "E-Mail oder Benutzername" [ref=e100]
+                      - generic [ref=e101]:
+                        - generic [ref=e102]: Passwort
+                        - textbox "Passwort" [ref=e103]
+                      - generic [ref=e105]:
+                        - checkbox "Angemeldet bleiben" [ref=e106]
+                        - text: Angemeldet bleiben
+                      - button "Anmelden" [ref=e108]
+                      - link "Passwort vergessen?" [ref=e110] [cursor=pointer]:
+                        - /url: http://localhost/wordpress/wp-login.php?action=lostpassword
+                      - paragraph
+                    - paragraph
+                  - paragraph
+                  - generic [ref=e111]:
+                    - generic [ref=e112]:
+                      - paragraph
+                      - generic [ref=e113]:
+                        - paragraph [ref=e114]: "Melden Sie sich mit Ihrer ThemisDB-Lizenzdatei an:"
+                        - list [ref=e115]:
+                          - listitem [ref=e116]: Laden Sie Ihre Lizenzdatei (.json) hoch
+                          - listitem [ref=e117]: Die Datei wird sicher verifiziert
+                          - listitem [ref=e118]: Bei erfolgreicher Verifizierung werden Sie automatisch angemeldet
+                      - generic [ref=e119]:
+                        - generic [ref=e120]: Lizenzdatei hochladen
+                        - button "Lizenzdatei hochladen" [ref=e121]
+                        - text: Nur .json Dateien erlaubt
+                      - button "Mit Lizenz anmelden" [ref=e123]
+                      - paragraph
+                    - paragraph
+                  - paragraph
+                - paragraph
+              - paragraph
+          - heading "Freigeschaltete Bereiche" [level=2] [ref=e125]
+          - generic [ref=e126]:
+            - heading "Nächster Schritt" [level=2] [ref=e127]
+            - paragraph [ref=e128]: Nach der Anmeldung erscheinen hier Support, Lizenzen, Aufträge und B2B-Funktionen.
+        - paragraph
+    - contentinfo [ref=e129]:
+      - contentinfo [ref=e130]:
+        - generic [ref=e131]:
+          - generic [ref=e133]:
+            - generic:
+              - link "WordPress Lokal":
+                - /url: http://localhost/wordpress/
+                - img "WordPress Lokal"
+            - paragraph [ref=e134]:
+              - link "WordPress Lokal" [ref=e135] [cursor=pointer]:
+                - /url: http://localhost/wordpress
+            - paragraph [ref=e136]: Lokale Testinstanz
+          - generic [ref=e137]:
+            - heading "Navigation" [level=6] [ref=e138]
+            - navigation "Footer-Navigation Footer-Navigation"
+          - generic [ref=e139]:
+            - heading "Rechtliches" [level=6] [ref=e140]
+            - list [ref=e141]:
+              - listitem [ref=e142]:
+                - link "GitHub" [ref=e143] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=e147]:
+                - link "LinkedIn" [ref=e148] [cursor=pointer]:
+                  - /url: "#"
+        - paragraph [ref=e152]: Powered by WordPress.
+  - option "Alle Typen" [selected]
+  - 'option "Typ: category"'
+  - 'option "Typ: external_resource"'
+  - 'option "Typ: home"'
+  - 'option "Typ: page"'
+  - 'option "Typ: post"'
+  - 'option "Typ: tag"'
+  - 'option "Sortierung: Titel A-Z" [selected]'
+  - 'option "Sortierung: Titel Z-A"'
+  - 'option "Sortierung: Typ"'
+  - 'option "Sortierung: Groesse"'
+  - 'option "Sortierung: Count"'
+  - 'option "Visualisierung: Force Layout" [selected]'
+  - 'option "Visualisierung: Galaxy Mode"'
+  - 'option "Clustering: Aus" [selected]'
+  - 'option "Clustering: Nach Typ"'
+  - 'option "Clustering: Nach Ebene"'
+  - option "Preset laden..." [selected]
+  - option "Ueberschreiben" [selected]
+  - option "Bestehende ueberspringen"
+  - option "Nur neue Presets"
+  - option "Fragen je Preset"

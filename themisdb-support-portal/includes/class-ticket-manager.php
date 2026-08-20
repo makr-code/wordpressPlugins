@@ -48,6 +48,7 @@ class ThemisDB_SupportPortal_Ticket_Manager {
      *     @type string $customer_company (optional)
      *     @type string $priority        (optional, default 'normal')
      *     @type string $license_key     (optional)
+    *     @type int    $customer_account_id (optional)
      *     @type int    $user_id         (optional)
     *     @type int    $assignee_user_id (optional)
      * }
@@ -111,6 +112,7 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             'customer_company' => isset($data['customer_company']) ? sanitize_text_field($data['customer_company']) : null,
             'license_key'      => isset($data['license_key'])  ? sanitize_text_field($data['license_key'])  : null,
             'benefit_id'       => $benefit_id,
+            'customer_account_id' => isset($data['customer_account_id']) ? intval($data['customer_account_id']) : null,
             'user_id'          => isset($data['user_id'])      ? intval($data['user_id'])                   : null,
             'created_by'       => isset($data['user_id']) ? intval($data['user_id']) : (get_current_user_id() ?: null),
             'assignee_user_id' => self::sanitize_assignee_user_id(isset($data['assignee_user_id']) ? $data['assignee_user_id'] : $default_assignee_user_id),
@@ -146,6 +148,7 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             'customer_company' => '%s',
             'license_key' => '%s',
             'benefit_id' => '%d',
+            'customer_account_id' => '%d',
             'user_id' => '%d',
             'created_by' => '%d',
             'assignee_user_id' => '%d',
@@ -263,6 +266,7 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             'status'   => '',
             'priority' => '',
             'user_id'  => 0,
+            'customer_account_id' => 0,
             'assignee_user_id' => 0,
             'per_page' => 20,
             'page'     => 1,
@@ -285,6 +289,10 @@ class ThemisDB_SupportPortal_Ticket_Manager {
         if (!empty($args['user_id'])) {
             $where[]  = 'user_id = %d';
             $values[] = intval($args['user_id']);
+        }
+        if (!empty($args['customer_account_id'])) {
+            $where[]  = 'customer_account_id = %d';
+            $values[] = intval($args['customer_account_id']);
         }
         if (!empty($args['assignee_user_id'])) {
             $where[]  = 'assignee_user_id = %d';
@@ -339,6 +347,22 @@ class ThemisDB_SupportPortal_Ticket_Manager {
             'per_page' => 100,
             'order'    => 'DESC',
         ));
+        return $result['tickets'];
+    }
+
+    /**
+     * Retrieve tickets belonging to a specific customer account.
+     *
+     * @param int $customer_account_id
+     * @return array
+     */
+    public static function get_customer_tickets($customer_account_id) {
+        $result = self::get_tickets(array(
+            'customer_account_id' => $customer_account_id,
+            'per_page' => 100,
+            'order'    => 'DESC',
+        ));
+
         return $result['tickets'];
     }
 

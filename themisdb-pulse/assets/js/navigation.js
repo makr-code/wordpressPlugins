@@ -26,6 +26,7 @@
 		initCodeCopyButtons();
 		initDataCopyButtons();
 		initActiveNavLinks();
+		initLocalAnchorNavState();
 		initCardHoverEffects();
 		initFeaturedImageContrast();
 		initReadingTime();
@@ -291,6 +292,174 @@
 				// Invalid URL – skip
 			}
 		} );
+	}
+
+	/* ----------------------------------------------------------
+	   Local Anchor Navigation State
+	   Highlights the active in-page section in breadcrumbs / hub menus
+	   ---------------------------------------------------------- */
+	function initLocalAnchorNavState() {
+		var anchorLinks = Array.from( document.querySelectorAll(
+			'.tv3-hero-local-nav-list a[href^="#"], .tv3-breadcrumbs-list a[href^="#"], .tv3-support-splitbutton__menu a[href^="#"]'
+		) );
+
+		function getAnchorId( href ) {
+			if ( ! href ) {
+				return '';
+			}
+
+			var hashIndex = href.indexOf( '#' );
+			if ( hashIndex >= 0 ) {
+				return href.slice( hashIndex + 1 ).trim();
+			}
+
+			return href.replace( /^#/, '' ).trim();
+		}
+
+		if ( ! anchorLinks.length ) {
+			return;
+		}
+
+		var entries = anchorLinks
+			.map( function ( link ) {
+				var href = link.getAttribute( 'href' ) || '';
+				var targetId = getAnchorId( href );
+				var target = targetId ? document.getElementById( targetId ) : null;
+				return target ? { link: link, target: target } : null;
+			} )
+			.filter( Boolean );
+
+		if ( ! entries.length ) {
+			return;
+		}
+
+		function clearCurrentState() {
+			entries.forEach( function ( entry ) {
+				var item = entry.link.closest( 'li' );
+				if ( item ) {
+					item.classList.remove( 'is-current' );
+				}
+				entry.link.removeAttribute( 'aria-current' );
+			} );
+		}
+
+		function setCurrentLink( currentLink ) {
+			clearCurrentState();
+			if ( ! currentLink ) {
+				return;
+			}
+
+			var currentItem = currentLink.closest( 'li' );
+			if ( currentItem ) {
+				currentItem.classList.add( 'is-current' );
+			}
+			currentLink.setAttribute( 'aria-current', 'location' );
+		}
+
+		function updateCurrentFromViewport() {
+			var offset = 140;
+			var candidate = null;
+
+			entries.forEach( function ( entry ) {
+				var rect = entry.target.getBoundingClientRect();
+				if ( rect.bottom <= offset ) {
+					return;
+				}
+
+				if ( rect.top <= offset ) {
+					candidate = entry;
+				}
+			} );
+
+			if ( ! candidate && entries.length ) {
+				candidate = entries[ 0 ];
+			}
+
+			if ( candidate ) {
+				setCurrentLink( candidate.link );
+			}
+		}
+
+		var observer = null;
+		if ( 'IntersectionObserver' in window ) {
+			observer = new IntersectionObserver( function ( observedEntries ) {
+				var visible = observedEntries.filter( function ( observed ) {
+					return observed.isIntersecting;
+				} );
+
+				if ( ! visible.length ) {
+					return;
+				}
+
+				visible.sort( function ( left, right ) {
+					return right.intersectionRatio - left.intersectionRatio;
+				} );
+				var active = visible[ 0 ];
+				var matchingEntry = entries.find( function ( entry ) {
+					return entry.target === active.target;
+				} );
+				if ( matchingEntry ) {
+					setCurrentLink( matchingEntry.link );
+				}
+			}, {
+				rootMargin: '-18% 0px -62% 0px',
+				threshold: [ 0.15, 0.3, 0.55, 0.75 ]
+			} );
+
+			entries.forEach( function ( entry ) {
+				observer.observe( entry.target );
+			} );
+		}
+
+		var scheduleViewportUpdate = null;
+		function requestViewportUpdate() {
+			if ( scheduleViewportUpdate ) {
+				cancelAnimationFrame( scheduleViewportUpdate );
+			}
+			scheduleViewportUpdate = requestAnimationFrame( function () {
+				updateCurrentFromViewport();
+				scheduleViewportUpdate = null;
+			} );
+		}
+
+		window.addEventListener( 'scroll', requestViewportUpdate, { passive: true } );
+		window.addEventListener( 'resize', requestViewportUpdate, { passive: true } );
+		window.addEventListener( 'hashchange', function () {
+			var currentHash = window.location.hash ? window.location.hash.replace( /^#/, '' ) : '';
+			if ( currentHash ) {
+				var hashLink = anchorLinks.find( function ( link ) {
+					return getAnchorId( link.getAttribute( 'href' ) || '' ) === currentHash;
+				} );
+				if ( hashLink ) {
+					setCurrentLink( hashLink );
+				}
+			}
+		} );
+
+		anchorLinks.forEach( function ( link ) {
+			link.addEventListener( 'click', function () {
+				setTimeout( function () {
+					var href = link.getAttribute( 'href' ) || '';
+					var targetId = getAnchorId( href );
+					var target = targetId ? document.getElementById( targetId ) : null;
+					if ( target ) {
+						setCurrentLink( link );
+					}
+				}, 0 );
+			} );
+		} );
+
+		var initialHash = window.location.hash ? window.location.hash.replace( /^#/, '' ) : '';
+		if ( initialHash ) {
+			var initialLink = anchorLinks.find( function ( link ) {
+				return getAnchorId( link.getAttribute( 'href' ) || '' ) === initialHash;
+			} );
+			if ( initialLink ) {
+				setCurrentLink( initialLink );
+			}
+		} else {
+			requestViewportUpdate();
+		}
 	}
 
 	/* ----------------------------------------------------------

@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
  */
 class ThemisDB_Support_Database {
 
-    const DB_VERSION = '1.0.5';
+    const DB_VERSION = '1.1.0';
 
     /**
      * Called on plugins_loaded – runs a schema upgrade if needed.
@@ -38,9 +38,11 @@ class ThemisDB_Support_Database {
     public static function create_tables() {
         global $wpdb;
 
-        $charset_collate   = $wpdb->get_charset_collate();
-        $table_tickets     = $wpdb->prefix . 'themisdb_support_tickets';
-        $table_messages    = $wpdb->prefix . 'themisdb_support_messages';
+        $charset_collate      = $wpdb->get_charset_collate();
+        $table_tickets        = $wpdb->prefix . 'themisdb_support_tickets';
+        $table_messages       = $wpdb->prefix . 'themisdb_support_messages';
+        $table_customer_accounts = $wpdb->prefix . 'themisdb_customer_accounts';
+        $table_customer_sessions = $wpdb->prefix . 'themisdb_customer_sessions';
 
         // Legacy installations may keep a foreign key on benefit_id.
         // dbDelta can fail when changing a constrained column definition.
@@ -57,6 +59,7 @@ class ThemisDB_Support_Database {
             customer_company varchar(255) DEFAULT NULL,
             license_key varchar(100) DEFAULT NULL,
             benefit_id bigint(20) unsigned DEFAULT NULL,
+            customer_account_id bigint(20) unsigned DEFAULT NULL,
             user_id bigint(20) unsigned DEFAULT NULL,
             assignee_user_id bigint(20) unsigned DEFAULT NULL,
             sla_due_at datetime DEFAULT NULL,
@@ -69,6 +72,7 @@ class ThemisDB_Support_Database {
             PRIMARY KEY  (id),
             UNIQUE KEY ticket_number (ticket_number),
             KEY status (status),
+            KEY customer_account_id (customer_account_id),
             KEY user_id (user_id),
             KEY assignee_user_id (assignee_user_id),
             KEY benefit_id (benefit_id),
@@ -85,6 +89,43 @@ class ThemisDB_Support_Database {
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY ticket_id (ticket_id)
+        ) $charset_collate;";
+
+        $sql .= "\nCREATE TABLE $table_customer_accounts (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            customer_uuid char(36) NOT NULL,
+            guest_author_id bigint(20) unsigned DEFAULT NULL,
+            primary_license_id bigint(20) unsigned DEFAULT NULL,
+            customer_email varchar(190) NOT NULL,
+            customer_name varchar(255) NOT NULL DEFAULT '',
+            customer_company varchar(255) NOT NULL DEFAULT '',
+            support_tier varchar(32) NOT NULL DEFAULT '',
+            account_status varchar(20) NOT NULL DEFAULT 'active',
+            last_login_at datetime DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY customer_uuid (customer_uuid),
+            UNIQUE KEY customer_email (customer_email),
+            KEY guest_author_id (guest_author_id),
+            KEY primary_license_id (primary_license_id),
+            KEY account_status (account_status)
+        ) $charset_collate;";
+
+        $sql .= "\nCREATE TABLE $table_customer_sessions (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            customer_account_id bigint(20) unsigned NOT NULL,
+            session_token_hash char(64) NOT NULL,
+            session_nonce char(64) NOT NULL,
+            expires_at datetime NOT NULL,
+            last_seen_at datetime DEFAULT NULL,
+            ip_address varchar(64) DEFAULT NULL,
+            user_agent varchar(255) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY session_token_hash (session_token_hash),
+            KEY customer_account_id (customer_account_id),
+            KEY expires_at (expires_at)
         ) $charset_collate;";
 
         $table_incident_log = $wpdb->prefix . 'themisdb_incident_log';
@@ -165,6 +206,8 @@ class ThemisDB_Support_Database {
         global $wpdb;
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_support_messages");
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_support_tickets");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_customer_sessions");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_customer_accounts");
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_mail_log");
     }
 }

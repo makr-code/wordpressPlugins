@@ -81,6 +81,20 @@
         return bestNode;
     }
 
+    function shouldEnableReadingProgress() {
+        if (!document.body) {
+            return false;
+        }
+
+        var classes = document.body.classList;
+        if (document.querySelector('.wp-block-post-content')) {
+            return true;
+        }
+
+        // Keep reading progress for long-form content views only.
+        return classes.contains('single') || classes.contains('page');
+    }
+
     function pickAnchorScope() {
         var selectors = [
             '.tv3-front-main',
@@ -251,27 +265,196 @@
     }
 
     function dedupeContextNavShells() {
-        return;
+        var shells = Array.prototype.slice.call(document.querySelectorAll('.tv3-hero-context-nav-shell'));
+        if (shells.length <= 1) {
+            return;
+        }
+
+        var primary = null;
+        shells.forEach(function (shell) {
+            if (!primary && shell.querySelector('[data-tv3-anchor-nav], .tv3-hero-context-nav')) {
+                primary = shell;
+            }
+        });
+
+        if (!primary) {
+            primary = shells[0];
+        }
+
+        shells.forEach(function (shell) {
+            if (shell !== primary) {
+                shell.remove();
+            }
+        });
     }
 
     function getPrimaryContextNavPart() {
-        return null;
+        var parts = Array.prototype.slice.call(document.querySelectorAll('.tv3-hero-context-nav-part'));
+        if (!parts.length) {
+            return null;
+        }
+
+        var primary = null;
+        parts.forEach(function (part) {
+            if (!primary && part.querySelector('.tv3-hero-context-nav-shell, .tv3-hero-context-nav')) {
+                primary = part;
+            }
+        });
+
+        return primary || parts[0];
     }
 
     function dedupeContextNavParts() {
-        return;
+        var parts = Array.prototype.slice.call(document.querySelectorAll('.tv3-hero-context-nav-part'));
+        if (parts.length <= 1) {
+            return;
+        }
+
+        var primary = getPrimaryContextNavPart() || parts[0];
+        parts.forEach(function (part) {
+            if (part !== primary) {
+                part.remove();
+            }
+        });
     }
 
     function relocateContextNavPart() {
-        return;
+        var part = getPrimaryContextNavPart();
+        if (!part || !part.parentNode) {
+            return;
+        }
+
+        var hero = document.querySelector('.tv3-hero-slider-shell');
+        var pageHero = document.querySelector('.tv3-page-hero-shell, .tv3-page-hero');
+        var header = document.querySelector('.site-header');
+        var anchor = hero || pageHero || header;
+
+        if (!anchor || !anchor.parentNode) {
+            return;
+        }
+
+        // Keep the context bar directly after the selected anchor block.
+        var desiredParent = anchor.parentNode;
+        var desiredNext = anchor.nextSibling;
+        var alreadyPlaced = part.parentNode === desiredParent && part.previousSibling === anchor;
+        if (alreadyPlaced) {
+            return;
+        }
+
+        desiredParent.insertBefore(part, desiredNext);
+    }
+
+    function relocateBreadcrumbShell() {
+        var shell = document.querySelector('[data-tv3-breadcrumbs-shell]');
+        if (!shell || !shell.parentNode) {
+            return;
+        }
+
+        var hero = document.querySelector('.tv3-hero-slider-shell');
+        var pageHero = document.querySelector('.tv3-page-hero-shell, .tv3-page-hero');
+        var anchor = hero || pageHero;
+        if (!anchor || !anchor.parentNode) {
+            return;
+        }
+
+        var desiredParent = anchor.parentNode;
+        var desiredNext = anchor.nextSibling;
+        var alreadyPlaced = shell.parentNode === desiredParent && shell.previousSibling === anchor;
+        if (alreadyPlaced) {
+            return;
+        }
+
+        desiredParent.insertBefore(shell, desiredNext);
     }
 
     function initContextFloatingState() {
-        return;
+        var part = getPrimaryContextNavPart();
+        var header = document.querySelector('.site-header');
+        if (!part || !header) {
+            return;
+        }
+
+        var raf = false;
+
+        function recalc() {
+            raf = false;
+            var headerRect = header.getBoundingClientRect();
+            var shouldFloat = headerRect.bottom <= 0;
+            part.classList.toggle('is-floating', shouldFloat);
+        }
+
+        function schedule() {
+            if (raf) {
+                return;
+            }
+            raf = true;
+            window.requestAnimationFrame(recalc);
+        }
+
+        window.addEventListener('scroll', schedule, { passive: true });
+        window.addEventListener('resize', schedule);
+        window.addEventListener('orientationchange', schedule);
+        window.addEventListener('load', schedule, { once: true });
+
+        var pollingId = window.setInterval(schedule, 250);
+        window.addEventListener('pagehide', function () {
+            window.clearInterval(pollingId);
+        }, { once: true });
+
+        schedule();
     }
 
     function initBreadcrumbFloatingState() {
-        return;
+        var shell = document.querySelector('[data-tv3-breadcrumbs-shell]');
+        if (!shell) {
+            return;
+        }
+
+        var staticSlot = shell.querySelector('[data-tv3-breadcrumbs-static-slot]');
+        var breadcrumbNav = shell.querySelector('.tv3-breadcrumbs');
+        if (!breadcrumbNav) {
+            return;
+        }
+
+        if (!document.body) {
+            return;
+        }
+
+        function getFloatTop() {
+            var adminBar = document.getElementById('wpadminbar');
+            if (adminBar) {
+                return Math.max(0, Math.round(adminBar.getBoundingClientRect().height));
+            }
+
+            return 0;
+        }
+
+        function recalc() {
+            var threshold = getFloatTop();
+            var shellRect = shell.getBoundingClientRect();
+            var shouldFloat = shellRect.top <= threshold;
+
+            shell.classList.toggle('is-floating', shouldFloat);
+
+            if (staticSlot && breadcrumbNav.parentNode !== staticSlot) {
+                staticSlot.appendChild(breadcrumbNav);
+            }
+            if (staticSlot) {
+                staticSlot.classList.remove('is-placeholder');
+                staticSlot.style.minHeight = '';
+            }
+        }
+
+        function schedule() {
+            recalc();
+        }
+
+        window.addEventListener('scroll', schedule, { passive: true });
+        window.addEventListener('resize', schedule);
+        window.addEventListener('orientationchange', schedule);
+        window.addEventListener('load', schedule, { once: true });
+
+        schedule();
     }
 
     function initContextAnchorNav() {
@@ -317,13 +500,13 @@
         });
 
         function getStickyOffset() {
-            var shell = document.querySelector('[data-tv3-breadcrumbs-shell]');
-            if (!shell) {
+            var stickyPart = getPrimaryContextNavPart();
+            if (!stickyPart) {
                 return 0;
             }
 
-            var rect = shell.getBoundingClientRect();
-            return Math.max(0, Math.round(rect.height));
+            var top = parseFloat(window.getComputedStyle(stickyPart).top || '0');
+            return Number.isFinite(top) ? top : 0;
         }
 
         items.forEach(function (entry) {
@@ -401,6 +584,18 @@
 
         var label = progressShell.querySelector('[data-tv3-reading-progress-label]');
 
+        if (!shouldEnableReadingProgress()) {
+            progressShell.classList.remove('is-active');
+            progressShell.classList.add('is-disabled');
+            bar.style.width = '0%';
+            if (label) {
+                label.textContent = '';
+            }
+            return false;
+        }
+
+        progressShell.classList.remove('is-disabled');
+
         bars.forEach(function (otherBar) {
             if (otherBar === bar) {
                 return;
@@ -423,12 +618,15 @@
         var target = pickReadingTarget();
         if (!target) {
             progressShell.classList.remove('is-active');
+            progressShell.classList.add('is-disabled');
             bar.style.width = '0%';
             if (label) {
                 label.textContent = '';
             }
             return false;
         }
+
+        progressShell.classList.remove('is-disabled');
 
         var minutesTotal = Math.max(0, toInt(progressSettings.minutesTotal, 0));
         var labelPattern = String(progressSettings.labelPattern || '%1$d% · %2$d Min. uebrig');
@@ -495,6 +693,7 @@
 
     function initContextSystems() {
         dedupeContextNavParts();
+        relocateBreadcrumbShell();
         relocateContextNavPart();
         dedupeContextNavShells();
         initContextFloatingState();
@@ -524,9 +723,12 @@
         tryInitReadingProgress();
         window.addEventListener('load', tryInitReadingProgress, { once: true });
 
+        // Run once more after full load in case async blocks moved layout anchors.
         window.addEventListener('load', function () {
-            initContextAnchorNav();
-            initReadingProgress();
+            relocateBreadcrumbShell();
+            relocateContextNavPart();
+            initContextFloatingState();
+            initBreadcrumbFloatingState();
         }, { once: true });
     }
 

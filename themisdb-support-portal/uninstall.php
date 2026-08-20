@@ -17,6 +17,8 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
 global $wpdb;
 $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_support_messages");
 $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_support_tickets");
+$wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_customer_sessions");
+$wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}themisdb_customer_accounts");
 
 // Delete plugin options
 delete_option('themisdb_support_redirect_url');
@@ -27,4 +29,6 @@ delete_option('themisdb_support_email_from');
 delete_option('themisdb_support_email_from_name');
 delete_option('themisdb_support_admin_email');
 delete_option('themisdb_support_default_assignee_user_id');
+delete_option('themisdb_support_customer_auth_mode');
+delete_option('themisdb_support_customer_profile_sync_enabled');
 delete_option('themisdb_support_db_version');

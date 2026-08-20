@@ -29,12 +29,14 @@ $slide_label_format = isset( $labels['slide'] ) ? (string) $labels['slide'] : ''
 $readmore_aria_format = isset( $labels['readmore_aria'] ) ? (string) $labels['readmore_aria'] : '';
 $has_multiple_slides = $query->post_count > 1;
 $is_hero_context = isset( $hero_label ) && '' !== (string) $hero_label;
+$respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_reduced_motion : true;
 ?>
 <div
-    class="themisdb-fs-wrapper la-hero-slider themisdb-fs-preset-<?php echo esc_attr( $layout_preset ); ?><?php echo $is_hero_context ? ' themisdb-fs-context-hero' : ''; ?>"
+    class="themisdb-fs-wrapper la-hero-slider themisdb-fs-preset-<?php echo esc_attr( $layout_preset ); ?><?php echo $is_hero_context ? ' themisdb-fs-context-hero' : ''; ?><?php echo $respect_reduced_motion ? '' : ' themisdb-fs-force-motion'; ?>"
     id="<?php echo esc_attr( $slider_id ); ?>"
     data-interval="<?php echo esc_attr( $interval ); ?>"
     data-autoplay="<?php echo $autoplay ? '1' : '0'; ?>"
+    data-respect-reduced-motion="<?php echo $respect_reduced_motion ? '1' : '0'; ?>"
     data-preset="<?php echo esc_attr( $layout_preset ); ?>"
     style="--tfs-accent: <?php echo esc_attr( $accent_color ); ?>;"
     role="region"
@@ -114,9 +116,8 @@ $is_hero_context = isset( $hero_label ) && '' !== (string) $hero_label;
                     )
                 );
                 $hero_images = array_slice( $hero_images, 0, 4 );
+                $extra_cta_buttons = $is_hero_context ? themisdb_fs_get_post_cta_buttons( $post_id, 2 ) : array();
                 $is_active    = ( 0 === $slide_index );
-                $docs_url     = home_url( '/docs' );
-                $started_url  = home_url( '/docs/getting-started' );
             ?>
             <div
                 class="themisdb-fs-slide la-hero-slide<?php echo $is_active ? ' is-active' : ''; ?>"
@@ -185,21 +186,20 @@ $is_hero_context = isset( $hero_label ) && '' !== (string) $hero_label;
                                 <?php echo esc_html( $readmore_text ); ?>
                             </a>
 
-                            <?php if ( $is_hero_context ) : ?>
+                            <?php if ( ! empty( $extra_cta_buttons ) ) : ?>
+                            <?php foreach ( $extra_cta_buttons as $button_index => $cta_button ) : ?>
+                            <?php
+                                $style = isset( $cta_button['style'] ) ? sanitize_key( (string) $cta_button['style'] ) : 'secondary';
+                                $style_class = 'secondary' === $style ? 'themisdb-fs-btn-secondary' : 'themisdb-fs-btn-tertiary';
+                            ?>
                             <a
-                                class="themisdb-fs-readmore themisdb-fs-btn-secondary"
-                                href="<?php echo esc_url( $started_url ); ?>"
+                                class="themisdb-fs-readmore <?php echo esc_attr( $style_class ); ?>"
+                                href="<?php echo esc_url( (string) $cta_button['url'] ); ?>"
                                 tabindex="<?php echo $is_active ? '0' : '-1'; ?>"
                             >
-                                <?php echo esc_html__( 'Get started', 'themisdb-front-slider' ); ?>
+                                <?php echo esc_html( (string) $cta_button['label'] ); ?>
                             </a>
-                            <a
-                                class="themisdb-fs-readmore themisdb-fs-btn-tertiary"
-                                href="<?php echo esc_url( $docs_url ); ?>"
-                                tabindex="<?php echo $is_active ? '0' : '-1'; ?>"
-                            >
-                                <?php echo esc_html__( 'Dokumentation', 'themisdb-front-slider' ); ?>
-                            </a>
+                            <?php endforeach; ?>
                             <?php endif; ?>
                         </div>
                     </div>
