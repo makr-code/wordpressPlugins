@@ -7,7 +7,7 @@
 
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Titelseiten-Slider mit Timer, der die neuesten Artikel auf der Hauptseite darstellt. Shortcode: [themisdb_front_slider]
- * Version:     1.1.1
+ * Version:     1.1.3
  * Author:      ThemisDB Team
  * License:     MIT
  * Text Domain: themisdb-front-slider
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'THEMISDB_FS_VERSION',    '1.1.0' );
+define('THEMISDB_FS_VERSION', '1.1.3');
 define( 'THEMISDB_FS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'THEMISDB_FS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'THEMISDB_FS_PLUGIN_FILE', __FILE__ );
@@ -201,6 +201,19 @@ function themisdb_fs_get_slider_labels( $category_slug, $readmore_text ) {
     return apply_filters( 'themisdb_front_slider_labels', $labels, $category_slug, $readmore_text );
 }
 
+function themisdb_fs_compact_markup( $html ) {
+    if ( ! is_string( $html ) || '' === $html ) {
+        return '';
+    }
+
+    // Strip template comments and collapse whitespace around text nodes.
+    $html = preg_replace( '/<!--.*?-->/s', '', $html );
+    $html = preg_replace( '/>\s+</', '><', $html );
+    $html = preg_replace( '/>\s+([^<]*?)\s+</u', '>$1<', $html );
+
+    return trim( (string) $html );
+}
+
 /* --------------------------------------------------------------------------
  * Shortcode  [themisdb_front_slider]
  *
@@ -212,6 +225,7 @@ function themisdb_fs_get_slider_labels( $category_slug, $readmore_text ) {
  *   date          – show post date    (1/0)         (default: 1)
  *   cat_label     – show category label (1/0)       (default: 1)
  *   autoplay      – enable autoplay   (1/0)         (default: 1)
+ *   hero_label    – tag slug used to mark hero posts (default: '')
  *   accent_color  – accent hex color                (default: #0284c7)
  *   img_size      – WP image size                   (default: large)
  * ---------------------------------------------------------------------- */
@@ -244,6 +258,7 @@ function themisdb_fs_shortcode( $atts ) {
             'date'          => isset( $opts['show_date'] )     ? $opts['show_date']     : true,
             'cat_label'     => isset( $opts['show_category'] ) ? $opts['show_category'] : true,
             'autoplay'      => isset( $opts['autoplay'] )      ? $opts['autoplay']      : true,
+            'hero_label'    => '',
             'accent_color'  => '#0284c7',
             'img_size'      => 'large',
             'layout_preset' => 'standard',
@@ -262,6 +277,7 @@ function themisdb_fs_shortcode( $atts ) {
     $show_date     = filter_var( $atts['date'],      FILTER_VALIDATE_BOOLEAN );
     $show_category = filter_var( $atts['cat_label'], FILTER_VALIDATE_BOOLEAN );
     $autoplay      = filter_var( $atts['autoplay'],  FILTER_VALIDATE_BOOLEAN );
+    $hero_label    = sanitize_title( (string) $atts['hero_label'] );
     $raw_accent    = (string) $atts['accent_color'];
     $accent_color  = preg_match( '/^#[0-9a-fA-F]{3,6}$/', $raw_accent ) ? $raw_accent : '#0284c7';
     $readmore_text = themisdb_fs_get_default_readmore_text();
@@ -283,6 +299,10 @@ function themisdb_fs_shortcode( $atts ) {
 
     if ( ! empty( $category ) ) {
         $query_args['category_name'] = $category;
+    }
+
+    if ( '' !== $hero_label ) {
+        $query_args['tag'] = $hero_label;
     }
 
     $query_args = apply_filters( 'themisdb_front_slider_shortcode_query_args', $query_args, $atts );
@@ -313,6 +333,7 @@ function themisdb_fs_shortcode( $atts ) {
         'show_date'     => $show_date,
         'show_category' => $show_category,
         'autoplay'      => $autoplay,
+        'hero_label'    => $hero_label,
         'accent_color'  => $accent_color,
         'readmore_text' => $readmore_text,
         'image_size'    => $image_size,
@@ -332,6 +353,7 @@ function themisdb_fs_shortcode( $atts ) {
     ob_start();
     include THEMISDB_FS_PLUGIN_DIR . 'templates/slider.php';
     $html = ob_get_clean();
+    $html = themisdb_fs_compact_markup( (string) $html );
     wp_reset_postdata();
 
     return apply_filters( 'themisdb_front_slider_shortcode_html_output', $html, $payload, $atts );

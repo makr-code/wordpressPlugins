@@ -1,0 +1,159 @@
+/*
+Theme Name: ThemisDB Slate
+Theme URI: https://github.com/makr-code/wordpressPlugins
+Author: ThemisDB Team
+Author URI: https://github.com/makr-code
+Description: Schlankes, wartungsarmes Block-Theme für klare Inhalte, Dokumentation und schnelle Redaktions-Workflows.
+Version: 1.0.0
+Requires at least: 6.3
+Tested up to: 6.7
+Requires PHP: 7.4
+License: MIT
+License URI: https://opensource.org/licenses/MIT
+Text Domain: themisdb-slate
+Tags: full-site-editing, block-theme, custom-colors, custom-logo, one-column, two-columns
+*/
+
+:root {
+    --themisdb-primary: #003366;
+    --themisdb-primary-dark: #00264d;
+    --themisdb-secondary: #0078d4;
+    --themisdb-accent: #50e6ff;
+    --themisdb-surface: #f5f8fc;
+    --themisdb-surface-soft: #ecf2f9;
+    --themisdb-text: #12263a;
+    --themisdb-text-muted: #4d647b;
+    --themisdb-border: #d3dfeb;
+    --themisdb-success: #107c10;
+    --themisdb-warning: #d29200;
+    --themisdb-danger: #c4314b;
+}
+
+body {
+    background: var(--themisdb-surface);
+    color: var(--themisdb-text);
+}
+
+.wp-site-blocks {
+    min-height: 100vh;
+}
+
+.wp-block-site-title a {
+    text-decoration: none;
+}
+
+.wp-block-site-title {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+header .wp-block-group.alignwide {
+    margin-bottom: 0;
+}
+
+header .wp-block-site-title {
+    line-height: 1.2;
+}
+
+header .wp-block-site-title a {
+    color: var(--themisdb-primary);
+}
+
+.wp-block-navigation a {
+    text-underline-offset: 0.2em;
+}
+
+header .wp-block-navigation {
+    min-width: 0;
+    justify-content: flex-start;
+}
+
+header .wp-block-navigation__container {
+    gap: 0.75rem;
+    row-gap: 0.5rem;
+}
+
+header .wp-block-navigation-item {
+    white-space: nowrap;
+}
+
+header .wp-block-navigation-item__content {
+    color: var(--themisdb-text);
+    line-height: 1.3;
+    padding: 0.2rem 0.35rem;
+}
+
+header .wp-block-navigation-item__content:hover,
+header .wp-block-navigation-item__content:focus {
+    color: var(--themisdb-primary);
+}
+
+@media (max-width: 900px) {
+    header .wp-block-navigation__container {
+        gap: 0.5rem;
+    }
+
+    header .wp-block-navigation-item__content {
+        padding: 0.15rem 0.2rem;
+        font-size: 0.85rem;
+    }
+}
+
+.themisdb-plain-card {
+    border: 1px solid var(--themisdb-border);
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.is-style-themisdb-outline .wp-block-button__link {
+    background: transparent;
+    border: 1px solid var(--themisdb-secondary);
+    color: var(--themisdb-secondary);
+}
+
+footer .wp-block-navigation a,
+footer p {
+    color: #dce8f5;
+}
+
+/* Gutenberg/Core-first compatibility layer */
+.wp-block-post-content :where(.alignwide) {
+    max-width: var(--wp--style--global--wide-size, 1280px);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.wp-block-post-content :where(.alignfull) {
+    max-width: none;
+}
+
+.wp-block-post-content :where(.wp-block-image, .wp-block-gallery, .wp-block-embed, .wp-block-table, .wp-block-quote, .wp-block-pullquote, .wp-block-media-text, .wp-block-cover, .wp-block-file, .wp-block-details, .wp-block-code, .wp-block-preformatted, .wp-block-separator) {
+    margin-block: var(--wp--style--block-gap, 1.5rem);
+}
+
+.wp-block-post-content :where(.wp-block-columns) {
+    column-gap: max(1px, var(--wp--style--block-gap, 1.5rem));
+}
+
+.wp-block-post-content :where(.wp-block-table) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.wp-block-post-content :where(.wp-block-table table) {
+    background: transparent;
+    box-shadow: none;
+}
+
+.wp-block-post-content :where(.wp-block-button__link:hover, .wp-block-button__link:focus, .wp-block-button__link:active) {
+    transform: none;
+    box-shadow: none;
+}
+
+@media (max-width: 782px) {
+    .wp-block-post-content :where(.alignleft, .alignright) {
+        float: none;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}

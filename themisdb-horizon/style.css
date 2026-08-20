@@ -1,0 +1,567 @@
+/*
+Theme Name: ThemisDB Horizon
+Theme URI: https://github.com/makr-code/wordpressPlugins
+Author: ThemisDB Team
+Author URI: https://github.com/makr-code
+Description: Haupt-Theme für ThemisDB mit vollständigem Design-System, datengetriebener Startseite und produktionsnaher Block-Theme-Struktur.
+Version: 1.0.0
+Requires at least: 6.3
+Tested up to: 6.7
+Requires PHP: 7.4
+License: MIT
+License URI: https://opensource.org/licenses/MIT
+Text Domain: themisdb-horizon
+Tags: full-site-editing, block-theme, government, custom-colors, custom-logo, custom-menu, wide-blocks, german
+*/
+
+/* ============================================================================
+    THEMISDB THEME – Design System
+   Farbpalette: Sky-Blue, Slate, Emerald (inspiriert von index.html)
+   ============================================================================ */
+
+:root {
+    /* ── Brand Colors ── */
+    --themisdb-navy:          #0c4a6e;   /* sky-900 – Primärfarbe */
+    --themisdb-navy-dark:     #082f49;   /* Sehr dunkles Navy */
+    --themisdb-sky:           #0284c7;   /* sky-600 */
+    --themisdb-sky-light:     #38bdf8;   /* sky-400 */
+    --themisdb-sky-pale:      #e0f2fe;   /* sky-100 */
+    --themisdb-emerald:       #059669;   /* emerald-600 */
+    --themisdb-emerald-light: #34d399;   /* emerald-400 */
+    --themisdb-emerald-pale:  #d1fae5;   /* emerald-100 */
+    --themisdb-orange:        #ea580c;   /* orange-600 */
+
+    /* ── Slate Neutrals ── */
+    --themisdb-slate-50:      #f8fafc;
+    --themisdb-slate-100:     #f1f5f9;
+    --themisdb-slate-200:     #e2e8f0;
+    --themisdb-slate-300:     #cbd5e1;
+    --themisdb-slate-400:     #94a3b8;
+    --themisdb-slate-500:     #64748b;
+    --themisdb-slate-600:     #475569;
+    --themisdb-slate-700:     #334155;
+    --themisdb-slate-800:     #1e293b;
+    --themisdb-slate-900:     #0f172a;
+
+    /* ── Semantic ── */
+    --themisdb-text-primary:   #1e293b;
+    --themisdb-text-secondary: #475569;
+    --themisdb-text-muted:     #64748b;
+    --themisdb-text-inverse:   #ffffff;
+    --themisdb-bg-default:     #ffffff;
+    --themisdb-bg-subtle:      #f8fafc;
+    --themisdb-border:         #e2e8f0;
+
+    /* ── Gradients ── */
+    --themisdb-gradient-hero:  linear-gradient(135deg, #0c4a6e 0%, #0284c7 100%);
+    --themisdb-gradient-text:  linear-gradient(135deg, #0c4a6e 0%, #0284c7 100%);
+
+    /* ── Spacing ── */
+    --themisdb-section-py:     6.25rem;  /* 100px – block-section padding */
+    --themisdb-section-py-sm:  3.75rem;  /* 60px  – mobile */
+
+    /* ── Radius ── */
+    --themisdb-radius-card:    1.5rem;   /* 24px */
+    --themisdb-radius-xl:      2rem;     /* 32px */
+    --themisdb-radius-hero:    3rem;     /* 48px */
+}
+
+/* ============================================================================
+   BASE RESET / TYPOGRAPHY
+   ============================================================================ */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #ffffff;
+    color: var(--themisdb-text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* WordPress Adminbar compensation */
+.admin-bar .themisdb-navbar {
+    top: 32px !important;
+}
+@media screen and (max-width: 782px) {
+    .admin-bar .themisdb-navbar {
+        top: 46px !important;
+    }
+}
+
+/* ============================================================================
+   NAVIGATION
+   ============================================================================ */
+
+.themisdb-navbar {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--themisdb-border);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    width: 100%;
+}
+
+.themisdb-nav-inner {
+    max-width: 88rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.themisdb-nav-row {
+    min-height: 5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.themisdb-nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+}
+
+.themisdb-nav-logo-icon {
+    background: var(--themisdb-navy);
+    color: white;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 1.25rem;
+    box-shadow: 0 4px 12px rgba(12,74,110,0.3);
+    flex-shrink: 0;
+}
+
+.themisdb-nav-brand-name {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    color: var(--themisdb-navy);
+    line-height: 1.2;
+}
+
+.themisdb-nav-brand-subtitle {
+    display: block;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    color: var(--themisdb-slate-400);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.themisdb-nav-links {
+    display: none;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+    .themisdb-nav-links {
+        display: flex;
+    }
+}
+
+.themisdb-nav-link {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--themisdb-slate-500);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.themisdb-nav-link:hover {
+    color: var(--themisdb-sky);
+}
+
+.themisdb-site-logo img {
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(12,74,110,0.25);
+}
+
+.themisdb-nav-navigation {
+    margin-left: auto;
+}
+
+.themisdb-nav-navigation .wp-block-navigation__container {
+    gap: 1.15rem;
+}
+
+.themisdb-nav-navigation .wp-block-navigation-item__content {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--themisdb-slate-500);
+    text-decoration: none;
+}
+
+.themisdb-nav-navigation .wp-block-navigation-item__content:hover {
+    color: var(--themisdb-sky);
+}
+
+.themisdb-nav-navigation .wp-block-navigation__responsive-container-open,
+.themisdb-nav-navigation .wp-block-navigation__responsive-container-close {
+    color: var(--themisdb-navy);
+}
+
+.themisdb-hamburger {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+@media (min-width: 1024px) {
+    .themisdb-hamburger {
+        display: none;
+    }
+}
+
+.themisdb-hamburger span {
+    display: block;
+    width: 1.5rem;
+    height: 2px;
+    background: var(--themisdb-slate-700);
+    border-radius: 1px;
+    transition: all 0.25s ease;
+}
+
+.themisdb-mobile-menu {
+    display: none;
+    flex-direction: column;
+    border-top: 1px solid var(--themisdb-slate-100);
+    background: rgba(255, 255, 255, 0.97);
+    padding: 0 1.5rem 1rem;
+}
+
+.themisdb-mobile-menu.is-open {
+    display: flex;
+}
+
+.themisdb-mobile-link {
+    padding: 0.75rem 0;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--themisdb-slate-500);
+    text-decoration: none;
+    border-bottom: 1px solid var(--themisdb-slate-50);
+    transition: color 0.2s;
+}
+
+.themisdb-mobile-link:hover {
+    color: var(--themisdb-sky);
+}
+
+/* ============================================================================
+   SIDEBAR
+   ============================================================================ */
+
+.themisdb-sidebar {
+    position: sticky;
+    top: 6rem;
+}
+
+.themisdb-sidebar-card {
+    background: #ffffff;
+    border: 1px solid var(--themisdb-slate-100);
+    border-radius: 1rem;
+    box-shadow: 0 8px 20px -18px rgba(15, 23, 42, 0.35);
+}
+
+.themisdb-sidebar-card .wp-block-latest-posts__list,
+.themisdb-sidebar-card .wp-block-categories-list {
+    margin: 0;
+    padding-left: 1rem;
+}
+
+.themisdb-sidebar-card a {
+    color: var(--themisdb-navy);
+    text-decoration: none;
+}
+
+.themisdb-sidebar-card a:hover {
+    color: var(--themisdb-sky);
+}
+
+@media (max-width: 900px) {
+    .themisdb-sidebar {
+        position: static;
+    }
+}
+
+/* ============================================================================
+   SECTION BASE
+   ============================================================================ */
+
+.themisdb-section {
+    padding: var(--themisdb-section-py) 0;
+    border-bottom: 1px solid var(--themisdb-slate-100);
+}
+
+@media (max-width: 640px) {
+    .themisdb-section {
+        padding: var(--themisdb-section-py-sm) 0;
+    }
+}
+
+.themisdb-container {
+    max-width: 88rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.themisdb-section-label {
+    font-size: 0.625rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.4em;
+    color: var(--themisdb-sky);
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.themisdb-section-title {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 900;
+    color: var(--themisdb-slate-900);
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+}
+
+.themisdb-gradient-text {
+    background: var(--themisdb-gradient-text);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ============================================================================
+   FOOTER
+   ============================================================================ */
+
+.themisdb-footer {
+    background: var(--themisdb-slate-900);
+    color: white;
+    padding: 4rem 0;
+}
+
+.themisdb-footer-tag {
+    padding: 0.25rem 0.75rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 99px;
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: var(--themisdb-slate-400);
+    letter-spacing: 0.05em;
+}
+
+/* ============================================================================
+   UTILITY – used in block HTML
+   ============================================================================ */
+
+.themisdb-badge-status {
+    padding: 0.125rem 0.625rem;
+    border-radius: 99px;
+    font-size: 0.625rem;
+    font-weight: 700;
+}
+
+.themisdb-badge-done {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.themisdb-badge-progress {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* Responsive image in hero */
+.themisdb-hero-image-wrap {
+    position: relative;
+}
+
+.themisdb-hero-image-wrap img {
+    border-radius: 1rem;
+    width: 100%;
+    display: block;
+}
+
+.themisdb-hero-image-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 2.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
+    border: 1px solid var(--themisdb-slate-100);
+    position: relative;
+    z-index: 10;
+}
+
+/* Floating color glows */
+.themisdb-glow {
+    position: absolute;
+    width: 10rem;
+    height: 10rem;
+    border-radius: 50%;
+    filter: blur(3rem);
+    pointer-events: none;
+}
+
+/* Test layout marker (visible only in WP editor / admin) */
+.themisdb-test-placeholder {
+    background: repeating-linear-gradient(
+        45deg,
+        #fef9c3,
+        #fef9c3 10px,
+        #fffbeb 10px,
+        #fffbeb 20px
+    );
+    border: 2px dashed #f59e0b;
+    border-radius: 1rem;
+    padding: 2rem;
+    text-align: center;
+    color: #92400e;
+}
+
+.themisdb-test-placeholder h4 {
+    font-weight: 800;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+}
+
+.themisdb-test-placeholder p {
+    font-size: 0.8125rem;
+    opacity: 0.8;
+}
+
+/* ============================================================================
+   WORDPRESS BLOCK OVERRIDES
+   ============================================================================ */
+
+.wp-block-group.themisdb-section-bg-dark {
+    background: var(--themisdb-slate-900);
+    color: white;
+}
+
+.wp-block-group.themisdb-section-bg-navy {
+    background: var(--themisdb-navy);
+    color: white;
+}
+
+.wp-block-group.themisdb-section-bg-subtle {
+    background: var(--themisdb-slate-50);
+}
+
+/* ============================================================================
+   ARTIKEL-PIPELINE: KERNTHESEN-BOXEN (QUOTE_ANCHOR / QUOTE_PROMPT)
+   Injiziert von wp_import.py aus QUOTE_ANCHOR/QUOTE_PROMPT-Markern.
+   Auch für redaktionelle QUOTE_ANCHOR-Kommentare und Markdown-Blockquotes.
+   ============================================================================ */
+
+.quote {
+    position: relative;
+    margin: 2rem 0;
+    padding: 1.25rem 1.5rem 1.25rem 1.75rem;
+    border-radius: 0.5rem;
+    background: var(--themisdb-sky-pale);
+    border-left: 4px solid var(--themisdb-sky);
+    font-style: normal;
+    color: var(--themisdb-text-primary);
+    line-height: 1.65;
+}
+
+.quote strong {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--themisdb-sky);
+    margin-bottom: 0.4rem;
+}
+
+.quote.center {
+    border-left: none;
+    border-top: 4px solid var(--themisdb-sky);
+    text-align: center;
+    padding: 1.5rem 2rem;
+    max-width: 680px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.quote.right {
+    border-left: none;
+    border-right: 4px solid var(--themisdb-sky);
+    text-align: right;
+    padding: 1.25rem 1.75rem 1.25rem 1.5rem;
+}
+
+/* Kernthese-Variante (automatisch von Ollama generiert) */
+.quote.kernthese {
+    background: var(--themisdb-emerald-pale);
+    border-color: var(--themisdb-emerald);
+}
+
+.quote.kernthese strong {
+    color: var(--themisdb-emerald);
+}
+
+/* WordPress blockquote-Reset – Markdown-Blockquotes in Artikeln */
+.entry-content blockquote.quote,
+.wp-block-post-content blockquote.quote {
+    border-left: 4px solid var(--themisdb-sky);
+    background: var(--themisdb-sky-pale);
+    padding: 1.25rem 1.5rem 1.25rem 1.75rem;
+    border-radius: 0.5rem;
+    font-style: italic;
+    color: var(--themisdb-text-primary);
+    margin: 2rem 0;
+}
+
+.entry-content blockquote.quote.kernthese,
+.wp-block-post-content blockquote.quote.kernthese {
+    background: var(--themisdb-emerald-pale);
+    border-color: var(--themisdb-emerald);
+    font-style: normal;
+}
+
+@media (max-width: 640px) {
+    .quote {
+        padding: 1rem 1.125rem 1rem 1.25rem;
+        margin: 1.5rem 0;
+    }
+    .quote.center {
+        padding: 1.25rem 1.25rem;
+    }
+}
+
+

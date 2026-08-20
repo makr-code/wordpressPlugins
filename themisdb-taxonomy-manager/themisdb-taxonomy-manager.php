@@ -50,7 +50,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('THEMISDB_TAXONOMY_VERSION', '1.0.0');
+define('THEMISDB_TAXONOMY_VERSION', '1.0.1');
 define('THEMISDB_TAXONOMY_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_TAXONOMY_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_TAXONOMY_FILE', __FILE__);

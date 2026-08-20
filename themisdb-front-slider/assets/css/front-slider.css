@@ -1,30 +1,20 @@
-﻿/**
- * ThemisDB Front Slider – Styles
- * Design: Light theme matching the LIS-A hero slider (index.html reference)
+/*
+ * ThemisDB Front Slider baseline CSS
+ * Keep this file intentionally minimal. Theme styles should own presentation.
  */
 
-/* =========================================================
-   Wrapper – light background
-   ========================================================= */
 .themisdb-fs-wrapper {
     position: relative;
-    width: 100%;
     overflow: hidden;
-    background: #f6f8fa;
-    user-select: none;
 }
 
-/* =========================================================
-   Track + Slides
-   ========================================================= */
 .themisdb-fs-track-outer {
     overflow: hidden;
-    width: 100%;
 }
 
 .themisdb-fs-track {
     display: flex;
-    transition: transform 0.65s cubic-bezier(0.77, 0, 0.175, 1);
+    transition: transform 0.65s ease;
     will-change: transform;
 }
 
@@ -32,8 +22,8 @@
     flex: 0 0 100%;
     min-width: 0;
     opacity: 0;
-    transition: opacity 0.65s ease;
     pointer-events: none;
+    transition: opacity 0.45s ease;
 }
 
 .themisdb-fs-slide.is-active {
@@ -41,429 +31,38 @@
     pointer-events: auto;
 }
 
-/* Hide the overlay – not needed in light layout */
-.themisdb-fs-slide-overlay {
-    display: none;
-}
-
-/* =========================================================
-   Two-column inner layout
-   ========================================================= */
 .themisdb-fs-slide-inner {
-    max-width: 80rem;
-    margin: 0 auto;
-    padding: 2.5rem 1.5rem 3.5rem;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4rem;
-    align-items: center;
-}
-
-/* =========================================================
-   Left column – text content
-   ========================================================= */
-.themisdb-fs-slide-content {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-/* Content enter animation */
-@keyframes tfs-slideIn {
-    from { opacity: 0; transform: translateY(18px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-.themisdb-fs-slide.is-active .themisdb-fs-slide-content {
-    animation: tfs-slideIn 0.55s ease 0.15s both;
-}
-
-/* =========================================================
-   Right column – image card
-   ========================================================= */
-.themisdb-fs-slide-image {
-    position: relative;
-}
-
-.themisdb-fs-image-card {
-    background: #ffffff;
-    padding: 1.5rem;
-    border-radius: 2.5rem;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-    border: 1px solid #e2e8f0;
-    position: relative;
-    z-index: 1;
-}
-
-.themisdb-fs-image-card img {
-    width: 100%;
-    aspect-ratio: 16 / 10;
-    object-fit: cover;
-    border-radius: 1rem;
-    display: block;
-    filter: grayscale(30%);
-    transition: filter 0.7s ease;
-}
-
-.themisdb-fs-slide.is-active .themisdb-fs-image-card img {
-    filter: grayscale(0%);
-}
-
-/* Decorative blur blobs */
-.themisdb-fs-blob-1,
-.themisdb-fs-blob-2 {
-    position: absolute;
-    width: 10rem;
-    height: 10rem;
-    border-radius: 50%;
-    filter: blur(48px);
-    pointer-events: none;
-}
-
-.themisdb-fs-blob-1 {
-    bottom: -2.5rem;
-    left: -2.5rem;
-    background: rgba(56, 189, 248, 0.2);
-}
-
-.themisdb-fs-blob-2 {
-    top: -2.5rem;
-    right: -2.5rem;
-    background: rgba(52, 211, 153, 0.2);
-}
-
-/* =========================================================
-   Category label – eyebrow style
-   ========================================================= */
-.themisdb-fs-category {
-    display: inline-block;
-    font-size: 0.625rem;
-    font-weight: 900;
-    letter-spacing: 0.35em;
-    text-transform: uppercase;
-    color: var(--tfs-accent, #0284c7);
-    text-decoration: none;
-    margin-bottom: 1.25rem;
-    transition: color 0.2s;
-}
-
-.themisdb-fs-category:hover,
-.themisdb-fs-category:focus {
-    color: #0369a1;
-    text-decoration: none;
-    outline: none;
-}
-
-/* =========================================================
-   Title – dark
-   ========================================================= */
-.themisdb-fs-title {
-    margin: 0 0 1.5rem;
-    font-size: clamp(1.5rem, 3vw, 2.5rem);
-    font-weight: 900;
-    line-height: 1.2;
-    color: #0f172a;
-    letter-spacing: -0.02em;
-}
-
-.themisdb-fs-title a {
-    color: inherit;
-    text-decoration: none;
-    transition: color 0.2s;
-}
-
-.themisdb-fs-title a:hover,
-.themisdb-fs-title a:focus {
-    color: var(--tfs-accent, #0284c7);
-    outline: none;
-}
-
-/* =========================================================
-   Excerpt
-   ========================================================= */
-.themisdb-fs-excerpt {
-    margin: 0 0 2rem;
-    font-size: clamp(1rem, 1.5vw, 1.15rem);
-    line-height: 1.75;
-    color: #475569;
-}
-
-/* =========================================================
-   Meta row – date + read-more button
-   ========================================================= */
-.themisdb-fs-meta {
-    display: flex;
-    align-items: center;
+    grid-template-columns: 1fr;
     gap: 1rem;
-    flex-wrap: wrap;
 }
 
-.themisdb-fs-date {
-    font-size: 0.8rem;
-    color: #94a3b8;
-}
-
-.themisdb-fs-readmore {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.75rem 2rem;
-    background: #0c4a6e;
-    color: #ffffff;
-    border-radius: 0.75rem;
-    font-weight: 700;
-    font-size: 0.9rem;
-    text-decoration: none;
-    box-shadow: 0 20px 40px -10px rgba(12, 74, 110, 0.35);
-    transition: background-color 0.2s ease;
-}
-
-.themisdb-fs-readmore:hover,
-.themisdb-fs-readmore:focus {
-    background: #075985;
-    color: #ffffff;
-    text-decoration: none;
-    outline: 2px solid var(--tfs-accent, #0284c7);
-    outline-offset: 2px;
-}
-
-/* =========================================================
-   Prev / Next buttons – white with border (index.html style)
-   ========================================================= */
-.themisdb-fs-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border: 1px solid #e2e8f0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.9);
-    color: #0c4a6e;
-    cursor: pointer;
-    padding: 0;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(6px);
-}
-
-.themisdb-fs-btn:hover,
-.themisdb-fs-btn:focus-visible {
-    background: #0c4a6e;
-    color: #ffffff;
-    border-color: #0c4a6e;
-    box-shadow: 0 8px 20px rgba(12, 74, 110, 0.25);
-    transform: translateY(-50%);
-    outline: none;
-}
-
-.themisdb-fs-prev { left: 1.5rem; }
-.themisdb-fs-next { right: 1.5rem; }
-
-.themisdb-fs-btn svg {
-    width: 20px;
-    height: 20px;
-    stroke: currentColor;
-    stroke-width: 2.5;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    pointer-events: none;
-}
-
-/* =========================================================
-   Dot indicators – pill style (index.html)
-   ========================================================= */
-.themisdb-fs-dots {
-    position: absolute;
-    bottom: 1.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    z-index: 10;
-}
-
+.themisdb-fs-btn,
 .themisdb-fs-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 99px;
-    background: #cbd5e1;
-    border: none;
     cursor: pointer;
-    transition: all 0.3s ease;
-    padding: 0;
 }
 
-.themisdb-fs-dot:hover {
-    background: #94a3b8;
+.themisdb-fs-btn[disabled],
+.themisdb-fs-dot[disabled] {
+    cursor: default;
+    opacity: 0.5;
 }
 
-.themisdb-fs-dot.is-active {
-    width: 28px;
-    background: var(--tfs-accent, #0284c7);
-}
-
-/* =========================================================
-   Progress bar – sky to emerald gradient (index.html)
-   ========================================================= */
 .themisdb-fs-timer-bar {
     position: absolute;
-    bottom: 0;
     left: 0;
+    bottom: 0;
     width: 100%;
-    height: 3px;
-    background: transparent;
-    z-index: 10;
-    overflow: hidden;
+    height: 2px;
 }
 
 .themisdb-fs-timer-fill {
+    width: 0;
     height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, var(--tfs-accent, #0284c7), #34d399);
 }
 
-/* =========================================================
-   "No posts" message
-   ========================================================= */
-.themisdb-fs-no-posts {
-    margin: 0;
-    padding: 1rem 1.1rem;
-    border: 1px dashed #cbd5e1;
-    border-radius: 1rem;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    color: #475569;
-    font-style: normal;
-    font-weight: 600;
-}
-
-/* =========================================================
-   Responsive
-   ========================================================= */
-@media (max-width: 1023px) {
+@media (max-width: 900px) {
     .themisdb-fs-slide-inner {
         grid-template-columns: 1fr;
-        gap: 2rem;
-        padding: 2rem 1.5rem 3rem;
-    }
-
-    .themisdb-fs-slide-image {
-        display: none;
-    }
-}
-
-@media (max-width: 639px) {
-    .themisdb-fs-btn {
-        display: none;
-    }
-}
-
-/* =========================================================
-   Layout Presets
-   ========================================================= */
-
-/* Compact: Nur Text, kein Bild, dafür größer */
-.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-slide-inner {
-    grid-template-columns: 1fr;
-}
-
-.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-slide-image {
-    display: none !important;
-}
-
-.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-slide-content {
-    padding: 4rem 3rem;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-}
-
-.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-title {
-    font-size: clamp(1.75rem, 4vw, 2.75rem);
-}
-
-.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-excerpt {
-    font-size: 1rem;
-}
-
-.themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-meta {
-    justify-content: center;
-    gap: 1.5rem;
-}
-
-/* Magazine: Vollbreite, Bild oben über Text */
-.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-slide-inner {
-    grid-template-columns: 1fr;
-    gap: 0;
-    padding: 0;
-}
-
-.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-slide-image {
-    order: -1;
-    width: 100%;
-}
-
-.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-image-card {
-    border-radius: 0;
-    padding: 0;
-    box-shadow: none;
-    border: none;
-}
-
-.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-image-card img {
-    border-radius: 0;
-    aspect-ratio: 21 / 9;
-    object-fit: cover;
-    width: 100%;
-    height: auto;
-}
-
-.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-slide-content {
-    padding: 2rem 2.5rem 3rem;
-    background: rgba(255, 255, 255, 0.98);
-}
-
-.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-title {
-    font-size: clamp(1.5rem, 2.5vw, 2.2rem);
-}
-
-.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-blob-1,
-.themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-blob-2 {
-    display: none;
-}
-
-@media (max-width: 1023px) {
-    /* Compact und Magazine auf Mobile */
-    .themisdb-fs-wrapper.themisdb-fs-preset-compact .themisdb-fs-slide-content {
-        padding: 2.5rem 1.5rem;
-    }
-
-    .themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-slide-content {
-        padding: 1.5rem 1.5rem 2rem;
-    }
-
-    .themisdb-fs-wrapper.themisdb-fs-preset-magazine .themisdb-fs-image-card img {
-        aspect-ratio: 16 / 10;
-    }
-}
-
-/* =========================================================
-   Reduced-motion
-   ========================================================= */
-@media (prefers-reduced-motion: reduce) {
-    .themisdb-fs-track,
-    .themisdb-fs-slide,
-    .themisdb-fs-btn,
-    .themisdb-fs-dot {
-        transition: none;
-        animation: none;
-    }
-
-    .themisdb-fs-timer-bar {
-        display: none;
     }
 }

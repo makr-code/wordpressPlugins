@@ -28,9 +28,10 @@ $pagination_label = isset( $labels['pagination'] ) ? (string) $labels['paginatio
 $slide_label_format = isset( $labels['slide'] ) ? (string) $labels['slide'] : '';
 $readmore_aria_format = isset( $labels['readmore_aria'] ) ? (string) $labels['readmore_aria'] : '';
 $has_multiple_slides = $query->post_count > 1;
+$is_hero_context = isset( $hero_label ) && '' !== (string) $hero_label;
 ?>
 <div
-    class="themisdb-fs-wrapper la-hero-slider themisdb-fs-preset-<?php echo esc_attr( $layout_preset ); ?>"
+    class="themisdb-fs-wrapper la-hero-slider themisdb-fs-preset-<?php echo esc_attr( $layout_preset ); ?><?php echo $is_hero_context ? ' themisdb-fs-context-hero' : ''; ?>"
     id="<?php echo esc_attr( $slider_id ); ?>"
     data-interval="<?php echo esc_attr( $interval ); ?>"
     data-autoplay="<?php echo $autoplay ? '1' : '0'; ?>"
@@ -51,11 +52,71 @@ $has_multiple_slides = $query->post_count > 1;
             while ( $query->have_posts() ) :
                 $query->the_post();
                 $post_id      = get_the_ID();
+                $raw_title    = wp_strip_all_tags( (string) get_the_title( $post_id ) );
+                $display_title = $is_hero_context ? wp_trim_words( $raw_title, 18, '…' ) : $raw_title;
                 $categories   = get_the_category();
                 $first_cat    = ! empty( $categories ) ? $categories[0] : null;
+                $tags         = get_the_tags( $post_id );
+                $ribbons      = array();
+                if ( ! empty( $categories ) ) {
+                    foreach ( $categories as $cat_term ) {
+                        if ( ! isset( $cat_term->term_id ) ) {
+                            continue;
+                        }
+                        $ribbons[] = array(
+                            'label' => (string) $cat_term->name,
+                            'url'   => (string) get_category_link( (int) $cat_term->term_id ),
+                        );
+                    }
+                }
+                if ( ! empty( $tags ) && is_array( $tags ) ) {
+                    foreach ( $tags as $tag_term ) {
+                        if ( ! isset( $tag_term->term_id ) ) {
+                            continue;
+                        }
+                        $ribbons[] = array(
+                            'label' => (string) $tag_term->name,
+                            'url'   => (string) get_tag_link( (int) $tag_term->term_id ),
+                        );
+                    }
+                }
+                $ribbons = array_values( array_unique( $ribbons, SORT_REGULAR ) );
+                $ribbons = array_slice( $ribbons, 0, 5 );
                 $has_thumb    = has_post_thumbnail();
                 $thumb_id     = $has_thumb ? get_post_thumbnail_id( $post_id ) : 0;
+                $hero_images  = array();
+                if ( $has_thumb ) {
+                    $featured_src = wp_get_attachment_image_url( $thumb_id, $image_size );
+                    if ( is_string( $featured_src ) && '' !== $featured_src ) {
+                        $hero_images[] = $featured_src;
+                    }
+                }
+
+                $post_content = (string) get_post_field( 'post_content', $post_id );
+                if ( '' !== $post_content ) {
+                    $content_html = (string) apply_filters( 'the_content', $post_content );
+                    if ( preg_match_all( '/<img[^>]+src=["\']([^"\']+)["\']/i', $content_html, $content_matches ) ) {
+                        foreach ( $content_matches[1] as $content_src ) {
+                            $content_src = trim( (string) $content_src );
+                            if ( '' === $content_src ) {
+                                continue;
+                            }
+                            $hero_images[] = $content_src;
+                        }
+                    }
+                }
+
+                $hero_images = array_values(
+                    array_unique(
+                        array_filter(
+                            array_map( 'esc_url_raw', $hero_images )
+                        )
+                    )
+                );
+                $hero_images = array_slice( $hero_images, 0, 4 );
                 $is_active    = ( 0 === $slide_index );
+                $docs_url     = home_url( '/docs' );
+                $started_url  = home_url( '/docs/getting-started' );
             ?>
             <div
                 class="themisdb-fs-slide la-hero-slide<?php echo $is_active ? ' is-active' : ''; ?>"
@@ -68,14 +129,19 @@ $has_multiple_slides = $query->post_count > 1;
 
                     <!-- Left column: text content -->
                     <div class="themisdb-fs-slide-content la-slide-content">
-                        <?php if ( $show_category && $first_cat ) : ?>
-                        <a
-                            class="themisdb-fs-category"
-                            href="<?php echo esc_url( get_category_link( $first_cat->term_id ) ); ?>"
-                            tabindex="<?php echo $is_active ? '0' : '-1'; ?>"
-                        >
-                            <?php echo esc_html( $first_cat->name ); ?>
-                        </a>
+                        <?php if ( $show_category && ! empty( $ribbons ) ) : ?>
+                        <div class="themisdb-fs-ribbons" role="list" aria-label="Beitrags-Labels">
+                            <?php foreach ( $ribbons as $ribbon ) : ?>
+                            <a
+                                class="themisdb-fs-category themisdb-fs-ribbon"
+                                href="<?php echo esc_url( (string) $ribbon['url'] ); ?>"
+                                tabindex="<?php echo $is_active ? '0' : '-1'; ?>"
+                                role="listitem"
+                            >
+                                <?php echo esc_html( (string) $ribbon['label'] ); ?>
+                            </a>
+                            <?php endforeach; ?>
+                        </div>
                         <?php endif; ?>
 
                         <h2 class="themisdb-fs-title la-section-title">
@@ -83,15 +149,20 @@ $has_multiple_slides = $query->post_count > 1;
                                 href="<?php the_permalink(); ?>"
                                 tabindex="<?php echo $is_active ? '0' : '-1'; ?>"
                             >
-                                <?php the_title(); ?>
+                                <?php echo esc_html( $display_title ); ?>
                             </a>
                         </h2>
 
                         <?php if ( $show_excerpt ) : ?>
-                        <?php $excerpt = get_the_excerpt(); ?>
+                        <?php
+                        $excerpt = wp_strip_all_tags( (string) get_the_excerpt( $post_id ) );
+                        if ( $is_hero_context ) {
+                            $excerpt = wp_trim_words( $excerpt, 32, '…' );
+                        }
+                        ?>
                         <?php if ( '' !== $excerpt ) : ?>
                         <p class="themisdb-fs-excerpt">
-                            <?php echo wp_kses_post( $excerpt ); ?>
+                            <?php echo esc_html( $excerpt ); ?>
                         </p>
                         <?php endif; ?>
                         <?php endif; ?>
@@ -109,29 +180,46 @@ $has_multiple_slides = $query->post_count > 1;
                                 class="themisdb-fs-readmore"
                                 href="<?php the_permalink(); ?>"
                                 tabindex="<?php echo $is_active ? '0' : '-1'; ?>"
-                                aria-label="<?php echo esc_attr( sprintf( $readmore_aria_format, $readmore_text, get_the_title() ) ); ?>"
+                                aria-label="<?php echo esc_attr( sprintf( $readmore_aria_format, $readmore_text, $raw_title ) ); ?>"
                             >
                                 <?php echo esc_html( $readmore_text ); ?>
                             </a>
+
+                            <?php if ( $is_hero_context ) : ?>
+                            <a
+                                class="themisdb-fs-readmore themisdb-fs-btn-secondary"
+                                href="<?php echo esc_url( $started_url ); ?>"
+                                tabindex="<?php echo $is_active ? '0' : '-1'; ?>"
+                            >
+                                <?php echo esc_html__( 'Get started', 'themisdb-front-slider' ); ?>
+                            </a>
+                            <a
+                                class="themisdb-fs-readmore themisdb-fs-btn-tertiary"
+                                href="<?php echo esc_url( $docs_url ); ?>"
+                                tabindex="<?php echo $is_active ? '0' : '-1'; ?>"
+                            >
+                                <?php echo esc_html__( 'Dokumentation', 'themisdb-front-slider' ); ?>
+                            </a>
+                            <?php endif; ?>
                         </div>
                     </div>
 
-                    <?php if ( $has_thumb ) : ?>
+                    <?php if ( ! empty( $hero_images ) ) : ?>
                     <!-- Right column: featured image in card -->
                     <div class="themisdb-fs-slide-image">
-                        <div class="themisdb-fs-image-card">
-                            <?php
-                            echo wp_get_attachment_image(
-                                $thumb_id,
-                                $image_size,
-                                false,
-                                array(
-                                    'loading'       => $is_active ? 'eager' : 'lazy',
-                                    'fetchpriority' => $is_active ? 'high' : 'auto',
-                                    'decoding'      => 'async',
-                                )
-                            );
-                            ?>
+                        <div class="themisdb-fs-image-card" data-image-count="<?php echo esc_attr( count( $hero_images ) ); ?>">
+                            <div class="themisdb-fs-image-stack" data-image-count="<?php echo esc_attr( count( $hero_images ) ); ?>">
+                                <?php foreach ( $hero_images as $image_index => $image_src ) : ?>
+                                <img
+                                    class="themisdb-fs-layer-image<?php echo 0 === $image_index ? ' is-layer-active' : ''; ?>"
+                                    src="<?php echo esc_url( $image_src ); ?>"
+                                    alt="<?php echo esc_attr( $raw_title ); ?>"
+                                    loading="<?php echo ( $is_active && 0 === $image_index ) ? 'eager' : 'lazy'; ?>"
+                                    fetchpriority="<?php echo ( $is_active && 0 === $image_index ) ? 'high' : 'auto'; ?>"
+                                    decoding="async"
+                                />
+                                <?php endforeach; ?>
+                            </div>
                         </div>
                         <div class="themisdb-fs-blob-1" aria-hidden="true"></div>
                         <div class="themisdb-fs-blob-2" aria-hidden="true"></div>

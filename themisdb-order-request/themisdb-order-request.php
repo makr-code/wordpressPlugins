@@ -60,7 +60,7 @@ if (version_compare(PHP_VERSION, '7.4', '<')) {
 }
 
 // Plugin constants
-define('THEMISDB_ORDER_VERSION', '1.1.0');
+define('THEMISDB_ORDER_VERSION', '1.1.1');
 define('THEMISDB_ORDER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_ORDER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_ORDER_PLUGIN_FILE', __FILE__);

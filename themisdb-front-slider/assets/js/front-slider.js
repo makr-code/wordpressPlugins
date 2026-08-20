@@ -40,15 +40,108 @@
         var autoplay    = wrapper.getAttribute('data-autoplay') !== '0';
         var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        // Disable autoplay for users who prefer reduced motion.
-        if (prefersReduced) {
-            autoplay = false;
-        }
-
         var timerID        = null;
         var timerStartedAt = null;
         var timerRemaining = interval;
         var rafID          = null;
+        var imageBlendTimers = [];
+        var imageBlendInterval = Math.max(2400, Math.round(interval * 0.58));
+
+        if (prefersReduced) {
+            wrapper.classList.add('is-reduced-motion');
+        }
+
+        function assignSlideImageEffects() {
+            var variants = ['has-image-effect-a', 'has-image-effect-b', 'has-image-effect-c'];
+            slides.forEach(function (slide) {
+                slide.classList.remove('has-image-effect-a', 'has-image-effect-b', 'has-image-effect-c');
+                if (!slide.querySelector('.themisdb-fs-image-card')) {
+                    return;
+                }
+                var pick = variants[Math.floor(Math.random() * variants.length)];
+                slide.classList.add(pick);
+            });
+        }
+
+        function fitActiveSlide() {
+            var active = slides[current];
+            if (!active) {
+                return;
+            }
+
+            var inner = active.querySelector('.themisdb-fs-slide-inner');
+            var content = active.querySelector('.themisdb-fs-slide-content');
+            if (!inner || !content) {
+                return;
+            }
+
+            active.classList.remove('is-fit-tight', 'is-fit-compact');
+
+            var available = inner.clientHeight;
+            var needed = content.scrollHeight;
+
+            if (needed > available) {
+                active.classList.add('is-fit-tight');
+                needed = content.scrollHeight;
+            }
+
+            if (needed > available) {
+                active.classList.add('is-fit-compact');
+            }
+        }
+
+        function resetSlideImageLayers(slide) {
+            if (!slide) {
+                return;
+            }
+            var layers = slide.querySelectorAll('.themisdb-fs-layer-image');
+            if (!layers.length) {
+                return;
+            }
+            Array.prototype.forEach.call(layers, function (layer, idx) {
+                layer.classList.toggle('is-layer-active', idx === 0);
+            });
+            slide.setAttribute('data-image-layer-index', '0');
+        }
+
+        function stopImageBlendTimers() {
+            imageBlendTimers.forEach(function (id) {
+                clearInterval(id);
+            });
+            imageBlendTimers = [];
+        }
+
+        function startActiveSlideImageBlend() {
+            stopImageBlendTimers();
+            if (prefersReduced) {
+                return;
+            }
+
+            var slide = slides[current];
+            if (!slide) {
+                return;
+            }
+
+            var layers = Array.prototype.slice.call(slide.querySelectorAll('.themisdb-fs-layer-image'));
+            if (layers.length < 2) {
+                return;
+            }
+
+            var currentLayer = parseInt(slide.getAttribute('data-image-layer-index') || '0', 10);
+            if (isNaN(currentLayer) || currentLayer < 0 || currentLayer >= layers.length) {
+                currentLayer = 0;
+            }
+
+            var blendId = setInterval(function () {
+                var nextLayer = (currentLayer + 1) % layers.length;
+                layers[currentLayer].classList.remove('is-layer-active');
+                layers[nextLayer].classList.add('is-layer-active');
+                currentLayer = nextLayer;
+                slide.setAttribute('data-image-layer-index', String(currentLayer));
+            }, imageBlendInterval);
+
+            imageBlendTimers.push(blendId);
+        }
 
         /* ------------------------------------------------------------------
          * Height: mirror the CSS custom property for slide height.
@@ -97,6 +190,8 @@
             }
 
             current = index;
+            fitActiveSlide();
+            startActiveSlideImageBlend();
         }
 
         /**
@@ -116,6 +211,13 @@
          * ---------------------------------------------------------------- */
         function startTimer() {
             if (!autoplay) { return; }
+            if (timerID !== null) {
+                clearTimeout(timerID);
+                timerID = null;
+            }
+            if (timerRemaining <= 0 || timerRemaining > interval) {
+                timerRemaining = interval;
+            }
             timerStartedAt = Date.now();
             timerID = setTimeout(function () {
                 goTo(current + 1);
@@ -127,12 +229,15 @@
         }
 
         function stopTimer() {
+            var hadTimer = timerID !== null;
             if (timerID !== null) {
                 clearTimeout(timerID);
                 timerID = null;
             }
             var elapsed   = timerStartedAt ? Date.now() - timerStartedAt : 0;
-            timerRemaining = Math.max(0, timerRemaining - elapsed);
+            if (hadTimer) {
+                timerRemaining = Math.max(0, timerRemaining - elapsed);
+            }
             timerStartedAt = null;
             cancelProgressAnimation();
         }
@@ -281,11 +386,21 @@
             isDragging  = false;
         });
 
+        window.addEventListener('resize', function () {
+            fitActiveSlide();
+        });
+
         /* ------------------------------------------------------------------
          * Init
          * ---------------------------------------------------------------- */
         // Ensure the first slide is fully visible (no leftover transform).
         track.style.transform = 'translateX(0%)';
+        assignSlideImageEffects();
+        slides.forEach(function (slide) {
+            resetSlideImageLayers(slide);
+        });
+        fitActiveSlide();
+        startActiveSlideImageBlend();
         resetProgressBar();
         startTimer();
     }

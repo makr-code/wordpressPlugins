@@ -242,6 +242,10 @@ class ThemisDB_Plugin_Updater {
         $install_directory = plugin_dir_path($result['destination']);
         $wp_filesystem->move($result['destination'], $install_directory . $this->plugin_slug);
         $result['destination'] = $install_directory . $this->plugin_slug;
+
+        delete_site_transient('update_plugins');
+        delete_site_transient('update_themes');
+        delete_transient('themisdb_update_' . $this->plugin_slug);
         
         return $result;
     }

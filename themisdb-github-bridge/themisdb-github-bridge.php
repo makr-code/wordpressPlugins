@@ -235,6 +235,11 @@ function themisdb_github_bridge_register_theme_compat_filters() {
     );
 
     foreach ($style_filters as $filter_name) {
+        if ('themisdb_front_slider_enqueue_frontend_style' === $filter_name && 'themisdb-pulse' === get_stylesheet()) {
+            // In themisdb-pulse the front slider presentation is theme-owned.
+            continue;
+        }
+
         add_filter($filter_name, '__return_true', 1000);
     }
 

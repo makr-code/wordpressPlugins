@@ -60,7 +60,7 @@ if (version_compare(PHP_VERSION, '7.2', '<')) {
 }
 
 // Plugin constants
-define('THEMISDB_DOCKER_DOWNLOADS_VERSION', '1.0.0');
+define('THEMISDB_DOCKER_DOWNLOADS_VERSION', '1.0.1');
 define('THEMISDB_DOCKER_DOWNLOADS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_DOCKER_DOWNLOADS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_DOCKER_DOWNLOADS_PLUGIN_FILE', __FILE__);
