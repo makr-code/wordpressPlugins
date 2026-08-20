@@ -159,7 +159,11 @@ class AQM_Rest {
 
         $model = $req->get_param( 'ai_model' );
         if ( is_string( $model ) ) {
+            $model = trim( $model );
             update_post_meta( $post_id, AQM_Config::ai_coauthors_meta(), sanitize_text_field( $model ) );
+            if ( function_exists( 'themisdb_v3_assign_ai_coauthors_to_post' ) ) {
+                themisdb_v3_assign_ai_coauthors_to_post( $post_id, $model );
+            }
         }
 
         return new WP_REST_Response( array( 'saved' => true, 'post_id' => $post_id ), 200 );

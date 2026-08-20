@@ -20,6 +20,8 @@ define(
 );
 
 add_action( 'after_setup_theme', 'themisdb_v3_setup' );
+add_action( 'save_post', 'themisdb_v3_sync_ai_coauthors_on_save', 20, 3 );
+
 function themisdb_v3_setup() {
     load_theme_textdomain( 'themisdb-v3', get_template_directory() . '/languages' );
 
@@ -156,6 +158,29 @@ function themisdb_v3_register_shortcodes() {
  * @param bool $linked      Whether author names should be linked.
  * @return array<int,array<string,mixed>>
  */
+function themisdb_v3_sync_ai_coauthors_on_save( int $post_id, WP_Post $post, bool $update ): void {
+    $post_id = absint( $post_id );
+    if ( $post_id <= 0 ) {
+        return;
+    }
+
+    if ( ! isset( $post->post_type ) || ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
+        return;
+    }
+
+    $meta_key = 'tv3_ai_coauthors';
+    if ( function_exists( 'AQM_Config' ) && method_exists( 'AQM_Config', 'ai_coauthors_meta' ) ) {
+        $meta_key = AQM_Config::ai_coauthors_meta();
+    }
+
+    $model_names = get_post_meta( $post_id, $meta_key, true );
+    if ( '' === trim( (string) $model_names ) ) {
+        return;
+    }
+
+    themisdb_v3_assign_ai_coauthors_to_post( $post_id, $model_names );
+}
+
 function themisdb_v3_get_post_author_items( int $post_id, int $avatar_size = 40, bool $linked = true ): array {
     $post_id = absint( $post_id );
     if ( $post_id <= 0 ) {
@@ -482,6 +507,92 @@ function themisdb_v3_render_single_author_card_html( array $author, int $size = 
         . $bio_html
         . $more_html
         . '</div>';
+}
+
+/**
+ * Resolve AI model names to the guest-author login names used by Co-Authors Plus.
+ *
+ * @param mixed $model_names Model names as string or array.
+ * @return array<int,string>
+ */
+function themisdb_v3_resolve_ai_coauthor_logins( $model_names ): array {
+    if ( is_string( $model_names ) ) {
+        $items = preg_split( '/[\r\n,;]+/', $model_names ) ?: array();
+    } elseif ( is_array( $model_names ) ) {
+        $items = $model_names;
+    } else {
+        return array();
+    }
+
+    $map = array(
+        'gemini'         => 'google-gemini',
+        'googlegemini'  => 'google-gemini',
+        'google-gemini' => 'google-gemini',
+        'copilot'        => 'github-copilot',
+        'githubcopilot'  => 'github-copilot',
+        'github-copilot' => 'github-copilot',
+        'gemma4'         => 'gemma4-lektor',
+        'gemma4lektor'   => 'gemma4-lektor',
+        'gemma-4'        => 'gemma4-lektor',
+        'gemma4-lektor'  => 'gemma4-lektor',
+        'swarmui'        => 'swarmui-grafiker',
+        'swarmui-grafiker' => 'swarmui-grafiker',
+        'swarm-ui'       => 'swarmui-grafiker',
+    );
+
+    $resolved = array();
+    foreach ( $items as $item ) {
+        $candidate = trim( (string) $item );
+        if ( '' === $candidate ) {
+            continue;
+        }
+
+        $normalized = strtolower( preg_replace( '/[^a-z0-9]+/', '', $candidate ) );
+        if ( '' === $normalized ) {
+            continue;
+        }
+
+        if ( isset( $map[ $normalized ] ) ) {
+            $resolved[] = $map[ $normalized ];
+            continue;
+        }
+
+        foreach ( $map as $key => $login ) {
+            if ( $normalized === $key ) {
+                $resolved[] = $login;
+                break;
+            }
+        }
+    }
+
+    return array_values( array_unique( $resolved ) );
+}
+
+/**
+ * Persist AI model names as real Co-Authors Plus guest authors on a post.
+ *
+ * @param int   $post_id     Post ID.
+ * @param mixed $model_names Model names as string or array.
+ * @return void
+ */
+function themisdb_v3_assign_ai_coauthors_to_post( int $post_id, $model_names ): void {
+    $post_id = absint( $post_id );
+    if ( $post_id <= 0 ) {
+        return;
+    }
+
+    if ( ! isset( $GLOBALS['coauthors_plus'] ) || ! is_object( $GLOBALS['coauthors_plus'] ) ) {
+        return;
+    }
+
+    $logins = themisdb_v3_resolve_ai_coauthor_logins( $model_names );
+    if ( empty( $logins ) ) {
+        return;
+    }
+
+    if ( method_exists( $GLOBALS['coauthors_plus'], 'add_coauthors' ) ) {
+        $GLOBALS['coauthors_plus']->add_coauthors( $post_id, $logins, true, 'user_login' );
+    }
 }
 
 /**
