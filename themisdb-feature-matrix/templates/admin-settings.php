@@ -6,7 +6,7 @@
   File:            admin-settings.php                                 ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:18                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -217,3 +217,4 @@ if (isset($_POST['themisdb_matrix_save'])) {
     <p><code>[themisdb_feature_matrix category="all" style="modern" show_legend="yes"]</code></p>
     </div>
 </div>
+

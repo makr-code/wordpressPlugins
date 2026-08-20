@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Order Request & Contract Management
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-order-request
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-order-request.php                         ║
     Version:         1.1.1                                              ║
   Last Modified:   2026-03-20 00:00:00                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -30,20 +39,6 @@
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Dialog-basiertes Bestellanfrage-System für ThemisDB mit Vertragsrecht-CRUD, automatischer PDF-Generierung und E-Mail-Versand. Integriert mit epServer für Stammdaten.
- * Version: 1.1.1
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * Text Domain: themisdb-order-request
- * Domain Path: /languages
- * Requires at least: 5.0
- * Requires PHP: 7.4
  */
 
 // Prevent direct access
@@ -118,8 +113,6 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-auth-system.php';
 
 /**
  * Plugin Name: ThemisDB Order Request & Contract Management
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin
  */
 function themisdb_order_request_init() {
@@ -549,3 +542,5 @@ function themisdb_order_request_admin_enqueue_scripts($hook) {
     wp_enqueue_script('themisdb-order-admin-script', THEMISDB_ORDER_PLUGIN_URL . 'assets/js/admin.js', array('jquery'), THEMISDB_ORDER_VERSION, true);
 }
 add_action('admin_enqueue_scripts', 'themisdb_order_request_admin_enqueue_scripts');
+
+

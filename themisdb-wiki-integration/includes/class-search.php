@@ -6,7 +6,7 @@
   File:            class-search.php                                   ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:23                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -276,3 +276,4 @@ class ThemisDB_Wiki_Search {
         update_post_meta($post_id, '_wiki_view_count', $count);
     }
 }
+

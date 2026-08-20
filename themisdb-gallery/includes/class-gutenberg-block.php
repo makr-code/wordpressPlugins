@@ -6,7 +6,7 @@
   File:            class-gutenberg-block.php                          ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:18                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -177,3 +177,4 @@ class ThemisDB_Gallery_Gutenberg_Block {
         return do_shortcode('[themisdb_gallery ids="' . esc_attr($ids_string) . '" columns="' . esc_attr($columns) . '" show_attribution="' . esc_attr($show_attribution) . '"]');
     }
 }
+

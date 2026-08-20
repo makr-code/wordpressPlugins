@@ -1,26 +1,24 @@
 <?php
 /**
  * Plugin Name: ThemisDB Front Slider
-
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Titelseiten-Slider mit Timer, der die neuesten Artikel auf der Hauptseite darstellt. Shortcode: [themisdb_front_slider]
- * Version:     1.1.4
- * Author:      ThemisDB Team
- * License:     MIT
+ * Version: 1.1.5
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
  * Text Domain: themisdb-front-slider
  * Domain Path: /languages
  * Requires at least: 5.0
  * Requires PHP: 7.4
  */
-
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define('THEMISDB_FS_VERSION', '1.1.4');
+define('THEMISDB_FS_VERSION', '1.1.5');
 define( 'THEMISDB_FS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'THEMISDB_FS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'THEMISDB_FS_PLUGIN_FILE', __FILE__ );
@@ -876,3 +874,5 @@ function themisdb_fs_settings_page() {
     </style>
     <?php
 }
+
+

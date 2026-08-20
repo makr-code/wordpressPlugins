@@ -6,7 +6,7 @@
   File:            dashboard.php                                      ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:22                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -88,3 +88,4 @@ $height = isset($atts['height']) ? esc_attr($atts['height']) : '600px';
         </div>
     </div>
 </div>
+

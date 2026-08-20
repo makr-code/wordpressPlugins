@@ -6,7 +6,7 @@
   File:            class-widget.php                                   ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:21                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -294,3 +294,4 @@ function themisdb_register_taxonomy_widget() {
     register_widget('ThemisDB_Taxonomy_Widget');
 }
 add_action('widgets_init', 'themisdb_register_taxonomy_widget');
+

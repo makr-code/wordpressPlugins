@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Taxonomy Manager
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-taxonomy-manager
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-taxonomy-manager.php                      ║
     Version:         1.0.1                                              ║
   Last Modified:   2026-03-09 04:08:21                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -30,20 +39,6 @@
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Manage custom taxonomies for ThemisDB features, use-cases, and industries with visual tree view
- * Version: 1.0.1
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * Text Domain: themisdb-taxonomy
- * Domain Path: /languages
- * Requires at least: 5.8
- * Requires PHP: 7.4
  */
 
 if (!defined('ABSPATH')) {
@@ -79,8 +74,6 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 
 /**
  * Plugin Name: ThemisDB Taxonomy Manager
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Safe require helper - loads files with error handling and logging
  *
  * @param string $file File path to require
@@ -781,3 +774,5 @@ function themisdb_taxonomy_deactivate() {
     flush_rewrite_rules();
 }
 register_deactivation_hook(__FILE__, 'themisdb_taxonomy_deactivate');
+
+

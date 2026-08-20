@@ -3,21 +3,15 @@
  * Plugin Name: ThemisDB Graph Navigation
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
- */
-
-/**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Lagert die Graph-Navigation aus dem Theme in ein eigenstaendiges Plugin aus.
- * Version: 1.1.2
- * Author: ThemisDB Team
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
  * Text Domain: themisdb-graph-navigation
- * Requires at least: 5.8
+ * Domain Path: /languages
+ * Requires at least: 5.0
  * Requires PHP: 7.4
  */
 
@@ -51,12 +45,6 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
     );
 }
 
-/**
- * Plugin Name: ThemisDB Graph Navigation
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Plugin activation callback.
- */
 function themisdb_graph_nav_activate() {
     themisdb_graph_nav_flush_cache();
 }
@@ -663,3 +651,5 @@ if (!function_exists('themisdb_get_graph_data')) {
         </div>
         <?php
     }
+
+

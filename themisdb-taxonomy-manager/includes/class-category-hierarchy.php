@@ -6,7 +6,7 @@
   File:            class-category-hierarchy.php                       ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:21                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -338,3 +338,4 @@ class ThemisDB_Category_Hierarchy {
         return $recommendations;
     }
 }
+

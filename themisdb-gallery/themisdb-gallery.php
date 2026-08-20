@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Gallery
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-gallery
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-gallery.php                               ║
   Version:         1.0.2                                              ║
   Last Modified:   2026-03-09 04:08:19                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -30,20 +39,6 @@
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Hilft beim Artikel erstellen relevante frei verfügbare thematisch passende Bilder im Internet zu finden, herunterzuladen und einzubinden - mit vollen Credits (Urheber usw.)
- * Version: 1.0.2
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * Text Domain: themisdb-gallery
- * Domain Path: /languages
- * Requires at least: 5.0
- * Requires PHP: 7.2
  */
 
 // Prevent direct access
@@ -95,8 +90,6 @@ require_once THEMISDB_GALLERY_PLUGIN_DIR . 'includes/class-dashboard-widget.php'
 
 /**
  * Plugin Name: ThemisDB Gallery
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin
  */
 function themisdb_gallery_init() {
@@ -241,3 +234,5 @@ function themisdb_gallery_admin_enqueue_scripts($hook) {
     ));
 }
 add_action('admin_enqueue_scripts', 'themisdb_gallery_admin_enqueue_scripts');
+
+

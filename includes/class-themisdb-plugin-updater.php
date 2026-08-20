@@ -6,7 +6,7 @@
   File:            class-themisdb-plugin-updater.php                  ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:16                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -296,7 +296,7 @@ class ThemisDB_Plugin_Updater {
                 'slug' => $this->plugin_slug,
                 'homepage' => isset($metadata['homepage']) ? $metadata['homepage'] : "https://github.com/{$this->username}/{$this->repository}",
                 'description' => isset($metadata['description']) ? $metadata['description'] : '',
-                'author' => isset($metadata['author']) ? $metadata['author'] : 'ThemisDB Team',
+                'author' => isset($metadata['author']) ? $metadata['author'] : 'makr-code',
                 'author_profile' => isset($metadata['author_uri']) ? $metadata['author_uri'] : "https://github.com/{$this->username}",
                 'requires' => isset($metadata['requires']) ? $metadata['requires'] : '5.8',
                 'tested' => isset($metadata['tested']) ? $metadata['tested'] : '6.4',
@@ -327,7 +327,7 @@ class ThemisDB_Plugin_Updater {
             'slug' => $this->plugin_slug,
             'homepage' => isset($metadata['homepage']) ? $metadata['homepage'] : "https://github.com/{$this->username}/{$this->repository}",
             'description' => isset($metadata['description']) ? $metadata['description'] : '',
-            'author' => isset($metadata['author']) ? $metadata['author'] : 'ThemisDB Team',
+            'author' => isset($metadata['author']) ? $metadata['author'] : 'makr-code',
             'author_profile' => isset($metadata['author_uri']) ? $metadata['author_uri'] : "https://github.com/{$this->username}",
             'requires' => isset($metadata['requires']) ? $metadata['requires'] : '5.8',
             'tested' => isset($metadata['tested']) ? $metadata['tested'] : '6.4',
@@ -702,7 +702,7 @@ class ThemisDB_Plugin_Updater {
             'slug'           => $this->plugin_slug,
             'homepage'       => 'https://themisdb.org',
             'description'    => isset($info['description']) ? $info['description'] : '',
-            'author'         => 'ThemisDB Team',
+            'author'         => 'makr-code',
             'author_profile' => 'https://themisdb.org',
             'requires'       => $info['requires']     ?? '5.0',
             'tested'         => $info['tested']       ?? '6.4',
@@ -717,3 +717,4 @@ class ThemisDB_Plugin_Updater {
 }
 
 }
+

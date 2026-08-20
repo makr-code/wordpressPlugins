@@ -6,7 +6,7 @@
   File:            class-bank-import.php                              ║
   Version:         0.0.1                                              ║
   Last Modified:   2026-03-15                                         ║
-  Author:          ThemisDB Team                                      ║
+  Author:          makr-code                                      ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Status: ✅ Production Ready                                          ║
 ╚═════════════════════════════════════════════════════════════════════╝
@@ -796,3 +796,4 @@ class ThemisDB_Bank_Import {
         return null;
     }
 }
+

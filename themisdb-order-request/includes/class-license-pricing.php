@@ -7,7 +7,7 @@
   File:            class-license-pricing.php                          ║
   Version:         1.0.0                                              ║
   Last Modified:   2026-03-16 10:00:00                                ║
-  Author:          ThemisDB Team                                      ║
+  Author:          makr-code                                      ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Purpose:                                                            ║
     Verwaltung von Lizenzpreisen mit vollständiger Versionierung,     ║
@@ -845,3 +845,4 @@ class ThemisDB_License_Pricing {
         return $wpdb->get_results($query, ARRAY_A);
     }
 }
+

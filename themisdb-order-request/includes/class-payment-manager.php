@@ -6,7 +6,7 @@
   File:            class-payment-manager.php                          ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:19                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -613,3 +613,4 @@ class ThemisDB_Payment_Manager {
         return $stats;
     }
 }
+

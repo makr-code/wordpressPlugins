@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB TCO Calculator
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-tco-calculator
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-tco-calculator.php                        ║
   Version:         1.0.1                                              ║
   Last Modified:   2026-03-09 04:08:22                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -30,21 +39,6 @@
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Total Cost of Ownership Calculator für ThemisDB - Vergleichen Sie die Gesamtbetriebskosten verschiedener Datenbanklösungen. Verwenden Sie den Shortcode [themisdb_tco_calculator] um den Rechner einzubinden.
- * Version: 1.0.2
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * License URI: https://opensource.org/licenses/MIT
- * Text Domain: themisdb-tco-calculator
- * Domain Path: /languages
- * Requires at least: 5.0
- * Requires PHP: 7.4
  */
 
 // Exit if accessed directly
@@ -81,8 +75,6 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 
 /**
  * Plugin Name: ThemisDB TCO Calculator
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Main Plugin Class
  */
 class ThemisDB_TCO_Calculator {
@@ -592,7 +584,7 @@ class ThemisDB_TCO_Calculator {
             $response->name = 'ThemisDB TCO Calculator';
             $response->slug = $plugin_slug;
             $response->version = $remote_version->tag_name;
-            $response->author = '<a href="https://github.com/makr-code">ThemisDB Team</a>';
+            $response->author = '<a href="https://github.com/makr-code">makr-code</a>';
             $response->homepage = 'https://github.com/' . THEMISDB_TCO_GITHUB_REPO;
             $response->download_link = $this->get_github_download_url($remote_version->tag_name);
             $response->requires = '5.0';
@@ -697,3 +689,5 @@ class ThemisDB_TCO_Calculator {
 
 // Initialize plugin
 ThemisDB_TCO_Calculator::get_instance();
+
+

@@ -3,23 +3,18 @@
  * Plugin Name: ThemisDB GitHub Bridge
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
- */
-
-/**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Zentrale GitHub-Kommunikation fuer ThemisDB Order Request und ThemisDB Support Portal. Erstellt Issues automatisiert aus Tickets.
- * Version: 1.0.2
- * Author: ThemisDB Team
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
  * Text Domain: themisdb-github-bridge
  * Domain Path: /languages
  * Requires at least: 5.0
  * Requires PHP: 7.4
+ */
+/**
  */
 
 if (!defined('ABSPATH')) {
@@ -253,3 +248,5 @@ add_action('plugins_loaded', function () {
     ThemisDB_GitHub_Bridge_Dashboard_Widget::init();
     load_plugin_textdomain('themisdb-github-bridge', false, dirname(plugin_basename(__FILE__)) . '/languages');
 });
+
+

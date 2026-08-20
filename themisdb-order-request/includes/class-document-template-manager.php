@@ -7,7 +7,7 @@
   File:            class-document-template-manager.php                ║
   Version:         1.0.0                                              ║
   Last Modified:   2026-03-16 10:00:00                                ║
-  Author:          ThemisDB Team                                      ║
+  Author:          makr-code                                      ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -529,7 +529,7 @@ HTML;
     <div class="footer">
         <div class="signature">
             <p>
-                ThemisDB Team<br>
+                makr-code<br>
                 support@themisdb.local
             </p>
         </div>
@@ -746,3 +746,4 @@ HTML;
         return isset($map[$template_id]) ? $map[$template_id] : '';
     }
 }
+

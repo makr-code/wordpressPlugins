@@ -6,7 +6,7 @@
   File:            admin-settings.php                                 ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:22                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -288,4 +288,5 @@ if ( isset( $_GET['settings-updated'] ) ) {
     font-size: 12px;
 }
 </style>
+
 

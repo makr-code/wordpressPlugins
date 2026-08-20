@@ -6,7 +6,7 @@
   File:            class-support-benefits-manager.php                 ║
   Version:         0.0.1                                              ║
   Last Modified:   2026-03-20 10:00:00                                ║
-  Author:          Development Team                                   ║
+  Author:          makr-code                                   ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  � PRODUCTION-READY                              ║
@@ -709,3 +709,4 @@ class ThemisDB_Support_Benefits_Manager {
         return $result;
     }
 }
+

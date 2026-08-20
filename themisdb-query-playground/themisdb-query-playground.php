@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Query Playground
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-query-playground
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-query-playground.php                      ║
     Version:         1.0.1                                              ║
   Last Modified:   2026-03-09 04:08:20                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -30,21 +39,6 @@
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Interactive AQL query playground for ThemisDB. Execute queries, view results, and explore query execution plans. Use shortcode [themisdb_query_playground] to embed.
- * Version: 1.0.1
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * License URI: https://opensource.org/licenses/MIT
- * Text Domain: themisdb-query-playground
- * Domain Path: /languages
- * Requires at least: 5.0
- * Requires PHP: 7.4
  */
 
 // Exit if accessed directly
@@ -90,8 +84,6 @@ if (!class_exists('ThemisDB\\ThemisClient')) {
 
 /**
  * Plugin Name: ThemisDB Query Playground
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Main Plugin Class
  */
 class ThemisDB_Query_Playground {
@@ -550,3 +542,5 @@ function themisdb_query_playground_init() {
 }
 
 add_action('plugins_loaded', 'themisdb_query_playground_init');
+
+

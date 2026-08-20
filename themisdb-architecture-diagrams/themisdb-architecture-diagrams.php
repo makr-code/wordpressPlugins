@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Architecture Diagrams
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-architecture-diagrams
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-architecture-diagrams.php                 ║
   Version:         1.1.1                                              ║
   Last Modified:   2026-03-09 04:08:16                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -30,21 +39,6 @@
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Interactive architecture diagrams for ThemisDB. Visualize multi-model architecture, storage layer, LLM integration, and sharding with Mermaid.js. Use shortcode [themisdb_architecture] to embed.
- * Version: 1.1.2
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * License URI: https://opensource.org/licenses/MIT
- * Text Domain: themisdb-architecture-diagrams
- * Domain Path: /languages
- * Requires at least: 5.0
- * Requires PHP: 7.4
  */
 
 // Exit if accessed directly
@@ -81,8 +75,6 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 
 /**
  * Plugin Name: ThemisDB Architecture Diagrams
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Detect color scheme (light/dark)
  * 
  * @return string 'light' or 'dark'
@@ -1336,3 +1328,5 @@ function themisdb_architecture_diagrams_init() {
 }
 
 add_action('plugins_loaded', 'themisdb_architecture_diagrams_init');
+
+

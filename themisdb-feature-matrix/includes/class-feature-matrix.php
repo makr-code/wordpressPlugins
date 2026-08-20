@@ -6,7 +6,7 @@
   File:            class-feature-matrix.php                           ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:18                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -402,3 +402,4 @@ class ThemisDB_Feature_Matrix_Data {
         return $info;
     }
 }
+

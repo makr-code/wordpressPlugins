@@ -3,8 +3,17 @@
  * Plugin Name: Persistent Podcast Player
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: persistent-podcast-player
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            persistent-podcast-player.php                      ║
   Version:         0.0.34                                             ║
   Last Modified:   2026-03-09 04:08:16                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -27,21 +36,6 @@
 ╚═════════════════════════════════════════════════════════════════════╝
  */
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: A persistent podcast player with episode excerpts and related post links
- * Version: 1.0.1
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * License URI: https://opensource.org/licenses/MIT
- * Text Domain: persistent-podcast-player
- * Domain Path: /languages
- * Requires at least: 5.0
- * Requires PHP: 7.4
  */
 
 // Exit if accessed directly
@@ -1444,3 +1438,5 @@ JS;
 
 // Initialize plugin
 Persistent_Podcast_Player::get_instance();
+
+

@@ -4,16 +4,16 @@
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Erstellt revisionssichere Datenbank-Backups als ZIP mit Hash-Chain und Integritaetspruefung.
- * Version: 1.0.1
- * Author: ThemisDB Team
+ * Version: 1.0.2
+ * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
  * Text Domain: themisdb-db-backup
  * Domain Path: /languages
- * Requires at least: 5.8
+ * Requires at least: 5.0
  * Requires PHP: 7.4
  */
-
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -25,7 +25,7 @@ if (version_compare(PHP_VERSION, '7.4', '<')) {
     return;
 }
 
-define('THEMISDB_DB_BACKUP_VERSION', '1.0.1');
+define('THEMISDB_DB_BACKUP_VERSION', '1.0.2');
 define('THEMISDB_DB_BACKUP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_DB_BACKUP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_DB_BACKUP_PLUGIN_FILE', __FILE__);
@@ -111,3 +111,5 @@ function themisdb_db_backup_init() {
     load_plugin_textdomain('themisdb-db-backup', false, dirname(plugin_basename(__FILE__)) . '/languages');
 }
 add_action('plugins_loaded', 'themisdb_db_backup_init');
+
+

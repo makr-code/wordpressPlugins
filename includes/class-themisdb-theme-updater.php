@@ -275,7 +275,7 @@ class ThemisDB_Theme_Updater {
             'slug'          => $this->theme_slug,
             'homepage'      => isset( $metadata['homepage'] )    ? $metadata['homepage']    : "https://github.com/{$this->username}/{$this->repository}",
             'description'   => isset( $metadata['description'] ) ? $metadata['description'] : '',
-            'author'        => isset( $metadata['author'] )      ? $metadata['author']      : 'ThemisDB Team',
+            'author'        => isset( $metadata['author'] )      ? $metadata['author']      : 'makr-code',
             'author_profile'=> isset( $metadata['author_uri'] )  ? $metadata['author_uri']  : "https://github.com/{$this->username}",
             'requires'      => isset( $metadata['requires'] )    ? $metadata['requires']    : '6.3',
             'tested'        => isset( $metadata['tested'] )      ? $metadata['tested']      : '6.7',
@@ -575,3 +575,4 @@ class ThemisDB_Theme_Updater {
 }
 
 } // end class_exists guard
+

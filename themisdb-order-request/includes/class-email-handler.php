@@ -6,7 +6,7 @@
   File:            class-email-handler.php                            ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:19                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -409,7 +409,7 @@ class ThemisDB_Email_Handler {
                     <p>Bei Fragen zu Ihrer Bestellung stehen wir Ihnen gerne zur Verfügung.</p>
                     
                     <p>Mit freundlichen Grüßen<br>
-                    Ihr ThemisDB Team</p>
+                    Ihr makr-code</p>
                 </div>
                 
                 <div class="footer">
@@ -522,7 +522,7 @@ class ThemisDB_Email_Handler {
                     <p>Um den Vertrag rechtsverbindlich abzuschließen, senden Sie uns bitte den unterschriebenen Vertrag zurück.</p>
                     
                     <p>Mit freundlichen Grüßen<br>
-                    Ihr ThemisDB Team</p>
+                    Ihr makr-code</p>
                 </div>
                 
                 <div class="footer">
@@ -613,7 +613,7 @@ class ThemisDB_Email_Handler {
                     <p><?php esc_html_e('Falls Sie der Meinung sind, dass diese Kündigung irrtümlich erfolgt ist, kontaktieren Sie uns bitte umgehend.', 'themisdb-order-request'); ?></p>
                     
                     <p><?php esc_html_e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br>
-                    <?php esc_html_e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
+                    <?php esc_html_e('Ihr makr-code', 'themisdb-order-request'); ?></p>
                 </div>
                 
                 <div class="footer">
@@ -698,7 +698,7 @@ class ThemisDB_Email_Handler {
                     </div>
 
                     <p><?php esc_html_e('Sie können die Lizenzdatei direkt verwenden oder zusätzlich über das Lizenzportal herunterladen.', 'themisdb-order-request'); ?></p>
-                    <p><?php esc_html_e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br><?php esc_html_e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
+                    <p><?php esc_html_e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br><?php esc_html_e('Ihr makr-code', 'themisdb-order-request'); ?></p>
                 </div>
 
                 <div class="footer">
@@ -935,7 +935,7 @@ class ThemisDB_Email_Handler {
                         <p><?php esc_html_e('Für Fragen zu dieser Rechnung stehen wir Ihnen gerne zur Verfügung.', 'themisdb-order-request'); ?></p>
                     
                         <p><?php esc_html_e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br>
-                        <?php esc_html_e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
+                        <?php esc_html_e('Ihr makr-code', 'themisdb-order-request'); ?></p>
                     </div>
                 
                     <div class="footer">
@@ -1111,7 +1111,7 @@ class ThemisDB_Email_Handler {
                     </p>
 
                     <p><?php esc_html_e('Mit freundlichen Grüßen', 'themisdb-order-request'); ?><br>
-                    <?php esc_html_e('Ihr ThemisDB Team', 'themisdb-order-request'); ?></p>
+                    <?php esc_html_e('Ihr makr-code', 'themisdb-order-request'); ?></p>
                 </div>
                 <div class="footer">
                     <p><?php echo esc_html(get_option('blogname')); ?><br>
@@ -1175,3 +1175,5 @@ class ThemisDB_Email_Handler {
         return $wpdb->get_results($wpdb->prepare($query, $where_values), ARRAY_A);
     }
 }
+
+

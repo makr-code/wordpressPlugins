@@ -1,25 +1,49 @@
 <?php
 /**
- * Plugin Name:  ThemisDB Quality Meter
- * Plugin URI:   https://themisdb.de
- * Description:  KI-gestützte Qualitätsbewertung mit interaktivem Benutzer-Feedback-Slider.
- *               Themenunabhängig, beliebig viele Metriken (Qualität, Impact, Lesbarkeit, Audio …).
- *               Scores werden extern per REST API geschrieben (Import-Pipeline, KI-Tools).
- * Version:      1.0.0
- * Requires PHP: 8.1
- * Author:       ThemisDB
- * License:      GPL-2.0-or-later
- * Text Domain:  aqm
+ * Plugin Name: ThemisDB Quality Meter
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: KI-gestützte Qualitätsbewertung mit interaktivem Benutzer-Feedback-Slider.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: aqm
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
 define( 'AQM_VERSION',   '1.0.0' );
+define( 'AQM_FILE',      __FILE__ );
 define( 'AQM_DIR',       plugin_dir_path( __FILE__ ) );
 define( 'AQM_URL',       plugin_dir_url( __FILE__ ) );
 define( 'AQM_ASSETS',    AQM_URL . 'assets/' );
+
+// Load updater class (prefer shared copy for uniform behavior across plugins).
+if (!class_exists('ThemisDB_Plugin_Updater')) {
+    $themisdb_updater_shared = dirname(AQM_DIR) . '/includes/class-themisdb-plugin-updater.php';
+    $themisdb_updater_local = AQM_DIR . 'includes/class-themisdb-plugin-updater.php';
+
+    if (file_exists($themisdb_updater_shared)) {
+        require_once $themisdb_updater_shared;
+    } elseif (file_exists($themisdb_updater_local)) {
+        require_once $themisdb_updater_local;
+    }
+}
+
+// Initialize automatic updates
+if (class_exists('ThemisDB_Plugin_Updater')) {
+    new ThemisDB_Plugin_Updater(
+        AQM_FILE,
+        'themisdb-quality-meter',
+        AQM_VERSION
+    );
+}
 
 require_once AQM_DIR . 'includes/class-aqm-config.php';
 require_once AQM_DIR . 'includes/class-aqm-meta.php';
@@ -38,3 +62,4 @@ add_action( 'init', static function (): void {
         session_start();
     }
 }, 1 );
+

@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Feature Matrix
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-feature-matrix
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-feature-matrix.php                        ║
   Version:         1.0.1                                              ║
   Last Modified:   2026-03-09 04:08:18                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -30,20 +39,6 @@
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Interactive feature comparison matrix for ThemisDB vs PostgreSQL, MongoDB, Neo4j
- * Version: 1.0.1
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * Text Domain: themisdb-feature-matrix
- * Domain Path: /languages
- * Requires at least: 5.8
- * Requires PHP: 7.4
  */
 
 if (!defined('ABSPATH')) {
@@ -63,8 +58,6 @@ define('THEMISDB_MATRIX_VERSION', THEMISDB_FM_VERSION);
 
 /**
  * Plugin Name: ThemisDB Feature Matrix
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Safe require helper - loads files with error handling and logging
  *
  * @param string $file File path to require
@@ -302,3 +295,5 @@ function themisdb_matrix_get_color_scheme() {
     }
     return 'light';
 }
+
+

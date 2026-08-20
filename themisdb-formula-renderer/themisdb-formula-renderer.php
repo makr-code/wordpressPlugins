@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Formula Renderer
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-formula-renderer
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-formula-renderer.php                      ║
   Version:         1.1.1                                              ║
   Last Modified:   2026-03-09 04:08:18                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -30,20 +39,6 @@
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Rendert mathematische Formeln in LaTeX-Notation ($$...$$) in anzeigbare Formeln mit KaTeX. Unterstützt sowohl Inline- als auch Block-Formeln.
- * Version: 1.1.1
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * Text Domain: themisdb-formula-renderer
- * Domain Path: /languages
- * Requires at least: 5.0
- * Requires PHP: 7.2
  */
 
 // Prevent direct access
@@ -91,8 +86,6 @@ require_once THEMISDB_FORMULA_PLUGIN_DIR . 'includes/class-formula-library.php';
 
 /**
  * Plugin Name: ThemisDB Formula Renderer
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin
  */
 function themisdb_formula_init() {
@@ -305,3 +298,5 @@ function themisdb_formula_library_menu() {
     );
 }
 add_action('admin_menu', 'themisdb_formula_library_menu');
+
+

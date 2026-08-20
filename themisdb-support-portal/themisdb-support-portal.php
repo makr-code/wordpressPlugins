@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Support Portal
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-support-portal
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-support-portal.php                        ║
     Version:         1.1.0                                              ║
   Last Modified:   2026-03-15                                         ║
-  Author:          ThemisDB Team                                      ║
+  Author:          makr-code                                      ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -24,20 +33,6 @@
  */
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Exklusives Support-Portal für lizensierte ThemisDB-Kunden. Zugang nur mit gültiger Lizenzdatei. Ticket-System für Kundensupport.
- * Version: 1.1.0
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * Text Domain: themisdb-support-portal
- * Domain Path: /languages
- * Requires at least: 5.0
- * Requires PHP: 7.4
  */
 
 // Prevent direct access
@@ -99,8 +94,6 @@ require_once THEMISDB_SUPPORT_PLUGIN_DIR . 'includes/class-sla-escalation.php';
 
 /**
  * Plugin Name: ThemisDB Support Portal
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin on plugins_loaded so all other plugins (e.g.,
  * themisdb-order-request) are already loaded and their classes available.
  */
@@ -410,3 +403,5 @@ function themisdb_support_admin_enqueue_scripts($hook) {
     ));
 }
 add_action('admin_enqueue_scripts', 'themisdb_support_admin_enqueue_scripts');
+
+

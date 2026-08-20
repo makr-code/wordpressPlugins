@@ -6,7 +6,7 @@
   File:            class-seo.php                                      ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:21                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -169,3 +169,4 @@ class ThemisDB_Taxonomy_SEO {
 function themisdb_taxonomy_breadcrumb($term = null) {
     do_action('themisdb_taxonomy_breadcrumb', $term);
 }
+

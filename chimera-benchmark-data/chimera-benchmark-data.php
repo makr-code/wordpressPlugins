@@ -2,17 +2,18 @@
 /**
  * Plugin Name: Chimera Benchmark Data
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Verwaltung und Bereitstellung von Chimera Benchmark-Daten inklusive Admin-Erfassung, CSV-Import, REST-API und Frontend-Shortcode.
- * Version: 1.0.0
- * Author: ThemisDB Team
+ * Version: 1.0.1
+ * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
  * Text Domain: chimera-benchmark-data
  * Domain Path: /languages
  * Requires at least: 5.0
  * Requires PHP: 7.4
  */
-
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -27,6 +28,27 @@ if (version_compare(PHP_VERSION, '7.4', '<')) {
 define('CHIMERA_BENCHMARK_DATA_VERSION', '1.0.0');
 define('CHIMERA_BENCHMARK_DATA_FILE', __FILE__);
 define('CHIMERA_BENCHMARK_DATA_DIR', plugin_dir_path(__FILE__));
+
+// Load updater class (prefer shared copy for uniform behavior across plugins).
+if (!class_exists('ThemisDB_Plugin_Updater')) {
+    $themisdb_updater_shared = dirname(CHIMERA_BENCHMARK_DATA_DIR) . '/includes/class-themisdb-plugin-updater.php';
+    $themisdb_updater_local = CHIMERA_BENCHMARK_DATA_DIR . 'includes/class-themisdb-plugin-updater.php';
+
+    if (file_exists($themisdb_updater_shared)) {
+        require_once $themisdb_updater_shared;
+    } elseif (file_exists($themisdb_updater_local)) {
+        require_once $themisdb_updater_local;
+    }
+}
+
+// Initialize automatic updates
+if (class_exists('ThemisDB_Plugin_Updater')) {
+    new ThemisDB_Plugin_Updater(
+        CHIMERA_BENCHMARK_DATA_FILE,
+        'chimera-benchmark-data',
+        CHIMERA_BENCHMARK_DATA_VERSION
+    );
+}
 
 require_once CHIMERA_BENCHMARK_DATA_DIR . 'includes/class-chimera-benchmark-list-table.php';
 
@@ -1385,3 +1407,4 @@ class Chimera_Benchmark_Data_Plugin {
 }
 
 Chimera_Benchmark_Data_Plugin::instance();
+

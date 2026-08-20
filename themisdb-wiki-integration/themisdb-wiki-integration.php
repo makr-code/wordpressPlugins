@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Wiki Integration
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-wiki-integration
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-wiki-integration.php                      ║
     Version:         1.0.2                                              ║
   Last Modified:   2026-03-09 04:08:23                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -30,18 +39,6 @@
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Integrates ThemisDB documentation/wiki from GitHub into WordPress. Fetches markdown files on-demand and displays them with proper formatting. Manual sync recommended.
- * Version: 1.0.2
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code
- * License: MIT
- * Text Domain: themisdb-wiki-integration
- * Domain Path: /languages
  */
 
 // Exit if accessed directly
@@ -82,8 +79,6 @@ require_once THEMISDB_WIKI_PLUGIN_DIR . 'includes/class-dashboard-widget.php';
 
 /**
  * Plugin Name: ThemisDB Wiki Integration
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Main Plugin Class
  */
 class ThemisDB_Wiki_Integration {
@@ -886,3 +881,5 @@ class ThemisDB_Wiki_Nav_Widget extends WP_Widget {
         return $instance;
     }
 }
+
+

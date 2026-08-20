@@ -1,20 +1,48 @@
 <?php
 /**
  * Plugin Name: ThemisDB LLM Integration
- * Plugin URI: https://github.com/makr-code/ThemisDB
+ * Plugin URI: https://github.com/makr-code/wordpressPlugins
+ * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Erweitert WordPress mit LLM-Features via ThemisDB - Hybrid-Ansatz
- * Version: 1.0.0
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/ThemisDB
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
  * Text Domain: themisdb-llm
+ * Domain Path: /languages
  * Requires at least: 5.0
  * Requires PHP: 7.4
  */
-
 // Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
+}
+
+// Define constants
+define('THEMISDB_LLM_VERSION', '1.0.0');
+define('THEMISDB_LLM_FILE', __FILE__);
+define('THEMISDB_LLM_DIR', plugin_dir_path(__FILE__));
+
+// Load updater class (prefer shared copy for uniform behavior across plugins).
+if (!class_exists('ThemisDB_Plugin_Updater')) {
+    $themisdb_updater_shared = dirname(THEMISDB_LLM_DIR) . '/includes/class-themisdb-plugin-updater.php';
+    $themisdb_updater_local = THEMISDB_LLM_DIR . 'includes/class-themisdb-plugin-updater.php';
+
+    if (file_exists($themisdb_updater_shared)) {
+        require_once $themisdb_updater_shared;
+    } elseif (file_exists($themisdb_updater_local)) {
+        require_once $themisdb_updater_local;
+    }
+}
+
+// Initialize automatic updates
+if (class_exists('ThemisDB_Plugin_Updater')) {
+    new ThemisDB_Plugin_Updater(
+        THEMISDB_LLM_FILE,
+        'themisdb-llm-integration',
+        THEMISDB_LLM_VERSION
+    );
 }
 
 // Composer Autoloader (falls installiert)
@@ -431,3 +459,4 @@ function themisdb_llm_init() {
     new ThemisDB_LLM_Integration();
 }
 add_action('plugins_loaded', 'themisdb_llm_init');
+

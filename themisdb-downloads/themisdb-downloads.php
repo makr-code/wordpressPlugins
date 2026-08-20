@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Downloads
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-downloads
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-downloads.php                             ║
   Version:         1.3.1                                              ║
   Last Modified:   2026-03-09 04:08:17                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -30,20 +39,6 @@
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Automatisch die neuesten ThemisDB Packages von GitHub abrufen und als Download-Links mit SHA256-Checksums anzeigen. Extrahiert automatisch Schlagwörter und Kategorien aus Beitragsinhalten.
- * Version: 1.3.1
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * Text Domain: themisdb-downloads
- * Domain Path: /languages
- * Requires at least: 5.0
- * Requires PHP: 7.2
  */
 
 // Prevent direct access
@@ -99,8 +94,6 @@ if (!function_exists('themisdb_get_taxonomy_manager')) {
 
 /**
  * Plugin Name: ThemisDB Downloads
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin
  */
 function themisdb_downloads_init() {
@@ -249,3 +242,5 @@ function themisdb_downloads_add_crossorigin_scripts($tag, $handle, $src) {
     return $tag;
 }
 add_filter('script_loader_tag', 'themisdb_downloads_add_crossorigin_scripts', 10, 3);
+
+

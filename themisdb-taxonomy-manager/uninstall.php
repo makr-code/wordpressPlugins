@@ -6,7 +6,7 @@
   File:            uninstall.php                                      ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:21                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -58,3 +58,4 @@ global $wpdb;
 $meta_keys = array('icon', 'color', 'extended_description', 'featured', 'term_order');
 $placeholders = implode(', ', array_fill(0, count($meta_keys), '%s'));
 $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->termmeta} WHERE meta_key IN ($placeholders)", ...$meta_keys));
+

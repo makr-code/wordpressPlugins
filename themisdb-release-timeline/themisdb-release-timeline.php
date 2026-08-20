@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Release Timeline Visualizer
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-release-timeline
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -30,7 +39,7 @@ function themisdb_rt_should_enqueue_assets() {
     }
 
   Last Modified:   2026-03-09 04:08:20                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -48,17 +57,6 @@ function themisdb_rt_should_enqueue_assets() {
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Interactive release timeline visualization with Mermaid.js for ThemisDB versions, featuring GitHub API integration, CHANGELOG parsing, and multiple timeline views.
- * Version: 1.0.3
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * Text Domain: themisdb-release-timeline
  */
 
 // Prevent direct access
@@ -93,8 +91,6 @@ if (class_exists('ThemisDB_Plugin_Updater')) {
 
 /**
  * Plugin Name: ThemisDB Release Timeline Visualizer
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Enqueue scripts and styles
  */
 function themisdb_rt_should_enqueue_assets() {
@@ -662,3 +658,5 @@ function themisdb_rt_register_settings() {
     register_setting('themisdb_rt_settings', 'themisdb_rt_show_features');
 }
 add_action('admin_init', 'themisdb_rt_register_settings');
+
+

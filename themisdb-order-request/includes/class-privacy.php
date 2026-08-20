@@ -6,7 +6,7 @@
 ║  File:            class-privacy.php                                 ║
 ║  Version:         0.0.1                                             ║
 ║  Last Modified:   2026-03-21 12:00:00                               ║
-║  Author:          ThemisDB Development Team                         ║
+║  Author:          makr-code                         ║
 ╠═════════════════════════════════════════════════════════════════════╣
 ║  Quality Metrics:                                                   ║
 ║    • Maturity Level:  🟢 PRODUCTION-READY                            ║
@@ -728,3 +728,4 @@ Please contact support@themisdb.local for any privacy concerns.
         return $content . "\n" . $policy;
     }
 }
+

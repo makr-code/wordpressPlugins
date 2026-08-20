@@ -6,7 +6,7 @@
   File:            class-admin.php                                    ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:18                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -604,3 +604,4 @@ add_action('wp_ajax_themisdb_gallery_clear_cache', function() {
     
     wp_send_json_success(array('message' => __('Cache erfolgreich geleert', 'themisdb-gallery')));
 });
+

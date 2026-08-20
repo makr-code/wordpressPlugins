@@ -6,7 +6,7 @@
   File:            uninstall.php                                      ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:20                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -57,3 +57,4 @@ $wpdb->query($wpdb->prepare(
     "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
     $wpdb->esc_like('_transient_timeout_themisdb_rt_') . '%'
 ));
+

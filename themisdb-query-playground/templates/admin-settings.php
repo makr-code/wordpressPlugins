@@ -6,7 +6,7 @@
   File:            admin-settings.php                                 ║
   Version:         0.0.2                                              ║
   Last Modified:   2026-03-09 04:08:20                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -245,3 +245,4 @@ $_tqp_url = function ( $tab ) use ( $_tqp_page ) {
     font-size: 12px;
 }
 </style>
+

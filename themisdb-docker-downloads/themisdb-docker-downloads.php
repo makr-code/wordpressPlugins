@@ -3,8 +3,17 @@
  * Plugin Name: ThemisDB Docker Downloads
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
+ * Description: Plugin for ThemisDB.
+ * Version: 1.0.1
+ * Author: makr-code
+ * Author URI: https://github.com/makr-code/wordpressPlugins
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: themisdb-docker-downloads
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
  */
-
 /*
 ╔═════════════════════════════════════════════════════════════════════╗
 ║ ThemisDB - Hybrid Database System                                   ║
@@ -12,7 +21,7 @@
   File:            themisdb-docker-downloads.php                      ║
   Version:         1.0.1                                              ║
   Last Modified:   2026-03-09 04:08:17                                ║
-  Author:          unknown                                            ║
+  Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
   Quality Metrics:                                                    ║
     • Maturity Level:  🟢 PRODUCTION-READY                             ║
@@ -30,20 +39,6 @@
 
 
 /**
-
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
-
-
- * Update URI: https://github.com/makr-code/wordpressPlugins
- * Description: Automatisch die neuesten ThemisDB Docker Images von Docker Hub abrufen und als Download-Links mit SHA256-Digests anzeigen.
- * Version: 1.0.1
- * Author: ThemisDB Team
- * Author URI: https://github.com/makr-code/wordpressPlugins
- * License: MIT
- * Text Domain: themisdb-docker-downloads
- * Domain Path: /languages
- * Requires at least: 5.0
- * Requires PHP: 7.2
  */
 
 // Prevent direct access
@@ -92,8 +87,6 @@ require_once THEMISDB_DOCKER_DOWNLOADS_PLUGIN_DIR . 'includes/class-dashboard-wi
 
 /**
  * Plugin Name: ThemisDB Docker Downloads
- * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Update URI: https://github.com/makr-code/wordpressPlugins
  * Initialize the plugin
  */
 function themisdb_docker_downloads_init() {
@@ -191,3 +184,5 @@ function themisdb_docker_downloads_enqueue_scripts() {
     ));
 }
 add_action('wp_enqueue_scripts', 'themisdb_docker_downloads_enqueue_scripts');
+
+

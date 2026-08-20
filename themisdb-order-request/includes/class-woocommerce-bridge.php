@@ -6,7 +6,7 @@
   File:            class-woocommerce-bridge.php                       ║
     Version:         0.4.0                                              ║
   Last Modified:   2026-03-21                                         ║
-  Author:          ThemisDB Team                                      ║
+  Author:          makr-code                                      ║
 ╠═════════════════════════════════════════════════════════════════════╣
     Status: 🚧 Phase 2.1 In Progress                                    ║
 ╚═════════════════════════════════════════════════════════════════════╝
@@ -1183,3 +1183,4 @@ class ThemisDB_WooCommerce_Bridge {
         }
     }
 }
+

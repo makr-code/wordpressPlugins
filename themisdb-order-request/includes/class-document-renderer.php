@@ -7,7 +7,7 @@
   File:            class-document-renderer.php                        ║
   Version:         1.0.0                                              ║
   Last Modified:   2026-03-22 00:00:00                                ║
-  Author:          ThemisDB Team                                      ║
+  Author:          makr-code                                      ║
 ╚═════════════════════════════════════════════════════════════════════╝
  */
 
@@ -405,3 +405,4 @@ class ThemisDB_Document_Renderer {
         return strtotime('+' . $days . ' days');
     }
 }
+
