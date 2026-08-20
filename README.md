@@ -90,7 +90,7 @@ Details und konkrete Umsetzung:
 
 ### Tools
 - [WordPress Plugin Check](https://wordpress.org/plugins/plugin-check/)
-- [PHP CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer)
+- [PHP CodeSniffer](https://github.com/PHPCSStandards/PHP_CodeSniffer)
 - [WPScan](https://wpscan.com/)
 
 ---

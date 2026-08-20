@@ -343,7 +343,7 @@ Lösung:
 ### Tools
 
 - **WordPress Plugin Check:** https://wordpress.org/plugins/plugin-check/
-- **PHP CodeSniffer:** https://github.com/squizlabs/PHP_CodeSniffer
+- **PHP CodeSniffer:** https://github.com/PHPCSStandards/PHP_CodeSniffer
 - **WPScan:** https://wpscan.com/
 - **Lighthouse:** Chrome DevTools
 
