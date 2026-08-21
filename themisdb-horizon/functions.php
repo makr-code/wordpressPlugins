@@ -21,50 +21,52 @@ defined( 'THEMISDB_THEME_URI' )     || define( 'THEMISDB_THEME_URI',     get_tem
    1. THEME SETUP
    ===================================================================== */
 
-add_action( 'after_setup_theme', 'themisdb_setup' );
+if ( ! function_exists( 'themisdb_setup' ) ) {
+	add_action( 'after_setup_theme', 'themisdb_setup' );
 
-function themisdb_setup() {
-	load_theme_textdomain( 'themisdb-theme', THEMISDB_THEME_DIR . '/languages' );
+	function themisdb_setup() {
+		load_theme_textdomain( 'themisdb-theme', THEMISDB_THEME_DIR . '/languages' );
 
-	add_theme_support( 'automatic-feed-links' );
-	add_theme_support( 'title-tag' );
-	add_theme_support( 'post-thumbnails' );
-	add_theme_support( 'responsive-embeds' );
-	add_theme_support( 'align-wide' );
-	add_theme_support( 'html5', array(
-		'search-form', 'comment-form', 'comment-list',
-		'gallery', 'caption', 'style', 'script',
-	) );
+		add_theme_support( 'automatic-feed-links' );
+		add_theme_support( 'title-tag' );
+		add_theme_support( 'post-thumbnails' );
+		add_theme_support( 'responsive-embeds' );
+		add_theme_support( 'align-wide' );
+		add_theme_support( 'html5', array(
+			'search-form', 'comment-form', 'comment-list',
+			'gallery', 'caption', 'style', 'script',
+		) );
 
-	// Block theme / Full Site Editing
-	add_theme_support( 'block-templates' );
+		// Block theme / Full Site Editing
+		add_theme_support( 'block-templates' );
 
-	// Custom logo
-	add_theme_support( 'custom-logo', array(
-		'height'      => 48,
-		'width'       => 200,
-		'flex-height' => true,
-		'flex-width'  => true,
-		'header-text' => array( 'site-title' ),
-	) );
+		// Custom logo
+		add_theme_support( 'custom-logo', array(
+			'height'      => 48,
+			'width'       => 200,
+			'flex-height' => true,
+			'flex-width'  => true,
+			'header-text' => array( 'site-title' ),
+		) );
 
-	// Editor styles
-	add_theme_support( 'editor-styles' );
-	add_editor_style( array( 'style.css', 'assets/css/editor.css' ) );
+		// Editor styles
+		add_theme_support( 'editor-styles' );
+		add_editor_style( array( 'style.css', 'assets/css/editor.css' ) );
 
-	// Custom image sizes
-	add_image_size( 'themisdb-hero',       1920, 960,  true );
-	add_image_size( 'themisdb-featured',   1200, 675,  true );
-	add_image_size( 'themisdb-card',        640, 400,  true );
-	add_image_size( 'themisdb-thumbnail',   400, 300,  true );
-	add_image_size( 'themisdb-gallery',     900, 563,  true );  // 16:10 aspect
+		// Custom image sizes
+		add_image_size( 'themisdb-hero',       1920, 960,  true );
+		add_image_size( 'themisdb-featured',   1200, 675,  true );
+		add_image_size( 'themisdb-card',        640, 400,  true );
+		add_image_size( 'themisdb-thumbnail',   400, 300,  true );
+		add_image_size( 'themisdb-gallery',     900, 563,  true );  // 16:10 aspect
 
-	// Navigation menus
-	register_nav_menus( array(
-		'primary'   => __( 'Hauptnavigation',     'themisdb-theme' ),
-		'footer-1'  => __( 'Footer: Inhalte',     'themisdb-theme' ),
-		'footer-2'  => __( 'Footer: Federführung','themisdb-theme' ),
-	) );
+		// Navigation menus
+		register_nav_menus( array(
+			'primary'   => __( 'Hauptnavigation',     'themisdb-theme' ),
+			'footer-1'  => __( 'Footer: Inhalte',     'themisdb-theme' ),
+			'footer-2'  => __( 'Footer: Federführung','themisdb-theme' ),
+		) );
+	}
 }
 
 /**
@@ -389,7 +391,6 @@ function themisdb_register_download_family_theme_adapters() {
 	add_filter( 'themisdb_compendium_downloads_shortcode_html', 'themisdb_theme_render_compendium_downloads_from_plugin', 10, 3 );
 	add_filter( 'themisdb_feature_matrix_shortcode_html', 'themisdb_theme_render_feature_matrix_from_plugin', 10, 3 );
 	add_filter( 'themisdb_release_timeline_shortcode_html', 'themisdb_theme_render_release_timeline_from_plugin', 10, 3 );
-	add_filter( 'themisdb_front_slider_shortcode_html', 'themisdb_theme_render_front_slider_from_plugin', 10, 3 );
 	add_filter( 'themisdb_gallery_shortcode_html', 'themisdb_theme_render_gallery_from_plugin', 10, 3 );
 	add_filter( 'themisdb_benchmark_visualizer_shortcode_html', 'themisdb_theme_render_benchmark_visualizer_from_plugin', 10, 3 );
 	add_filter( 'themisdb_architecture_shortcode_html', 'themisdb_theme_render_architecture_from_plugin', 10, 3 );
@@ -3096,7 +3097,6 @@ function themisdb_register_native_compat_shortcodes() {
 		'themisdb_state_grid'           => 'themisdb_state_grid_shortcode',
 		'themisdb_gallery'              => 'themisdb_gallery_shortcode',
 		'themisdb_changelog'            => 'themisdb_changelog_shortcode',
-		'themisdb_front_slider'         => 'themisdb_front_slider_shortcode',
 	);
 
 	foreach ( $theme_owned_shortcodes as $tag => $callback ) {

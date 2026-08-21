@@ -3,6 +3,7 @@
  * Title: Pricing Section – Free vs Enterprise
  * Slug: themisdb-v3/pricing-section
  * Categories: themisdb-v3, themisdb-v3-landing
+ * Keywords: pricing, plans, enterprise, community, cta
  * Viewport Width: 1280
  * Description: NEW in v3 – Azure-style pricing cards with Free (Community) and Enterprise edition, feature lists, and CTA buttons.
  */

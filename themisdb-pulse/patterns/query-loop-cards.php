@@ -1,18 +1,16 @@
-<!-- wp:template-part {"slug":"header","tagName":"header","area":"header"} /-->
-
-<!-- wp:template-part {"slug":"breadcrumbs","area":"uncategorized","tagName":"nav"} /-->
-
-<!-- wp:group {"tagName":"main","anchor":"wp--skip-link--target","className":"site-main tv3-front-main tv3-layout-editorial tv3-archive-main-shell","layout":{"type":"constrained","contentSize":"1200px"}} -->
-<main id="wp--skip-link--target" class="wp-block-group site-main tv3-front-main tv3-layout-editorial tv3-archive-main-shell tv3-archive-main">
-
-	<!-- wp:group {"className":"tv3-archive-header tv3-archive-header-shell"} -->
-	<div class="wp-block-group tv3-archive-header tv3-archive-header-shell">
-		<!-- wp:query-title {"type":"archive","textAlign":"left","className":"tv3-archive-title"} /-->
-		<!-- wp:term-description {"className":"tv3-archive-description"} /-->
-	</div>
-	<!-- /wp:group -->
-
-	<!-- wp:query {"queryId":1,"query":{"perPage":12,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":true},"className":"tv3-query-front","layout":{"type":"default"}} -->
+<?php
+/**
+ * Title: Query Loop – Editorial Cards
+ * Slug: themisdb-v3/query-loop-cards
+ * Categories: themisdb-v3, themisdb-v3-landing
+ * Keywords: query, loop, posts, archive, cards
+ * Viewport Width: 1280
+ * Description: Native WordPress query loop with editorial card layout, pagination, and no-results state.
+ */
+?>
+<!-- wp:group {"className":"tv3-query-loop-pattern","layout":{"type":"constrained","contentSize":"1200px"}} -->
+<div class="wp-block-group tv3-query-loop-pattern">
+	<!-- wp:query {"queryId":1,"query":{"perPage":12,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false},"className":"tv3-query-front","layout":{"type":"default"}} -->
 	<div class="wp-block-query tv3-query-front">
 		<!-- wp:post-template {"className":"tv3-post-grid","layout":{"type":"grid","columnCount":3}} -->
 		<!-- wp:group {"className":"tv3-card tv3-card-item","layout":{"type":"constrained"}} -->
@@ -44,8 +42,5 @@
 		<!-- /wp:query-no-results -->
 	</div>
 	<!-- /wp:query -->
-
-</main>
+</div>
 <!-- /wp:group -->
-
-<!-- wp:template-part {"slug":"footer","tagName":"footer","area":"footer"} /-->

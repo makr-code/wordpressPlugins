@@ -3,6 +3,7 @@
  * Title: Tabs Section – Feature Showcase
  * Slug: themisdb-v3/tabs-section
  * Categories: themisdb-v3, themisdb-v3-landing
+ * Keywords: tabs, features, showcase, interaction, capabilities
  * Viewport Width: 1280
  * Description: NEW in v3 – Tabbed feature section using jQuery UI Tabs (.themis-v3-tab-panel class). Shows Multi-Model, AI, and Performance tabs.
  */

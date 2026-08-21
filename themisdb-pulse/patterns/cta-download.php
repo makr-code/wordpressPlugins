@@ -3,6 +3,7 @@
  * Title: Download Options – Docker, Binary, Compendium
  * Slug: themisdb-v3/cta-download
  * Categories: themisdb-v3, themisdb-v3-landing
+ * Keywords: download, docker, binary, compendium, cta
  * Viewport Width: 1280
  * Description: Three download option cards with icons and CTA buttons.
  */

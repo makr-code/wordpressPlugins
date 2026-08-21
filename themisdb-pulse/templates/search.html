@@ -13,7 +13,38 @@
 	</div>
 	<!-- /wp:group -->
 
-	<!-- wp:themisdb/mixed-cards {"limit":12} /-->
+	<!-- wp:query {"queryId":1,"query":{"perPage":12,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":true},"className":"tv3-query-front","layout":{"type":"default"}} -->
+	<div class="wp-block-query tv3-query-front">
+		<!-- wp:post-template {"className":"tv3-post-grid","layout":{"type":"grid","columnCount":3}} -->
+		<!-- wp:group {"className":"tv3-card tv3-card-item","layout":{"type":"constrained"}} -->
+		<div class="wp-block-group tv3-card tv3-card-item">
+			<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"16/9","className":"tv3-card-media"} /-->
+
+			<!-- wp:group {"className":"tv3-card-body","layout":{"type":"constrained"}} -->
+			<div class="wp-block-group tv3-card-body">
+				<!-- wp:post-date {"className":"tv3-card-meta"} /-->
+				<!-- wp:post-title {"level":3,"isLink":true,"className":"tv3-card-title"} /-->
+				<!-- wp:post-excerpt {"excerptLength":24,"className":"tv3-card-excerpt"} /-->
+				<!-- wp:read-more {"content":"Beitrag anzeigen","className":"tv3-card-link"} /-->
+			</div>
+			<!-- /wp:group -->
+		</div>
+		<!-- /wp:group -->
+		<!-- /wp:post-template -->
+
+		<!-- wp:query-pagination {"layout":{"type":"flex","justifyContent":"space-between"},"className":"tv3-query-pagination"} -->
+		<!-- wp:query-pagination-previous /-->
+		<!-- wp:query-pagination-numbers /-->
+		<!-- wp:query-pagination-next /-->
+		<!-- /wp:query-pagination -->
+
+		<!-- wp:query-no-results -->
+		<!-- wp:paragraph {"className":"tv3-query-no-results"} -->
+		<p class="tv3-query-no-results">Keine Suchergebnisse gefunden.</p>
+		<!-- /wp:paragraph -->
+		<!-- /wp:query-no-results -->
+	</div>
+	<!-- /wp:query -->
 
 </main>
 <!-- /wp:group -->

@@ -3,6 +3,7 @@
  * Title: Query Showcase – Tabbed Code Demo
  * Slug: themisdb-v3/query-showcase
  * Categories: themisdb-v3, themisdb-v3-landing
+ * Keywords: query, sql, python, tabs, demo
  * Viewport Width: 1280
  * Description: Code demo section with SQL, JSON, and Python tabs powered by jQuery UI Tabs (.themis-v3-tabs class).
  */

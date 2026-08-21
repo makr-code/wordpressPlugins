@@ -3,6 +3,7 @@
  * Title: Feature Cards – 3×2 Grid (Azure Style)
  * Slug: themisdb-v3/feature-cards
  * Categories: themisdb-v3, themisdb-v3-landing
+ * Keywords: features, cards, capabilities, landing, grid
  * Viewport Width: 1280
  * Description: Six feature cards in a 3-column grid with Azure-style blue top border on hover.
  */

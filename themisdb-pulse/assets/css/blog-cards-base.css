@@ -1,0 +1,76 @@
+/*
+ * ThemisDB Pulse plugin base styles for blog/doc card matrix.
+ * Theme styles can override visuals; these rules prevent broken fallback rendering.
+ */
+
+.tv3-docs-grid-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.tv3-blog-grid-cards .tv3-docs-grid-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #dde3ec;
+    border-radius: 12px;
+}
+
+.tv3-blog-grid-card-media img {
+    display: block;
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+}
+
+.tv3-blog-grid-cards .tv3-docs-grid-card > .tv3-docs-grid-card-title,
+.tv3-blog-grid-cards .tv3-docs-grid-card > .tv3-docs-grid-card-text,
+.tv3-blog-grid-cards .tv3-docs-grid-card > .tv3-card-audio,
+.tv3-blog-grid-cards .tv3-docs-grid-card > .tv3-docs-grid-card-link,
+.tv3-blog-grid-cards .tv3-docs-grid-card > .tv3-docs-grid-highlight {
+    padding-inline: 1.5rem;
+}
+
+.tv3-blog-grid-cards .tv3-docs-grid-card > .tv3-docs-grid-highlight {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    width: fit-content;
+    max-width: 100%;
+    margin: 1rem 1.5rem 0;
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    background: #e7f3ff;
+    border: 1px solid #bfdcff;
+    color: #0f5fbf;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+@supports not (width: fit-content) {
+    .tv3-blog-grid-cards .tv3-docs-grid-card > .tv3-docs-grid-highlight {
+        display: inline-block;
+        width: auto;
+    }
+}
+
+@media (max-width: 1024px) {
+    .tv3-docs-grid-cards,
+    .tv3-blog-grid-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 680px) {
+    .tv3-docs-grid-cards,
+    .tv3-blog-grid-cards {
+        grid-template-columns: 1fr;
+    }
+}

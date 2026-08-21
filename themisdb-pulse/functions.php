@@ -35,21 +35,20 @@ require_once get_template_directory() . '/includes/class-themisdb-v3-hero-contex
 
 add_action( 'after_setup_theme', 'themisdb_v3_setup' );
 add_action( 'init', 'themisdb_v3_register_page_taxonomies', 5 );
+add_action( 'init', 'themisdb_v3_register_pattern_categories', 6 );
 add_action( 'save_post', 'themisdb_v3_sync_ai_coauthors_on_save', 20, 3 );
+add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue_plugin_base_styles', 5 );
 add_filter( 'themisdb_front_slider_enqueue_frontend_style', 'themisdb_v3_use_theme_front_slider_styles' );
 
 /**
- * Keep slider presentation in the theme and avoid plugin-owned frontend skin.
+ * Keep the slider logic centralized in the plugin while allowing the theme to
+ * apply its own visual overrides via CSS and wrapper classes.
  *
- * @param bool $should_enqueue_plugin_style Whether plugin CSS should load.
+ * @param bool $should_enqueue_plugin_style Whether the plugin CSS should load.
  * @return bool
  */
 function themisdb_v3_use_theme_front_slider_styles( $should_enqueue_plugin_style ) {
-    if ( 'themisdb-pulse' === get_stylesheet() ) {
-        return false;
-    }
-
-    return (bool) $should_enqueue_plugin_style;
+    return true;
 }
 
 function themisdb_v3_setup() {
@@ -79,7 +78,6 @@ function themisdb_v3_setup() {
     register_nav_menus(
         array(
             'primary'        => __( 'Primary Navigation', THEMISDB_PULSE_TEXT_DOMAIN ),
-            'support_primary' => __( 'Support Primary Navigation', THEMISDB_PULSE_TEXT_DOMAIN ),
             'header_utility' => __( 'Header Utility Navigation', THEMISDB_PULSE_TEXT_DOMAIN ),
             'docs'           => __( 'Documentation Navigation', THEMISDB_PULSE_TEXT_DOMAIN ),
             'footer'         => __( 'Footer Navigation', THEMISDB_PULSE_TEXT_DOMAIN ),
@@ -103,6 +101,34 @@ function themisdb_v3_register_page_taxonomies() {
     }
 }
 
+/**
+ * Register editor-facing pattern categories used by this theme.
+ */
+function themisdb_v3_register_pattern_categories() {
+    if ( function_exists( 'register_block_pattern_category' ) ) {
+        register_block_pattern_category(
+            'themisdb-v3',
+            array(
+                'label' => __( 'ThemisDB Pulse', THEMISDB_PULSE_TEXT_DOMAIN ),
+            )
+        );
+
+        register_block_pattern_category(
+            'themisdb-v3-landing',
+            array(
+                'label' => __( 'ThemisDB Pulse Landing', THEMISDB_PULSE_TEXT_DOMAIN ),
+            )
+        );
+
+        register_block_pattern_category(
+            'themisdb-v3-docs',
+            array(
+                'label' => __( 'ThemisDB Pulse Docs', THEMISDB_PULSE_TEXT_DOMAIN ),
+            )
+        );
+    }
+}
+
 add_action( 'after_setup_theme', 'themisdb_v3_ensure_default_nav_menus', 20 );
 
 /**
@@ -116,7 +142,6 @@ function themisdb_v3_ensure_default_nav_menus() {
 
     $default_locations = array(
         'primary'        => 'Primary Navigation',
-        'support_primary' => 'Support Primary Navigation',
         'header_utility' => 'Header Utility Navigation',
         'docs'           => 'Documentation Navigation',
         'footer'         => 'Footer Navigation',
@@ -138,72 +163,11 @@ function themisdb_v3_ensure_default_nav_menus() {
 
         if ( $menu && ! is_wp_error( $menu ) ) {
             $locations[ $location ] = (int) $menu->term_id;
-
-            if ( 'support_primary' === $location ) {
-                themisdb_v3_seed_support_primary_menu_items( (int) $menu->term_id );
-            }
         }
     }
 
     if ( $locations !== get_theme_mod( 'nav_menu_locations', array() ) ) {
         set_theme_mod( 'nav_menu_locations', $locations );
-    }
-
-    if ( ! empty( $locations['support_primary'] ) ) {
-        themisdb_v3_seed_support_primary_menu_items( (int) $locations['support_primary'] );
-    }
-}
-
-/**
- * Seed default support navigation entries when the support menu is still empty.
- *
- * @param int $menu_id Support menu term ID.
- */
-function themisdb_v3_seed_support_primary_menu_items( $menu_id ) {
-    $menu_id = (int) $menu_id;
-    if ( $menu_id <= 0 ) {
-        return;
-    }
-
-    $existing_items = wp_get_nav_menu_items( $menu_id, array( 'update_post_term_cache' => false ) );
-    if ( is_array( $existing_items ) && ! empty( $existing_items ) ) {
-        return;
-    }
-
-    $support_url = home_url( '/support/' );
-    $items       = array(
-        array(
-            'title' => __( 'Support-Portal', 'themisdb-v3' ),
-            'url'   => $support_url,
-        ),
-        array(
-            'title' => __( 'Neues Ticket', 'themisdb-v3' ),
-            'url'   => $support_url . '#themisdb-support-new-ticket-section',
-        ),
-        array(
-            'title' => __( 'Meine Tickets', 'themisdb-v3' ),
-            'url'   => $support_url . '#themisdb-support-ticket-list-section',
-        ),
-    );
-
-    if ( class_exists( 'ThemisDB_Contract_Lifecycle' ) ) {
-        $items[] = array(
-            'title' => __( 'Vertragsmanagement', 'themisdb-v3' ),
-            'url'   => $support_url . '#themisdb-lifecycle-section',
-        );
-    }
-
-    foreach ( $items as $item ) {
-        wp_update_nav_menu_item(
-            $menu_id,
-            0,
-            array(
-                'menu-item-title'  => (string) $item['title'],
-                'menu-item-url'    => (string) $item['url'],
-                'menu-item-status' => 'publish',
-                'menu-item-type'   => 'custom',
-            )
-        );
     }
 }
 
@@ -1621,6 +1585,27 @@ function themisdb_v3_render_breadcrumbs_shortcode() {
 
     $current_label = '';
 
+    $truncate_breadcrumb_label = static function( $label, $max_length = 32 ) {
+        $label = trim( wp_strip_all_tags( (string) $label ) );
+        if ( '' === $label ) {
+            return $label;
+        }
+
+        if ( function_exists( 'mb_strlen' ) && function_exists( 'mb_substr' ) ) {
+            if ( mb_strlen( $label ) <= $max_length ) {
+                return $label;
+            }
+
+            return rtrim( mb_substr( $label, 0, $max_length - 1 ) ) . '…';
+        }
+
+        if ( strlen( $label ) <= $max_length ) {
+            return $label;
+        }
+
+        return rtrim( substr( $label, 0, $max_length - 1 ) ) . '…';
+    };
+
     if ( is_singular() ) {
         $post = get_queried_object();
         if ( $post instanceof WP_Post ) {
@@ -1671,7 +1656,7 @@ function themisdb_v3_render_breadcrumbs_shortcode() {
         $current_label = wp_get_document_title();
     }
 
-    $current_label = wp_strip_all_tags( (string) $current_label );
+    $current_label = $truncate_breadcrumb_label( $current_label );
     if ( $is_home_context ) {
         $current_label = '';
     }
@@ -1690,6 +1675,8 @@ function themisdb_v3_render_breadcrumbs_shortcode() {
         if ( '' === $label ) {
             continue;
         }
+
+        $label = $truncate_breadcrumb_label( $label );
 
         $item_class = 'tv3-breadcrumbs-item';
         $html .= '<li class="' . esc_attr( $item_class ) . '" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">';
@@ -2401,7 +2388,7 @@ function themisdb_v3_get_navigation_sync_signature() {
     $locations = (array) get_theme_mod( 'nav_menu_locations', array() );
     $parts     = array( get_stylesheet() );
 
-    foreach ( array( 'primary', 'support_primary', 'footer' ) as $location ) {
+    foreach ( array( 'primary', 'footer' ) as $location ) {
         $term_id = isset( $locations[ $location ] ) ? (int) $locations[ $location ] : 0;
         $parts[] = $location . ':' . $term_id;
 
@@ -2438,12 +2425,11 @@ function themisdb_v3_get_navigation_sync_signature() {
  */
 function themisdb_v3_apply_navigation_template_part_sync() {
     $primary_navigation_id = themisdb_v3_ensure_navigation_post_from_location( 'primary', 'TV3 Primary Navigation' );
-    $support_navigation_id = themisdb_v3_ensure_navigation_post_from_location( 'support_primary', 'TV3 Support Primary Navigation' );
     $utility_navigation_id = themisdb_v3_ensure_navigation_post_from_location( 'header_utility', 'TV3 Header Utility Navigation' );
     $docs_navigation_id    = themisdb_v3_ensure_navigation_post_from_location( 'docs', 'TV3 Documentation Navigation' );
     $footer_navigation_id  = themisdb_v3_ensure_navigation_post_from_location( 'footer', 'TV3 Footer Navigation' );
 
-    if ( $primary_navigation_id <= 0 && $support_navigation_id <= 0 && $utility_navigation_id <= 0 && $docs_navigation_id <= 0 && $footer_navigation_id <= 0 ) {
+    if ( $primary_navigation_id <= 0 && $utility_navigation_id <= 0 && $docs_navigation_id <= 0 && $footer_navigation_id <= 0 ) {
         return false;
     }
 
@@ -2683,7 +2669,6 @@ function themisdb_v3_get_navigation_post_id_for_location( $location ) {
 
     $title_map = array(
         'primary'        => 'TV3 Primary Navigation',
-        'support_primary' => 'TV3 Support Primary Navigation',
         'header_utility' => 'TV3 Header Utility Navigation',
         'docs'           => 'TV3 Documentation Navigation',
         'footer'         => 'TV3 Footer Navigation',
@@ -2704,188 +2689,6 @@ function themisdb_v3_get_navigation_post_id_for_location( $location ) {
     );
 
     return ! empty( $found ) ? (int) $found[0] : 0;
-}
-
-/**
- * Determine whether current user has support portal access.
- *
- * @return bool
- */
-function themisdb_v3_current_user_has_support_access() {
-    if ( ! is_user_logged_in() ) {
-        return false;
-    }
-
-    if ( class_exists( 'ThemisDB_Support_License_Auth' ) && method_exists( 'ThemisDB_Support_License_Auth', 'current_user_has_license' ) ) {
-        return (bool) ThemisDB_Support_License_Auth::current_user_has_license();
-    }
-
-    return is_user_logged_in();
-}
-
-/**
- * Detect if the current request is within support UX context.
- *
- * @return bool
- */
-function themisdb_v3_is_support_runtime_context() {
-    if ( themisdb_v3_is_support_page_bridge() ) {
-        return true;
-    }
-
-    if ( themisdb_v3_current_page_uses_plugin_login_ui() ) {
-        return true;
-    }
-
-    return false;
-}
-
-/**
- * Decide when the support-specific primary menu should be rendered.
- *
- * @return bool
- */
-function themisdb_v3_should_use_support_main_menu() {
-    return themisdb_v3_current_user_has_support_access() && themisdb_v3_is_support_runtime_context();
-}
-
-add_filter( 'render_block', 'themisdb_v3_append_support_splitbutton_to_utility_navigation', 25, 2 );
-/**
- * Append support split-button to right header utility navigation in support context.
- *
- * @param string              $block_content Rendered block content.
- * @param array<string,mixed> $block         Parsed block data.
- * @return string
- */
-function themisdb_v3_append_support_splitbutton_to_utility_navigation( $block_content, $block ) {
-    if ( ! themisdb_v3_should_use_support_main_menu() || ! is_string( $block_content ) || '' === $block_content ) {
-        return $block_content;
-    }
-
-    if ( ! is_array( $block ) || empty( $block['blockName'] ) || 'core/navigation' !== $block['blockName'] ) {
-        return $block_content;
-    }
-
-    $location = '';
-    if ( isset( $block['attrs']['__unstableLocation'] ) ) {
-        $location = (string) $block['attrs']['__unstableLocation'];
-    }
-
-    if ( 'header_utility' !== $location && false === strpos( $block_content, 'tv3-header-utility-nav' ) ) {
-        return $block_content;
-    }
-
-    if ( false !== strpos( $block_content, 'tv3-support-splitbutton' ) ) {
-        return $block_content;
-    }
-
-    $splitbutton_html = themisdb_v3_build_support_splitbutton_markup();
-    if ( '' === $splitbutton_html ) {
-        return $block_content;
-    }
-
-    if ( false === strpos( $block_content, '</nav>' ) ) {
-        return $block_content . $splitbutton_html;
-    }
-
-    return (string) preg_replace( '/<\/nav>\s*$/', $splitbutton_html . '</nav>', $block_content, 1 );
-}
-
-/**
- * Build support split-button markup from support_primary menu items.
- *
- * @return string
- */
-function themisdb_v3_build_support_splitbutton_markup() {
-    $items = themisdb_v3_get_support_primary_menu_items();
-    if ( empty( $items ) ) {
-        return '';
-    }
-
-    $base_url = home_url( '/support/' );
-
-    $html  = '<div class="tv3-support-splitbutton" role="navigation" aria-label="' . esc_attr__( 'Support-Funktionen', 'themisdb-v3' ) . '">';
-    $html .= '<a class="tv3-support-splitbutton__main" href="' . esc_url( $base_url ) . '">' . esc_html__( 'Support', 'themisdb-v3' ) . '</a>';
-    $html .= '<details class="tv3-support-splitbutton__menu-wrap">';
-    $html .= '<summary class="tv3-support-splitbutton__toggle" aria-label="' . esc_attr__( 'Support-Menue oeffnen', 'themisdb-v3' ) . '"><span aria-hidden="true">▾</span></summary>';
-    $html .= '<ul class="wp-block-navigation__submenu-container tv3-support-splitbutton__menu">';
-
-    $has_local_items = false;
-
-    foreach ( $items as $item ) {
-        $title = isset( $item['title'] ) ? (string) $item['title'] : '';
-        $url   = isset( $item['url'] ) ? (string) $item['url'] : '';
-        if ( '' === $title || '' === $url ) {
-            continue;
-        }
-
-        $is_local = ( '#' === substr( $url, 0, 1 ) );
-        if ( $is_local ) {
-            $has_local_items = true;
-        } elseif ( $has_local_items ) {
-            $html .= '<li class="wp-block-navigation-item tv3-support-splitbutton__divider" role="separator" aria-hidden="true"></li>';
-            $has_local_items = false;
-        }
-
-        $html .= '<li class="wp-block-navigation-item">';
-        $html .= '<a class="wp-block-navigation-item__content" href="' . esc_url( $url ) . '">' . esc_html( $title ) . '</a>';
-        $html .= '</li>';
-    }
-
-    $html .= '</ul>';
-    $html .= '</details>';
-    $html .= '</div>';
-
-    return $html;
-}
-
-/**
- * Return top-level support menu items from support_primary location.
- *
- * @return array<int,array<string,string>>
- */
-function themisdb_v3_get_support_primary_menu_items() {
-    $locations = (array) get_theme_mod( 'nav_menu_locations', array() );
-    $term_id   = isset( $locations['support_primary'] ) ? (int) $locations['support_primary'] : 0;
-    if ( $term_id <= 0 ) {
-        return array();
-    }
-
-    $items = wp_get_nav_menu_items( $term_id, array( 'update_post_term_cache' => false ) );
-    if ( ! is_array( $items ) || empty( $items ) ) {
-        return array();
-    }
-
-    $normalized = array();
-
-    foreach ( $items as $item ) {
-        if ( ! empty( $item->menu_item_parent ) ) {
-            continue;
-        }
-
-        $normalized[] = array(
-            'title' => (string) $item->title,
-            'url'   => (string) $item->url,
-        );
-    }
-
-    if ( themisdb_v3_is_support_page_bridge() ) {
-        $local_items = apply_filters(
-            'themisdb_v3_support_splitbutton_items',
-            array(
-                array( 'title' => __( 'Support', THEMISDB_PULSE_TEXT_DOMAIN ), 'url' => '#themisdb-hub-support' ),
-                array( 'title' => __( 'Lizenzen', THEMISDB_PULSE_TEXT_DOMAIN ), 'url' => '#themisdb-hub-licenses' ),
-                array( 'title' => __( 'Aufträge', THEMISDB_PULSE_TEXT_DOMAIN ), 'url' => '#themisdb-hub-orders' ),
-                array( 'title' => __( 'B2B', THEMISDB_PULSE_TEXT_DOMAIN ), 'url' => '#themisdb-hub-b2b' ),
-            )
-        );
-
-        if ( is_array( $local_items ) && ! empty( $local_items ) ) {
-            $normalized = array_merge( array_values( $local_items ), $normalized );
-        }
-    }
-
-    return $normalized;
 }
 
 add_filter( 'render_block', 'themisdb_v3_rewrite_root_relative_links', 20, 2 );
@@ -3015,8 +2818,24 @@ function themisdb_v3_should_show_reading_progress() {
     return is_singular() || is_home() || is_front_page() || is_archive() || is_search();
 }
 
+/**
+ * Load plugin-provided base styles before theme CSS overrides.
+ */
+function themisdb_v3_enqueue_plugin_base_styles() {
+    $plugin_base_file = WP_CONTENT_DIR . '/plugins/themisdb-pulse/assets/css/blog-cards-base.css';
+    if ( ! file_exists( $plugin_base_file ) ) {
+        return;
+    }
+
+    wp_enqueue_style(
+        'themisdb-pulse-plugin-base-blog-cards',
+        content_url( '/plugins/themisdb-pulse/assets/css/blog-cards-base.css' ),
+        array(),
+        (string) filemtime( $plugin_base_file )
+    );
+}
+
 function themisdb_v3_enqueue_assets() {
-    $style_version         = file_exists( get_stylesheet_directory() . '/style.css' ) ? (string) filemtime( get_stylesheet_directory() . '/style.css' ) : THEMISDB_V3_VERSION;
     $color_scheme_file     = get_template_directory() . '/assets/css/color-schemes.css';
     $color_scheme_version  = file_exists( $color_scheme_file ) ? (string) filemtime( $color_scheme_file ) : THEMISDB_V3_VERSION;
     $compact_meta_js_file  = get_template_directory() . '/assets/js/compact-meta-layout.js';
@@ -3031,14 +2850,11 @@ function themisdb_v3_enqueue_assets() {
     $podcast_audio_js_ver   = file_exists( $podcast_audio_js_file ) ? (string) filemtime( $podcast_audio_js_file ) : THEMISDB_V3_VERSION;
     $login_overlay_js_file  = get_template_directory() . '/assets/js/login-overlay.js';
     $login_overlay_js_ver   = file_exists( $login_overlay_js_file ) ? (string) filemtime( $login_overlay_js_file ) : THEMISDB_V3_VERSION;
-    $order_overlay_js_file  = get_template_directory() . '/assets/js/order-overlay.js';
-    $order_overlay_js_ver   = file_exists( $order_overlay_js_file ) ? (string) filemtime( $order_overlay_js_file ) : THEMISDB_V3_VERSION;
 
-    wp_enqueue_style( 'themisdb-v3-style', get_stylesheet_uri(), array(), $style_version );
     wp_enqueue_style(
         'themisdb-v3-color-schemes',
         get_template_directory_uri() . '/assets/css/color-schemes.css',
-        array( 'themisdb-v3-style' ),
+        array(),
         $color_scheme_version
     );
     wp_register_script(
@@ -3185,25 +3001,6 @@ function themisdb_v3_enqueue_assets() {
         }
     }
 
-    if ( themisdb_v3_is_support_page_bridge() || themisdb_v3_current_page_uses_plugin_login_ui() ) {
-        wp_enqueue_script(
-            'themisdb-v3-order-overlay',
-            get_template_directory_uri() . '/assets/js/order-overlay.js',
-            array(),
-            $order_overlay_js_ver,
-            true
-        );
-
-        wp_localize_script(
-            'themisdb-v3-order-overlay',
-            'themisdbV3OrderOverlay',
-            array(
-                'openLabel'  => __( 'Neuen Auftrag oeffnen', 'themisdb-v3' ),
-                'closeLabel' => __( 'Auftragsdialog schliessen', 'themisdb-v3' ),
-            )
-        );
-    }
-
     if ( $should_boot_support_ui && ! wp_script_is( 'themisdb-support-portal-script', 'enqueued' ) && defined( 'THEMISDB_SUPPORT_PLUGIN_URL' ) ) {
         wp_enqueue_style(
             'themisdb-support-portal-style',
@@ -3275,7 +3072,7 @@ function themisdb_v3_current_page_uses_plugin_login_ui() {
         return false;
     }
 
-    foreach ( array( 'themisdb_support_portal', 'themisdb_support_login', 'themisdb_support_hub', 'themisdb_login' ) as $tag ) {
+    foreach ( array( 'themisdb_support_portal', 'themisdb_support_login', 'themisdb_login' ) as $tag ) {
         if ( shortcode_exists( $tag ) && has_shortcode( $content, $tag ) ) {
             return true;
         }
@@ -3306,7 +3103,7 @@ function themisdb_v3_inject_support_portal_on_support_page( $content ) {
         return $content;
     }
 
-    if ( shortcode_exists( 'themisdb_support_portal' ) && ( has_shortcode( $content, 'themisdb_support_portal' ) || has_shortcode( $content, 'themisdb_support_hub' ) ) ) {
+    if ( shortcode_exists( 'themisdb_support_portal' ) && has_shortcode( $content, 'themisdb_support_portal' ) ) {
         return $content;
     }
 

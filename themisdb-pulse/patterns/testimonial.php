@@ -3,6 +3,7 @@
  * Title: Testimonials – 3 Cards
  * Slug: themisdb-v3/testimonial
  * Categories: themisdb-v3, themisdb-v3-landing
+ * Keywords: testimonial, quotes, social-proof, feedback, cards
  * Viewport Width: 1280
  * Description: Three testimonial cards with avatar, quote, name, and company.
  */

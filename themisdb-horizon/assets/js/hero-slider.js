@@ -13,6 +13,11 @@
 
     function initSlider(cfg) {
         const root = cfg.root;
+        if (!root || root.dataset.themisdbSliderInit === '1') {
+            return;
+        }
+        root.dataset.themisdbSliderInit = '1';
+
         const track = root.querySelector(cfg.trackSel);
         if (!track) return;
 

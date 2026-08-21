@@ -13,112 +13,114 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Theme setup
  */
-function themisdb_setup() {
-    // Make theme available for translation
-    load_theme_textdomain( 'themisdb', get_template_directory() . '/languages' );
+if ( ! function_exists( 'themisdb_setup' ) ) {
+    function themisdb_setup() {
+        // Make theme available for translation
+        load_theme_textdomain( 'themisdb', get_template_directory() . '/languages' );
 
-    // Add default posts and comments RSS feed links to head
-    add_theme_support( 'automatic-feed-links' );
+        // Add default posts and comments RSS feed links to head
+        add_theme_support( 'automatic-feed-links' );
 
-    // Let WordPress manage the document title
-    add_theme_support( 'title-tag' );
+        // Let WordPress manage the document title
+        add_theme_support( 'title-tag' );
 
-    // Enable support for Post Thumbnails
-    add_theme_support( 'post-thumbnails' );
-    set_post_thumbnail_size( 1200, 675, true );
+        // Enable support for Post Thumbnails
+        add_theme_support( 'post-thumbnails' );
+        set_post_thumbnail_size( 1200, 675, true );
 
-    // Add custom image sizes
-    add_image_size( 'themisdb-featured', 1200, 675, true );
-    add_image_size( 'themisdb-thumbnail', 400, 300, true );
+        // Add custom image sizes
+        add_image_size( 'themisdb-featured', 1200, 675, true );
+        add_image_size( 'themisdb-thumbnail', 400, 300, true );
 
-    // Register navigation menus
-    register_nav_menus( array(
-        'primary'   => esc_html__( 'Primary Menu', 'themisdb' ),
-        'footer'    => esc_html__( 'Footer Menu', 'themisdb' ),
-        'hamburger' => esc_html__( 'Hamburger Menu', 'themisdb' ),
-    ) );
+        // Register navigation menus
+        register_nav_menus( array(
+            'primary'   => esc_html__( 'Primary Menu', 'themisdb' ),
+            'footer'    => esc_html__( 'Footer Menu', 'themisdb' ),
+            'hamburger' => esc_html__( 'Hamburger Menu', 'themisdb' ),
+        ) );
 
-    // Switch default core markup to output valid HTML5
-    add_theme_support( 'html5', array(
-        'search-form',
-        'comment-form',
-        'comment-list',
-        'gallery',
-        'caption',
-        'style',
-        'script',
-    ) );
+        // Switch default core markup to output valid HTML5
+        add_theme_support( 'html5', array(
+            'search-form',
+            'comment-form',
+            'comment-list',
+            'gallery',
+            'caption',
+            'style',
+            'script',
+        ) );
 
-    // Add theme support for selective refresh for widgets
-    add_theme_support( 'customize-selective-refresh-widgets' );
+        // Add theme support for selective refresh for widgets
+        add_theme_support( 'customize-selective-refresh-widgets' );
 
-    // Add support for custom logo
-    add_theme_support( 'custom-logo', array(
-        'height'      => 60,
-        'width'       => 200,
-        'flex-height' => true,
-        'flex-width'  => true,
-    ) );
+        // Add support for custom logo
+        add_theme_support( 'custom-logo', array(
+            'height'      => 60,
+            'width'       => 200,
+            'flex-height' => true,
+            'flex-width'  => true,
+        ) );
 
-    // Add support for custom background
-    add_theme_support( 'custom-background', array(
-        'default-color' => 'f8f9fa',
-    ) );
+        // Add support for custom background
+        add_theme_support( 'custom-background', array(
+            'default-color' => 'f8f9fa',
+        ) );
 
-    // Add support for custom header
-    add_theme_support( 'custom-header', array(
-        'default-image' => '',
-        'width'         => 1920,
-        'height'        => 400,
-        'flex-width'    => true,
-        'flex-height'   => true,
-    ) );
+        // Add support for custom header
+        add_theme_support( 'custom-header', array(
+            'default-image' => '',
+            'width'         => 1920,
+            'height'        => 400,
+            'flex-width'    => true,
+            'flex-height'   => true,
+        ) );
 
-    // Add support for editor styles
-    add_theme_support( 'editor-styles' );
-    add_editor_style( 'editor-style.css' );
+        // Add support for editor styles
+        add_theme_support( 'editor-styles' );
+        add_editor_style( 'editor-style.css' );
 
-    // Add support for responsive embeds
-    add_theme_support( 'responsive-embeds' );
+        // Add support for responsive embeds
+        add_theme_support( 'responsive-embeds' );
 
-    // Add support for wide alignment
-    add_theme_support( 'align-wide' );
+        // Add support for wide alignment
+        add_theme_support( 'align-wide' );
 
-    // Add support for editor color palette (v3 color scheme)
-    add_theme_support( 'editor-color-palette', array(
-        array(
-            'name'  => esc_html__( 'Navy (Primary)', 'themisdb' ),
-            'slug'  => 'primary',
-            'color' => '#1a2e52',
-        ),
-        array(
-            'name'  => esc_html__( 'Azure Blue', 'themisdb' ),
-            'slug'  => 'secondary',
-            'color' => '#1e6fba',
-        ),
-        array(
-            'name'  => esc_html__( 'Teal-Cyan', 'themisdb' ),
-            'slug'  => 'accent-purple',
-            'color' => '#1ab5c8',
-        ),
-        array(
-            'name'  => esc_html__( 'Forest Green', 'themisdb' ),
-            'slug'  => 'success',
-            'color' => '#1a6e46',
-        ),
-        array(
-            'name'  => esc_html__( 'Amber', 'themisdb' ),
-            'slug'  => 'warning',
-            'color' => '#d68910',
-        ),
-        array(
-            'name'  => esc_html__( 'Danger', 'themisdb' ),
-            'slug'  => 'danger',
-            'color' => '#c0392b',
-        ),
-    ) );
+        // Add support for editor color palette (v3 color scheme)
+        add_theme_support( 'editor-color-palette', array(
+            array(
+                'name'  => esc_html__( 'Navy (Primary)', 'themisdb' ),
+                'slug'  => 'primary',
+                'color' => '#1a2e52',
+            ),
+            array(
+                'name'  => esc_html__( 'Azure Blue', 'themisdb' ),
+                'slug'  => 'secondary',
+                'color' => '#1e6fba',
+            ),
+            array(
+                'name'  => esc_html__( 'Teal-Cyan', 'themisdb' ),
+                'slug'  => 'accent-purple',
+                'color' => '#1ab5c8',
+            ),
+            array(
+                'name'  => esc_html__( 'Forest Green', 'themisdb' ),
+                'slug'  => 'success',
+                'color' => '#1a6e46',
+            ),
+            array(
+                'name'  => esc_html__( 'Amber', 'themisdb' ),
+                'slug'  => 'warning',
+                'color' => '#d68910',
+            ),
+            array(
+                'name'  => esc_html__( 'Danger', 'themisdb' ),
+                'slug'  => 'danger',
+                'color' => '#c0392b',
+            ),
+        ) );
+    }
+    add_action( 'after_setup_theme', 'themisdb_setup' );
 }
-add_action( 'after_setup_theme', 'themisdb_setup' );
 
 /**
  * Set the content width in pixels

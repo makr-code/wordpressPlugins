@@ -356,7 +356,7 @@ function themisdb_fs_get_post_cta_buttons( $post_id, $limit = 2 ) {
  *   date          – show post date    (1/0)         (default: 1)
  *   cat_label     – show category label (1/0)       (default: 1)
  *   autoplay      – enable autoplay   (1/0)         (default: 1)
- *   hero_label    – tag slug used to mark hero posts (default: '')
+ *   hero_label    – tag slug used to mark hero posts/pages (default: '')
  *   accent_color  – accent hex color                (default: #0284c7)
  *   img_size      – WP image size                   (default: large)
  * ---------------------------------------------------------------------- */
@@ -422,7 +422,7 @@ function themisdb_fs_shortcode( $atts ) {
 
     // Query posts.
     $query_args = array(
-        'post_type'           => 'post',
+        'post_type'           => array( 'post', 'page' ),
         'post_status'         => 'publish',
         'posts_per_page'      => $posts_count,
         'ignore_sticky_posts' => false,

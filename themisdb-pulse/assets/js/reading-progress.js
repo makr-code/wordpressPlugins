@@ -81,20 +81,6 @@
         return bestNode;
     }
 
-    function shouldEnableReadingProgress() {
-        if (!document.body) {
-            return false;
-        }
-
-        var classes = document.body.classList;
-        if (document.querySelector('.wp-block-post-content')) {
-            return true;
-        }
-
-        // Keep reading progress for long-form content views only.
-        return classes.contains('single') || classes.contains('page');
-    }
-
     function pickAnchorScope() {
         var selectors = [
             '.tv3-front-main',
@@ -123,11 +109,44 @@
             return [];
         }
 
-        var headings = Array.prototype.slice.call(scope.querySelectorAll('h2, h3'));
+        var headings = Array.prototype.slice.call(scope.querySelectorAll('h2, h3, h4'));
         var filteredH2 = headings.filter(function (node) {
             return node.tagName && node.tagName.toLowerCase() === 'h2';
         });
         var source = filteredH2.length >= 3 ? filteredH2 : headings;
+
+        if (!source.length) {
+            var paragraphNodes = Array.prototype.slice.call(scope.querySelectorAll('p'));
+            source = paragraphNodes.filter(function (node) {
+                if (!node || !node.textContent) {
+                    return false;
+                }
+
+                if (node.querySelector('img, figure, table, ul, ol, blockquote, pre')) {
+                    return false;
+                }
+
+                if (node.classList.contains('tv3-article-lead') || node.classList.contains('tv3-page-hero-excerpt')) {
+                    return false;
+                }
+
+                var text = node.textContent.replace(/\s+/g, ' ').trim();
+                if (text.length < 20 || text.length > 140) {
+                    return false;
+                }
+
+                var words = text.split(/\s+/).filter(Boolean).length;
+                if (words > 18) {
+                    return false;
+                }
+
+                if (!/[.:!?…]$/.test(text)) {
+                    return false;
+                }
+
+                return true;
+            });
+        }
 
         var seen = {};
         var anchors = [];
@@ -171,99 +190,6 @@
         });
     }
 
-    function updateVisibleAnchorItems(items, list, currentId) {
-        if (!list || !items || !items.length) {
-            return;
-        }
-
-        items.forEach(function (entry) {
-            entry.item.classList.remove('tv3-anchor-hidden');
-            entry.item.removeAttribute('aria-hidden');
-        });
-
-        var container = list.parentElement;
-        if (!container) {
-            return;
-        }
-
-        var available = Math.floor(container.clientWidth);
-        if (available <= 0) {
-            return;
-        }
-
-        var styles = window.getComputedStyle(list);
-        var gap = parseFloat(styles.columnGap || styles.gap || '0');
-        if (!Number.isFinite(gap)) {
-            gap = 0;
-        }
-
-        var widths = items.map(function (entry) {
-            return Math.ceil(entry.item.getBoundingClientRect().width);
-        });
-
-        var fullWidth = widths.reduce(function (sum, width, idx) {
-            return sum + width + (idx > 0 ? gap : 0);
-        }, 0);
-
-        if (fullWidth <= available) {
-            return;
-        }
-
-        var activeIndex = items.findIndex(function (entry) {
-            return entry.id === currentId;
-        });
-        if (activeIndex < 0) {
-            activeIndex = 0;
-        }
-
-        var order = [activeIndex];
-        for (var step = 1; step < items.length; step++) {
-            var left = activeIndex - step;
-            var right = activeIndex + step;
-
-            if (left >= 0) {
-                order.push(left);
-            }
-            if (right < items.length) {
-                order.push(right);
-            }
-        }
-
-        var keep = {};
-        var used = 0;
-        var shown = 0;
-
-        for (var i = 0; i < order.length; i++) {
-            var idx = order[i];
-            if (keep[idx]) {
-                continue;
-            }
-
-            var candidate = widths[idx] + (shown > 0 ? gap : 0);
-            if (shown > 0 && used + candidate > available) {
-                continue;
-            }
-
-            if (shown === 0 && widths[idx] > available) {
-                keep[idx] = true;
-                shown = 1;
-                used = widths[idx];
-                break;
-            }
-
-            keep[idx] = true;
-            used += candidate;
-            shown += 1;
-        }
-
-        items.forEach(function (entry, idx) {
-            if (!keep[idx]) {
-                entry.item.classList.add('tv3-anchor-hidden');
-                entry.item.setAttribute('aria-hidden', 'true');
-            }
-        });
-    }
-
     function dedupeContextNavShells() {
         var shells = Array.prototype.slice.call(document.querySelectorAll('.tv3-hero-context-nav-shell'));
         if (shells.length <= 1) {
@@ -286,175 +212,6 @@
                 shell.remove();
             }
         });
-    }
-
-    function getPrimaryContextNavPart() {
-        var parts = Array.prototype.slice.call(document.querySelectorAll('.tv3-hero-context-nav-part'));
-        if (!parts.length) {
-            return null;
-        }
-
-        var primary = null;
-        parts.forEach(function (part) {
-            if (!primary && part.querySelector('.tv3-hero-context-nav-shell, .tv3-hero-context-nav')) {
-                primary = part;
-            }
-        });
-
-        return primary || parts[0];
-    }
-
-    function dedupeContextNavParts() {
-        var parts = Array.prototype.slice.call(document.querySelectorAll('.tv3-hero-context-nav-part'));
-        if (parts.length <= 1) {
-            return;
-        }
-
-        var primary = getPrimaryContextNavPart() || parts[0];
-        parts.forEach(function (part) {
-            if (part !== primary) {
-                part.remove();
-            }
-        });
-    }
-
-    function relocateContextNavPart() {
-        var part = getPrimaryContextNavPart();
-        if (!part || !part.parentNode) {
-            return;
-        }
-
-        var hero = document.querySelector('.tv3-hero-slider-shell');
-        var pageHero = document.querySelector('.tv3-page-hero-shell, .tv3-page-hero');
-        var header = document.querySelector('.site-header');
-        var anchor = hero || pageHero || header;
-
-        if (!anchor || !anchor.parentNode) {
-            return;
-        }
-
-        // Keep the context bar directly after the selected anchor block.
-        var desiredParent = anchor.parentNode;
-        var desiredNext = anchor.nextSibling;
-        var alreadyPlaced = part.parentNode === desiredParent && part.previousSibling === anchor;
-        if (alreadyPlaced) {
-            return;
-        }
-
-        desiredParent.insertBefore(part, desiredNext);
-    }
-
-    function relocateBreadcrumbShell() {
-        var shell = document.querySelector('[data-tv3-breadcrumbs-shell]');
-        if (!shell || !shell.parentNode) {
-            return;
-        }
-
-        var hero = document.querySelector('.tv3-hero-slider-shell');
-        var pageHero = document.querySelector('.tv3-page-hero-shell, .tv3-page-hero');
-        var anchor = hero || pageHero;
-        if (!anchor || !anchor.parentNode) {
-            return;
-        }
-
-        var desiredParent = anchor.parentNode;
-        var desiredNext = anchor.nextSibling;
-        var alreadyPlaced = shell.parentNode === desiredParent && shell.previousSibling === anchor;
-        if (alreadyPlaced) {
-            return;
-        }
-
-        desiredParent.insertBefore(shell, desiredNext);
-    }
-
-    function initContextFloatingState() {
-        var part = getPrimaryContextNavPart();
-        var header = document.querySelector('.site-header');
-        if (!part || !header) {
-            return;
-        }
-
-        var raf = false;
-
-        function recalc() {
-            raf = false;
-            var headerRect = header.getBoundingClientRect();
-            var shouldFloat = headerRect.bottom <= 0;
-            part.classList.toggle('is-floating', shouldFloat);
-        }
-
-        function schedule() {
-            if (raf) {
-                return;
-            }
-            raf = true;
-            window.requestAnimationFrame(recalc);
-        }
-
-        window.addEventListener('scroll', schedule, { passive: true });
-        window.addEventListener('resize', schedule);
-        window.addEventListener('orientationchange', schedule);
-        window.addEventListener('load', schedule, { once: true });
-
-        var pollingId = window.setInterval(schedule, 250);
-        window.addEventListener('pagehide', function () {
-            window.clearInterval(pollingId);
-        }, { once: true });
-
-        schedule();
-    }
-
-    function initBreadcrumbFloatingState() {
-        var shell = document.querySelector('[data-tv3-breadcrumbs-shell]');
-        if (!shell) {
-            return;
-        }
-
-        var staticSlot = shell.querySelector('[data-tv3-breadcrumbs-static-slot]');
-        var breadcrumbNav = shell.querySelector('.tv3-breadcrumbs');
-        if (!breadcrumbNav) {
-            return;
-        }
-
-        if (!document.body) {
-            return;
-        }
-
-        function getFloatTop() {
-            var adminBar = document.getElementById('wpadminbar');
-            if (adminBar) {
-                return Math.max(0, Math.round(adminBar.getBoundingClientRect().height));
-            }
-
-            return 0;
-        }
-
-        function recalc() {
-            var threshold = getFloatTop();
-            var shellRect = shell.getBoundingClientRect();
-            var shouldFloat = shellRect.top <= threshold;
-
-            shell.classList.toggle('is-floating', shouldFloat);
-
-            if (staticSlot && breadcrumbNav.parentNode !== staticSlot) {
-                staticSlot.appendChild(breadcrumbNav);
-            }
-            if (staticSlot) {
-                staticSlot.classList.remove('is-placeholder');
-                staticSlot.style.minHeight = '';
-            }
-        }
-
-        function schedule() {
-            recalc();
-        }
-
-        window.addEventListener('scroll', schedule, { passive: true });
-        window.addEventListener('resize', schedule);
-        window.addEventListener('orientationchange', schedule);
-        window.addEventListener('load', schedule, { once: true });
-
-        schedule();
     }
 
     function initContextAnchorNav() {
@@ -500,7 +257,7 @@
         });
 
         function getStickyOffset() {
-            var stickyPart = getPrimaryContextNavPart();
+            var stickyPart = document.querySelector('.tv3-hero-context-nav-part');
             if (!stickyPart) {
                 return 0;
             }
@@ -542,7 +299,6 @@
             }
 
             setActiveAnchor(items, current);
-            updateVisibleAnchorItems(items, list, current);
         }
 
         function scheduleUpdate() {
@@ -584,18 +340,6 @@
 
         var label = progressShell.querySelector('[data-tv3-reading-progress-label]');
 
-        if (!shouldEnableReadingProgress()) {
-            progressShell.classList.remove('is-active');
-            progressShell.classList.add('is-disabled');
-            bar.style.width = '0%';
-            if (label) {
-                label.textContent = '';
-            }
-            return false;
-        }
-
-        progressShell.classList.remove('is-disabled');
-
         bars.forEach(function (otherBar) {
             if (otherBar === bar) {
                 return;
@@ -618,15 +362,12 @@
         var target = pickReadingTarget();
         if (!target) {
             progressShell.classList.remove('is-active');
-            progressShell.classList.add('is-disabled');
             bar.style.width = '0%';
             if (label) {
                 label.textContent = '';
             }
             return false;
         }
-
-        progressShell.classList.remove('is-disabled');
 
         var minutesTotal = Math.max(0, toInt(progressSettings.minutesTotal, 0));
         var labelPattern = String(progressSettings.labelPattern || '%1$d% · %2$d Min. uebrig');
@@ -692,12 +433,7 @@
     }
 
     function initContextSystems() {
-        dedupeContextNavParts();
-        relocateBreadcrumbShell();
-        relocateContextNavPart();
         dedupeContextNavShells();
-        initContextFloatingState();
-        initBreadcrumbFloatingState();
 
         var attempts = 0;
         function tryInitAnchors() {
@@ -722,14 +458,6 @@
 
         tryInitReadingProgress();
         window.addEventListener('load', tryInitReadingProgress, { once: true });
-
-        // Run once more after full load in case async blocks moved layout anchors.
-        window.addEventListener('load', function () {
-            relocateBreadcrumbShell();
-            relocateContextNavPart();
-            initContextFloatingState();
-            initBreadcrumbFloatingState();
-        }, { once: true });
     }
 
     if (document.readyState === 'loading') {

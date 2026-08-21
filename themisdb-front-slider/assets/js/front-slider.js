@@ -23,6 +23,11 @@
      * @param {HTMLElement} wrapper
      */
     function initSlider(wrapper) {
+        if (!wrapper || wrapper.dataset.tfsInit === '1') {
+            return;
+        }
+        wrapper.dataset.tfsInit = '1';
+
         var track       = wrapper.querySelector('.themisdb-fs-track');
         var slides      = Array.prototype.slice.call(wrapper.querySelectorAll('.themisdb-fs-slide'));
         var dots        = Array.prototype.slice.call(wrapper.querySelectorAll('.themisdb-fs-dot'));

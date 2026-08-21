@@ -3,6 +3,7 @@
  * Title: Stats Bar – Animated Counters
  * Slug: themisdb-v3/stats-bar
  * Categories: themisdb-v3, themisdb-v3-landing
+ * Keywords: stats, counters, kpi, numbers, metrics
  * Viewport Width: 1280
  * Description: Four animated stat counters (count-up when in viewport) using .themis-v3-counter class.
  */

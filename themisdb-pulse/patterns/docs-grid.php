@@ -3,6 +3,7 @@
  * Title: Documentation Grid – Dynamic Documentation Tiles
  * Slug: themisdb-v3/docs-grid
  * Categories: themisdb-v3, themisdb-v3-docs
+ * Keywords: docs, documentation, knowledge-base, grid, resources
  * Viewport Width: 1280
  * Description: Dynamic documentation and resource tiles from ThemisDB documentation pages.
  */

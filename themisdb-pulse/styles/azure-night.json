@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/theme.json",
+  "version": 2,
+  "title": "Azure Night",
+  "styles": {
+    "color": {
+      "background": "#0f1f31",
+      "text": "#e8f0f8"
+    },
+    "elements": {
+      "link": {
+        "color": {
+          "text": "#7cc3ff"
+        },
+        ":hover": {
+          "color": {
+            "text": "#a4d7ff"
+          }
+        }
+      },
+      "button": {
+        "color": {
+          "background": "#1e6fba",
+          "text": "#ffffff"
+        },
+        "border": {
+          "radius": "8px"
+        }
+      }
+    },
+    "blocks": {
+      "core/group": {
+        "color": {
+          "background": "#122a42"
+        }
+      },
+      "core/quote": {
+        "color": {
+          "background": "#132b43",
+          "text": "#d9e7f5"
+        }
+      }
+    }
+  }
+}

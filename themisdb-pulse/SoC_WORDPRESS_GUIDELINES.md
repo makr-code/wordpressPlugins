@@ -88,6 +88,21 @@ Maximize WordPress-native blocks (paragraph, heading, image, columns, buttons, e
 ### Phase 4 ✅ (Complete)
 - [x] Replaced `stats-bar.php` HTML counters with custom block `themisdb/stats-counter`
 
+### Phase 5 ✅ (Complete)
+- [x] Archive/search/listing templates migrated to native `core/query` loops
+- [x] Inline style attributes removed from migrated listing templates
+- [x] Pattern categories registered (`themisdb-v3`, `themisdb-v3-landing`)
+- [x] Theme style variations added (`styles/azure-night.json`, `styles/clean-slate.json`)
+- [x] Pattern metadata normalized (keywords + consistent category mapping)
+- [x] Reusable query pattern added (`themisdb-v3/query-loop-cards`)
+
+### Phase 6 ✅ (Complete)
+- [x] Front page shortcode islands replaced with native blocks/patterns
+- [x] Hero migrated from shortcode to pattern (`themisdb-v3/hero-home`)
+- [x] Pricing section migrated to pattern (`themisdb-v3/pricing-section`)
+- [x] Blog cards migrated to native `core/query` stack
+- [x] Front-page inline style attributes removed in favor of class-based cascade
+
 ---
 
 ## 📋 **Legitimate wp:html Blocks (Current State)**
@@ -126,6 +141,11 @@ The former stats-bar exception was replaced by the custom block `themisdb/stats-
 3. **Prefer CSS** over HTML wrappers (use classes + style.css)
 4. **Use data attributes** sparingly (prefer JavaScript event listeners on semantic elements)
 5. **Test with Block Editor** to ensure editor UX is smooth
+6. **Prefer core query stack** (`core/query`, `core/post-template`, pagination, no-results) over bespoke listing shortcodes
+7. **Expose pattern categories** via `register_block_pattern_category(...)` for reliable Inserter discoverability
+8. **Ship at least one style variation** in `styles/*.json` to support designer workflows in Site Editor
+9. **Maintain pattern metadata hygiene**: every pattern should define `Title`, `Slug`, `Categories`, `Keywords`, and `Description`
+10. **Prefer reusable query patterns** for card listings before introducing bespoke dynamic blocks
 
 ### For Content Editors:
 - Edit text, images, and CTAs directly in the block editor
@@ -162,4 +182,4 @@ Integrated in:
 
 ---
 
-**Last Updated**: 2026-05-10 (Phase 4 complete, wp:html = 0)
+**Last Updated**: 2026-08-21 (Phase 6 complete, front page migrated to native blocks/patterns)
