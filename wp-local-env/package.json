@@ -11,7 +11,7 @@
     "wp:install": "wp-env install-path"
   },
   "devDependencies": {
-    "@wordpress/env": "^10.20.0",
+    "@wordpress/env": "^11.13.0",
     "playwright": "^1.58.2"
   }
 }
