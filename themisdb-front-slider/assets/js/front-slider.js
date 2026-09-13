@@ -26,6 +26,12 @@
         if (!wrapper || wrapper.dataset.tfsInit === '1') {
             return;
         }
+
+        // Another controller (e.g. theme hero slider) already owns this wrapper.
+        if (wrapper.dataset.themisdbSliderInit === '1') {
+            return;
+        }
+
         wrapper.dataset.tfsInit = '1';
 
         var track       = wrapper.querySelector('.themisdb-fs-track');
@@ -41,6 +47,12 @@
 
         var total       = slides.length;
         var current     = 0;
+        for (var i = 0; i < slides.length; i++) {
+            if (slides[i].classList.contains('is-active')) {
+                current = i;
+                break;
+            }
+        }
         var interval    = parseInt(wrapper.getAttribute('data-interval'), 10) || 5000;
         var autoplay    = wrapper.getAttribute('data-autoplay') !== '0';
         var respectReduced = wrapper.getAttribute('data-respect-reduced-motion') !== '0';
@@ -51,7 +63,7 @@
         var timerRemaining = interval;
         var rafID          = null;
         var imageBlendTimers = [];
-        var imageBlendInterval = Math.max(2400, Math.round(interval * 0.58));
+        var imageBlendInterval = Math.max(7000, interval + 1800);
 
         if (prefersReduced) {
             wrapper.classList.add('is-reduced-motion');
@@ -61,14 +73,8 @@
         }
 
         function assignSlideImageEffects() {
-            var variants = ['has-image-effect-a', 'has-image-effect-b', 'has-image-effect-c'];
             slides.forEach(function (slide) {
                 slide.classList.remove('has-image-effect-a', 'has-image-effect-b', 'has-image-effect-c');
-                if (!slide.querySelector('.themisdb-fs-image-card')) {
-                    return;
-                }
-                var pick = variants[Math.floor(Math.random() * variants.length)];
-                slide.classList.add(pick);
             });
         }
 
@@ -402,14 +408,11 @@
         /* ------------------------------------------------------------------
          * Init
          * ---------------------------------------------------------------- */
-        // Ensure the first slide is fully visible (no leftover transform).
-        track.style.transform = 'translateX(0%)';
         assignSlideImageEffects();
         slides.forEach(function (slide) {
             resetSlideImageLayers(slide);
         });
-        fitActiveSlide();
-        startActiveSlideImageBlend();
+        goTo(current);
         resetProgressBar();
         startTimer();
     }

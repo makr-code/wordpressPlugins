@@ -137,6 +137,14 @@
                             },
                             help: __( 'Leer lassen, um alle Kategorien einzubeziehen.', 'themisdb-front-slider' )
                         } ),
+                        el( TextControl, {
+                            label: __( 'Freier Filter', 'themisdb-front-slider' ),
+                            value: attrs.filter || 'hero',
+                            onChange: function( value ) {
+                                props.setAttributes( { filter: value || 'hero' } );
+                            },
+                            help: __( 'Standard: hero. Beispiele: hero,featured | tag:hero,featured | category:news | search:vector | none', 'themisdb-front-slider' )
+                        } ),
                         el( ToggleControl, {
                             label: __( 'Autoplay aktivieren', 'themisdb-front-slider' ),
                             checked: !! attrs.autoplay,

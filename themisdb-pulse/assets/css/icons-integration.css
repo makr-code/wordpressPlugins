@@ -1,0 +1,192 @@
+/*
+ * Font Awesome Icon Integration for ThemisDB Pulse
+ * Sustainable visual enhancement using ::before/::after pseudo-elements
+ * and JavaScript-generated helper classes.
+ * No HTML modifications required.
+ */
+
+/* ============================================
+   CATEGORY & TAG ICONS (via helper classes)
+   ============================================ */
+
+/* Artikel tag (code icon) */
+.icon-artikel::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f121';
+    margin-right: 0.4rem;
+    color: var(--tv3-azure);
+    font-size: 0.9em;
+}
+
+/* Hero/Featured tag (star icon) */
+.icon-hero::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f06d';
+    margin-right: 0.4rem;
+    color: var(--tv3-yellow);
+    font-size: 0.9em;
+}
+
+/* Medien tag (image icon) */
+.icon-medien::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f03e';
+    margin-right: 0.4rem;
+    color: var(--tv3-cyan);
+    font-size: 0.9em;
+}
+
+/* Generic tag fallback (tag icon) */
+.icon-tag::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f02b';
+    margin-right: 0.4rem;
+    color: var(--tv3-forest-green);
+    font-size: 0.9em;
+}
+
+/* ============================================
+   BUTTON ICONS (Call-to-Action)
+   ============================================ */
+
+/* Primary action button with arrow */
+.wp-block-button__link {
+    position: relative;
+}
+
+.wp-block-button__link::after {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f061';
+    margin-left: 0.5rem;
+    transition: transform var(--tv3-motion-base) var(--tv3-ease-standard);
+    display: inline-block;
+    color: inherit;
+}
+
+.wp-block-button__link:hover::after {
+    transform: translateX(3px);
+}
+
+/* ============================================
+   METADATA ICONS
+   ============================================ */
+
+/* Post date/time */
+.icon-date::before,
+time::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f133';
+    margin-right: 0.35rem;
+    color: var(--tv3-text-secondary);
+    font-size: 0.85em;
+}
+
+/* Post time */
+.icon-time::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f017';
+    margin-right: 0.35rem;
+    color: var(--tv3-text-secondary);
+    font-size: 0.85em;
+}
+
+/* Author */
+.icon-author::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f007';
+    margin-right: 0.35rem;
+    color: var(--tv3-text-secondary);
+    font-size: 0.85em;
+}
+
+/* Reading time estimate */
+.icon-readtime::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f017';
+    margin-right: 0.35rem;
+    color: var(--tv3-text-secondary);
+    font-size: 0.85em;
+}
+
+/* Comments count */
+.icon-comments::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f086';
+    margin-right: 0.35rem;
+    color: var(--tv3-text-secondary);
+    font-size: 0.85em;
+}
+
+/* ============================================
+   UTILITY ENHANCEMENTS
+   ============================================ */
+
+/* Search icon in search blocks */
+.wp-block-search__button::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f002';
+    margin-right: 0.3rem;
+    font-size: 0.9em;
+}
+
+/* Navigation menu item dropdown indicator */
+.wp-block-navigation-item.has-submenu > .wp-block-navigation-item__content::after {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f078';
+    margin-left: 0.25rem;
+    font-size: 0.7em;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+/* Reduce icon size on mobile */
+@media (max-width: 768px) {
+    .wp-block-button__link::after {
+        margin-left: 0.3rem;
+        font-size: 0.9em;
+    }
+
+    .icon-date::before,
+    .icon-time::before,
+    .icon-author::before {
+        font-size: 0.75em;
+        margin-right: 0.25rem;
+    }
+
+    .icon-artikel::before,
+    .icon-hero::before,
+    .icon-medien::before,
+    .icon-tag::before {
+        font-size: 0.8em;
+        margin-right: 0.3rem;
+    }
+}
+
+/* ============================================
+   ANIMATION & INTERACTION
+   ============================================ */
+
+/* Smooth hover effects for icon elements */
+.wp-block-button__link {
+    transition: all var(--tv3-motion-base) var(--tv3-ease-standard);
+}
+
+/* Slight emphasis on icon on hover */
+.wp-block-button__link:focus::after {
+    opacity: 0.7;
+}
+

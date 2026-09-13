@@ -1,0 +1,34 @@
+[     652ms] [LOG] JQMIGRATE: Migrate is installed, version 3.4.1 @ http://localhost/wordpress/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1:1
+[     699ms] [LOG] TV3 Anchors: found 0 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:245
+[     705ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost/wordpress/hero-local-spotlight/:0
+[     717ms] [LOG] D3.js loaded successfully from: http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/vendor/d3.min.js @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:66
+[     717ms] [LOG] Using WordPress content data for graph @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:180
+[    1128ms] [LOG] TV3 Anchors: found 4 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:245
+[    1128ms] [LOG] TV3 Anchors: added anchor "Autor:innen" (#autor-innen) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[    1128ms] [LOG] TV3 Anchors: added anchor "Qualität" (#qualitat) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[    1128ms] [LOG] TV3 Anchors: added anchor "KI-Bewertung gemma4Schieberegler: Ihre Bewertung" (#ki-bewertung-gemma4schieberegler-ihre-bewertung) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[    1128ms] [LOG] TV3 Anchors: added anchor "Medien" (#medien) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[    1133ms] [LOG] TV3 Anchors: already ready @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:225
+[   15506ms] [LOG] JQMIGRATE: Migrate is installed, version 3.4.1 @ http://localhost/wordpress/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1:1
+[   15539ms] [LOG] TV3 Anchors: found 0 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:245
+[   15546ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost/wordpress/hero-local-spotlight/:0
+[   15553ms] [LOG] D3.js loaded successfully from: http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/vendor/d3.min.js @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:66
+[   15553ms] [LOG] Using WordPress content data for graph @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:180
+[   15932ms] [LOG] TV3 Anchors: found 4 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:245
+[   15932ms] [LOG] TV3 Anchors: added anchor "Autor:innen" (#autor-innen) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[   15933ms] [LOG] TV3 Anchors: added anchor "Qualität" (#qualitat) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[   15933ms] [LOG] TV3 Anchors: added anchor "KI-Bewertung gemma4Schieberegler: Ihre Bewertung" (#ki-bewertung-gemma4schieberegler-ihre-bewertung) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[   15933ms] [LOG] TV3 Anchors: added anchor "Medien" (#medien) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[   15938ms] [LOG] TV3 Anchors: already ready @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:225
+[   42730ms] [LOG] JQMIGRATE: Migrate is installed, version 3.4.1 @ http://localhost/wordpress/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1:1
+[   42803ms] [LOG] TV3 Anchors: found 0 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:245
+[   42812ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost/wordpress/:0
+[   42835ms] [LOG] D3.js loaded successfully from: http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/vendor/d3.min.js @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:66
+[   42835ms] [LOG] Using WordPress content data for graph @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:180
+[   43194ms] [LOG] TV3 Anchors: found 5 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:245
+[   43194ms] [LOG] TV3 Anchors: added anchor "Everything you need in one database" (#everything-you-need-in-one-database) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[   43194ms] [LOG] TV3 Anchors: added anchor "Explore the Documentation" (#explore-the-documentation) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[   43194ms] [LOG] TV3 Anchors: added anchor "Start free. Scale with confidence." (#start-free-scale-with-confidence) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[   43194ms] [LOG] TV3 Anchors: added anchor "Get ThemisDB v3" (#get-themisdb-v3) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[   43194ms] [LOG] TV3 Anchors: added anchor "Aktuelle Blog-Beiträge" (#aktuelle-blog-beitrage) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:263
+[   43284ms] [LOG] TV3 Anchors: already ready @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788521581:225

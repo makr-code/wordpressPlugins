@@ -10,17 +10,33 @@
 ?>
 <!-- wp:group {"style":{"color":{"background":"#ffffff"},"spacing":{"padding":{"top":"var:preset|spacing|20","bottom":"var:preset|spacing|20"}}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
 <div class="wp-block-group tv3-docs-grid-section">
+	<?php
+	$docs_copy = function_exists( 'themisdb_v3_get_frontpage_section_copy' )
+		? themisdb_v3_get_frontpage_section_copy(
+			'docs',
+			array(
+				'kicker'   => 'Documentation',
+				'title'    => 'Explore the Documentation',
+				'subtitle' => 'Everything you need to build, deploy, and scale with ThemisDB.',
+			)
+		)
+		: array(
+			'kicker'   => 'Documentation',
+			'title'    => 'Explore the Documentation',
+			'subtitle' => 'Everything you need to build, deploy, and scale with ThemisDB.',
+		);
+	?>
 
 	<!-- wp:paragraph {"align":"center","className":"tv3-docs-grid-kicker-wrap"} -->
-	<p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker">Documentation</span></p>
+	<p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker"><?php echo esc_html( (string) $docs_copy['kicker'] ); ?></span></p>
 	<!-- /wp:paragraph -->
 
 	<!-- wp:heading {"level":2,"textAlign":"center","style":{"typography":{"fontSize":"clamp(1.75rem,3.5vw,2.75rem)","fontWeight":"700","letterSpacing":"-0.03em"},"color":{"text":"#12202f"},"spacing":{"margin":{"bottom":"var:preset|spacing|4"}}}} -->
-	<h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title">Explore the Documentation</h2>
+	<h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title"><?php echo esc_html( (string) $docs_copy['title'] ); ?></h2>
 	<!-- /wp:heading -->
 
 	<!-- wp:paragraph {"textAlign":"center","style":{"typography":{"fontSize":"1.0625rem"},"color":{"text":"#6c7f96"},"spacing":{"margin":{"bottom":"var:preset|spacing|12"}}}} -->
-	<p class="has-text-align-center tv3-docs-grid-subtitle">Everything you need to build, deploy, and scale with ThemisDB.</p>
+	<p class="has-text-align-center tv3-docs-grid-subtitle"><?php echo esc_html( (string) $docs_copy['subtitle'] ); ?></p>
 	<!-- /wp:paragraph -->
 
 	<!-- Dynamic documentation cards rendered from WP pages with documentation tags/roots -->

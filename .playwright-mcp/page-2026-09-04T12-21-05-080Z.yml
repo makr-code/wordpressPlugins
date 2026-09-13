@@ -1,0 +1,457 @@
+- generic [active] [ref=e1]:
+  - link "Zum Inhalt springen" [ref=e2] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [aria-hidden]:
+    - generic: 0% · 1 Min. uebrig
+  - link "Zum Inhalt springen" [ref=e3] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - banner [ref=e6]:
+        - button "Toggle Navigation Graph" [ref=e7] [cursor=pointer]
+        - generic [ref=e10]:
+          - generic [ref=e11]:
+            - link [ref=e13] [cursor=pointer]:
+              - /url: http://localhost/wordpress/
+              - img "WordPress Lokal" [ref=e14]
+            - paragraph [ref=e15]:
+              - link "WordPress Lokal" [ref=e16] [cursor=pointer]:
+                - /url: http://localhost/wordpress
+          - navigation "Produktnavigation Produktnavigation" [ref=e18]:
+            - list "Produktnavigation" [ref=e23]:
+              - listitem [ref=e24]:
+                - link "Partner" [ref=e25] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/partners/
+              - listitem [ref=e26]:
+                - link "Support" [ref=e27] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/support/
+              - listitem [ref=e28]:
+                - link "Ressourcen" [ref=e29] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/resources/
+          - navigation "Hilfsnavigation Hilfsnavigation" [ref=e31]:
+            - list "Hilfsnavigation" [ref=e32]:
+              - listitem [ref=e33]:
+                - link "Partner" [ref=e34] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/partners/
+              - listitem [ref=e35]:
+                - link "Support" [ref=e36] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/support/
+              - listitem [ref=e37]:
+                - link "Ressourcen" [ref=e38] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/resources/
+          - generic [ref=e39]:
+            - search [ref=e40]:
+              - generic [ref=e41]: Suche
+              - generic [ref=e42]:
+                - searchbox "Suche" [ref=e43]
+                - button "Suchen" [ref=e44] [cursor=pointer]
+            - link "Anmelden" [ref=e48] [cursor=pointer]:
+              - /url: http://localhost/wordpress/login/
+    - region "Beiträge" [ref=e49]:
+      - generic [ref=e51]:
+        - group [aria-hidden]:
+          - generic:
+            - generic:
+              - list:
+                - listitem: Allgemein
+                - listitem: Hero
+              - heading [level=2]:
+                - link:
+                  - /url: http://localhost/wordpress/hero-local-spotlight/
+                  - text: Hero Local Spotlight
+              - paragraph: This is a local Hero-tagged test post used to verify the front-page query logic.
+              - generic:
+                - link:
+                  - /url: http://localhost/wordpress/hero-local-spotlight/
+                  - text: Beitrag anzeigen
+        - group [aria-hidden]:
+          - generic:
+            - generic:
+              - list:
+                - listitem: Artikel
+                - listitem: Hero
+              - heading [level=2]:
+                - link:
+                  - /url: http://localhost/wordpress/die-architektur-der-souveranitat-warum-der-cloud-ansatz-der-hyperscaler-den-deutschen-foderalismus-gefahrdet-und-monolithische-on-premise-systeme-die-notwendige-alternative-bilden/
+                  - text: "Die Architektur der Souveränität: Warum der Cloud-Ansatz der Hyperscaler den deutschen Föderalismus gefährdet und monolithische On-Premise-Systeme die notwendige…"
+              - paragraph: Der digitale Transformationsprozess der deutschen öffentlichen Verwaltung steht an einem entscheidenden Punkt, der nicht nur technische Herausforderungen mit sich bringt, sondern auch tiefgreifende verfassungsrechtliche und geopolitische Dimensionen aufweist. Die aktuelle Strategie, die…
+              - generic:
+                - link:
+                  - /url: http://localhost/wordpress/die-architektur-der-souveranitat-warum-der-cloud-ansatz-der-hyperscaler-den-deutschen-foderalismus-gefahrdet-und-monolithische-on-premise-systeme-die-notwendige-alternative-bilden/
+                  - text: Beitrag anzeigen
+        - group [aria-hidden]:
+          - generic:
+            - generic:
+              - list:
+                - listitem: Artikel
+                - listitem: Hero
+              - heading [level=2]:
+                - link:
+                  - /url: http://localhost/wordpress/implementierung-kunstlicher-intelligenz-in-der-notrufabfrage-kritischer-infrastrukturen-eine-analyse-von-whisper-cpp-und-large-language-models-zur-informationsextraktion-und-intentionsanalyse/
+                  - text: "Implementierung künstlicher Intelligenz in der Notrufabfrage kritischer Infrastrukturen: Eine Analyse von Whisper.cpp und Large Language Models zur Informationsextraktion…"
+              - paragraph: Die Digitalisierung von Leitstellen bei Behörden und Organisationen mit Sicherheitsaufgaben (BOS) im Bereich kritischer Infrastrukturen (KRITIS) steht vor einer technologischen Zäsur. Angesichts steigender Anrufzahlen, eines chronischen Personalmangels und der Notwendigkeit, Informationen in…
+              - generic:
+                - link:
+                  - /url: http://localhost/wordpress/implementierung-kunstlicher-intelligenz-in-der-notrufabfrage-kritischer-infrastrukturen-eine-analyse-von-whisper-cpp-und-large-language-models-zur-informationsextraktion-und-intentionsanalyse/
+                  - text: Beitrag anzeigen
+        - group [aria-hidden]:
+          - generic:
+            - generic:
+              - list:
+                - listitem: Artikel
+                - listitem: Medien
+                - listitem: Hero
+                - listitem: ökonomische Unhaltbarkeit
+              - heading [level=2]:
+                - link:
+                  - /url: http://localhost/wordpress/die-architektonische-transformation-der-groen-sprachmodelle-warum-das-kontextfenster-als-isolierte-metrik-an-relevanz-verliert/
+                  - text: "Die Architektonische Transformation der Großen Sprachmodelle: Warum das Kontextfenster als isolierte Metrik an Relevanz verliert"
+              - paragraph: In den Jahren zwischen 2022 und 2026 erlebte die künstliche Intelligenz eine rasante Entwicklung, wobei die Skalierung des Kontextfensters zu einer sichtbaren Front im technologischen Wettbewerb wurde. Frühe GPT-3.5-Varianten verfügten über bescheidene…
+              - generic:
+                - link:
+                  - /url: http://localhost/wordpress/die-architektonische-transformation-der-groen-sprachmodelle-warum-das-kontextfenster-als-isolierte-metrik-an-relevanz-verliert/
+                  - text: Beitrag anzeigen
+        - group "Beitrag 5 von 5" [ref=e363]:
+          - generic [ref=e364]:
+            - generic [ref=e365]:
+              - list "Beitrags-Labels" [ref=e366]:
+                - listitem [ref=e367] [cursor=pointer]: Artikel
+                - listitem [ref=e368] [cursor=pointer]: Medien
+                - listitem [ref=e369] [cursor=pointer]: AVX-512 SIMD
+                - listitem [ref=e370] [cursor=pointer]: Hero
+              - heading [level=2] [ref=e371]:
+                - 'link "Advanced Architectural Paradigms for Multi-Model AI Databases: Integrating Tensor Graph Networks and Zero-Copy Inference in ThemisDB" [ref=e372] [cursor=pointer]':
+                  - /url: http://localhost/wordpress/advanced-architectural-paradigms-for-multi-model-ai-databases-integrating-tensor-graph-networks-and-zero-copy-inference-in-themisdb/
+              - paragraph [ref=e373]: The evolving landscape of data management is being reshaped by the need for large language models to interact with complex, high-dimensional datasets. Traditional database architectures, optimized for relational or document-based lookups, struggle…
+              - generic [ref=e374]:
+                - time
+                - 'link "Beitrag anzeigen: Advanced Architectural Paradigms for Multi-Model AI Databases: Integrating Tensor Graph Networks and Zero-Copy Inference in ThemisDB" [ref=e375] [cursor=pointer]':
+                  - /url: http://localhost/wordpress/advanced-architectural-paradigms-for-multi-model-ai-databases-integrating-tensor-graph-networks-and-zero-copy-inference-in-themisdb/
+                  - text: Beitrag anzeigen
+            - generic [ref=e378]:
+              - 'img "Advanced Architectural Paradigms for Multi-Model AI Databases: Integrating Tensor Graph Networks and Zero-Copy Inference in ThemisDB" [ref=e379]'
+              - 'img "Advanced Architectural Paradigms for Multi-Model AI Databases: Integrating Tensor Graph Networks and Zero-Copy Inference in ThemisDB" [ref=e380]'
+              - 'img "Advanced Architectural Paradigms for Multi-Model AI Databases: Integrating Tensor Graph Networks and Zero-Copy Inference in ThemisDB" [ref=e381]'
+              - 'img "Advanced Architectural Paradigms for Multi-Model AI Databases: Integrating Tensor Graph Networks and Zero-Copy Inference in ThemisDB" [ref=e382]'
+      - paragraph:
+        - button "Vorheriger Beitrag" [ref=e70] [cursor=pointer]
+        - button "Nächster Beitrag" [ref=e73] [cursor=pointer]
+      - tablist "Navigation für Beiträge" [ref=e76]:
+        - tab "Beitrag 1 von 5" [ref=e77] [cursor=pointer]
+        - tab "Beitrag 2 von 5" [ref=e78] [cursor=pointer]
+        - tab "Beitrag 3 von 5" [ref=e79] [cursor=pointer]
+        - tab "Beitrag 4 von 5" [ref=e80] [cursor=pointer]
+        - tab "Beitrag 5 von 5" [selected] [ref=e81] [cursor=pointer]
+    - navigation [ref=e83]:
+      - navigation "Breadcrumb-Navigation" [ref=e85]:
+        - list [ref=e86]:
+          - listitem [ref=e87]:
+            - link "Start" [ref=e88] [cursor=pointer]:
+              - /url: http://localhost/wordpress/
+          - listitem [ref=e90]:
+            - link "Everything you need in one database" [ref=e91] [cursor=pointer]:
+              - /url: /features/
+          - listitem [ref=e92]:
+            - link "Explore the Documentation" [ref=e93] [cursor=pointer]:
+              - /url: /documentation/
+          - listitem [ref=e94]:
+            - link "Start free. Scale with confidence." [ref=e95] [cursor=pointer]:
+              - /url: /pricing/
+          - listitem [ref=e96]:
+            - link "Get ThemisDB v3" [ref=e97] [cursor=pointer]:
+              - /url: /downloads/
+          - listitem [ref=e98]:
+            - link "Aktuelle Blog-Beiträge" [ref=e99] [cursor=pointer]:
+              - /url: /blog/
+    - main [ref=e100]:
+      - generic [ref=e102]:
+        - generic [ref=e104]:
+          - generic [ref=e105]: "2"
+          - generic [ref=e106]: Download Pages
+        - generic [ref=e108]:
+          - generic [ref=e109]: "9"
+          - generic [ref=e110]: Feature Content
+        - generic [ref=e112]:
+          - generic [ref=e113]: "9"
+          - generic [ref=e114]: Documentation Items
+        - generic [ref=e116]:
+          - generic [ref=e117]: "174"
+          - generic [ref=e118]: Published Articles
+      - generic [ref=e119]:
+        - paragraph [ref=e120]:
+          - generic [ref=e121]: Features
+        - heading "Everything you need in one database" [level=2] [ref=e122]
+        - paragraph [ref=e123]: Designed from the ground up for modern applications that need speed, flexibility, and intelligence.
+      - generic [ref=e124]:
+        - paragraph [ref=e125]:
+          - generic [ref=e126]: Documentation
+        - heading "Explore the Documentation" [level=2] [ref=e127]
+        - paragraph [ref=e128]: Everything you need to build, deploy, and scale with ThemisDB.
+      - generic [ref=e129]:
+        - paragraph [ref=e130]:
+          - generic [ref=e131]: Pricing
+        - heading "Start free. Scale with confidence." [level=2] [ref=e132]
+        - paragraph [ref=e133]: ThemisDB is open-source and MIT licensed. Enterprise support and SLA available for production.
+        - generic [ref=e134]:
+          - generic [ref=e135]:
+            - paragraph [ref=e136]: Community
+            - paragraph [ref=e137]:
+              - superscript [ref=e138]: $
+              - text: "0"
+            - paragraph [ref=e139]: Free forever · MIT LicenseSelf-hosted, no restrictions
+            - list [ref=e140]:
+              - listitem [ref=e141]: ✓ Full multi-model engine (SQL, JSON, Graph, TS)
+              - listitem [ref=e142]: ✓ Native AI/LLM integration
+              - listitem [ref=e143]: ✓ Docker + binary releases
+              - listitem [ref=e144]: ✓ Full documentation + examples
+              - listitem [ref=e145]: ✓ Community support (GitHub)
+              - listitem [ref=e146]: – Enterprise SLA
+              - listitem [ref=e147]: – Priority engineering support
+            - paragraph [ref=e148]:
+              - link "Download Free" [ref=e149] [cursor=pointer]:
+                - /url: http://localhost/wordpress/downloads
+          - generic [ref=e150]:
+            - paragraph [ref=e151]: Most Popular
+            - paragraph [ref=e152]: Enterprise
+            - paragraph [ref=e153]: Custom
+            - paragraph [ref=e154]: Tailored pricingAnnual or monthly billing
+            - list [ref=e155]:
+              - listitem [ref=e156]: ✓ Everything in Community
+              - listitem [ref=e157]: ✓ 99.99% SLA guarantee
+              - listitem [ref=e158]: ✓ Priority engineering support
+              - listitem [ref=e159]: ✓ Custom integrations & SDKs
+              - listitem [ref=e160]: ✓ Security audit & compliance
+              - listitem [ref=e161]: ✓ Dedicated Slack channel
+              - listitem [ref=e162]: ✓ On-site training sessions
+            - paragraph [ref=e163]:
+              - link "Contact Sales →" [ref=e164] [cursor=pointer]:
+                - /url: http://localhost/wordpress/contact
+          - generic [ref=e165]:
+            - paragraph [ref=e166]: Cloud (Coming Soon)
+            - paragraph [ref=e167]: Soon
+            - paragraph [ref=e168]: Managed cloud serviceUsage-based pricing
+            - list [ref=e169]:
+              - listitem [ref=e170]: ✓ Zero-ops managed database
+              - listitem [ref=e171]: ✓ Automatic backups & scaling
+              - listitem [ref=e172]: ✓ Multi-region replication
+              - listitem [ref=e173]: ✓ Pay per query / GB
+              - listitem [ref=e174]: ✓ Azure, AWS, GCP regions
+            - paragraph [ref=e175]:
+              - link "Join Waitlist →" [ref=e176] [cursor=pointer]:
+                - /url: http://localhost/wordpress/newsletter
+      - generic [ref=e177]:
+        - paragraph [ref=e178]:
+          - generic [ref=e179]: Downloads
+        - heading "Get ThemisDB v3" [level=2] [ref=e180]
+        - paragraph [ref=e181]: Choose your preferred deployment method. All options are free and MIT licensed.
+        - generic [ref=e182]:
+          - generic [ref=e183]:
+            - paragraph [ref=e184]:
+              - img "🐳" [ref=e383]
+            - generic [ref=e185]:
+              - heading "Docker Hub" [level=3] [ref=e186]
+              - paragraph [ref=e187]: Official Docker image. Deploy with a single command in under 60 seconds.
+              - paragraph [ref=e188]: $ docker pull themisdb/themisdb:v3-latest
+            - paragraph [ref=e189]:
+              - link "Docker Hub →" [ref=e190] [cursor=pointer]:
+                - /url: http://localhost/wordpress/docker
+          - generic [ref=e191]:
+            - paragraph [ref=e192]: Recommended
+            - paragraph [ref=e193]:
+              - img "📦" [ref=e384]
+            - generic [ref=e194]:
+              - heading "Binary Release" [level=3] [ref=e195]
+              - paragraph [ref=e196]: Pre-compiled binaries for Linux, macOS, and Windows. No dependencies required.
+              - paragraph [ref=e197]:
+                - generic [ref=e198]: Linux
+                - generic [ref=e199]: macOS
+                - generic [ref=e200]: Windows
+            - paragraph [ref=e201]:
+              - link [ref=e202] [cursor=pointer]:
+                - /url: http://localhost/wordpress/downloads
+                - img "⬇" [ref=e385]
+                - text: Download v3.0
+          - generic [ref=e203]:
+            - paragraph [ref=e204]:
+              - img "📖" [ref=e386]
+            - generic [ref=e205]:
+              - heading "Compendium Download" [level=3] [ref=e206]
+              - paragraph [ref=e207]: Full documentation bundle, source code, plugins, and examples in a single archive.
+              - paragraph [ref=e208]:
+                - img "📄" [ref=e387]
+                - text: 85 MB · ZIP archive · MIT License
+            - paragraph [ref=e210]:
+              - link "Get Compendium →" [ref=e211] [cursor=pointer]:
+                - /url: http://localhost/wordpress/downloads/compendium
+      - generic [ref=e212]:
+        - paragraph [ref=e213]:
+          - generic [ref=e214]: Blog
+        - heading "Aktuelle Blog-Beiträge" [level=2] [ref=e215]
+        - paragraph [ref=e216]: Die letzten 9 Artikel als Kartenansicht. Lesenswerte Beiträge werden hervorgehoben.
+        - generic [ref=e217]:
+          - generic [ref=e218]:
+            - paragraph [ref=e219]: Lesenswert
+            - figure [ref=e220]:
+              - 'img "Die Architektur der Souveränität: Warum der Cloud-Ansatz der Hyperscaler den deutschen Föderalismus gefährdet und monolithische On-Premise-Systeme die notwendige Alternative bilden" [ref=e221]'
+            - 'heading "Die Architektur der Souveränität: Warum der Cloud-Ansatz der Hyperscaler den deutschen Föderalismus gefährdet und monolithische On-Premise-Systeme die notwendige Alternative bilden" [level=3] [ref=e222]'
+            - paragraph [ref=e223]: Der digitale Transformationsprozess der deutschen öffentlichen Verwaltung steht an einem entscheidenden Punkt, der nicht nur technische Herausforderungen mit sich bringt, sondern auch tiefgreifende verfassungsrechtliche…
+            - paragraph [ref=e224]:
+              - link "Beitrag lesen →" [ref=e225] [cursor=pointer]:
+                - /url: http://localhost/wordpress/die-architektur-der-souveranitat-warum-der-cloud-ansatz-der-hyperscaler-den-deutschen-foderalismus-gefahrdet-und-monolithische-on-premise-systeme-die-notwendige-alternative-bilden/
+          - generic [ref=e226]:
+            - paragraph [ref=e227]: Lesenswert
+            - figure [ref=e228]:
+              - 'img "Implementierung künstlicher Intelligenz in der Notrufabfrage kritischer Infrastrukturen: Eine Analyse von Whisper.cpp und Large Language Models zur Informationsextraktion und Intentionsanalyse" [ref=e229]'
+            - 'heading "Implementierung künstlicher Intelligenz in der Notrufabfrage kritischer Infrastrukturen: Eine Analyse von Whisper.cpp und Large Language Models zur Informationsextraktion und Intentionsanalyse" [level=3] [ref=e230]'
+            - paragraph [ref=e231]: Die Digitalisierung von Leitstellen bei Behörden und Organisationen mit Sicherheitsaufgaben (BOS) im Bereich kritischer Infrastrukturen (KRITIS) steht vor einer technologischen Zäsur. Angesichts steigender Anrufzahlen,…
+            - paragraph [ref=e232]:
+              - link "Beitrag lesen →" [ref=e233] [cursor=pointer]:
+                - /url: http://localhost/wordpress/implementierung-kunstlicher-intelligenz-in-der-notrufabfrage-kritischer-infrastrukturen-eine-analyse-von-whisper-cpp-und-large-language-models-zur-informationsextraktion-und-intentionsanalyse/
+          - generic [ref=e234]:
+            - paragraph [ref=e235]: Lesenswert
+            - figure [ref=e236]:
+              - 'img "Die Architektonische Transformation der Großen Sprachmodelle: Warum das Kontextfenster als isolierte Metrik an Relevanz verliert" [ref=e237]'
+            - 'heading "Die Architektonische Transformation der Großen Sprachmodelle: Warum das Kontextfenster als isolierte Metrik an Relevanz verliert" [level=3] [ref=e238]'
+            - paragraph [ref=e239]: In den Jahren zwischen 2022 und 2026 erlebte die künstliche Intelligenz eine rasante Entwicklung, wobei die Skalierung des Kontextfensters zu einer sichtbaren Front im…
+            - generic [ref=e240]:
+              - generic [ref=e241]:
+                - generic [ref=e242]: Audio Track
+                - generic [ref=e243]: Audio
+              - paragraph [ref=e244]:
+                - generic [ref=e245]: Audio-Player
+                - application "Audio-Player" [ref=e246]:
+                  - generic [ref=e248]:
+                    - button "Wiedergeben" [ref=e250] [cursor=pointer]
+                    - timer [ref=e251]: 00:00
+                    - generic [ref=e253] [cursor=pointer]
+                    - generic [ref=e255]: 00:00
+                    - button "Stummschalten" [ref=e257] [cursor=pointer]
+                    - slider "Lautstärkeregler" [ref=e258] [cursor=pointer]:
+                      - generic [ref=e259]: Pfeiltasten Hoch/Runter benutzen, um die Lautstärke zu regeln.
+            - paragraph [ref=e262]:
+              - link "Beitrag lesen →" [ref=e263] [cursor=pointer]:
+                - /url: http://localhost/wordpress/die-architektonische-transformation-der-groen-sprachmodelle-warum-das-kontextfenster-als-isolierte-metrik-an-relevanz-verliert/
+          - generic [ref=e264]:
+            - paragraph [ref=e265]: Lesenswert
+            - figure [ref=e266]:
+              - 'img "Advanced Architectural Paradigms for Multi-Model AI Databases: Integrating Tensor Graph Networks and Zero-Copy Inference in ThemisDB" [ref=e267]'
+            - 'heading "Advanced Architectural Paradigms for Multi-Model AI Databases: Integrating Tensor Graph Networks and Zero-Copy Inference in ThemisDB" [level=3] [ref=e268]'
+            - paragraph [ref=e269]: The evolving landscape of data management is being reshaped by the need for large language models to interact with complex, high-dimensional datasets. Traditional database…
+            - generic [ref=e270]:
+              - generic [ref=e271]:
+                - generic [ref=e272]: Audio Track
+                - generic [ref=e273]: Audio
+              - paragraph [ref=e274]:
+                - generic [ref=e275]: Audio-Player
+                - application "Audio-Player" [ref=e276]:
+                  - generic [ref=e278]:
+                    - button "Wiedergeben" [ref=e280] [cursor=pointer]
+                    - timer [ref=e281]: 00:00
+                    - generic [ref=e283] [cursor=pointer]
+                    - generic [ref=e285]: 00:00
+                    - button "Stummschalten" [ref=e287] [cursor=pointer]
+                    - slider "Lautstärkeregler" [ref=e288] [cursor=pointer]:
+                      - generic [ref=e289]: Pfeiltasten Hoch/Runter benutzen, um die Lautstärke zu regeln.
+            - paragraph [ref=e292]:
+              - link "Beitrag lesen →" [ref=e293] [cursor=pointer]:
+                - /url: http://localhost/wordpress/advanced-architectural-paradigms-for-multi-model-ai-databases-integrating-tensor-graph-networks-and-zero-copy-inference-in-themisdb/
+          - generic [ref=e294]:
+            - figure [ref=e295]:
+              - 'img "ThemisDB Graph Navigation Plugin: Architektur, Datenfluss und Performance" [ref=e296]'
+            - 'heading "ThemisDB Graph Navigation Plugin: Architektur, Datenfluss und Performance" [level=3] [ref=e297]'
+            - paragraph [ref=e298]: "Das Plugin themisdb-graph-navigation entkoppelt die Graph-Visualisierung vom Theme und stellt sie als wiederverwendbare, updatefaehige Komponente bereit. Die aktuelle Version kapselt drei zentrale Aufgaben:"
+            - paragraph [ref=e299]:
+              - link "Beitrag lesen →" [ref=e300] [cursor=pointer]:
+                - /url: http://localhost/wordpress/themisdb-graph-navigation-plugin-architektur-datenfluss-und-performance/
+          - generic [ref=e301]:
+            - figure [ref=e302]:
+              - 'img "ThemisDB Order Request: Enterprise-Lizenz- und Auftragsverwaltung in WordPress" [ref=e303]'
+            - 'heading "ThemisDB Order Request: Enterprise-Lizenz- und Auftragsverwaltung in WordPress" [level=3] [ref=e304]'
+            - paragraph [ref=e305]: Das Plugin themisdb-order-request ist das kommerziell komplexeste Glied der ThemisDB-Pluginfamilie. Es realisiert den vollstaendigen Lebenszyklus von Lizenzbestellungen direkt in WordPress — von der ersten…
+            - paragraph [ref=e306]:
+              - link "Beitrag lesen →" [ref=e307] [cursor=pointer]:
+                - /url: http://localhost/wordpress/themisdb-order-request-enterprise-lizenz-und-auftragsverwaltung-in-wordpress/
+          - generic [ref=e308]:
+            - figure [ref=e309]:
+              - 'img "ThemisDB Quality Meter Plugin: Datenmodell, REST-Writeback und UX-Mechanik" [ref=e310]'
+            - 'heading "ThemisDB Quality Meter Plugin: Datenmodell, REST-Writeback und UX-Mechanik" [level=3] [ref=e311]'
+            - paragraph [ref=e312]: Das Plugin themisdb-quality-meter implementiert ein robustes Muster fuer nutzerbezogenes Bewertungsfeedback in WordPress. Es verbindet KI-vorbelegte Scores mit interaktiver Nutzerkorrektur und persistiert diese ueber eine…
+            - paragraph [ref=e313]:
+              - link "Beitrag lesen →" [ref=e314] [cursor=pointer]:
+                - /url: http://localhost/wordpress/themisdb-quality-meter-plugin-datenmodell-rest-writeback-und-ux-mechanik/
+          - generic [ref=e315]:
+            - figure [ref=e316]:
+              - 'img "ThemisDB Query Playground: AQL-Editor direkt in WordPress" [ref=e317]'
+            - 'heading "ThemisDB Query Playground: AQL-Editor direkt in WordPress" [level=3] [ref=e318]'
+            - paragraph [ref=e319]: Das Plugin themisdb-query-playground verbindet WordPress mit dem ThemisDB-Datenbankbackend ueber einen einbettbaren, interaktiven Abfrageeditor. Zielgruppe sind Entwickler und Fachanwender, die AQL direkt im Browser erkunden…
+            - paragraph [ref=e320]:
+              - link "Beitrag lesen →" [ref=e321] [cursor=pointer]:
+                - /url: http://localhost/wordpress/themisdb-query-playground-aql-editor-direkt-in-wordpress/
+          - generic [ref=e322]:
+            - figure [ref=e323]:
+              - 'img "ThemisDB Taxonomy Manager: TF-IDF, Tree-Views und Custom Taxonomies in WordPress" [ref=e324]'
+            - 'heading "ThemisDB Taxonomy Manager: TF-IDF, Tree-Views und Custom Taxonomies in WordPress" [level=3] [ref=e325]'
+            - paragraph [ref=e326]: Das Plugin themisdb-taxonomy-manager ist deutlich mehr als eine einfache Taxonomieverwaltung. Es verbindet benutzerdefinierte Taxonomiedefinition mit automatischer Begriffsextraktion, Analysefunktionen und Redaktions-Hilfsmitteln direkt in WordPress.
+            - paragraph [ref=e327]:
+              - link "Beitrag lesen →" [ref=e328] [cursor=pointer]:
+                - /url: http://localhost/wordpress/themisdb-taxonomy-manager-tf-idf-tree-views-und-custom-taxonomies-in-wordpress/
+    - contentinfo [ref=e329]:
+      - contentinfo [ref=e330]:
+        - generic [ref=e331]:
+          - generic [ref=e333]:
+            - generic:
+              - link "WordPress Lokal":
+                - /url: http://localhost/wordpress/
+                - img "WordPress Lokal"
+            - paragraph [ref=e334]:
+              - link "WordPress Lokal" [ref=e335] [cursor=pointer]:
+                - /url: http://localhost/wordpress
+            - paragraph [ref=e336]: Lokale Testinstanz
+          - generic [ref=e337]:
+            - heading "Navigation" [level=6] [ref=e338]
+            - navigation "Footer-Navigation Footer-Navigation" [ref=e339]:
+              - list "Footer-Navigation" [ref=e340]:
+                - listitem [ref=e341]:
+                  - link "Support-Portal" [ref=e342] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/
+                - listitem [ref=e343]:
+                  - link "Neues Ticket" [ref=e344] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-support-new-ticket-section
+                - listitem [ref=e345]:
+                  - link "Meine Tickets" [ref=e346] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-support-ticket-list-section
+                - listitem [ref=e347]:
+                  - link "Vertragsmanagement" [ref=e348] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-lifecycle-section
+          - generic [ref=e349]:
+            - heading "Rechtliches" [level=6] [ref=e350]
+            - list [ref=e351]:
+              - listitem [ref=e352]:
+                - link "GitHub" [ref=e353] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=e357]:
+                - link "LinkedIn" [ref=e358] [cursor=pointer]:
+                  - /url: "#"
+        - paragraph [ref=e362]: Powered by WordPress.
+  - option "Alle Typen" [selected]
+  - 'option "Typ: category"'
+  - 'option "Typ: external_resource"'
+  - 'option "Typ: home"'
+  - 'option "Typ: page"'
+  - 'option "Typ: post"'
+  - 'option "Typ: tag"'
+  - 'option "Sortierung: Titel A-Z" [selected]'
+  - 'option "Sortierung: Titel Z-A"'
+  - 'option "Sortierung: Typ"'
+  - 'option "Sortierung: Groesse"'
+  - 'option "Sortierung: Count"'
+  - 'option "Visualisierung: Force Layout" [selected]'
+  - 'option "Visualisierung: Galaxy Mode"'
+  - 'option "Clustering: Aus" [selected]'
+  - 'option "Clustering: Nach Typ"'
+  - 'option "Clustering: Nach Ebene"'
+  - option "Preset laden..." [selected]
+  - option "Ueberschreiben" [selected]
+  - option "Bestehende ueberspringen"
+  - option "Nur neue Presets"
+  - option "Fragen je Preset"

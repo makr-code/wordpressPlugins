@@ -1,0 +1,11 @@
+[    1071ms] [LOG] JQMIGRATE: Migrate is installed, version 3.4.1 @ http://localhost/wordpress/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1:1
+[    1134ms] [LOG] TV3 Anchors: found 0 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:245
+[    1140ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost/wordpress/features/:0
+[    1148ms] [LOG] D3.js loaded successfully from: http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/vendor/d3.min.js @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:66
+[    1149ms] [LOG] Using WordPress content data for graph @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:180
+[    1622ms] [LOG] TV3 Anchors: found 4 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:245
+[    1622ms] [LOG] TV3 Anchors: added link "Autor:innen" (#autor-innen) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:295
+[    1622ms] [LOG] TV3 Anchors: added link "Qualität" (#qualitat) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:295
+[    1622ms] [LOG] TV3 Anchors: added link "KI-Bewertung gemma4Schieberegler: Ihre Bewertung" (#ki-bewertung-gemma4schieberegler-ihre-bewertung) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:295
+[    1622ms] [LOG] TV3 Anchors: added link "Medien" (#medien) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:295
+[    1629ms] [LOG] TV3 Anchors: already ready @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:225

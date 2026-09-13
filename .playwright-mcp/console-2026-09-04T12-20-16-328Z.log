@@ -1,0 +1,12 @@
+[    1049ms] [LOG] JQMIGRATE: Migrate is installed, version 3.4.1 @ http://localhost/wordpress/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1:1
+[    1552ms] [LOG] TV3 Anchors: found 0 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:245
+[    1589ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost/wordpress/:0
+[    1669ms] [LOG] D3.js loaded successfully from: http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/vendor/d3.min.js @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:66
+[    1670ms] [LOG] Using WordPress content data for graph @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:180
+[    2233ms] [LOG] TV3 Anchors: found 5 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:245
+[    2233ms] [LOG] TV3 Anchors: added link "Everything you need in one database" (/features/) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:295
+[    2233ms] [LOG] TV3 Anchors: added link "Explore the Documentation" (/documentation/) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:295
+[    2234ms] [LOG] TV3 Anchors: added link "Start free. Scale with confidence." (/pricing/) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:295
+[    2234ms] [LOG] TV3 Anchors: added link "Get ThemisDB v3" (/downloads/) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:295
+[    2234ms] [LOG] TV3 Anchors: added link "Aktuelle Blog-Beiträge" (/blog/) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:295
+[    2238ms] [LOG] TV3 Anchors: already ready @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788524405:225

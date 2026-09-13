@@ -9,7 +9,7 @@
   "description": "Konfigurierbarer Beitrags-Slider mit Timer und Autoplay.",
   "keywords": ["slider", "hero", "posts", "themisdb"],
   "textdomain": "themisdb-front-slider",
-  "editorScript": "themisdb-front-slider-block-editor",
+  "editorScript": "themisdb-front-slider-block-js",
   "attributes": {
     "posts": {
       "type": "number",
@@ -38,6 +38,14 @@
     "autoplay": {
       "type": "boolean",
       "default": true
+    },
+    "filter": {
+      "type": "string",
+      "default": "hero"
+    },
+    "hero_label": {
+      "type": "string",
+      "default": "hero"
     },
     "accent_color": {
       "type": "string",

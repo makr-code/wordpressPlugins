@@ -1,0 +1,147 @@
+/**
+ * Font Awesome Icon Integration Stylesheet
+ * 
+ * This stylesheet defines helper classes injected by the JavaScript icon helper.
+ * Icons are rendered via ::before/::after pseudo-elements using Font Awesome
+ * content codes and spacing utilities.
+ * 
+ * Pattern: .has-fa-icon.has-fa-<type>
+ */
+
+/* =====================================================================
+   FONT AWESOME ICON UTILITIES
+   ===================================================================== */
+
+/* Base class for all injected icons */
+.has-fa-icon::before {
+    display: inline-block;
+    margin-right: 0.5em;
+    font-family: 'Font Awesome 6 Free', sans-serif;
+    font-weight: 900;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    color: currentColor;
+    vertical-align: -0.125em;
+    font-size: 0.95em;
+}
+
+/* =====================================================================
+   TAG ICON (🏷️ → fa-tag)
+   ===================================================================== */
+
+.has-fa-icon.has-fa-tag::before {
+    content: '\f02b';  /* Font Awesome: tag icon */
+    color: #4a90e2;
+}
+
+/* =====================================================================
+   MODIFIED/LAST UPDATED ICON (⏰ → fa-clock)
+   ===================================================================== */
+
+.has-fa-icon.has-fa-modified::before {
+    content: '\f017';  /* Font Awesome: clock icon */
+    color: #7b68ee;
+}
+
+/* =====================================================================
+   AUTHOR ICON (👤 → fa-user)
+   ===================================================================== */
+
+.has-fa-icon.has-fa-author::before {
+    content: '\f007';  /* Font Awesome: user icon */
+    color: #e67e22;
+}
+
+/* =====================================================================
+   READING TIME ICON (⏱️ → fa-hourglass-end)
+   ===================================================================== */
+
+.has-fa-icon.has-fa-read-time::before {
+    content: '\f253';  /* Font Awesome: hourglass-end icon */
+    color: #e74c3c;
+}
+
+/* =====================================================================
+   READ MORE BUTTON ICON (📖 → fa-book-reader or fa-arrow-right)
+   ===================================================================== */
+
+.has-fa-icon.has-fa-read-more::before {
+    content: '\f4ae';  /* Font Awesome: arrow-right icon */
+    margin-left: 0.4em;
+    margin-right: 0.2em;
+    color: inherit;
+}
+
+/* Alternative for button positioning: use ::after instead for read-more */
+a.has-fa-icon.has-fa-read-more::before {
+    content: none;  /* Hide ::before for links */
+}
+
+a.has-fa-icon.has-fa-read-more::after {
+    content: '\f061';  /* Font Awesome: arrow-right icon */
+    display: inline-block;
+    margin-left: 0.3em;
+    font-family: 'Font Awesome 6 Free', sans-serif;
+    font-weight: 900;
+    color: inherit;
+}
+
+/* =====================================================================
+   RESPONSIVE ADJUSTMENTS
+   ===================================================================== */
+
+@media (max-width: 768px) {
+    .has-fa-icon::before {
+        margin-right: 0.35em;
+        font-size: 0.9em;
+    }
+
+    a.has-fa-icon.has-fa-read-more::after {
+        margin-left: 0.2em;
+    }
+}
+
+/* =====================================================================
+   DARK MODE SUPPORT (if theme uses prefers-color-scheme)
+   ===================================================================== */
+
+@media (prefers-color-scheme: dark) {
+    .has-fa-icon::before {
+        color: currentColor;  /* Inherit color from text in dark mode */
+    }
+
+    .has-fa-icon.has-fa-tag::before {
+        color: #5ba3f5;
+    }
+
+    .has-fa-icon.has-fa-modified::before {
+        color: #9b88ff;
+    }
+
+    .has-fa-icon.has-fa-author::before {
+        color: #f39c12;
+    }
+
+    .has-fa-icon.has-fa-read-time::before {
+        color: #ff6b6b;
+    }
+}
+
+/* =====================================================================
+   ACCESSIBILITY & FALLBACK
+   ===================================================================== */
+
+/* Ensure icons don't interfere with screen readers */
+.has-fa-icon::before {
+    aria-hidden: "true";
+}
+
+/* Fallback for Font Awesome not loaded */
+.has-fa-icon:not(.has-fa-icon.has-fa-tag)::before,
+.has-fa-icon:not(.has-fa-icon.has-fa-modified)::before,
+.has-fa-icon:not(.has-fa-icon.has-fa-author)::before,
+.has-fa-icon:not(.has-fa-icon.has-fa-read-time)::before {
+    opacity: 0.8;
+}

@@ -38,6 +38,9 @@ add_action( 'init', 'themisdb_v3_register_page_taxonomies', 5 );
 add_action( 'init', 'themisdb_v3_register_pattern_categories', 6 );
 add_action( 'save_post', 'themisdb_v3_sync_ai_coauthors_on_save', 20, 3 );
 add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue_plugin_base_styles', 5 );
+add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue_mobile_header_nav_fix', 99 );
+add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue_icons_integration', 10 );
+add_action( 'wp_footer', 'themisdb_v3_inject_icon_helper_script', 99 );
 add_filter( 'themisdb_front_slider_enqueue_frontend_style', 'themisdb_v3_use_theme_front_slider_styles' );
 
 /**
@@ -261,6 +264,7 @@ function themisdb_v3_register_shortcodes() {
     add_shortcode( 'themisdb_v3_feature_cards', 'themisdb_v3_render_feature_cards_shortcode' );
     add_shortcode( 'themisdb_v3_docs_cards', 'themisdb_v3_render_docs_cards_shortcode' );
     add_shortcode( 'themisdb_v3_blog_cards', 'themisdb_v3_render_blog_cards_shortcode' );
+    add_shortcode( 'themisdb_v3_blog_section', 'themisdb_v3_render_blog_section_shortcode' );
     add_shortcode( 'themisdb_v3_pricing_cards', 'themisdb_v3_render_pricing_cards_shortcode' );
     add_shortcode( 'themisdb_v3_read_time', 'themisdb_v3_render_read_time_shortcode' );
     add_shortcode( 'themisdb_v3_modified_date', 'themisdb_v3_render_modified_date_shortcode' );
@@ -271,6 +275,70 @@ function themisdb_v3_register_shortcodes() {
     add_shortcode( 'themisdb_v3_author_focus', 'themisdb_v3_render_author_focus_shortcode' );
     add_shortcode( 'themisdb_v3_quality_meta', 'themisdb_v3_render_quality_meta_shortcode' );
     add_shortcode( 'themisdb_v3_article_media', 'themisdb_v3_render_article_media_shortcode' );
+}
+
+/**
+ * Resolve section copy (kicker/title/subtitle) from WordPress page content.
+ *
+ * Page meta overrides:
+ * - tv3_section_kicker
+ * - tv3_section_subtitle
+ *
+ * @param string               $section  Section key (features/docs/pricing/downloads/blog).
+ * @param array<string,string> $defaults Fallback text values.
+ * @return array<string,string>
+ */
+function themisdb_v3_get_frontpage_section_copy( $section, array $defaults = array() ) {
+    $section = sanitize_key( (string) $section );
+    $defaults = wp_parse_args(
+        $defaults,
+        array(
+            'kicker'   => '',
+            'title'    => '',
+            'subtitle' => '',
+        )
+    );
+
+    $slug_map = array(
+        'features'  => array( 'features', 'feature-overview' ),
+        'docs'      => array( 'documentation', 'docs', 'dokumentation' ),
+        'pricing'   => array( 'pricing', 'preis', 'preise' ),
+        'downloads' => array( 'downloads', 'download', 'docker', 'compendium' ),
+        'blog'      => array( 'blog', 'news', 'artikel' ),
+    );
+
+    $candidate_slugs = isset( $slug_map[ $section ] ) ? $slug_map[ $section ] : array();
+    $page = null;
+    foreach ( $candidate_slugs as $slug ) {
+        $page = get_page_by_path( $slug, OBJECT, 'page' );
+        if ( $page instanceof WP_Post ) {
+            break;
+        }
+    }
+
+    $copy = $defaults;
+    if ( $page instanceof WP_Post ) {
+        $title = trim( wp_strip_all_tags( (string) get_the_title( $page->ID ) ) );
+        if ( '' !== $title ) {
+            $copy['title'] = $title;
+        }
+
+        $kicker = trim( (string) get_post_meta( $page->ID, 'tv3_section_kicker', true ) );
+        if ( '' !== $kicker ) {
+            $copy['kicker'] = wp_strip_all_tags( $kicker );
+        }
+
+        $subtitle = trim( (string) get_post_meta( $page->ID, 'tv3_section_subtitle', true ) );
+        if ( '' === $subtitle ) {
+            $excerpt = trim( wp_strip_all_tags( (string) get_the_excerpt( $page->ID ) ) );
+            $subtitle = '' !== $excerpt ? $excerpt : wp_trim_words( wp_strip_all_tags( (string) get_post_field( 'post_content', $page->ID ) ), 24, '…' );
+        }
+        if ( '' !== $subtitle ) {
+            $copy['subtitle'] = $subtitle;
+        }
+    }
+
+    return apply_filters( 'themisdb_v3_frontpage_section_copy', $copy, $section, $defaults, $page );
 }
 
 /**
@@ -1666,7 +1734,7 @@ function themisdb_v3_render_breadcrumbs_shortcode() {
     }
 
     $html = '<nav class="tv3-breadcrumbs" aria-label="' . esc_attr__( 'Breadcrumb-Navigation', 'themisdb-v3' ) . '">';
-    $html .= '<ol class="tv3-breadcrumbs-list" itemscope itemtype="https://schema.org/BreadcrumbList">';
+    $html .= '<ol class="tv3-breadcrumbs-list" itemscope itemtype="https://schema.org/BreadcrumbList" data-tv3-anchor-nav="true" data-tv3-anchor-list="true" data-tv3-anchor-limit="8">';
 
     $position = 1;
     foreach ( $items as $item ) {
@@ -1697,7 +1765,32 @@ function themisdb_v3_render_breadcrumbs_shortcode() {
         $html .= '<span itemprop="name">' . esc_html( $current_label ) . '</span>';
         $html .= '<meta itemprop="position" content="' . (int) $position . '" />';
         $html .= '</li>';
+        $position++;
     }
+
+    // Add dynamic context links (anchor navigation) to the same breadcrumb list
+    $context_links = ThemisDB_V3_Hero_Context_Nav::get_local_context_links( 8 );
+    if ( ! empty( $context_links ) && is_array( $context_links ) ) {
+        foreach ( $context_links as $link ) {
+            $link_label = isset( $link['label'] ) ? trim( wp_strip_all_tags( (string) $link['label'] ) ) : '';
+            $link_url   = isset( $link['url'] ) ? (string) $link['url'] : '';
+
+            if ( '' === $link_label || '' === $link_url || '#' !== substr( $link_url, 0, 1 ) ) {
+                continue;
+            }
+
+            $link_label = $truncate_breadcrumb_label( $link_label, 24 ); // Shorter max for context links
+
+            $html .= '<li class="tv3-breadcrumbs-item" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">';
+            $html .= '<a href="' . esc_attr( $link_url ) . '" itemprop="item">';
+            $html .= '<span itemprop="name">' . esc_html( $link_label ) . '</span>';
+            $html .= '</a>';
+            $html .= '<meta itemprop="position" content="' . (int) $position . '" />';
+            $html .= '</li>';
+            $position++;
+        }
+    }
+
     $html .= '</ol></nav>';
 
     return $html;
@@ -2148,6 +2241,148 @@ function themisdb_v3_render_pricing_cards_shortcode( $atts = array() ) {
 }
 
 /**
+ * Render dynamic download cards from WordPress content.
+ *
+ * @param array<string,mixed> $atts Shortcode attributes.
+ * @return string
+ */
+function themisdb_v3_render_download_cards_shortcode( $atts = array() ) {
+    $atts = shortcode_atts(
+        array(
+            'limit'         => 3,
+            'post_types'    => 'page,post',
+            'category'      => 'downloads',
+            'priority_tag'  => 'download,recommended,docker,binary,compendium,frontpage-download',
+            'ids'           => '',
+            'orderby'       => 'menu_order',
+            'order'         => 'ASC',
+            'excerpt_words' => 22,
+        ),
+        $atts,
+        'themisdb_v3_download_cards'
+    );
+
+    $limit_value = max( 1, min( 6, absint( $atts['limit'] ) ) );
+    $words       = max( 8, min( 50, absint( $atts['excerpt_words'] ) ) );
+
+    $supported_types = themisdb_v3_get_supported_content_post_types();
+    $requested_types = array_filter(
+        array_map(
+            'sanitize_key',
+            array_map( 'trim', explode( ',', (string) $atts['post_types'] ) )
+        )
+    );
+
+    $post_types = array_values( array_intersect( $requested_types, $supported_types ) );
+    if ( empty( $post_types ) ) {
+        $post_types = array( 'page', 'post' );
+    }
+
+    $ids = array_values(
+        array_filter(
+            array_map( 'absint', array_map( 'trim', explode( ',', (string) $atts['ids'] ) ) )
+        )
+    );
+
+    $category_slugs = array_values(
+        array_filter(
+            array_map( 'sanitize_title', array_map( 'trim', explode( ',', (string) $atts['category'] ) ) )
+        )
+    );
+    $priority_tag_slugs = array_values(
+        array_filter(
+            array_map( 'sanitize_title', array_map( 'trim', explode( ',', (string) $atts['priority_tag'] ) ) )
+        )
+    );
+
+    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+
+    if ( empty( $posts ) ) {
+        $fallback_paths = array( 'docker', 'downloads', 'compendium-download', 'downloads-compendium', 'compendium' );
+        $fallback_ids = array();
+        foreach ( $fallback_paths as $path ) {
+            $page = get_page_by_path( $path, OBJECT, 'page' );
+            if ( $page instanceof WP_Post ) {
+                $fallback_ids[] = (int) $page->ID;
+            }
+        }
+        if ( ! empty( $fallback_ids ) ) {
+            $posts = get_posts(
+                array(
+                    'post_type'      => $post_types,
+                    'post_status'    => 'publish',
+                    'posts_per_page' => $limit_value,
+                    'post__in'       => array_values( array_unique( $fallback_ids ) ),
+                    'orderby'        => 'post__in',
+                )
+            );
+        }
+    }
+
+    if ( empty( $posts ) ) {
+        return '';
+    }
+
+    $priority_tag_lookup = array_fill_keys( $priority_tag_slugs, true );
+
+    ob_start();
+    ?>
+    <div class="wp-block-group tv3-download-grid">
+        <?php foreach ( $posts as $index => $post ) : ?>
+            <?php
+            $post_id      = (int) $post->ID;
+            $title        = get_the_title( $post_id );
+            $permalink    = get_permalink( $post_id );
+            $raw_excerpt  = get_the_excerpt( $post_id );
+            $content      = trim( (string) wp_strip_all_tags( (string) get_post_field( 'post_content', $post_id ) ) );
+            $excerpt      = '' !== trim( (string) $raw_excerpt ) ? (string) $raw_excerpt : wp_trim_words( $content, $words, '…' );
+            $post_tags    = wp_get_post_terms( $post_id, 'post_tag', array( 'fields' => 'slugs' ) );
+            if ( is_wp_error( $post_tags ) ) {
+                $post_tags = array();
+            }
+
+            $slug         = (string) get_post_field( 'post_name', $post_id );
+            $is_priority  = ! empty( array_intersect( (array) $post_tags, array_keys( $priority_tag_lookup ) ) ) || 1 === $index;
+            $card_classes = array( 'wp-block-group', 'tv3-download-card' );
+            if ( $is_priority ) {
+                $card_classes[] = 'tv3-download-card-featured';
+            }
+
+            $icon_class = 'tv3-download-icon tv3-download-icon-binary';
+            $icon_char  = '📦';
+            if ( false !== strpos( $slug, 'docker' ) || in_array( 'docker', (array) $post_tags, true ) ) {
+                $icon_class = 'tv3-download-icon tv3-download-icon-docker';
+                $icon_char  = '🐳';
+            } elseif ( false !== strpos( $slug, 'compendium' ) || in_array( 'compendium', (array) $post_tags, true ) ) {
+                $icon_class = 'tv3-download-icon tv3-download-icon-compendium';
+                $icon_char  = '📖';
+            }
+
+            $cta_label = trim( (string) get_post_meta( $post_id, 'tv3_download_cta_label', true ) );
+            if ( '' === $cta_label ) {
+                $cta_label = __( 'Mehr erfahren →', 'themisdb-v3' );
+            }
+            ?>
+            <div class="<?php echo esc_attr( implode( ' ', array_filter( $card_classes ) ) ); ?>">
+                <?php if ( $is_priority ) : ?>
+                    <p class="tv3-download-pill"><?php esc_html_e( 'Recommended', 'themisdb-v3' ); ?></p>
+                <?php endif; ?>
+                <p class="<?php echo esc_attr( $icon_class ); ?>"><?php echo esc_html( $icon_char ); ?></p>
+                <div class="wp-block-group">
+                    <h3 class="wp-block-heading tv3-download-card-title"><?php echo esc_html( $title ); ?></h3>
+                    <p class="tv3-download-card-text"><?php echo esc_html( $excerpt ); ?></p>
+                </div>
+                <p><a href="<?php echo esc_url( $permalink ); ?>" class="tv3-download-link <?php echo esc_attr( $is_priority ? 'tv3-download-link-primary' : 'tv3-download-link-outline' ); ?>"><?php echo esc_html( $cta_label ); ?></a></p>
+            </div>
+        <?php endforeach; ?>
+    </div>
+    <?php
+
+    $html = trim( (string) ob_get_clean() );
+    return (string) preg_replace( '/>\s+</', '><', $html );
+}
+
+/**
  * Render dynamic documentation cards from WP pages with documentation tags.
  *
  * @param array $atts Shortcode attributes.
@@ -2354,6 +2589,58 @@ function themisdb_v3_render_blog_cards_shortcode( $atts = array() ) {
     <?php
 
     $html = trim( (string) ob_get_clean() );
+    return (string) preg_replace( '/>\s+</', '><', $html );
+}
+
+/**
+ * Render complete blog section with source-backed heading copy and cards.
+ *
+ * @param array<string,mixed> $atts Shortcode attributes.
+ * @return string
+ */
+function themisdb_v3_render_blog_section_shortcode( $atts = array() ) {
+    $atts = shortcode_atts(
+        array(
+            'limit'         => 9,
+            'post_types'    => 'post',
+            'category'      => 'blog',
+            'priority_tag'  => 'lesenswert,recommended,editor-pick,hero,frontpage-feature',
+            'excerpt_words' => 24,
+        ),
+        $atts,
+        'themisdb_v3_blog_section'
+    );
+
+    $copy = themisdb_v3_get_frontpage_section_copy(
+        'blog',
+        array(
+            'kicker'   => __( 'Blog', 'themisdb-v3' ),
+            'title'    => __( 'Aktuelle Blog-Beitraege', 'themisdb-v3' ),
+            'subtitle' => __( 'Die letzten 9 Artikel als Kartenansicht. Lesenswerte Beitraege werden hervorgehoben.', 'themisdb-v3' ),
+        )
+    );
+
+    $cards_html = themisdb_v3_render_blog_cards_shortcode(
+        array(
+            'limit'         => $atts['limit'],
+            'post_types'    => $atts['post_types'],
+            'category'      => $atts['category'],
+            'priority_tag'  => $atts['priority_tag'],
+            'excerpt_words' => $atts['excerpt_words'],
+        )
+    );
+
+    if ( '' === trim( (string) $cards_html ) ) {
+        return '';
+    }
+
+    $html  = '<div class="wp-block-group tv3-docs-grid-section tv3-blog-grid-section">';
+    $html .= '<p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker">' . esc_html( (string) $copy['kicker'] ) . '</span></p>';
+    $html .= '<h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title">' . esc_html( (string) $copy['title'] ) . '</h2>';
+    $html .= '<p class="has-text-align-center tv3-docs-grid-subtitle">' . esc_html( (string) $copy['subtitle'] ) . '</p>';
+    $html .= (string) $cards_html;
+    $html .= '</div>';
+
     return (string) preg_replace( '/>\s+</', '><', $html );
 }
 
@@ -2650,6 +2937,101 @@ function themisdb_v3_bind_navigation_ref_for_file_parts( $parsed_block, $source_
     return $parsed_block;
 }
 
+add_filter( 'render_block_data', 'themisdb_v3_runtime_frontpage_stats_override', 11, 2 );
+/**
+ * Override frontpage stats-counter block values with live WordPress metrics.
+ *
+ * This keeps counters source-backed even when a Site Editor template override
+ * still contains older static counter values.
+ *
+ * @param array<string,mixed> $parsed_block Parsed block data.
+ * @param array<string,mixed> $source_block Source block data.
+ * @return array<string,mixed>
+ */
+function themisdb_v3_runtime_frontpage_stats_override( $parsed_block, $source_block ) {
+    if ( is_admin() || ! is_front_page() ) {
+        return $parsed_block;
+    }
+
+    if ( empty( $parsed_block['blockName'] ) || 'themisdb/stats-counter' !== $parsed_block['blockName'] ) {
+        return $parsed_block;
+    }
+
+    if ( ! isset( $parsed_block['attrs'] ) || ! is_array( $parsed_block['attrs'] ) ) {
+        $parsed_block['attrs'] = array();
+    }
+
+    $attrs = $parsed_block['attrs'];
+    $label = isset( $attrs['label'] ) ? strtolower( trim( wp_strip_all_tags( (string) $attrs['label'] ) ) ) : '';
+    if ( '' === $label ) {
+        return $parsed_block;
+    }
+
+    $metrics = themisdb_v3_get_frontpage_metrics();
+
+    if ( in_array( $label, array( 'downloads', 'download pages' ), true ) ) {
+        $attrs['label'] = __( 'Download Pages', 'themisdb-v3' );
+        $attrs['target'] = (int) $metrics['downloads'];
+        $attrs['suffix'] = '';
+        unset( $attrs['valueText'] );
+    } elseif ( in_array( $label, array( 'integrations', 'feature content' ), true ) ) {
+        $attrs['label'] = __( 'Feature Content', 'themisdb-v3' );
+        $attrs['target'] = (int) $metrics['features'];
+        $attrs['suffix'] = '';
+        unset( $attrs['valueText'] );
+    } elseif ( in_array( $label, array( 'faster than postgresql', 'documentation items' ), true ) ) {
+        $attrs['label'] = __( 'Documentation Items', 'themisdb-v3' );
+        $attrs['target'] = (int) $metrics['docs'];
+        $attrs['suffix'] = '';
+        unset( $attrs['valueText'] );
+    } elseif ( in_array( $label, array( 'open source license', 'published articles' ), true ) ) {
+        $attrs['label'] = __( 'Published Articles', 'themisdb-v3' );
+        $attrs['target'] = (int) $metrics['articles'];
+        $attrs['suffix'] = '';
+        $attrs['animate'] = true;
+        unset( $attrs['valueText'] );
+    } else {
+        return $parsed_block;
+    }
+
+    $parsed_block['attrs'] = $attrs;
+    return $parsed_block;
+}
+
+/**
+ * Collect live frontpage metrics from WordPress content.
+ *
+ * @return array<string,int>
+ */
+function themisdb_v3_get_frontpage_metrics() {
+    static $cache = null;
+    if ( is_array( $cache ) ) {
+        return $cache;
+    }
+
+    $docs_term = get_term_by( 'slug', 'documentation', 'category' );
+    $features_term = get_term_by( 'slug', 'features', 'category' );
+    $downloads_pages = get_posts(
+        array(
+            'post_type'      => 'page',
+            'post_status'    => 'publish',
+            'posts_per_page' => 100,
+            'fields'         => 'ids',
+            'post_name__in'  => array( 'downloads', 'docker', 'compendium', 'downloads-compendium', 'compendium-download' ),
+        )
+    );
+    $published_posts = wp_count_posts( 'post' );
+
+    $cache = array(
+        'docs'      => ( $docs_term && ! is_wp_error( $docs_term ) ) ? (int) $docs_term->count : 0,
+        'features'  => ( $features_term && ! is_wp_error( $features_term ) ) ? (int) $features_term->count : 0,
+        'downloads' => is_array( $downloads_pages ) ? count( $downloads_pages ) : 0,
+        'articles'  => ( $published_posts && isset( $published_posts->publish ) ) ? (int) $published_posts->publish : 0,
+    );
+
+    return $cache;
+}
+
 /**
  * Get an existing navigation post ID for a location without mutating content at render time.
  *
@@ -2783,7 +3165,7 @@ function themisdb_v3_adjust_header_login_button( $block_content, $block ) {
         return $block_content;
     }
 
-    $target_url = is_user_logged_in() ? home_url( '/support/' ) : home_url( '/login/' );
+    $target_url = is_user_logged_in() ? home_url( '/support/' ) : '#tv3-login-overlay';
     $label = is_user_logged_in() ? __( 'Portal', 'themisdb-v3' ) : __( 'Anmelden', 'themisdb-v3' );
 
     $updated = preg_replace(
@@ -2835,6 +3217,186 @@ function themisdb_v3_enqueue_plugin_base_styles() {
     );
 }
 
+/**
+ * Mobile-only hotfix: hide duplicated utility navigation row in header.
+ *
+ * This inline CSS is intentionally uncached per page response and protects
+ * against stale theme stylesheet caches during iterative local development.
+ */
+function themisdb_v3_enqueue_mobile_header_nav_fix() {
+    $css = '@media (max-width: 900px) {
+        .site-header .tv3-header-row {
+            flex-wrap: nowrap;
+            align-items: center;
+            min-height: 64px;
+            gap: 0.55rem;
+        }
+
+        .site-header .tv3-header-brand {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .site-header .tv3-header-split-left {
+            order: 2;
+            flex: 0 0 auto;
+            margin-left: auto;
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__container {
+            display: none !important;
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-open {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            min-width: 5.6rem;
+            height: auto;
+            border-radius: 999px;
+            border: 1px solid rgba(40, 77, 116, 0.24);
+            background: rgba(255, 255, 255, 0.92);
+            color: #284d74;
+            padding: 0.55rem 0.9rem;
+            font-size: 0.88rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            box-shadow: 0 8px 22px rgba(15, 31, 49, 0.08);
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-open::after {
+            content: "Menü";
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-open svg,
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-open img {
+            display: none;
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            width: 100vw;
+            height: 100dvh;
+            border: 0;
+            border-radius: 0;
+            background: rgba(8, 16, 28, 0.56);
+            backdrop-filter: blur(10px);
+            padding: 0.9rem;
+            align-items: flex-start;
+            justify-content: flex-end;
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-content {
+            width: min(26rem, calc(100vw - 1.8rem));
+            max-height: calc(100dvh - 2rem);
+            overflow: auto;
+            margin-left: auto;
+            border-radius: 22px;
+            border: 1px solid rgba(140, 166, 191, 0.22);
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 24px 70px rgba(8, 16, 28, 0.24);
+            padding: 1rem;
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-close {
+            position: sticky;
+            top: 0;
+            margin-left: auto;
+            margin-bottom: 0.6rem;
+            width: 2.2rem;
+            height: 2.2rem;
+            border-radius: 999px;
+            background: rgba(30, 111, 186, 0.08);
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-close:hover,
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-close:focus {
+            background: rgba(30, 111, 186, 0.14);
+        }
+
+        body:has(.site-header .tv3-header-split-left .wp-block-navigation__responsive-container.is-menu-open) {
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        body:has(.site-header .tv3-header-split-left .wp-block-navigation__responsive-container.is-menu-open) .site-header {
+            position: relative;
+            z-index: 10000;
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container .wp-block-navigation__container {
+            display: flex !important;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.25rem;
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container .wp-block-navigation-item__content {
+            width: 100%;
+            justify-content: space-between;
+            border-radius: 14px;
+            padding: 0.78rem 0.92rem;
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container .wp-block-navigation__submenu-container {
+            width: 100%;
+            min-width: 0;
+            margin-top: 0.35rem;
+            box-shadow: none;
+        }
+
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container .wp-block-navigation-submenu__toggle {
+            margin-left: auto;
+        }
+
+        .site-header .tv3-header-utility-actions {
+            order: 3;
+            flex: 0 0 auto;
+            gap: 0.4rem;
+            margin-left: 0.15rem;
+        }
+
+        .site-header .tv3-header-search {
+            width: auto;
+        }
+
+        .site-header .tv3-header-search .wp-block-search__inside-wrapper {
+            min-height: 30px;
+            padding-inline: 0.18rem;
+        }
+
+        .site-header .tv3-header-search .wp-block-search__input {
+            display: none !important;
+        }
+
+        .site-header .tv3-header-search .wp-block-search__button {
+            min-width: 28px;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+        }
+
+        .site-header .tv3-header-login,
+        .site-header .tv3-header-login.wp-block-button {
+            display: none !important;
+        }
+
+        .site-header .tv3-header-split-right,
+        .site-header .tv3-header-split-right.wp-block-group,
+        .site-header .tv3-header-utility-nav,
+        .site-header .tv3-header-utility-nav.wp-block-navigation {
+            display: none !important;
+        }
+    }';
+
+    wp_register_style( 'themisdb-v3-mobile-header-nav-fix', false, array(), THEMISDB_V3_VERSION );
+    wp_enqueue_style( 'themisdb-v3-mobile-header-nav-fix' );
+    wp_add_inline_style( 'themisdb-v3-mobile-header-nav-fix', $css );
+}
+
 function themisdb_v3_enqueue_assets() {
     $color_scheme_file     = get_template_directory() . '/assets/css/color-schemes.css';
     $color_scheme_version  = file_exists( $color_scheme_file ) ? (string) filemtime( $color_scheme_file ) : THEMISDB_V3_VERSION;
@@ -2857,6 +3419,7 @@ function themisdb_v3_enqueue_assets() {
         array(),
         $color_scheme_version
     );
+
     wp_register_script(
         'themisdb-v3-mixed-cards',
         get_template_directory_uri() . '/assets/js/mixed-cards.js',
@@ -3120,31 +3683,40 @@ function themisdb_v3_render_plugin_login_overlay() {
     }
 
     $has_support_portal = shortcode_exists( 'themisdb_support_portal' );
+    $has_support_login  = shortcode_exists( 'themisdb_support_login' );
     $has_order_login    = shortcode_exists( 'themisdb_login' );
     $active_panel       = $has_support_portal ? 'support' : 'order';
+    $dialog_title_id    = 'tv3-login-overlay-title';
+
+    $support_shortcode = $has_support_login ? 'themisdb_support_login' : 'themisdb_support_portal';
 
     echo '<div class="tv3-login-overlay" id="tv3-login-overlay" hidden aria-hidden="true">';
     echo '<div class="tv3-login-overlay__backdrop" data-tv3-login-close></div>';
-    echo '<div class="tv3-login-overlay__dialog" role="dialog" aria-modal="true" aria-label="' . esc_attr__( 'Anmeldung', 'themisdb-v3' ) . '">';
+    echo '<div class="tv3-login-overlay__dialog" role="dialog" aria-modal="true" aria-labelledby="' . esc_attr( $dialog_title_id ) . '">';
+    echo '<div class="tv3-login-overlay__header">';
+    echo '<h2 class="tv3-login-overlay__title" id="' . esc_attr( $dialog_title_id ) . '">' . esc_html__( 'Anmeldung', 'themisdb-v3' ) . '</h2>';
     echo '<button type="button" class="tv3-login-overlay__close" data-tv3-login-close aria-label="' . esc_attr__( 'Schliessen', 'themisdb-v3' ) . '">x</button>';
+    echo '</div>';
 
     if ( $has_support_portal && $has_order_login ) {
         echo '<div class="tv3-login-overlay__tabs" role="tablist" aria-label="' . esc_attr__( 'Login-Anbieter', 'themisdb-v3' ) . '">';
-        echo '<button type="button" class="tv3-login-overlay__tab is-active" role="tab" data-tv3-login-tab="support" aria-selected="true">' . esc_html__( 'Support-Portal', 'themisdb-v3' ) . '</button>';
-        echo '<button type="button" class="tv3-login-overlay__tab" role="tab" data-tv3-login-tab="order" aria-selected="false">' . esc_html__( 'Kundenkonto', 'themisdb-v3' ) . '</button>';
+        echo '<button type="button" class="tv3-login-overlay__tab is-active" role="tab" id="tv3-login-tab-support" data-tv3-login-tab="support" aria-controls="tv3-login-panel-support" aria-selected="true" tabindex="0">' . esc_html__( 'Support-Portal', 'themisdb-v3' ) . '</button>';
+        echo '<button type="button" class="tv3-login-overlay__tab" role="tab" id="tv3-login-tab-order" data-tv3-login-tab="order" aria-controls="tv3-login-panel-order" aria-selected="false" tabindex="-1">' . esc_html__( 'Kundenkonto', 'themisdb-v3' ) . '</button>';
         echo '</div>';
     }
 
     echo '<div class="tv3-login-overlay__panels">';
 
     if ( $has_support_portal ) {
-        echo '<section class="tv3-login-overlay__panel' . ( 'support' === $active_panel ? ' is-active' : '' ) . '" data-tv3-login-panel="support">';
-        echo do_shortcode( '[themisdb_support_portal]' );
+        $is_support_active = 'support' === $active_panel;
+        echo '<section class="tv3-login-overlay__panel' . ( $is_support_active ? ' is-active' : '' ) . '" id="tv3-login-panel-support" role="tabpanel" aria-labelledby="tv3-login-tab-support" data-tv3-login-panel="support"' . ( $is_support_active ? '' : ' hidden' ) . ' aria-hidden="' . ( $is_support_active ? 'false' : 'true' ) . '">';
+        echo do_shortcode( '[' . $support_shortcode . ']' );
         echo '</section>';
     }
 
     if ( $has_order_login ) {
-        echo '<section class="tv3-login-overlay__panel' . ( ( ! $has_support_portal && 'order' === $active_panel ) ? ' is-active' : '' ) . '" data-tv3-login-panel="order">';
+        $is_order_active = ! $has_support_portal && 'order' === $active_panel;
+        echo '<section class="tv3-login-overlay__panel' . ( $is_order_active ? ' is-active' : '' ) . '" id="tv3-login-panel-order" role="tabpanel" aria-labelledby="tv3-login-tab-order" data-tv3-login-panel="order"' . ( $is_order_active ? '' : ' hidden' ) . ' aria-hidden="' . ( $is_order_active ? 'false' : 'true' ) . '">';
         echo '<script>window.themisdbOrder = window.themisdbOrder || { ajaxUrl: ' . wp_json_encode( admin_url( 'admin-ajax.php' ) ) . ' };</script>';
         echo do_shortcode( '[themisdb_login]' );
         echo '</section>';
@@ -5492,6 +6064,38 @@ add_action( 'wp_ajax_nopriv_themisdb_v3_mixed_cards', 'themisdb_v3_ajax_mixed_ca
  * @param array<string,mixed> $attributes Block attributes.
  * @return string
  */
+function themisdb_v3_render_mixed_cards_shortcode( $atts = array() ) {
+    $atts = shortcode_atts(
+        array(
+            'limit'      => 12,
+            'type'       => '',
+            'category'   => '',
+            'post_types' => 'post',
+            'filter'     => 'all',
+            'search'     => '',
+            'sort'       => 'newest',
+        ),
+        $atts,
+        'themisdb_v3_mixed_cards'
+    );
+
+    $state = themisdb_v3_get_mixed_cards_state(
+        array(
+            'limit'      => absint( $atts['limit'] ),
+            'type'       => sanitize_key( (string) $atts['type'] ),
+            'category'   => sanitize_text_field( (string) $atts['category'] ),
+            'post_types' => sanitize_text_field( (string) $atts['post_types'] ),
+            'filter'     => sanitize_key( (string) $atts['filter'] ),
+            'search'     => sanitize_text_field( (string) $atts['search'] ),
+            'sort'       => sanitize_key( (string) $atts['sort'] ),
+            'page'       => 1,
+        )
+    );
+    $data = themisdb_v3_prepare_mixed_cards_data( $state );
+
+    return themisdb_v3_render_mixed_cards_section( $data );
+}
+
 function themisdb_v3_render_mixed_cards_block( array $attributes = array() ) {
     if ( is_singular() ) {
         $allow_on_singular = (bool) apply_filters( 'themisdb_v3_enable_mixed_cards_on_singular', false, get_queried_object_id() );
@@ -5512,6 +6116,9 @@ function themisdb_v3_render_mixed_cards_block( array $attributes = array() ) {
 
     return themisdb_v3_render_mixed_cards_section( $data );
 }
+
+add_shortcode( 'themisdb_v3_mixed_cards', 'themisdb_v3_render_mixed_cards_shortcode' );
+add_shortcode( 'themisdb_mixed_cards', 'themisdb_v3_render_mixed_cards_shortcode' );
 
 /**
  * Register the dynamic mixed-cards block so templates can use block markup
@@ -5821,6 +6428,217 @@ function themisdb_v3_render_article_media_shortcode( array $atts ): string {
     }
 
     return '<div class="tv3-article-media">' . $media_html . '</div>';
+}
+
+/* =====================================================================
+   FONT AWESOME ICON INTEGRATION
+   ===================================================================== */
+
+/**
+ * Enqueue Font Awesome CSS for icon integration with Tags, Buttons, and Metadata.
+ *
+ * Font Awesome 6.x is loaded from CDN and used by JavaScript helpers to
+ * dynamically inject icon classes into theme elements.
+ *
+ * @return void
+ */
+function themisdb_v3_enqueue_icons_integration() {
+    if ( is_admin() ) {
+        return;
+    }
+
+    // Enqueue Font Awesome CSS from CDN.
+    wp_enqueue_style(
+        'themisdb-v3-fontawesome',
+        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
+        array(),
+        '6.5.1',
+        'all'
+    );
+
+    // Enqueue local icon helper stylesheet after Font Awesome.
+    $icon_css_file = get_template_directory() . '/assets/css/font-awesome-icons.css';
+    if ( file_exists( $icon_css_file ) ) {
+        wp_enqueue_style(
+            'themisdb-v3-icon-helpers',
+            get_template_directory_uri() . '/assets/css/font-awesome-icons.css',
+            array( 'themisdb-v3-fontawesome' ),
+            (string) filemtime( $icon_css_file )
+        );
+    }
+
+    // Optional: Add integrity and crossorigin for CDN security.
+    wp_add_inline_script(
+        'jquery',
+        'document.addEventListener("DOMContentLoaded", function() {
+            var faLink = document.querySelector("link[href*=\"font-awesome\"]");
+            if (faLink) {
+                faLink.setAttribute("integrity", "sha512-fJLt6l3WnB49H+5OfnmlSt3FbvgG+DxGC0R2UUBL5L7uaUULPqLtKblE4XQPFB8RSd8P/6J3qGkA5ZYaAmgpQ==");
+                faLink.setAttribute("crossorigin", "anonymous");
+            }
+        });'
+    );
+}
+
+/**
+ * Inject JavaScript helper script to dynamically apply Font Awesome icon classes.
+ *
+ * This function runs at wp_footer (priority 99) after all DOM content is rendered.
+ * It scans the page for specific text patterns and injects helper CSS classes
+ * that trigger ::before/::after pseudo-elements with Font Awesome icons.
+ *
+ * Target patterns:
+ * - "Tags:" metadata headers → tag icon
+ * - "Read more" / "Beitrag lesen" / "Seite lesen" button text → read icon
+ * - "Modified:" / "Stand:" metadata headers → clock icon
+ * - "Author:" / "By:" metadata headers → user icon
+ * - "Reading time" / "Lesezeit" metadata → stopwatch icon
+ *
+ * @return void
+ */
+function themisdb_v3_inject_icon_helper_script() {
+    if ( is_admin() ) {
+        return;
+    }
+
+    $script = <<<'ICON_HELPER_JS'
+(function() {
+    // Mapping of text patterns to Font Awesome helper classes.
+    // Each pattern object defines:
+    // - pattern: regex or text to match
+    // - class: helper CSS class to inject
+    // - selector: DOM selector(s) to target
+    // - matchType: 'text' (exact match) or 'regex' (pattern match)
+    var patterns = [
+        // Tags header with icon
+        {
+            pattern: /^Tags?:/i,
+            class: 'has-fa-icon has-fa-tag',
+            selector: [
+                '.tv3-post-meta-label',
+                '.tv3-page-meta-label',
+                '.wp-block-group__inner-container [class*="label"]',
+            ],
+            matchType: 'regex',
+        },
+        // Modified/Stand header with icon
+        {
+            pattern: /^(Modified|Stand):/i,
+            class: 'has-fa-icon has-fa-modified',
+            selector: [
+                '.tv3-page-meta-label',
+                '.tv3-post-meta-label',
+            ],
+            matchType: 'regex',
+        },
+        // Author/By header with icon
+        {
+            pattern: /^(Author|By|Written by):/i,
+            class: 'has-fa-icon has-fa-author',
+            selector: [
+                '.tv3-post-meta-label',
+                '.tv3-page-meta-label',
+            ],
+            matchType: 'regex',
+        },
+        // Reading time label with icon
+        {
+            pattern: /^(Reading time|Lesezeit|Read time):/i,
+            class: 'has-fa-icon has-fa-read-time',
+            selector: [
+                '.tv3-post-meta-label',
+                '.tv3-page-meta-label',
+                '.tv3-read-time',
+            ],
+            matchType: 'regex',
+        },
+        // Button text patterns with icon
+        {
+            pattern: /^(Read more|Beitrag lesen|Seite lesen|Mehr erfahren).*→?$/i,
+            class: 'has-fa-icon has-fa-read-more',
+            selector: [
+                '.tv3-docs-grid-card-link a',
+                '.tv3-product-card__cta a',
+                '.tv3-pricing-card__cta',
+                '.tv3-download-link',
+                '[class*="read-more"]',
+            ],
+            matchType: 'regex',
+        },
+    ];
+
+    /**
+     * Walk through a list of DOM nodes and inject icon helper classes
+     * based on text content matching.
+     */
+    function processElements() {
+        var processed = 0;
+
+        patterns.forEach(function(patternObj) {
+            var selectors = Array.isArray(patternObj.selector)
+                ? patternObj.selector
+                : [patternObj.selector];
+
+            selectors.forEach(function(selector) {
+                try {
+                    var elements = document.querySelectorAll(selector);
+                    elements.forEach(function(elem) {
+                        if (!elem) return;
+
+                        var text = elem.textContent || '';
+                        var matches = false;
+
+                        if (patternObj.matchType === 'regex') {
+                            matches = patternObj.pattern.test(text);
+                        } else if (patternObj.matchType === 'text') {
+                            matches = text.toLowerCase() === patternObj.pattern.toLowerCase();
+                        }
+
+                        if (matches && !elem.classList.contains(patternObj.class)) {
+                            elem.classList.add(patternObj.class);
+                            processed++;
+                        }
+                    });
+                } catch (e) {
+                    console.warn('Font Awesome icon helper error for selector:', selector, e);
+                }
+            });
+        });
+
+        return processed;
+    }
+
+    // Execute on DOM ready and again after a small delay to catch
+    // dynamically inserted content.
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', processElements);
+    } else {
+        processElements();
+    }
+
+    // Re-scan after a short delay for dynamically added content.
+    setTimeout(processElements, 500);
+
+    // Optional: Observe mutations for additional dynamic content.
+    if (window.MutationObserver) {
+        var observer = new MutationObserver(function() {
+            processElements();
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+
+        // Cleanup observer after reasonable time to avoid memory leaks.
+        setTimeout(function() {
+            observer.disconnect();
+        }, 5000);
+    }
+})();
+ICON_HELPER_JS;
+
+    wp_add_inline_script( 'jquery', $script, 'after' );
 }
 
 /* =====================================================================

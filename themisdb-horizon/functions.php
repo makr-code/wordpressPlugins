@@ -147,11 +147,17 @@ function themisdb_enqueue() {
 	);
 
 	// ── Hero Slider ────────────────────────────────────────────────────
+	$hero_slider_version = THEMISDB_THEME_VERSION;
+	$hero_slider_file    = THEMISDB_THEME_DIR . '/assets/js/hero-slider.js';
+	if ( file_exists( $hero_slider_file ) ) {
+		$hero_slider_version .= '.' . (string) filemtime( $hero_slider_file );
+	}
+
 	wp_enqueue_script(
 		'themisdb-hero-slider',
 		THEMISDB_THEME_URI . '/assets/js/hero-slider.js',
 		array(),
-		THEMISDB_THEME_VERSION,
+		$hero_slider_version,
 		true
 	);
 

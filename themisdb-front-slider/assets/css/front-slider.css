@@ -1,11 +1,35 @@
 /*
- * ThemisDB Front Slider baseline CSS
- * Keep this file intentionally minimal. Theme styles should own presentation.
+ * ThemisDB Front Slider baseline CSS (plugin-owned SOC)
+ * Theme styles may enhance visuals but should not be required for usability.
  */
 
 .themisdb-fs-wrapper {
+    /* Dark Navy-Blue theme with warm orange complementary accents */
+    --tfs-bg: #0d2a47;
+    --tfs-surface: #1a3a52;
+    --tfs-text: #f0f5f9;
+    --tfs-muted: #a8b5c5;
+    --tfs-accent: #ff8c42;
+    --tfs-accent-soft: #ffa76a;
+    --tfs-border: rgba(255, 140, 66, 0.15);
+    --tfs-shadow: 0 20px 48px rgba(13, 20, 31, 0.48);
+    --tfs-overlay: linear-gradient(110deg, rgba(13, 42, 71, 0.84) 0%, rgba(10, 32, 58, 0.82) 52%, rgba(8, 25, 48, 0.78) 100%);
+    --tfs-overlay-strong: linear-gradient(125deg, rgba(13, 20, 31, 0.78) 0%, rgba(13, 20, 31, 0.52) 40%, rgba(13, 20, 31, 0.25) 100%);
+
     position: relative;
+    width: 100%;
+    max-width: none;
+    margin: 0;
     overflow: hidden;
+    border-top: 1px solid var(--tfs-border);
+    border-bottom: 1px solid var(--tfs-border);
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+    background: linear-gradient(150deg, #0d2a47 0%, var(--tfs-bg) 100%);
+    box-shadow: var(--tfs-shadow);
+    color: var(--tfs-text);
+    isolation: isolate;
 }
 
 .themisdb-fs-track-outer {
@@ -14,16 +38,47 @@
 
 .themisdb-fs-track {
     display: flex;
-    transition: transform 0.65s ease;
+    transition: transform 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     will-change: transform;
 }
 
 .themisdb-fs-slide {
+    position: relative;
     flex: 0 0 100%;
     min-width: 0;
+    min-height: clamp(220px, 30vw, 300px);
+    padding: 0;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.45s ease;
+    transition: opacity 0.95s ease-in-out;
+}
+
+.themisdb-fs-slide::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: var(--tfs-overlay), var(--tfs-slide-bg-image, none);
+    background-size: cover, cover;
+    background-repeat: no-repeat;
+    background-position: center center, var(--tfs-slide-bg-position, center center);
+    opacity: 1;
+    transform: scale(1.14);
+    transition: transform 2.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), filter 2.2s ease-out, opacity 1.1s ease-in-out;
+    z-index: 0;
+}
+
+.themisdb-fs-slide::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--tfs-overlay-strong);
+    opacity: 0.08;
+    transition: opacity 1.2s ease-out;
+    z-index: 0;
+}
+
+.themisdb-fs-slide.is-active::after {
+    opacity: 0.08;
 }
 
 .themisdb-fs-slide.is-active {
@@ -31,15 +86,350 @@
     pointer-events: auto;
 }
 
+.themisdb-fs-slide.is-active::before {
+    transform: scale(1.06);
+    filter: saturate(1.0) contrast(1.01);
+}
+
+/* Ken-Burns-ähnliche sanfte Zoom-Pan-Effekte pro Slide */
+.themisdb-fs-slide:nth-child(1)::before {
+    transform-origin: center 55%;
+}
+
+.themisdb-fs-slide:nth-child(1).is-active::before {
+    animation: kbZoomIn1 2.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.themisdb-fs-slide:nth-child(2)::before {
+    transform-origin: 45% center;
+}
+
+.themisdb-fs-slide:nth-child(2).is-active::before {
+    animation: kbZoomIn2 2.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.themisdb-fs-slide:nth-child(3)::before {
+    transform-origin: 55% 40%;
+}
+
+.themisdb-fs-slide:nth-child(3).is-active::before {
+    animation: kbZoomIn3 2.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.themisdb-fs-slide:nth-child(n+4)::before {
+    transform-origin: center center;
+}
+
+.themisdb-fs-slide:nth-child(n+4).is-active::before {
+    animation: kbZoomInCenter 2.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes kbZoomIn1 {
+    0% {
+        transform: scale(1.14) translateY(-2px);
+        opacity: 0.85;
+    }
+    100% {
+        transform: scale(1.06) translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes kbZoomIn2 {
+    0% {
+        transform: scale(1.14) translateX(2px);
+        opacity: 0.85;
+    }
+    100% {
+        transform: scale(1.06) translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes kbZoomIn3 {
+    0% {
+        transform: scale(1.14) translateX(-2px) translateY(1px);
+        opacity: 0.85;
+    }
+    100% {
+        transform: scale(1.06) translateX(0) translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes kbZoomInCenter {
+    0% {
+        transform: scale(1.14);
+        opacity: 0.85;
+    }
+    100% {
+        transform: scale(1.06);
+        opacity: 1;
+    }
+}
+
+.themisdb-fs-slide.has-image-effect-c::after {
+    opacity: 0.12;
+}
+
 .themisdb-fs-slide-inner {
+    position: relative;
+    z-index: 1;
     display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.7fr);
+    align-items: center;
+    gap: clamp(0.8rem, 2.4vw, 1.8rem);
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: clamp(0.85rem, 1.8vw, 1.35rem) clamp(1rem, 3.5vw, 2.8rem) clamp(2.5rem, 5vw, 3.2rem);
+}
+
+.themisdb-fs-slide--no-image .themisdb-fs-slide-inner {
     grid-template-columns: 1fr;
-    gap: 1rem;
+}
+
+.themisdb-fs-slide--no-image {
+    min-height: clamp(160px, 18vw, 220px);
+    padding-bottom: 2.1rem;
+}
+
+.themisdb-fs-slide-content {
+    max-width: 72ch;
+}
+
+.themisdb-fs-ribbons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.42rem;
+    margin-bottom: 0.72rem;
+    opacity: 0;
+    transition: opacity 1.2s ease-in-out 0.3s;
+}
+
+.themisdb-fs-slide.is-active .themisdb-fs-ribbons {
+    opacity: 1;
+}
+
+.themisdb-fs-category {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1.5px solid var(--tfs-accent);
+    background: rgba(255, 140, 66, 0.12);
+    color: var(--tfs-accent-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    text-decoration: none;
+    font-size: 0.66rem;
+    font-weight: 800;
+    padding: 0.24rem 0.62rem;
+    transition: all 0.3s ease;
+}
+
+.themisdb-fs-category:hover,
+.themisdb-fs-category:focus {
+    background: rgba(255, 140, 66, 0.22);
+    color: #ffffff;
+}
+
+.themisdb-fs-title {
+    margin: 0 0 0.65rem;
+    font-size: clamp(1.5rem, 2.75vw, 2.3rem);
+    line-height: 1.09;
+    letter-spacing: -0.025em;
+    opacity: 0;
+    transition: opacity 1.3s ease-in-out 0.5s;
+}
+
+.themisdb-fs-slide.is-active .themisdb-fs-title {
+    opacity: 1;
+}
+
+.themisdb-fs-title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.25s ease;
+}
+
+.themisdb-fs-title a:hover,
+.themisdb-fs-title a:focus {
+    color: var(--tfs-accent);
+    text-decoration: underline;
+}
+
+.themisdb-fs-slide.is-active .themisdb-fs-excerpt {
+    opacity: 1;
+}
+
+.themisdb-fs-excerpt {
+    margin: 0 0 0.9rem;
+    color: var(--tfs-muted);
+    line-height: 1.58;
+}
+
+.themisdb-fs-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    opacity: 0;
+    transition: opacity 1.2s ease-in-out 0.7s;
+}
+
+.themisdb-fs-slide.is-active .themisdb-fs-meta {
+    opacity: 1;
+}
+
+.themisdb-fs-date {
+    color: var(--tfs-muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.themisdb-fs-readmore {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 999px !important;
+    border: 2px solid var(--tfs-accent) !important;
+    background: var(--tfs-accent) !important;
+    color: #ffffff !important;
+    text-decoration: none !important;
+    font-size: 0.75rem !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    padding: 0.55rem 0.95rem !important;
+    opacity: 0;
+    transition: opacity 1.2s ease-in-out 0.8s, transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+}
+
+.themisdb-fs-slide.is-active .themisdb-fs-readmore {
+    opacity: 1;
+}
+
+.themisdb-fs-readmore:hover,
+.themisdb-fs-readmore:focus {
+    background-color: var(--tfs-accent-soft) !important;
+    color: #ffffff !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(255, 140, 66, 0.35) !important;
+}
+
+.themisdb-fs-slide-image {
+    position: relative;
+    min-height: 150px;
+}
+
+.themisdb-fs-image-card {
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.62);
+    box-shadow: 0 14px 28px rgba(10, 29, 48, 0.16);
+}
+
+.themisdb-fs-image-stack {
+    position: relative;
+    aspect-ratio: 16 / 10;
+}
+
+.themisdb-fs-layer-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 1.15s ease-in-out;
+}
+
+.themisdb-fs-layer-image.is-layer-active {
+    opacity: 1;
 }
 
 .themisdb-fs-btn,
 .themisdb-fs-dot {
+    -webkit-appearance: none;
+    appearance: none;
+    border: 0;
+    font: inherit;
     cursor: pointer;
+}
+
+.themisdb-fs-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2.35rem;
+    height: 2.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid rgba(20, 46, 72, 0.18);
+    background: rgba(255, 255, 255, 0.88);
+    color: var(--tfs-text);
+    z-index: 5;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.themisdb-fs-btn:hover,
+.themisdb-fs-btn:focus {
+    transform: translateY(-50%) scale(1.03);
+    background: rgba(255, 255, 255, 0.98);
+}
+
+.themisdb-fs-prev { left: 0.65rem; }
+.themisdb-fs-next { right: 0.65rem; }
+
+.themisdb-fs-btn svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+.themisdb-fs-dots {
+    position: absolute;
+    left: 50%;
+    bottom: 0.85rem;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.34rem;
+    z-index: 5;
+}
+
+.themisdb-fs-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: rgba(15, 31, 49, 0.26);
+    transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.themisdb-fs-dot.is-active {
+    width: 1.6rem;
+    background: var(--tfs-accent, #0284c7);
+}
+
+.themisdb-fs-timer-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: rgba(2, 132, 199, 0.13);
+    z-index: 4;
+}
+
+.themisdb-fs-timer-fill {
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, var(--tfs-accent, #0284c7) 0%, #0ea5e9 100%);
 }
 
 .themisdb-fs-btn[disabled],
@@ -48,21 +438,74 @@
     opacity: 0.5;
 }
 
-.themisdb-fs-timer-bar {
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    height: 2px;
+.themisdb-fs-slide.is-active .themisdb-fs-slide-content > * {
+    animation: themisdbFsReveal 0.38s ease both;
 }
 
-.themisdb-fs-timer-fill {
-    width: 0;
-    height: 100%;
+.themisdb-fs-slide.is-active .themisdb-fs-slide-content > *:nth-child(2) { animation-delay: 0.03s; }
+.themisdb-fs-slide.is-active .themisdb-fs-slide-content > *:nth-child(3) { animation-delay: 0.06s; }
+.themisdb-fs-slide.is-active .themisdb-fs-slide-content > *:nth-child(4) { animation-delay: 0.09s; }
+
+@keyframes themisdbFsReveal {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @media (max-width: 900px) {
+    .themisdb-fs-wrapper {
+        width: 100%;
+        max-width: none;
+        border-radius: 0;
+    }
+
     .themisdb-fs-slide-inner {
         grid-template-columns: 1fr;
+    }
+
+    .themisdb-fs-slide-image {
+        display: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .themisdb-fs-slide {
+        min-height: 210px;
+    }
+
+    .themisdb-fs-slide::before {
+        background-position: center center, var(--tfs-slide-bg-position-mobile, var(--tfs-slide-bg-position, center center));
+    }
+
+    .themisdb-fs-slide-inner {
+        padding: 0.8rem 0.8rem 2.35rem;
+    }
+
+    .themisdb-fs-btn {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .themisdb-fs-title {
+        font-size: clamp(1.25rem, 6vw, 1.75rem);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .themisdb-fs-slide,
+    .themisdb-fs-track,
+    .themisdb-fs-layer-image,
+    .themisdb-fs-readmore,
+    .themisdb-fs-btn,
+    .themisdb-fs-slide::before,
+    .themisdb-fs-slide::after,
+    .themisdb-fs-slide.is-active .themisdb-fs-slide-content > * {
+        animation: none !important;
+        transition: none !important;
     }
 }

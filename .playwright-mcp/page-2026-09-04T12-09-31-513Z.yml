@@ -1,0 +1,125 @@
+- generic [active] [ref=f30e1]:
+  - link "Zum Inhalt springen" [ref=f30e2] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - link "Zum Inhalt springen" [ref=f30e3] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [ref=f30e4]:
+    - banner [ref=f30e5]:
+      - banner [ref=f30e6]:
+        - button "Toggle Navigation Graph" [ref=f30e7] [cursor=pointer]
+        - generic [ref=f30e10]:
+          - generic [ref=f30e11]:
+            - link [ref=f30e13] [cursor=pointer]:
+              - /url: http://localhost/wordpress/
+              - img "WordPress Lokal" [ref=f30e14]
+            - paragraph [ref=f30e15]:
+              - link "WordPress Lokal" [ref=f30e16] [cursor=pointer]:
+                - /url: http://localhost/wordpress
+          - navigation "Produktnavigation Produktnavigation" [ref=f30e18]:
+            - list "Produktnavigation" [ref=f30e23]:
+              - listitem [ref=f30e24]:
+                - link "Partner" [ref=f30e25] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/partners/
+              - listitem [ref=f30e26]:
+                - link "Support" [ref=f30e27] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/support/
+              - listitem [ref=f30e28]:
+                - link "Ressourcen" [ref=f30e29] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/resources/
+          - navigation "Hilfsnavigation Hilfsnavigation" [ref=f30e31]:
+            - list "Hilfsnavigation" [ref=f30e32]:
+              - listitem [ref=f30e33]:
+                - link "Partner" [ref=f30e34] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/partners/
+              - listitem [ref=f30e35]:
+                - link "Support" [ref=f30e36] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/support/
+              - listitem [ref=f30e37]:
+                - link "Ressourcen" [ref=f30e38] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/resources/
+          - generic [ref=f30e39]:
+            - search [ref=f30e40]:
+              - generic [ref=f30e41]: Suche
+              - generic [ref=f30e42]:
+                - searchbox "Suche" [ref=f30e43]
+                - button "Suchen" [ref=f30e44] [cursor=pointer]
+            - link "Anmelden" [ref=f30e48] [cursor=pointer]:
+              - /url: http://localhost/wordpress/login/
+    - main [ref=f30e49]:
+      - generic [ref=f30e50]:
+        - heading "404" [level=1] [ref=f30e51]
+        - heading "Seite nicht gefunden" [level=2] [ref=f30e52]
+        - paragraph [ref=f30e53]: Die gesuchte Seite existiert nicht oder wurde verschoben. Nutze die Suche oder stöbere durch unsere Dokumentation und Features.
+        - search [ref=f30e54]:
+          - generic [ref=f30e55]: ThemisDB durchsuchen
+          - generic [ref=f30e56]:
+            - searchbox "ThemisDB durchsuchen" [ref=f30e57]
+            - button "Suchen" [ref=f30e58] [cursor=pointer]
+        - paragraph [ref=f30e59]: Direktlinks
+        - generic [ref=f30e60]:
+          - link "Startseite" [ref=f30e62] [cursor=pointer]:
+            - /url: http://localhost/wordpress/
+          - link "Downloads" [ref=f30e64] [cursor=pointer]:
+            - /url: http://localhost/wordpress/downloads
+          - link "Blog" [ref=f30e66] [cursor=pointer]:
+            - /url: http://localhost/wordpress/blog
+    - contentinfo [ref=f30e67]:
+      - contentinfo [ref=f30e68]:
+        - generic [ref=f30e69]:
+          - generic [ref=f30e71]:
+            - generic:
+              - link "WordPress Lokal":
+                - /url: http://localhost/wordpress/
+                - img "WordPress Lokal"
+            - paragraph [ref=f30e72]:
+              - link "WordPress Lokal" [ref=f30e73] [cursor=pointer]:
+                - /url: http://localhost/wordpress
+            - paragraph [ref=f30e74]: Lokale Testinstanz
+          - generic [ref=f30e75]:
+            - heading "Navigation" [level=6] [ref=f30e76]
+            - navigation "Footer-Navigation Footer-Navigation" [ref=f30e77]:
+              - list "Footer-Navigation" [ref=f30e78]:
+                - listitem [ref=f30e79]:
+                  - link "Support-Portal" [ref=f30e80] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/
+                - listitem [ref=f30e81]:
+                  - link "Neues Ticket" [ref=f30e82] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-support-new-ticket-section
+                - listitem [ref=f30e83]:
+                  - link "Meine Tickets" [ref=f30e84] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-support-ticket-list-section
+                - listitem [ref=f30e85]:
+                  - link "Vertragsmanagement" [ref=f30e86] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-lifecycle-section
+          - generic [ref=f30e87]:
+            - heading "Rechtliches" [level=6] [ref=f30e88]
+            - list [ref=f30e89]:
+              - listitem [ref=f30e90]:
+                - link "GitHub" [ref=f30e91] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=f30e95]:
+                - link "LinkedIn" [ref=f30e96] [cursor=pointer]:
+                  - /url: "#"
+        - paragraph [ref=f30e100]: Powered by WordPress.
+  - option "Alle Typen" [selected]
+  - 'option "Typ: category"'
+  - 'option "Typ: external_resource"'
+  - 'option "Typ: home"'
+  - 'option "Typ: page"'
+  - 'option "Typ: post"'
+  - 'option "Typ: tag"'
+  - 'option "Sortierung: Titel A-Z" [selected]'
+  - 'option "Sortierung: Titel Z-A"'
+  - 'option "Sortierung: Typ"'
+  - 'option "Sortierung: Groesse"'
+  - 'option "Sortierung: Count"'
+  - 'option "Visualisierung: Force Layout" [selected]'
+  - 'option "Visualisierung: Galaxy Mode"'
+  - 'option "Clustering: Aus" [selected]'
+  - 'option "Clustering: Nach Typ"'
+  - 'option "Clustering: Nach Ebene"'
+  - option "Preset laden..." [selected]
+  - option "Ueberschreiben" [selected]
+  - option "Bestehende ueberspringen"
+  - option "Nur neue Presets"
+  - option "Fragen je Preset"

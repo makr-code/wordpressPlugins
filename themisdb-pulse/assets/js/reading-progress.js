@@ -215,22 +215,35 @@
     }
 
     function initContextAnchorNav() {
+        // Find the nav element with anchor data
         var nav = document.querySelector('[data-tv3-anchor-nav]');
         if (!nav) {
+            console.log('TV3 Anchors: nav not found');
             return false;
         }
 
         if (nav.getAttribute('data-tv3-anchor-ready') === '1') {
+            console.log('TV3 Anchors: already ready');
             return true;
         }
 
+        // Get the list to populate (either .tv3-breadcrumbs-list or [data-tv3-anchor-list])
         var list = nav.querySelector('[data-tv3-anchor-list]');
         if (!list) {
+            // Fallback: if nav itself has the data-tv3-anchor-list, use it
+            if (nav.hasAttribute('data-tv3-anchor-list')) {
+                list = nav;
+            }
+        }
+        
+        if (!list) {
+            console.log('TV3 Anchors: list not found');
             return false;
         }
 
         var limit = clamp(toInt(nav.getAttribute('data-tv3-anchor-limit'), 8), 1, 12);
         var sections = collectSectionAnchors(limit);
+        console.log('TV3 Anchors: found ' + sections.length + ' sections');
         if (!sections.length) {
             nav.hidden = true;
             return false;
@@ -238,16 +251,50 @@
 
         nav.hidden = false;
 
-        list.innerHTML = '';
+        // First, collect existing hardcoded breadcrumbs (like "Start")
+        var existingItems = Array.prototype.slice.call(list.querySelectorAll('li'));
+        
+        var items = [];
+        
+        // Add existing hardcoded breadcrumbs to items tracking
+        existingItems.forEach(function (liItem) {
+            var link = liItem.querySelector('a, span');
+            if (link) {
+                items.push({
+                    id: '__start__',  // Special ID for "Start" breadcrumb
+                    node: null,  // No scrollable node for "Start"
+                    item: liItem,
+                    link: link
+                });
+            }
+        });
 
-        var items = sections.map(function (section) {
+        // Map section titles to landing page URLs
+        var sectionToLandingPageMap = {
+            'Everything you need in one database': '/features/',
+            'Explore the Documentation': '/documentation/',
+            'Start free. Scale with confidence.': '/pricing/',
+            'Get ThemisDB v3': '/downloads/',
+            'Aktuelle Blog-Beiträge': '/blog/'
+        };
+
+        // Add dynamically generated anchor links
+        var dynamicItems = sections.map(function (section) {
             var item = document.createElement('li');
             var link = document.createElement('a');
-            link.setAttribute('href', '#' + section.id);
+            
+            // Determine if this should link to a landing page or an anchor
+            var landingPageUrl = sectionToLandingPageMap[section.label];
+            var href = landingPageUrl ? landingPageUrl : ('#' + section.id);
+            
+            link.setAttribute('href', href);
             link.setAttribute('data-tv3-anchor-link', 'true');
             link.textContent = section.label;
             item.appendChild(link);
+            item.className = 'tv3-breadcrumbs-item';
             list.appendChild(item);
+            console.log('TV3 Anchors: added link "' + section.label + '" (' + href + ')');
+
             return {
                 id: section.id,
                 node: section.node,
@@ -255,6 +302,8 @@
                 link: link
             };
         });
+        
+        items = items.concat(dynamicItems);
 
         function getStickyOffset() {
             var stickyPart = document.querySelector('.tv3-hero-context-nav-part');
@@ -268,6 +317,24 @@
 
         items.forEach(function (entry) {
             entry.link.addEventListener('click', function (event) {
+                // Handle "Start" breadcrumb specially
+                if (entry.id === '__start__') {
+                    event.preventDefault();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    if (window.history && typeof window.history.replaceState === 'function') {
+                        window.history.replaceState(null, '', window.location.pathname);
+                    }
+                    return;
+                }
+                
+                // Check if this is a link to a landing page (external) or an anchor (internal)
+                var href = entry.link.getAttribute('href');
+                if (href && !href.startsWith('#')) {
+                    // This is a landing page link - allow normal navigation
+                    return;
+                }
+                
+                // This is an internal anchor link - handle scrolling
                 var target = document.getElementById(entry.id);
                 if (!target) {
                     return;
@@ -287,14 +354,23 @@
         function updateActiveAnchor() {
             raf = false;
             var marker = window.scrollY + getStickyOffset() + 28;
-            var current = items[0].id;
+            var current = '__start__';  // Default to "Start" if no sections are visible
 
-            for (var i = 0; i < items.length; i++) {
-                var top = window.scrollY + items[i].node.getBoundingClientRect().top;
-                if (top <= marker) {
-                    current = items[i].id;
-                } else {
-                    break;
+            // Check if we're at the top of the page
+            if (window.scrollY <= 50) {
+                current = '__start__';
+            } else {
+                // Find the current active section
+                for (var i = 1; i < items.length; i++) {  // Start from 1 to skip the "Start" breadcrumb
+                    var item = items[i];
+                    if (!item.node) continue;  // Skip non-scrollable items
+                    
+                    var top = window.scrollY + item.node.getBoundingClientRect().top;
+                    if (top <= marker) {
+                        current = item.id;
+                    } else {
+                        break;
+                    }
                 }
             }
 

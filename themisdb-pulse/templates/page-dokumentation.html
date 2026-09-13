@@ -1,0 +1,15 @@
+<!-- wp:template-part {"slug":"header-docs","tagName":"header","area":"header"} /-->
+
+<!-- wp:template-part {"slug":"breadcrumbs","area":"uncategorized","tagName":"nav"} /-->
+
+<!-- wp:group {"tagName":"main","anchor":"wp--skip-link--target","className":"site-main tv3-docs-main tv3-docs-main-shell","layout":{"type":"constrained","contentSize":"1200px"}} -->
+<main id="wp--skip-link--target" class="wp-block-group site-main tv3-docs-main tv3-docs-main-shell tv3-page-dokumentation-main">
+	<!-- wp:post-title {"level":1,"className":"tv3-archive-title"} /-->
+	<!-- wp:post-excerpt {"moreText":"","showMoreOnNewLine":false,"className":"tv3-archive-description"} /-->
+	<!-- wp:shortcode -->[themisdb_v3_docs_cards limit="9" post_types="page,post" category="documentation,docs" priority_tag="frontpage-documentation,documentation,docs" excerpt_words="22"]<!-- /wp:shortcode -->
+	<!-- wp:spacer {"height":"24px"} --><div aria-hidden="true" class="wp-block-spacer" style="height:24px"></div><!-- /wp:spacer -->
+	<!-- wp:themisdb/mixed-cards {"limit":12,"postType":"page","category":"documentation,docs"} /-->
+</main>
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"footer","tagName":"footer","area":"footer"} /-->

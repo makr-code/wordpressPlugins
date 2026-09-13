@@ -77,45 +77,9 @@ if ( ! class_exists( 'ThemisDB_V3_Hero_Context_Nav' ) ) {
             }
             $did_render = true;
 
-            $atts = shortcode_atts(
-                array(
-                    'limit' => 8,
-                ),
-                $atts,
-                'themisdb_v3_hero_context_nav'
-            );
-
-            $local_links = self::get_local_context_links( (int) $atts['limit'] );
-
-            $text_domain = defined( 'THEMISDB_PULSE_TEXT_DOMAIN' ) ? THEMISDB_PULSE_TEXT_DOMAIN : 'themisdb-pulse';
-
-            $html  = '<div class="tv3-hero-context-nav" role="navigation" aria-label="' . esc_attr__( 'Kontextnavigation', $text_domain ) . '">';
-            $html .= '<div class="tv3-hero-context-nav-inner">';
-
-            $html .= '<nav class="tv3-hero-local-nav" aria-label="' . esc_attr__( 'Abschnitte auf dieser Seite', $text_domain ) . '" data-tv3-anchor-nav="true" data-tv3-anchor-limit="' . (int) $atts['limit'] . '">';
-            $html .= '<ul class="tv3-hero-local-nav-list" data-tv3-anchor-list="true">';
-            foreach ( $local_links as $link ) {
-                $label = isset( $link['label'] ) ? (string) $link['label'] : '';
-                $url   = isset( $link['url'] ) ? (string) $link['url'] : '';
-                if ( '' === $label || '' === $url || '#' !== substr( $url, 0, 1 ) ) {
-                    continue;
-                }
-
-                $item_class = ! empty( $link['is_current'] ) ? ' class="is-current"' : '';
-                $aria       = ! empty( $link['is_current'] ) ? ' aria-current="location"' : '';
-
-                $html .= '<li' . $item_class . '><a href="' . esc_attr( $url ) . '"' . $aria . ' data-tv3-anchor-link="true">' . esc_html( $label ) . '</a></li>';
-            }
-            $html .= '</ul></nav>';
-
-            $html .= '</div>';
-            $html .= '<div class="tv3-hero-context-progress" aria-hidden="true">';
-            $html .= '<span class="tv3-hero-context-progress__bar" data-tv3-reading-progress-bar></span>';
-            $html .= '<span class="tv3-hero-context-progress__label" data-tv3-reading-progress-label></span>';
-            $html .= '</div>';
-            $html .= '</div>';
-
-            return $html;
+            // DEPRECATED: Context navigation is now integrated into the breadcrumbs list
+            // This function is kept for backward compatibility but returns empty string
+            return '';
         }
     }
 }

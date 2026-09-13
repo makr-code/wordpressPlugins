@@ -1,0 +1,7 @@
+[    1008ms] [LOG] JQMIGRATE: Migrate is installed, version 3.4.1 @ http://localhost/wordpress/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1:1
+[    1052ms] [LOG] TV3 Anchors: found 0 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788522344:245
+[    1071ms] [LOG] D3.js loaded successfully from: http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/vendor/d3.min.js @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:66
+[    1071ms] [LOG] Using WordPress content data for graph @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:180
+[    1455ms] [LOG] TV3 Anchors: found 1 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788522344:245
+[    1455ms] [LOG] TV3 Anchors: added anchor "ThemisDB Support-Portal" (#themisdb-support-portal) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788522344:281
+[    1460ms] [LOG] TV3 Anchors: already ready @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788522344:225

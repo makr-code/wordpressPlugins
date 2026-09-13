@@ -10,17 +10,33 @@
 ?>
 <!-- wp:group {"className":"tv3-feature-section","layout":{"type":"constrained","contentSize":"1200px"}} -->
 <div class="wp-block-group tv3-feature-section">
+	<?php
+	$feature_copy = function_exists( 'themisdb_v3_get_frontpage_section_copy' )
+		? themisdb_v3_get_frontpage_section_copy(
+			'features',
+			array(
+				'kicker'   => 'Features',
+				'title'    => 'Everything you need in one database',
+				'subtitle' => 'Designed from the ground up for modern applications that need speed, flexibility, and intelligence.',
+			)
+		)
+		: array(
+			'kicker'   => 'Features',
+			'title'    => 'Everything you need in one database',
+			'subtitle' => 'Designed from the ground up for modern applications that need speed, flexibility, and intelligence.',
+		);
+	?>
 
 	<!-- wp:paragraph {"align":"center","className":"tv3-feature-section__badge-wrap"} -->
-	<p class="has-text-align-center tv3-feature-section__badge-wrap"><span class="tv3-feature-section__badge">Features</span></p>
+	<p class="has-text-align-center tv3-feature-section__badge-wrap"><span class="tv3-feature-section__badge"><?php echo esc_html( (string) $feature_copy['kicker'] ); ?></span></p>
 	<!-- /wp:paragraph -->
 
 	<!-- wp:heading {"level":2,"className":"tv3-feature-section__title"} -->
-	<h2 class="wp-block-heading tv3-feature-section__title">Everything you need in one database</h2>
+	<h2 class="wp-block-heading tv3-feature-section__title"><?php echo esc_html( (string) $feature_copy['title'] ); ?></h2>
 	<!-- /wp:heading -->
 
 	<!-- wp:paragraph {"className":"tv3-feature-section__lead"} -->
-	<p class="tv3-feature-section__lead">Designed from the ground up for modern applications that need speed, flexibility, and intelligence.</p>
+	<p class="tv3-feature-section__lead"><?php echo esc_html( (string) $feature_copy['subtitle'] ); ?></p>
 	<!-- /wp:paragraph -->
 
 	<?php

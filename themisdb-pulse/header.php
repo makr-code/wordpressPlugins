@@ -25,7 +25,7 @@
 
         <!-- wp:group {"className":"tv3-header-split-group tv3-header-split-left","layout":{"type":"flex","justifyContent":"left","flexWrap":"wrap"}} -->
         <div class="wp-block-group tv3-header-split-group tv3-header-split-left">
-            <!-- wp:navigation {"overlayMenu":"never","className":"tv3-split-nav tv3-header-split-nav","layout":{"type":"flex","justifyContent":"left","flexWrap":"wrap"},"ariaLabel":"Produktnavigation","__unstableLocation":"primary"} /-->
+            <!-- wp:navigation {"overlayMenu":"always","className":"tv3-split-nav tv3-header-split-nav","layout":{"type":"flex","justifyContent":"left","flexWrap":"wrap"},"ariaLabel":"Produktnavigation","__unstableLocation":"primary"} /-->
         </div>
         <!-- /wp:group -->
 
@@ -38,8 +38,8 @@
         <!-- wp:group {"className":"tv3-header-utility-actions","layout":{"type":"flex","verticalAlignment":"center","justifyContent":"right"}} -->
         <div class="wp-block-group tv3-header-utility-actions">
             <!-- wp:search {"label":"Suche","showLabel":false,"placeholder":"Suchen…","buttonText":"Suchen","buttonUseIcon":true,"className":"tv3-header-search"} /-->
-            <!-- wp:button {"className":"tv3-header-login","url":"/login","style":{"border":{"radius":"999px"},"spacing":{"padding":{"left":"1.2rem","right":"1.2rem"}}}} -->
-            <div class="wp-block-button tv3-header-login"><a class="wp-block-button__link wp-element-button" href="/login">Anmelden</a></div>
+            <!-- wp:button {"className":"tv3-header-login","url":"#tv3-login-overlay","style":{"border":{"radius":"999px"},"spacing":{"padding":{"left":"1.2rem","right":"1.2rem"}}}} -->
+            <div class="wp-block-button tv3-header-login"><a class="wp-block-button__link wp-element-button" href="#tv3-login-overlay">Anmelden</a></div>
             <!-- /wp:button -->
         </div>
         <!-- /wp:group -->
@@ -47,5 +47,3 @@
     <!-- /wp:group -->
 </header>
 <!-- /wp:group -->
-
-<!-- wp:template-part {"slug":"hero-context-nav","tagName":"nav","className":"tv3-hero-context-nav-part"} /-->

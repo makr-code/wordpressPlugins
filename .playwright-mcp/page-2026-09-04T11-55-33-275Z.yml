@@ -1,0 +1,181 @@
+- generic [active] [ref=f18e1]:
+  - link "Zum Inhalt springen" [ref=f18e2] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [aria-hidden]:
+    - generic: 0% · 1 Min. uebrig
+  - link "Zum Inhalt springen" [ref=f18e3] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [ref=f18e4]:
+    - banner [ref=f18e5]:
+      - banner [ref=f18e6]:
+        - button "Toggle Navigation Graph" [ref=f18e7] [cursor=pointer]
+        - generic [ref=f18e10]:
+          - generic [ref=f18e11]:
+            - link [ref=f18e13] [cursor=pointer]:
+              - /url: http://localhost/wordpress/
+              - img "WordPress Lokal" [ref=f18e14]
+            - paragraph [ref=f18e15]:
+              - link "WordPress Lokal" [ref=f18e16] [cursor=pointer]:
+                - /url: http://localhost/wordpress
+          - navigation "Produktnavigation Produktnavigation" [ref=f18e18]:
+            - list "Produktnavigation" [ref=f18e23]:
+              - listitem [ref=f18e24]:
+                - link "Partner" [ref=f18e25] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/partners/
+              - listitem [ref=f18e26]:
+                - link "Support" [ref=f18e27] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/support/
+              - listitem [ref=f18e28]:
+                - link "Ressourcen" [ref=f18e29] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/resources/
+          - navigation "Hilfsnavigation Hilfsnavigation" [ref=f18e31]:
+            - list "Hilfsnavigation" [ref=f18e32]:
+              - listitem [ref=f18e33]:
+                - link "Partner" [ref=f18e34] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/partners/
+              - listitem [ref=f18e35]:
+                - link "Support" [ref=f18e36] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/support/
+              - listitem [ref=f18e37]:
+                - link "Ressourcen" [ref=f18e38] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/resources/
+          - generic [ref=f18e39]:
+            - search [ref=f18e40]:
+              - generic [ref=f18e41]: Suche
+              - generic [ref=f18e42]:
+                - searchbox "Suche" [ref=f18e43]
+                - button "Suchen" [ref=f18e44] [cursor=pointer]
+            - link "Anmelden" [ref=f18e48] [cursor=pointer]:
+              - /url: http://localhost/wordpress/login/
+    - navigation [ref=f18e49]:
+      - navigation "Breadcrumb-Navigation" [ref=f18e51]:
+        - list [ref=f18e52]:
+          - listitem [ref=f18e53]:
+            - link "Start" [ref=f18e54] [cursor=pointer]:
+              - /url: http://localhost/wordpress/
+          - listitem [ref=f18e56]:
+            - generic [ref=f18e57]: Hero Local Spotlight
+          - listitem [ref=f18e58]:
+            - link "Autor:innen" [ref=f18e59] [cursor=pointer]:
+              - /url: "#autor-innen"
+          - listitem [ref=f18e60]:
+            - link "Qualität" [ref=f18e61] [cursor=pointer]:
+              - /url: "#qualitat"
+          - listitem [ref=f18e62]:
+            - 'link "KI-Bewertung gemma4Schieberegler: Ihre Bewertung" [ref=f18e63] [cursor=pointer]':
+              - /url: "#ki-bewertung-gemma4schieberegler-ihre-bewertung"
+          - listitem [ref=f18e64]:
+            - link "Medien" [ref=f18e65] [cursor=pointer]:
+              - /url: "#medien"
+    - main [ref=f18e66]:
+      - heading "Hero Local Spotlight" [level=1] [ref=f18e67]
+      - generic [ref=f18e69]:
+        - generic [ref=f18e70]:
+          - generic [ref=f18e71]: ·
+          - time [ref=f18e73]: 21. August 2026
+          - generic [ref=f18e74]: ·
+          - paragraph [ref=f18e75]:
+            - generic [ref=f18e76]: 1 Min. Lesezeit
+        - link "Allgemein" [ref=f18e78] [cursor=pointer]:
+          - /url: http://localhost/wordpress/category/allgemein/
+      - paragraph [ref=f18e80]: This is a local Hero-tagged test post used to verify the front-page query logic.
+      - paragraph [ref=f18e83]: This is a local Hero-tagged test post used to verify the front-page query logic.
+      - generic [ref=f18e84]:
+        - heading "Autor:innen" [level=4] [ref=f18e88]
+        - generic [ref=f18e89]:
+          - heading "Qualität" [level=4] [ref=f18e90]
+          - generic [ref=f18e91]:
+            - 'heading "KI-Bewertung gemma4 Schieberegler: Ihre Bewertung" [level=4] [ref=f18e92]':
+              - text: KI-Bewertung
+              - generic [ref=f18e93]: gemma4
+              - generic [ref=f18e94]: "Schieberegler: Ihre Bewertung"
+            - generic [ref=f18e95]:
+              - generic [ref=f18e96]: ■ KI
+              - generic [ref=f18e97]: ■ Kombiniert
+            - generic [ref=f18e98]:
+              - generic [ref=f18e99]: Qualität · 50
+              - slider "Qualität Ihre Bewertung" [ref=f18e103] [cursor=pointer]: "50"
+              - generic [ref=f18e104]: "50"
+            - generic [ref=f18e105]:
+              - generic [ref=f18e106]: Impact · 50
+              - slider "Impact Ihre Bewertung" [ref=f18e110] [cursor=pointer]: "50"
+              - generic [ref=f18e111]: "50"
+            - generic [ref=f18e112]:
+              - generic [ref=f18e113]: Lesbarkeit · 50
+              - slider "Lesbarkeit Ihre Bewertung" [ref=f18e117] [cursor=pointer]: "50"
+              - generic [ref=f18e118]: "50"
+            - generic [ref=f18e119]:
+              - generic [ref=f18e120]: Treue · 50
+              - slider "Treue Ihre Bewertung" [ref=f18e124] [cursor=pointer]: "50"
+              - generic [ref=f18e125]: "50"
+            - paragraph [ref=f18e126]: Für diese Seite liegen keine KI-Metriken vor. Sie können die Kriterien dennoch manuell bewerten.
+        - generic [ref=f18e127]:
+          - heading "Medien" [level=4] [ref=f18e128]
+          - paragraph [ref=f18e129]: Kein Medienanhang vorhanden.
+      - generic [ref=f18e130]:
+        - text: "Schlagwörter:"
+        - link "Hero" [ref=f18e131] [cursor=pointer]:
+          - /url: http://localhost/wordpress/tag/hero/
+      - separator [ref=f18e132]
+      - 'link "Vorheriger: Test Announcement: Wartungsfenster" [ref=f18e137] [cursor=pointer]':
+        - /url: http://localhost/wordpress/test-announcement-bar/
+    - contentinfo [ref=f18e140]:
+      - contentinfo [ref=f18e141]:
+        - generic [ref=f18e142]:
+          - generic [ref=f18e144]:
+            - generic:
+              - link "WordPress Lokal":
+                - /url: http://localhost/wordpress/
+                - img "WordPress Lokal"
+            - paragraph [ref=f18e145]:
+              - link "WordPress Lokal" [ref=f18e146] [cursor=pointer]:
+                - /url: http://localhost/wordpress
+            - paragraph [ref=f18e147]: Lokale Testinstanz
+          - generic [ref=f18e148]:
+            - heading "Navigation" [level=6] [ref=f18e149]
+            - navigation "Footer-Navigation Footer-Navigation" [ref=f18e150]:
+              - list "Footer-Navigation" [ref=f18e151]:
+                - listitem [ref=f18e152]:
+                  - link "Support-Portal" [ref=f18e153] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/
+                - listitem [ref=f18e154]:
+                  - link "Neues Ticket" [ref=f18e155] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-support-new-ticket-section
+                - listitem [ref=f18e156]:
+                  - link "Meine Tickets" [ref=f18e157] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-support-ticket-list-section
+                - listitem [ref=f18e158]:
+                  - link "Vertragsmanagement" [ref=f18e159] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-lifecycle-section
+          - generic [ref=f18e160]:
+            - heading "Rechtliches" [level=6] [ref=f18e161]
+            - list [ref=f18e162]:
+              - listitem [ref=f18e163]:
+                - link "GitHub" [ref=f18e164] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=f18e168]:
+                - link "LinkedIn" [ref=f18e169] [cursor=pointer]:
+                  - /url: "#"
+        - paragraph [ref=f18e173]: Powered by WordPress.
+  - option "Alle Typen" [selected]
+  - 'option "Typ: category"'
+  - 'option "Typ: external_resource"'
+  - 'option "Typ: home"'
+  - 'option "Typ: page"'
+  - 'option "Typ: post"'
+  - 'option "Typ: tag"'
+  - 'option "Sortierung: Titel A-Z" [selected]'
+  - 'option "Sortierung: Titel Z-A"'
+  - 'option "Sortierung: Typ"'
+  - 'option "Sortierung: Groesse"'
+  - 'option "Sortierung: Count"'
+  - 'option "Visualisierung: Force Layout" [selected]'
+  - 'option "Visualisierung: Galaxy Mode"'
+  - 'option "Clustering: Aus" [selected]'
+  - 'option "Clustering: Nach Typ"'
+  - 'option "Clustering: Nach Ebene"'
+  - option "Preset laden..." [selected]
+  - option "Ueberschreiben" [selected]
+  - option "Bestehende ueberspringen"
+  - option "Nur neue Presets"
+  - option "Fragen je Preset"

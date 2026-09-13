@@ -1,0 +1,11 @@
+[     783ms] [LOG] JQMIGRATE: Migrate is installed, version 3.4.1 @ http://localhost/wordpress/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1:1
+[     821ms] Unexpected token ')'
+[     823ms] [LOG] TV3 Anchors: found 0 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788522344:245
+[     836ms] [LOG] D3.js loaded successfully from: http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/vendor/d3.min.js @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:66
+[     836ms] [LOG] Using WordPress content data for graph @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:180
+[    1270ms] [LOG] TV3 Anchors: found 4 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788522344:245
+[    1271ms] [LOG] TV3 Anchors: added anchor "Autor:innen" (#autor-innen) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788522344:281
+[    1271ms] [LOG] TV3 Anchors: added anchor "Qualität" (#qualitat) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788522344:281
+[    1271ms] [LOG] TV3 Anchors: added anchor "KI-Bewertung gemma4Schieberegler: Ihre Bewertung" (#ki-bewertung-gemma4schieberegler-ihre-bewertung) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788522344:281
+[    1271ms] [LOG] TV3 Anchors: added anchor "Medien" (#medien) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788522344:281
+[    1277ms] [LOG] TV3 Anchors: already ready @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1788522344:225

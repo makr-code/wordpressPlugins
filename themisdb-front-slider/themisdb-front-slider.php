@@ -25,18 +25,59 @@ define( 'THEMISDB_FS_PLUGIN_FILE', __FILE__ );
 
 add_action( 'init', 'themisdb_fs_register_assets' );
 function themisdb_fs_register_assets() {
+    $front_css_version = THEMISDB_FS_VERSION;
+    $editor_css_version = THEMISDB_FS_VERSION;
+    $front_js_version = THEMISDB_FS_VERSION;
+    $block_js_version = THEMISDB_FS_VERSION;
+
+    $front_css_file = THEMISDB_FS_PLUGIN_DIR . 'assets/css/front-slider.css';
+    $editor_css_file = THEMISDB_FS_PLUGIN_DIR . 'assets/css/block-editor.css';
+    $front_js_file = THEMISDB_FS_PLUGIN_DIR . 'assets/js/front-slider.js';
+    $block_js_file = THEMISDB_FS_PLUGIN_DIR . 'assets/js/block.js';
+
+    if ( file_exists( $front_css_file ) ) {
+        $front_css_version .= '.' . (string) filemtime( $front_css_file );
+    }
+    if ( file_exists( $editor_css_file ) ) {
+        $editor_css_version .= '.' . (string) filemtime( $editor_css_file );
+    }
+    if ( file_exists( $front_js_file ) ) {
+        $front_js_version .= '.' . (string) filemtime( $front_js_file );
+    }
+    if ( file_exists( $block_js_file ) ) {
+        $block_js_version .= '.' . (string) filemtime( $block_js_file );
+    }
+
     wp_register_style(
         'themisdb-front-slider-css',
         THEMISDB_FS_PLUGIN_URL . 'assets/css/front-slider.css',
         array(),
-        THEMISDB_FS_VERSION
+        $front_css_version
     );
 
     wp_register_style(
         'themisdb-front-slider-editor-css',
         THEMISDB_FS_PLUGIN_URL . 'assets/css/block-editor.css',
         array( 'wp-edit-blocks', 'themisdb-front-slider-css' ),
-        THEMISDB_FS_VERSION
+        $editor_css_version
+    );
+
+    // Register slider controller script (always available as fallback).
+    wp_register_script(
+        'themisdb-front-slider-js',
+        THEMISDB_FS_PLUGIN_URL . 'assets/js/front-slider.js',
+        array(),
+        $front_js_version,
+        true
+    );
+
+    // Register Gutenberg block script.
+    wp_register_script(
+        'themisdb-front-slider-block-js',
+        THEMISDB_FS_PLUGIN_URL . 'assets/js/block.js',
+        array( 'wp-blocks', 'wp-element', 'wp-i18n', 'wp-components', 'wp-block-editor', 'wp-server-side-render' ),
+        $block_js_version,
+        false
     );
 }
 
@@ -69,6 +110,9 @@ function themisdb_fs_activate() {
         'posts_count'   => 5,
         'interval'      => 5000,
         'category'      => '',
+        'filter'        => 'hero',
+        'hero_label'    => 'hero',
+        'respect_reduced_motion' => false,
         'show_excerpt'  => true,
         'show_date'     => true,
         'show_category' => true,
@@ -88,40 +132,27 @@ function themisdb_fs_deactivate() {
  * Front-end Assets
  * ---------------------------------------------------------------------- */
 
-add_action( 'wp_enqueue_scripts', 'themisdb_fs_enqueue' );
+// Run late so theme/plugin integrations can enqueue first.
+add_action( 'wp_enqueue_scripts', 'themisdb_fs_enqueue', 100 );
 function themisdb_fs_enqueue() {
-    $theme_controls_presentation =
-        wp_style_is( 'themisdb-style', 'enqueued' ) ||
-        wp_style_is( 'themisdb-style', 'registered' ) ||
-        wp_style_is( 'lis-a-style', 'enqueued' ) ||
-        wp_style_is( 'lis-a-style', 'registered' );
-
+    // SOC: plugin owns baseline slider styling; themes only add adjustments.
     $should_enqueue_frontend_style = apply_filters(
         'themisdb_front_slider_enqueue_frontend_style',
-        ! $theme_controls_presentation
+        true
     );
 
     if ( $should_enqueue_frontend_style ) {
         wp_enqueue_style( 'themisdb-front-slider-css' );
     }
 
-    // Falls das aktive Theme den Slider-Controller nicht bereitstellt,
-    // nutzen wir den Plugin-Controller als Fallback.
-    // Fallback: In anderen Themes weiterhin Plugin-eigenes JS laden.
-    $theme_controls_slider_js =
-        wp_script_is( 'themisdb-hero-slider', 'enqueued' ) ||
-        wp_script_is( 'themisdb-hero-slider', 'registered' ) ||
-        wp_script_is( 'lis-a-hero-slider', 'enqueued' ) ||
-        wp_script_is( 'lis-a-hero-slider', 'registered' );
+    // SOC: plugin owns slider behavior; themes should not replace controller logic.
+    $should_enqueue_plugin_js = apply_filters(
+        'themisdb_front_slider_enqueue_frontend_script',
+        true
+    );
 
-    if ( ! $theme_controls_slider_js ) {
-        wp_enqueue_script(
-            'themisdb-front-slider-js',
-            THEMISDB_FS_PLUGIN_URL . 'assets/js/front-slider.js',
-            array(),
-            THEMISDB_FS_VERSION,
-            true
-        );
+    if ( $should_enqueue_plugin_js ) {
+        wp_enqueue_script( 'themisdb-front-slider-js' );
     }
 }
 
@@ -199,15 +230,127 @@ function themisdb_fs_get_slider_labels( $category_slug, $readmore_text ) {
     return apply_filters( 'themisdb_front_slider_labels', $labels, $category_slug, $readmore_text );
 }
 
+/**
+ * Parse a comma/space separated tag slug list.
+ *
+ * @param string $raw Raw tag list.
+ * @return string[]
+ */
+function themisdb_fs_parse_tag_slugs( $raw ) {
+    $raw = sanitize_text_field( (string) $raw );
+    $parts = preg_split( '/[\s,;]+/', $raw );
+    if ( ! is_array( $parts ) ) {
+        return array();
+    }
+
+    $tags = array();
+    foreach ( $parts as $part ) {
+        $slug = sanitize_title( (string) $part );
+        if ( '' !== $slug ) {
+            $tags[] = $slug;
+        }
+    }
+
+    return array_values( array_unique( $tags ) );
+}
+
+/**
+ * Parse free filter input for slider queries.
+ *
+ * Supported values:
+ * - hero,featured
+ * - tag:hero,featured
+ * - category:news,blog
+ * - search:vector index
+ * - none|all|off|*
+ *
+ * @param string $raw Raw filter value.
+ * @return array{mode:string,terms:string[],search:string,raw:string}
+ */
+function themisdb_fs_parse_filter( $raw ) {
+    $raw = trim( sanitize_text_field( (string) $raw ) );
+    if ( '' === $raw ) {
+        return array(
+            'mode'   => 'tag',
+            'terms'  => array( 'hero' ),
+            'search' => '',
+            'raw'    => 'hero',
+        );
+    }
+
+    $normalized = strtolower( $raw );
+    if ( in_array( $normalized, array( 'none', 'all', 'off', '*' ), true ) ) {
+        return array(
+            'mode'   => 'none',
+            'terms'  => array(),
+            'search' => '',
+            'raw'    => $raw,
+        );
+    }
+
+    if ( 0 === strpos( $normalized, 'category:' ) ) {
+        return array(
+            'mode'   => 'category',
+            'terms'  => themisdb_fs_parse_tag_slugs( substr( $raw, 9 ) ),
+            'search' => '',
+            'raw'    => $raw,
+        );
+    }
+
+    if ( 0 === strpos( $normalized, 'search:' ) ) {
+        $search = trim( (string) substr( $raw, 7 ) );
+        return array(
+            'mode'   => '' !== $search ? 'search' : 'none',
+            'terms'  => array(),
+            'search' => $search,
+            'raw'    => $raw,
+        );
+    }
+
+    $tag_source = 0 === strpos( $normalized, 'tag:' ) ? (string) substr( $raw, 4 ) : $raw;
+    $terms      = themisdb_fs_parse_tag_slugs( $tag_source );
+    if ( empty( $terms ) ) {
+        $terms = array( 'hero' );
+    }
+
+    return array(
+        'mode'   => 'tag',
+        'terms'  => $terms,
+        'search' => '',
+        'raw'    => $raw,
+    );
+}
+
 function themisdb_fs_compact_markup( $html ) {
     if ( ! is_string( $html ) || '' === $html ) {
         return '';
     }
 
-    // Strip template comments and collapse whitespace around text nodes.
+    // Strip template comments.
     $html = preg_replace( '/<!--.*?-->/s', '', $html );
+
+    // Normalize tag formatting to a single line per tag to avoid wpautop edge-cases
+    // with multi-line opening tags inside shortcode output.
+    $html = preg_replace_callback(
+        '/<[^>]+>/s',
+        static function( $match ) {
+            $tag = preg_replace( '/\s+/', ' ', (string) $match[0] );
+            $tag = preg_replace( '/\s*(\/?\s*)>$/', '$1>', (string) $tag );
+            return trim( (string) $tag );
+        },
+        $html
+    );
+
+    // Collapse whitespace between tags while preserving inner text content.
     $html = preg_replace( '/>\s+</', '><', $html );
+
+    // Trim whitespace around text nodes (e.g. link labels) to prevent wpautop
+    // from injecting <br> tags into shortcode output.
     $html = preg_replace( '/>\s+([^<]*?)\s+</u', '>$1<', $html );
+
+    // Defensive cleanup for occasional wpautop paragraph artifacts around block elements.
+    $html = preg_replace( '/(?:<p>\s*)+(?=<(?:div|section|article|header|footer|nav|aside|main|figure|ul|ol|li|button)\b)/i', '', $html );
+    $html = preg_replace( '/<\/p>\s*(?=<(?:div|section|article|header|footer|nav|aside|main|figure|ul|ol|li|button)\b)/i', '', $html );
 
     return trim( (string) $html );
 }
@@ -345,6 +488,270 @@ function themisdb_fs_get_post_cta_buttons( $post_id, $limit = 2 ) {
     return apply_filters( 'themisdb_front_slider_post_cta_buttons', $items, $post_id, $limit );
 }
 
+/**
+ * Sanitize CSS background-position values for hero slide focus points.
+ *
+ * Accepts either keyword pairs (e.g. "left top") or percentage pairs
+ * (e.g. "50% 35%"). Falls back to center when invalid.
+ *
+ * @param string $raw_position Raw user-supplied position value.
+ * @return string
+ */
+function themisdb_fs_sanitize_background_position( $raw_position ) {
+    $position = strtolower( trim( (string) $raw_position ) );
+    if ( '' === $position ) {
+        return '50% 50%';
+    }
+
+    if ( preg_match( '/^([0-9]{1,3})%\s+([0-9]{1,3})%$/', $position, $match ) ) {
+        $x = max( 0, min( 100, (int) $match[1] ) );
+        $y = max( 0, min( 100, (int) $match[2] ) );
+        return $x . '% ' . $y . '%';
+    }
+
+    $keywords = array( 'left', 'center', 'right', 'top', 'bottom' );
+    $parts = preg_split( '/\s+/', $position );
+    if ( is_array( $parts ) && 2 === count( $parts ) ) {
+        $x = in_array( $parts[0], $keywords, true ) ? $parts[0] : '';
+        $y = in_array( $parts[1], $keywords, true ) ? $parts[1] : '';
+        if ( '' !== $x && '' !== $y ) {
+            return $x . ' ' . $y;
+        }
+    }
+
+    return '50% 50%';
+}
+
+/**
+ * Resolve a visual focus position for a slide background image.
+ *
+ * Priority:
+ * 1) Post meta override via themisdb_hero_bg_focus (e.g. "50% 30%")
+ * 2) Image orientation heuristic based on attachment metadata
+ * 3) Center fallback
+ *
+ * @param int $post_id  Post ID.
+ * @param int $thumb_id Featured image attachment ID.
+ * @return string
+ */
+function themisdb_fs_get_slide_background_position( $post_id, $thumb_id = 0 ) {
+    $post_id = (int) $post_id;
+    $thumb_id = (int) $thumb_id;
+
+    $meta_position = get_post_meta( $post_id, 'themisdb_hero_bg_focus', true );
+    if ( is_string( $meta_position ) && '' !== trim( $meta_position ) ) {
+        return themisdb_fs_sanitize_background_position( $meta_position );
+    }
+
+    if ( $thumb_id > 0 ) {
+        $attachment_meta = wp_get_attachment_metadata( $thumb_id );
+        if ( is_array( $attachment_meta ) ) {
+            $width = isset( $attachment_meta['width'] ) ? (int) $attachment_meta['width'] : 0;
+            $height = isset( $attachment_meta['height'] ) ? (int) $attachment_meta['height'] : 0;
+            if ( $width > 0 && $height > 0 ) {
+                if ( $height > ( $width * 1.15 ) ) {
+                    return '50% 28%';
+                }
+                if ( $width > ( $height * 1.7 ) ) {
+                    return '50% 42%';
+                }
+            }
+        }
+    }
+
+    return '50% 50%';
+}
+
+/**
+ * Resolve a mobile visual focus position for a slide background image.
+ *
+ * Priority:
+ * 1) Post meta override via themisdb_hero_bg_focus_mobile
+ * 2) Mobile-oriented image orientation heuristic
+ * 3) Desktop focus as fallback
+ *
+ * @param int $post_id  Post ID.
+ * @param int $thumb_id Featured image attachment ID.
+ * @return string
+ */
+function themisdb_fs_get_slide_background_position_mobile( $post_id, $thumb_id = 0 ) {
+    $post_id = (int) $post_id;
+    $thumb_id = (int) $thumb_id;
+
+    $meta_position = get_post_meta( $post_id, 'themisdb_hero_bg_focus_mobile', true );
+    if ( is_string( $meta_position ) && '' !== trim( $meta_position ) ) {
+        return themisdb_fs_sanitize_background_position( $meta_position );
+    }
+
+    if ( $thumb_id > 0 ) {
+        $attachment_meta = wp_get_attachment_metadata( $thumb_id );
+        if ( is_array( $attachment_meta ) ) {
+            $width = isset( $attachment_meta['width'] ) ? (int) $attachment_meta['width'] : 0;
+            $height = isset( $attachment_meta['height'] ) ? (int) $attachment_meta['height'] : 0;
+            if ( $width > 0 && $height > 0 ) {
+                if ( $height > ( $width * 1.15 ) ) {
+                    return '50% 24%';
+                }
+                if ( $width > ( $height * 1.7 ) ) {
+                    return '50% 36%';
+                }
+            }
+        }
+    }
+
+    return themisdb_fs_get_slide_background_position( $post_id, $thumb_id );
+}
+
+/**
+ * Validate optional background-position input for editor UI.
+ *
+ * @param string $raw_position Raw position value.
+ * @return string Empty string when invalid/empty, otherwise normalized value.
+ */
+function themisdb_fs_validate_optional_background_position( $raw_position ) {
+    $raw_position = trim( (string) $raw_position );
+    if ( '' === $raw_position ) {
+        return '';
+    }
+
+    $normalized = themisdb_fs_sanitize_background_position( $raw_position );
+    if ( '50% 50%' === $normalized ) {
+        $candidate = strtolower( trim( (string) $raw_position ) );
+        if ( '50% 50%' !== $candidate && 'center center' !== $candidate ) {
+            return '';
+        }
+    }
+
+    return $normalized;
+}
+
+/**
+ * Add per-post hero background focus field to post/page editors.
+ */
+add_action( 'add_meta_boxes', 'themisdb_fs_register_hero_focus_metabox' );
+function themisdb_fs_register_hero_focus_metabox() {
+    $post_types = apply_filters( 'themisdb_front_slider_focus_meta_post_types', array( 'post', 'page' ) );
+    if ( ! is_array( $post_types ) || empty( $post_types ) ) {
+        return;
+    }
+
+    foreach ( $post_types as $post_type ) {
+        $post_type = sanitize_key( (string) $post_type );
+        if ( '' === $post_type ) {
+            continue;
+        }
+
+        add_meta_box(
+            'themisdb_fs_hero_focus',
+            __( 'Hero Slider Bildfokus', 'themisdb-front-slider' ),
+            'themisdb_fs_render_hero_focus_metabox',
+            $post_type,
+            'side',
+            'default'
+        );
+    }
+}
+
+/**
+ * Render hero focus metabox content.
+ *
+ * @param WP_Post $post Current post object.
+ */
+function themisdb_fs_render_hero_focus_metabox( $post ) {
+    if ( ! $post || ! isset( $post->ID ) ) {
+        return;
+    }
+
+    $current = (string) get_post_meta( (int) $post->ID, 'themisdb_hero_bg_focus', true );
+    $current_mobile = (string) get_post_meta( (int) $post->ID, 'themisdb_hero_bg_focus_mobile', true );
+    wp_nonce_field( 'themisdb_fs_save_hero_focus', 'themisdb_fs_hero_focus_nonce' );
+    ?>
+    <p>
+        <label for="themisdb_fs_hero_bg_focus">
+            <?php esc_html_e( 'Hintergrund-Fokus (optional)', 'themisdb-front-slider' ); ?>
+        </label>
+        <input
+            type="text"
+            class="widefat"
+            id="themisdb_fs_hero_bg_focus"
+            name="themisdb_fs_hero_bg_focus"
+            value="<?php echo esc_attr( $current ); ?>"
+            placeholder="50% 35%"
+            autocomplete="off"
+        />
+    </p>
+    <p class="description">
+        <?php esc_html_e( 'Format: "50% 35%" oder "left top". Leer lassen = automatische Erkennung.', 'themisdb-front-slider' ); ?>
+    </p>
+    <p>
+        <label for="themisdb_fs_hero_bg_focus_mobile">
+            <?php esc_html_e( 'Hintergrund-Fokus mobil (optional)', 'themisdb-front-slider' ); ?>
+        </label>
+        <input
+            type="text"
+            class="widefat"
+            id="themisdb_fs_hero_bg_focus_mobile"
+            name="themisdb_fs_hero_bg_focus_mobile"
+            value="<?php echo esc_attr( $current_mobile ); ?>"
+            placeholder="50% 30%"
+            autocomplete="off"
+        />
+    </p>
+    <p class="description">
+        <?php esc_html_e( 'Ueberschreibt den Desktop-Wert auf kleineren Viewports. Leer lassen = mobile Automatik.', 'themisdb-front-slider' ); ?>
+    </p>
+    <?php
+}
+
+/**
+ * Save hero focus metabox value.
+ *
+ * @param int $post_id Post ID.
+ */
+add_action( 'save_post', 'themisdb_fs_save_hero_focus_metabox' );
+function themisdb_fs_save_hero_focus_metabox( $post_id ) {
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return;
+    }
+
+    if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+        return;
+    }
+
+    if ( ! isset( $_POST['themisdb_fs_hero_focus_nonce'] ) ) {
+        return;
+    }
+
+    if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['themisdb_fs_hero_focus_nonce'] ) ), 'themisdb_fs_save_hero_focus' ) ) {
+        return;
+    }
+
+    if ( ! current_user_can( 'edit_post', $post_id ) ) {
+        return;
+    }
+
+    if ( ! isset( $_POST['themisdb_fs_hero_bg_focus'] ) && ! isset( $_POST['themisdb_fs_hero_bg_focus_mobile'] ) ) {
+        return;
+    }
+
+    $desktop_raw = isset( $_POST['themisdb_fs_hero_bg_focus'] ) ? wp_unslash( $_POST['themisdb_fs_hero_bg_focus'] ) : '';
+    $desktop_value = themisdb_fs_validate_optional_background_position( $desktop_raw );
+    $mobile_raw = isset( $_POST['themisdb_fs_hero_bg_focus_mobile'] ) ? wp_unslash( $_POST['themisdb_fs_hero_bg_focus_mobile'] ) : '';
+    $mobile_value = themisdb_fs_validate_optional_background_position( $mobile_raw );
+
+    if ( '' === $desktop_value ) {
+        delete_post_meta( $post_id, 'themisdb_hero_bg_focus' );
+    } else {
+        update_post_meta( $post_id, 'themisdb_hero_bg_focus', $desktop_value );
+    }
+
+    if ( '' === $mobile_value ) {
+        delete_post_meta( $post_id, 'themisdb_hero_bg_focus_mobile' );
+    } else {
+        update_post_meta( $post_id, 'themisdb_hero_bg_focus_mobile', $mobile_value );
+    }
+}
+
 /* --------------------------------------------------------------------------
  * Shortcode  [themisdb_front_slider]
  *
@@ -356,7 +763,8 @@ function themisdb_fs_get_post_cta_buttons( $post_id, $limit = 2 ) {
  *   date          – show post date    (1/0)         (default: 1)
  *   cat_label     – show category label (1/0)       (default: 1)
  *   autoplay      – enable autoplay   (1/0)         (default: 1)
- *   hero_label    – tag slug used to mark hero posts/pages (default: '')
+ *   filter        – free filter                      (default: 'hero')
+ *   hero_label    – tag slug(s) used to select hero posts/pages (default: 'hero')
  *   accent_color  – accent hex color                (default: #0284c7)
  *   img_size      – WP image size                   (default: large)
  * ---------------------------------------------------------------------- */
@@ -379,6 +787,12 @@ function themisdb_fs_shortcode( $atts ) {
     if ( isset( $raw_atts['show_category'] ) && ! isset( $raw_atts['cat_label'] ) ) {
         $raw_atts['cat_label'] = $raw_atts['show_category'];
     }
+    if ( isset( $raw_atts['tag'] ) && ! isset( $raw_atts['filter'] ) ) {
+        $raw_atts['filter'] = $raw_atts['tag'];
+    }
+    if ( isset( $raw_atts['hero_label'] ) && ! isset( $raw_atts['filter'] ) ) {
+        $raw_atts['filter'] = $raw_atts['hero_label'];
+    }
 
     $atts = shortcode_atts(
         array(
@@ -389,11 +803,12 @@ function themisdb_fs_shortcode( $atts ) {
             'date'          => isset( $opts['show_date'] )     ? $opts['show_date']     : true,
             'cat_label'     => isset( $opts['show_category'] ) ? $opts['show_category'] : true,
             'autoplay'      => isset( $opts['autoplay'] )      ? $opts['autoplay']      : true,
-            'hero_label'    => '',
+            'filter'        => isset( $opts['filter'] )        ? $opts['filter']        : ( isset( $opts['hero_label'] ) ? $opts['hero_label'] : 'hero' ),
+            'hero_label'    => isset( $opts['hero_label'] )    ? $opts['hero_label']    : 'hero',
             'accent_color'  => '#0284c7',
             'img_size'      => 'large',
             'layout_preset' => 'standard',
-            'respect_reduced_motion' => true,
+            'respect_reduced_motion' => isset( $opts['respect_reduced_motion'] ) ? $opts['respect_reduced_motion'] : false,
         ),
         $raw_atts,
         'themisdb_front_slider'
@@ -409,7 +824,12 @@ function themisdb_fs_shortcode( $atts ) {
     $show_date     = filter_var( $atts['date'],      FILTER_VALIDATE_BOOLEAN );
     $show_category = filter_var( $atts['cat_label'], FILTER_VALIDATE_BOOLEAN );
     $autoplay      = filter_var( $atts['autoplay'],  FILTER_VALIDATE_BOOLEAN );
-    $hero_label    = sanitize_title( (string) $atts['hero_label'] );
+    $filter_meta   = themisdb_fs_parse_filter( $atts['filter'] );
+    $hero_tags     = 'tag' === $filter_meta['mode'] ? (array) $filter_meta['terms'] : array();
+    if ( empty( $hero_tags ) ) {
+        $hero_tags = array( 'hero' );
+    }
+    $hero_label    = implode( ',', $hero_tags );
     $raw_accent    = (string) $atts['accent_color'];
     $accent_color  = preg_match( '/^#[0-9a-fA-F]{3,6}$/', $raw_accent ) ? $raw_accent : '#0284c7';
     $readmore_text = themisdb_fs_get_default_readmore_text();
@@ -420,7 +840,7 @@ function themisdb_fs_shortcode( $atts ) {
     $respect_reduced_motion = filter_var( $atts['respect_reduced_motion'], FILTER_VALIDATE_BOOLEAN );
     $labels        = themisdb_fs_get_slider_labels( $category, $readmore_text );
 
-    // Query posts.
+    // Query hero content (posts + pages) filtered by configurable tag slugs.
     $query_args = array(
         'post_type'           => array( 'post', 'page' ),
         'post_status'         => 'publish',
@@ -434,8 +854,19 @@ function themisdb_fs_shortcode( $atts ) {
         $query_args['category_name'] = $category;
     }
 
-    if ( '' !== $hero_label ) {
-        $query_args['tag'] = $hero_label;
+    if ( 'tag' === $filter_meta['mode'] && ! empty( $filter_meta['terms'] ) ) {
+        $query_args['tax_query'] = array(
+            array(
+                'taxonomy' => 'post_tag',
+                'field'    => 'slug',
+                'terms'    => $filter_meta['terms'],
+                'operator' => 'IN',
+            ),
+        );
+    } elseif ( 'category' === $filter_meta['mode'] && ! empty( $filter_meta['terms'] ) ) {
+        $query_args['category_name'] = implode( ',', array_map( 'sanitize_title', $filter_meta['terms'] ) );
+    } elseif ( 'search' === $filter_meta['mode'] && '' !== $filter_meta['search'] ) {
+        $query_args['s'] = sanitize_text_field( $filter_meta['search'] );
     }
 
     $query_args = apply_filters( 'themisdb_front_slider_shortcode_query_args', $query_args, $atts );
@@ -458,7 +889,36 @@ function themisdb_fs_shortcode( $atts ) {
         );
     }
 
+    $initial_active_id = 0;
+    if ( ! empty( $slides ) ) {
+        $initial_active_id = (int) $slides[0]['id'];
+        $found_image_slide = false;
+
+        // Prefer a slide with a featured image so the blended hero background is
+        // visually available immediately on first paint.
+        foreach ( $slides as $slide_meta ) {
+            $has_thumb = ! empty( trim( (string) $slide_meta['thumbnail'] ) );
+            if ( $has_thumb ) {
+                $initial_active_id = (int) $slide_meta['id'];
+                $found_image_slide = true;
+                break;
+            }
+        }
+
+        // Fallback to first slide with teaser text when no featured image exists.
+        if ( ! $found_image_slide ) {
+            foreach ( $slides as $slide_meta ) {
+                $has_teaser = ! empty( trim( (string) $slide_meta['excerpt'] ) );
+                if ( $has_teaser ) {
+                    $initial_active_id = (int) $slide_meta['id'];
+                    break;
+                }
+            }
+        }
+    }
+
     $payload = array(
+        'query'         => $query,
         'posts_count'   => $posts_count,
         'interval'      => $interval,
         'category'      => $category,
@@ -466,6 +926,8 @@ function themisdb_fs_shortcode( $atts ) {
         'show_date'     => $show_date,
         'show_category' => $show_category,
         'autoplay'      => $autoplay,
+        'filter'        => (string) $atts['filter'],
+        'filter_meta'   => $filter_meta,
         'hero_label'    => $hero_label,
         'accent_color'  => $accent_color,
         'readmore_text' => $readmore_text,
@@ -475,6 +937,7 @@ function themisdb_fs_shortcode( $atts ) {
         'labels'        => $labels,
         'query_args'    => $query_args,
         'slides'        => $slides,
+        'initial_active_id' => $initial_active_id,
     );
     $payload = apply_filters( 'themisdb_front_slider_shortcode_payload', $payload, $atts );
 
@@ -485,6 +948,8 @@ function themisdb_fs_shortcode( $atts ) {
     }
 
     ob_start();
+    // Extract payload variables for template access
+    extract( $payload, EXTR_SKIP );
     include THEMISDB_FS_PLUGIN_DIR . 'templates/slider.php';
     $html = ob_get_clean();
     $html = themisdb_fs_compact_markup( (string) $html );
@@ -502,18 +967,12 @@ add_action( 'init', 'themisdb_fs_register_block' );
 function themisdb_fs_register_block() {
     $block_json_path = THEMISDB_FS_PLUGIN_DIR . 'block.json';
 
-    wp_register_script(
-        'themisdb-front-slider-block-editor',
-        THEMISDB_FS_PLUGIN_URL . 'assets/js/block.js',
-        array( 'wp-blocks', 'wp-element', 'wp-i18n', 'wp-components', 'wp-block-editor', 'wp-server-side-render' ),
-        THEMISDB_FS_VERSION,
-        true
-    );
-
+    // Script is pre-registered in themisdb_fs_register_assets()
     if ( function_exists( 'register_block_type_from_metadata' ) && file_exists( $block_json_path ) ) {
         register_block_type_from_metadata(
             THEMISDB_FS_PLUGIN_DIR,
             array(
+                'editor_script'   => 'themisdb-front-slider-block-js',
                 'style'           => 'themisdb-front-slider-css',
                 'editor_style'    => 'themisdb-front-slider-editor-css',
                 'render_callback' => 'themisdb_fs_render_block',
@@ -525,7 +984,7 @@ function themisdb_fs_register_block() {
     register_block_type(
         'themisdb/front-slider',
         array(
-            'editor_script'   => 'themisdb-front-slider-block-editor',
+            'editor_script'   => 'themisdb-front-slider-block-js',
             'style'           => 'themisdb-front-slider-css',
             'editor_style'    => 'themisdb-front-slider-editor-css',
             'render_callback' => 'themisdb_fs_render_block',
@@ -558,6 +1017,14 @@ function themisdb_fs_register_block() {
                     'type'    => 'boolean',
                     'default' => true,
                 ),
+                'filter' => array(
+                    'type'    => 'string',
+                    'default' => 'hero',
+                ),
+                'hero_label' => array(
+                    'type'    => 'string',
+                    'default' => 'hero',
+                ),
                 'accent_color' => array(
                     'type'    => 'string',
                     'default' => '#0284c7',
@@ -588,6 +1055,8 @@ function themisdb_fs_render_block( $attributes ) {
         'date'          => isset( $attributes['date'] )          ? $attributes['date']          : null,
         'cat_label'     => isset( $attributes['cat_label'] )     ? $attributes['cat_label']     : null,
         'autoplay'      => isset( $attributes['autoplay'] )      ? $attributes['autoplay']      : null,
+        'filter'        => isset( $attributes['filter'] )        ? $attributes['filter']        : null,
+        'hero_label'    => isset( $attributes['hero_label'] )    ? $attributes['hero_label']    : null,
         'accent_color'  => isset( $attributes['accent_color'] )  ? $attributes['accent_color']  : null,
         'img_size'      => isset( $attributes['img_size'] )      ? $attributes['img_size']      : null,
         'layout_preset' => isset( $attributes['layout_preset'] ) ? $attributes['layout_preset'] : null,
@@ -632,10 +1101,15 @@ function themisdb_fs_sanitize_options( $input ) {
     $clean['posts_count']   = max( 1, min( 20,    (int)  $input['posts_count'] ) );
     $clean['interval']      = max( 1000, min( 30000, (int) $input['interval'] ) );
     $clean['category']      = sanitize_text_field( $input['category'] );
+    $raw_filter             = isset( $input['filter'] ) ? $input['filter'] : ( isset( $input['hero_label'] ) ? $input['hero_label'] : 'hero' );
+    $filter                 = themisdb_fs_parse_filter( $raw_filter );
+    $clean['filter']        = $filter['raw'];
+    $clean['hero_label']    = 'tag' === $filter['mode'] ? implode( ',', (array) $filter['terms'] ) : 'hero';
     $clean['show_excerpt']  = ! empty( $input['show_excerpt'] );
     $clean['show_date']     = ! empty( $input['show_date'] );
     $clean['show_category'] = ! empty( $input['show_category'] );
     $clean['autoplay']      = ! empty( $input['autoplay'] );
+    $clean['respect_reduced_motion'] = ! empty( $input['respect_reduced_motion'] );
     return $clean;
 }
 
@@ -647,10 +1121,13 @@ function themisdb_fs_settings_page() {
     $posts_count   = isset( $opts['posts_count'] )   ? (int)  $opts['posts_count']   : 5;
     $interval      = isset( $opts['interval'] )      ? (int)  $opts['interval']      : 5000;
     $category      = isset( $opts['category'] )      ?        $opts['category']      : '';
+    $filter        = isset( $opts['filter'] )        ?        $opts['filter']        : ( isset( $opts['hero_label'] ) ? $opts['hero_label'] : 'hero' );
+    $hero_label    = isset( $opts['hero_label'] )    ?        $opts['hero_label']    : 'hero';
     $show_excerpt  = isset( $opts['show_excerpt'] )  ? (bool) $opts['show_excerpt']  : true;
     $show_date     = isset( $opts['show_date'] )     ? (bool) $opts['show_date']     : true;
     $show_category = isset( $opts['show_category'] ) ? (bool) $opts['show_category'] : true;
     $autoplay      = isset( $opts['autoplay'] )      ? (bool) $opts['autoplay']      : true;
+    $respect_reduced_motion = isset( $opts['respect_reduced_motion'] ) ? (bool) $opts['respect_reduced_motion'] : false;
 
     $_tfs_page = 'themisdb-front-slider';
     $_tfs_tab  = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'settings';
@@ -698,9 +1175,24 @@ function themisdb_fs_settings_page() {
                         <tbody>
                             <tr><th><?php esc_html_e( 'Beiträge', 'themisdb-front-slider' ); ?></th><td><?php echo esc_html( $posts_count ); ?></td></tr>
                             <tr><th><?php esc_html_e( 'Intervall', 'themisdb-front-slider' ); ?></th><td><?php echo esc_html( $interval ); ?> ms</td></tr>
+                            <tr><th><?php esc_html_e( 'Filter', 'themisdb-front-slider' ); ?></th><td><?php echo esc_html( $filter ); ?></td></tr>
                             <tr><th><?php esc_html_e( 'Autoplay', 'themisdb-front-slider' ); ?></th><td><?php echo $autoplay ? esc_html__( 'Aktiv', 'themisdb-front-slider' ) : esc_html__( 'Deaktiviert', 'themisdb-front-slider' ); ?></td></tr>
                         </tbody>
                     </table>
+                </div>
+                <div class="card">
+                    <h2><?php esc_html_e( 'Bildfokus Schnellhilfe', 'themisdb-front-slider' ); ?></h2>
+                    <p><?php esc_html_e( 'Pro Beitrag/Seite kann im Editor-Feld „Hero Slider Bildfokus“ ein Fokuspunkt gesetzt werden.', 'themisdb-front-slider' ); ?></p>
+                    <table class="widefat striped">
+                        <tbody>
+                            <tr><th><?php esc_html_e( 'Portraet', 'themisdb-front-slider' ); ?></th><td><code>50% 28%</code></td></tr>
+                            <tr><th><?php esc_html_e( 'Landschaft', 'themisdb-front-slider' ); ?></th><td><code>50% 42%</code></td></tr>
+                            <tr><th><?php esc_html_e( 'Gesicht links', 'themisdb-front-slider' ); ?></th><td><code>35% 35%</code></td></tr>
+                            <tr><th><?php esc_html_e( 'Gesicht rechts', 'themisdb-front-slider' ); ?></th><td><code>65% 35%</code></td></tr>
+                            <tr><th><?php esc_html_e( 'Obere Motivkante', 'themisdb-front-slider' ); ?></th><td><code>50% 20%</code></td></tr>
+                        </tbody>
+                    </table>
+                    <p class="description"><?php esc_html_e( 'Gueltige Formate: Prozentpaare (x% y%) oder Keywords (left|center|right + top|center|bottom). Leer lassen nutzt die Automatik.', 'themisdb-front-slider' ); ?></p>
                 </div>
             </div>
             <form method="post" action="options.php">
@@ -737,6 +1229,16 @@ function themisdb_fs_settings_page() {
                         </td>
                     </tr>
                     <tr>
+                        <th scope="row">
+                            <label for="filter"><?php esc_html_e( 'Freier Filter', 'themisdb-front-slider' ); ?></label>
+                        </th>
+                        <td>
+                            <input type="text" id="filter" name="themisdb_fs_options[filter]"
+                                   value="<?php echo esc_attr( $filter ); ?>" class="regular-text">
+                            <p class="description"><?php esc_html_e( 'Standard: hero. Beispiele: hero,featured | tag:hero,featured | category:news | search:vector | none', 'themisdb-front-slider' ); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row"><?php esc_html_e( 'Sichtbare Elemente', 'themisdb-front-slider' ); ?></th>
                         <td>
                             <label>
@@ -760,6 +1262,11 @@ function themisdb_fs_settings_page() {
                             <label>
                                 <input type="checkbox" name="themisdb_fs_options[autoplay]" value="1" <?php checked( $autoplay ); ?>>
                                 <?php esc_html_e( 'Slider automatisch weiterschalten', 'themisdb-front-slider' ); ?>
+                            </label>
+                            <br>
+                            <label>
+                                <input type="checkbox" name="themisdb_fs_options[respect_reduced_motion]" value="1" <?php checked( $respect_reduced_motion ); ?>>
+                                <?php esc_html_e( 'Systemeinstellung „Bewegung reduzieren" respektieren', 'themisdb-front-slider' ); ?>
                             </label>
                         </td>
                     </tr>
@@ -788,6 +1295,14 @@ function themisdb_fs_settings_page() {
                     <tr>
                         <td><code>[themisdb_front_slider category="news" posts="5"]</code></td>
                         <td><?php esc_html_e( 'Slider mit 5 Beiträgen aus der Kategorie „news".', 'themisdb-front-slider' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>[themisdb_front_slider filter="hero,featured"]</code></td>
+                        <td><?php esc_html_e( 'Freier Filter auf Tag-Slugs.', 'themisdb-front-slider' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>[themisdb_front_slider filter="category:news"]</code></td>
+                        <td><?php esc_html_e( 'Nur Inhalte aus der Kategorie „news" anzeigen.', 'themisdb-front-slider' ); ?></td>
                     </tr>
                     <tr>
                         <td><code>[themisdb_front_slider interval="3000" autoplay="yes"]</code></td>
@@ -824,6 +1339,16 @@ function themisdb_fs_settings_page() {
                         <td><code>category</code></td>
                         <td><?php esc_html_e( 'Kategorie-Slug (leer = alle)', 'themisdb-front-slider' ); ?></td>
                         <td><?php echo esc_html( $category ?: '—' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>filter</code></td>
+                        <td><?php esc_html_e( 'Freier Filter: tags (default), category:, search:, oder none', 'themisdb-front-slider' ); ?></td>
+                        <td><?php echo esc_html( $filter ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>hero_label</code></td>
+                        <td><?php esc_html_e( 'Legacy-Alias für tagbasierten Filter', 'themisdb-front-slider' ); ?></td>
+                        <td><?php echo esc_html( $hero_label ); ?></td>
                     </tr>
                     <tr>
                         <td><code>excerpt</code></td>

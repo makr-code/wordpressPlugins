@@ -199,18 +199,8 @@
         });
     });
 
-    document.querySelectorAll('.themisdb-fs-wrapper').forEach(function (root) {
-        initSlider({
-            root: root,
-            trackSel: '.themisdb-fs-track',
-            slideSel: '.themisdb-fs-slide',
-            dotSel: '.themisdb-fs-dot',
-            prevSel: '.themisdb-fs-prev',
-            nextSel: '.themisdb-fs-next',
-            progressSel: '.themisdb-fs-timer-fill',
-            intervalFromDataAttr: 'data-interval',
-            autoplayFromDataAttr: 'data-autoplay',
-            translateTrack: true,
-        });
-    });
+    // SOC boundary:
+    // Plugin slider wrappers (.themisdb-fs-wrapper) are controlled exclusively by
+    // the plugin script `themisdb-front-slider.js`.
+    // This theme/Horizon controller stays responsible only for theme hero markup.
 })();

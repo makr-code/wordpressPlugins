@@ -1,0 +1,183 @@
+- generic [active] [ref=e1]:
+  - link "Zum Inhalt springen" [ref=e2] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - link "Zum Inhalt springen" [ref=e3] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - banner [ref=e6]:
+        - button "Toggle Navigation Graph" [ref=e7] [cursor=pointer]
+        - generic [ref=e10]:
+          - generic [ref=e11]:
+            - link [ref=e13] [cursor=pointer]:
+              - /url: http://localhost/wordpress/
+              - img "WordPress Lokal" [ref=e14]
+            - paragraph [ref=e15]:
+              - link "WordPress Lokal" [ref=e16] [cursor=pointer]:
+                - /url: http://localhost/wordpress
+          - navigation "Produktnavigation Produktnavigation" [ref=e18]:
+            - list "Produktnavigation" [ref=e23]:
+              - listitem [ref=e24]:
+                - link "Partner" [ref=e25] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/partners/
+              - listitem [ref=e26]:
+                - link "Support" [ref=e27] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/support/
+              - listitem [ref=e28]:
+                - link "Ressourcen" [ref=e29] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/resources/
+          - navigation "Hilfsnavigation Hilfsnavigation" [ref=e31]:
+            - list "Hilfsnavigation" [ref=e32]:
+              - listitem [ref=e33]:
+                - link "Partner" [ref=e34] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/partners/
+              - listitem [ref=e35]:
+                - link "Support" [ref=e36] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/support/
+              - listitem [ref=e37]:
+                - link "Ressourcen" [ref=e38] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/resources/
+          - generic [ref=e39]:
+            - search [ref=e40]:
+              - generic [ref=e41]: Suche
+              - generic [ref=e42]:
+                - searchbox "Suche" [ref=e43]
+                - button "Suchen" [ref=e44] [cursor=pointer]
+            - link "Anmelden" [ref=e48] [cursor=pointer]:
+              - /url: http://localhost/wordpress/login/
+    - generic [ref=e50]:
+      - navigation "Breadcrumb-Navigation" [ref=e51]:
+        - list [ref=e52]:
+          - listitem [ref=e53]:
+            - link "Start" [ref=e54] [cursor=pointer]:
+              - /url: http://localhost/wordpress/
+          - listitem [ref=e56]:
+            - text: /
+            - generic [ref=e57]: Ressourcen
+      - navigation "Kontextnavigation" [ref=e58]:
+        - navigation "Abschnitte auf dieser Seite" [ref=e60]:
+          - list [ref=e61]:
+            - listitem [ref=e62]:
+              - link "Autor:innen" [ref=e63] [cursor=pointer]:
+                - /url: "#autor-innen"
+            - listitem [ref=e64]:
+              - text: /
+              - link "Qualität" [ref=e65] [cursor=pointer]:
+                - /url: "#qualitat"
+            - listitem [ref=e66]:
+              - text: /
+              - 'link "KI-Bewertung gemma4Schieberegler: Ihre Bewertung" [ref=e67] [cursor=pointer]':
+                - /url: "#ki-bewertung-gemma4schieberegler-ihre-bewertung"
+            - listitem [ref=e68]:
+              - text: /
+              - link "Medien" [ref=e69] [cursor=pointer]:
+                - /url: "#medien"
+    - main [ref=e70]:
+      - heading "Ressourcen" [level=1] [ref=e71]
+      - generic [ref=e74]:
+        - generic [ref=e75]: ·
+        - time [ref=e77]: 20. August 2026
+        - generic [ref=e78]: ·
+        - paragraph [ref=e79]:
+          - generic [ref=e80]: 1 Min. Lesezeit
+      - generic [ref=e82]:
+        - heading "Ressourcen" [level=1] [ref=e83]
+        - paragraph [ref=e84]: Ressourcen folgen.
+      - generic [ref=e85]:
+        - heading "Autor:innen" [level=4] [ref=e89]
+        - generic [ref=e90]:
+          - heading "Qualität" [level=4] [ref=e91]
+          - generic [ref=e92]:
+            - 'heading "KI-Bewertung gemma4 Schieberegler: Ihre Bewertung" [level=4] [ref=e93]':
+              - text: KI-Bewertung
+              - generic [ref=e94]: gemma4
+              - generic [ref=e95]: "Schieberegler: Ihre Bewertung"
+            - generic [ref=e96]:
+              - generic [ref=e97]: ■ KI
+              - generic [ref=e98]: ■ Kombiniert
+            - generic [ref=e99]:
+              - generic [ref=e100]: Qualität · 50
+              - slider "Qualität Ihre Bewertung" [ref=e104] [cursor=pointer]: "50"
+              - generic [ref=e105]: "50"
+            - generic [ref=e106]:
+              - generic [ref=e107]: Impact · 50
+              - slider "Impact Ihre Bewertung" [ref=e111] [cursor=pointer]: "50"
+              - generic [ref=e112]: "50"
+            - generic [ref=e113]:
+              - generic [ref=e114]: Lesbarkeit · 50
+              - slider "Lesbarkeit Ihre Bewertung" [ref=e118] [cursor=pointer]: "50"
+              - generic [ref=e119]: "50"
+            - generic [ref=e120]:
+              - generic [ref=e121]: Treue · 50
+              - slider "Treue Ihre Bewertung" [ref=e125] [cursor=pointer]: "50"
+              - generic [ref=e126]: "50"
+            - paragraph [ref=e127]: Für diese Seite liegen keine KI-Metriken vor. Sie können die Kriterien dennoch manuell bewerten.
+        - generic [ref=e128]:
+          - heading "Medien" [level=4] [ref=e129]
+          - paragraph [ref=e130]: Kein Medienanhang vorhanden.
+      - separator [ref=e131]
+      - generic [ref=e133]:
+        - 'link "Vorheriger: Support" [ref=e136] [cursor=pointer]':
+          - /url: http://localhost/wordpress/support/
+        - 'link "Nächster: Getting Started" [ref=e139] [cursor=pointer]':
+          - /url: http://localhost/wordpress/docs/getting-started/
+    - contentinfo [ref=e141]:
+      - contentinfo [ref=e142]:
+        - generic [ref=e143]:
+          - generic [ref=e145]:
+            - generic:
+              - link "WordPress Lokal":
+                - /url: http://localhost/wordpress/
+                - img "WordPress Lokal"
+            - paragraph [ref=e146]:
+              - link "WordPress Lokal" [ref=e147] [cursor=pointer]:
+                - /url: http://localhost/wordpress
+            - paragraph [ref=e148]: Lokale Testinstanz
+          - generic [ref=e149]:
+            - heading "Navigation" [level=6] [ref=e150]
+            - navigation "Footer-Navigation Footer-Navigation" [ref=e151]:
+              - list "Footer-Navigation" [ref=e152]:
+                - listitem [ref=e153]:
+                  - link "Support-Portal" [ref=e154] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/
+                - listitem [ref=e155]:
+                  - link "Neues Ticket" [ref=e156] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-support-new-ticket-section
+                - listitem [ref=e157]:
+                  - link "Meine Tickets" [ref=e158] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-support-ticket-list-section
+                - listitem [ref=e159]:
+                  - link "Vertragsmanagement" [ref=e160] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/#themisdb-lifecycle-section
+          - generic [ref=e161]:
+            - heading "Rechtliches" [level=6] [ref=e162]
+            - list [ref=e163]:
+              - listitem [ref=e164]:
+                - link "GitHub" [ref=e165] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=e169]:
+                - link "LinkedIn" [ref=e170] [cursor=pointer]:
+                  - /url: "#"
+        - paragraph [ref=e174]: Powered by WordPress.
+  - option "Alle Typen" [selected]
+  - 'option "Typ: category"'
+  - 'option "Typ: external_resource"'
+  - 'option "Typ: home"'
+  - 'option "Typ: page"'
+  - 'option "Typ: post"'
+  - 'option "Typ: tag"'
+  - 'option "Sortierung: Titel A-Z" [selected]'
+  - 'option "Sortierung: Titel Z-A"'
+  - 'option "Sortierung: Typ"'
+  - 'option "Sortierung: Groesse"'
+  - 'option "Sortierung: Count"'
+  - 'option "Visualisierung: Force Layout" [selected]'
+  - 'option "Visualisierung: Galaxy Mode"'
+  - 'option "Clustering: Aus" [selected]'
+  - 'option "Clustering: Nach Typ"'
+  - 'option "Clustering: Nach Ebene"'
+  - option "Preset laden..." [selected]
+  - option "Ueberschreiben" [selected]
+  - option "Bestehende ueberspringen"
+  - option "Nur neue Presets"
+  - option "Fragen je Preset"

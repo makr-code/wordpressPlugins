@@ -19,50 +19,7 @@
 
 <!-- wp:pattern {"slug":"themisdb-v3/cta-download"} /-->
 
-<!-- wp:group {"layout":{"type":"constrained","contentSize":"1200px"}} -->
-<div class="wp-block-group tv3-docs-grid-section tv3-blog-grid-section">
-
-<!-- wp:paragraph {"align":"center","className":"tv3-docs-grid-kicker-wrap"} -->
-<p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker">Blog</span></p>
-<!-- /wp:paragraph -->
-
-<!-- wp:heading {"level":2,"textAlign":"center"} -->
-<h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title">Aktuelle Blog-Beiträge</h2>
-<!-- /wp:heading -->
-
-<!-- wp:paragraph {"textAlign":"center"} -->
-<p class="has-text-align-center tv3-docs-grid-subtitle">Die letzten 9 Artikel als Kartenansicht. Lesenswerte Beiträge werden hervorgehoben.</p>
-<!-- /wp:paragraph -->
-
-<!-- wp:query {"queryId":1,"query":{"perPage":9,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false},"className":"tv3-query-front","layout":{"type":"default"}} -->
-<div class="wp-block-query tv3-query-front">
-<!-- wp:post-template {"className":"tv3-post-grid","layout":{"type":"grid","columnCount":3}} -->
-<!-- wp:group {"className":"tv3-card tv3-card-item","layout":{"type":"constrained"}} -->
-<div class="wp-block-group tv3-card tv3-card-item">
-<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"16/9","className":"tv3-card-media"} /-->
-
-<!-- wp:group {"className":"tv3-card-body","layout":{"type":"constrained"}} -->
-<div class="wp-block-group tv3-card-body">
-<!-- wp:post-terms {"term":"category","separator":" · ","className":"tv3-card-meta"} /-->
-<!-- wp:post-title {"level":3,"isLink":true,"className":"tv3-card-title"} /-->
-<!-- wp:post-excerpt {"excerptLength":24,"className":"tv3-card-excerpt"} /-->
-<!-- wp:read-more {"content":"Beitrag anzeigen","className":"tv3-card-link"} /-->
-</div>
-<!-- /wp:group -->
-</div>
-<!-- /wp:group -->
-<!-- /wp:post-template -->
-
-<!-- wp:query-no-results -->
-<!-- wp:paragraph {"className":"tv3-query-no-results"} -->
-<p class="tv3-query-no-results">Keine Blog-Beiträge gefunden.</p>
-<!-- /wp:paragraph -->
-<!-- /wp:query-no-results -->
-</div>
-<!-- /wp:query -->
-
-</div>
-<!-- /wp:group -->
+<!-- wp:shortcode -->[themisdb_v3_blog_section limit="9" post_types="post" category="blog" priority_tag="lesenswert,recommended,editor-pick,hero,frontpage-feature" excerpt_words="24"]<!-- /wp:shortcode -->
 
 </main>
 <!-- /wp:group -->

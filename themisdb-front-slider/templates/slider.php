@@ -28,6 +28,7 @@ $pagination_label = isset( $labels['pagination'] ) ? (string) $labels['paginatio
 $slide_label_format = isset( $labels['slide'] ) ? (string) $labels['slide'] : '';
 $readmore_aria_format = isset( $labels['readmore_aria'] ) ? (string) $labels['readmore_aria'] : '';
 $has_multiple_slides = $query->post_count > 1;
+$initial_active_id = isset( $initial_active_id ) ? (int) $initial_active_id : 0;
 $is_hero_context = isset( $hero_label ) && '' !== (string) $hero_label;
 $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_reduced_motion : true;
 ?>
@@ -117,14 +118,21 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
                 );
                 $hero_images = array_slice( $hero_images, 0, 4 );
                 $extra_cta_buttons = $is_hero_context ? themisdb_fs_get_post_cta_buttons( $post_id, 2 ) : array();
-                $is_active    = ( 0 === $slide_index );
+                $is_active    = ( $initial_active_id > 0 ) ? ( $post_id === $initial_active_id ) : ( 0 === $slide_index );
+                $has_visual_media = ! empty( $hero_images );
+                $slide_bg_position = $has_visual_media ? themisdb_fs_get_slide_background_position( $post_id, $thumb_id ) : '50% 50%';
+                $slide_bg_position_mobile = $has_visual_media ? themisdb_fs_get_slide_background_position_mobile( $post_id, $thumb_id ) : $slide_bg_position;
+                $slide_bg_image = $has_visual_media
+                    ? ' style="--tfs-slide-bg-image:url(' . esc_url( $hero_images[0] ) . ');--tfs-slide-bg-position:' . esc_attr( $slide_bg_position ) . ';--tfs-slide-bg-position-mobile:' . esc_attr( $slide_bg_position_mobile ) . ';"'
+                    : '';
             ?>
             <div
-                class="themisdb-fs-slide la-hero-slide<?php echo $is_active ? ' is-active' : ''; ?>"
+                class="themisdb-fs-slide la-hero-slide<?php echo $is_active ? ' is-active' : ''; ?><?php echo $has_visual_media ? '' : ' themisdb-fs-slide--no-image'; ?>"
                 role="group"
                 aria-roledescription="slide"
                 aria-label="<?php echo esc_attr( sprintf( $slide_label_format, $slide_index + 1, $query->post_count ) ); ?>"
                 aria-hidden="<?php echo $is_active ? 'false' : 'true'; ?>"
+                <?php echo $slide_bg_image; ?>
             >
                 <div class="themisdb-fs-slide-inner">
 
@@ -157,8 +165,13 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
                         <?php if ( $show_excerpt ) : ?>
                         <?php
                         $excerpt = wp_strip_all_tags( (string) get_the_excerpt( $post_id ) );
+                        if ( '' === $excerpt ) {
+                            $excerpt = wp_strip_all_tags( (string) get_post_field( 'post_content', $post_id ) );
+                        }
                         if ( $is_hero_context ) {
                             $excerpt = wp_trim_words( $excerpt, 32, '…' );
+                        } else {
+                            $excerpt = wp_trim_words( $excerpt, 24, '…' );
                         }
                         ?>
                         <?php if ( '' !== $excerpt ) : ?>

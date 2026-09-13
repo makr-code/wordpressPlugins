@@ -41,6 +41,20 @@
 		var navToggle = document.querySelector( '.wp-block-navigation__responsive-container-open' );
 		var navClose  = document.querySelector( '.wp-block-navigation__responsive-container-close' );
 		var navMenu   = document.querySelector( '.wp-block-navigation__responsive-container' );
+		var body      = document.body;
+		var lockClass = 'tv3-nav-overlay-open';
+
+		function syncNavOverlayState() {
+			if ( ! navMenu ) {
+				return;
+			}
+
+			if ( navMenu.classList.contains( 'is-menu-open' ) ) {
+				body.classList.add( lockClass );
+			} else {
+				body.classList.remove( lockClass );
+			}
+		}
 
 		if ( navToggle ) {
 			navToggle.setAttribute( 'aria-label', 'Open navigation menu' );
@@ -57,12 +71,32 @@
 			} );
 		}
 
+		if ( navClose && navMenu ) {
+			navClose.addEventListener( 'click', function () {
+				syncNavOverlayState();
+			} );
+		}
+
+		if ( navMenu && 'MutationObserver' in window ) {
+			var observer = new MutationObserver( function () {
+				syncNavOverlayState();
+			} );
+
+			observer.observe( navMenu, {
+				attributes: true,
+				attributeFilter: [ 'class' ]
+			} );
+		}
+
+		syncNavOverlayState();
+
 		// Close mobile menu on Escape key
 		document.addEventListener( 'keydown', function ( e ) {
 			if ( e.key === 'Escape' && navMenu ) {
 				if ( navMenu.classList.contains( 'is-menu-open' ) && navClose ) {
 					navClose.click();
 					if ( navToggle ) navToggle.focus();
+						syncNavOverlayState();
 				}
 			}
 		} );
