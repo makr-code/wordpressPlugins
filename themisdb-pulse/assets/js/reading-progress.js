@@ -272,7 +272,7 @@
         // Map section titles to landing page URLs
         var sectionToLandingPageMap = {
             'Everything you need in one database': '/features/',
-            'Explore the Documentation': '/documentation/',
+            'Explore the Documentation': '/docs/',
             'Start free. Scale with confidence.': '/pricing/',
             'Get ThemisDB v3': '/downloads/',
             'Aktuelle Blog-Beiträge': '/blog/'

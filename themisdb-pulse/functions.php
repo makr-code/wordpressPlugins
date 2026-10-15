@@ -2606,10 +2606,13 @@ function themisdb_v3_render_blog_section_shortcode( $atts = array() ) {
             'category'      => 'blog',
             'priority_tag'  => 'lesenswert,recommended,editor-pick,hero,frontpage-feature',
             'excerpt_words' => 24,
+            'show_heading'  => 'true',
         ),
         $atts,
         'themisdb_v3_blog_section'
     );
+
+    $show_heading = filter_var( $atts['show_heading'], FILTER_VALIDATE_BOOLEAN );
 
     $copy = themisdb_v3_get_frontpage_section_copy(
         'blog',
@@ -2635,9 +2638,11 @@ function themisdb_v3_render_blog_section_shortcode( $atts = array() ) {
     }
 
     $html  = '<div class="wp-block-group tv3-docs-grid-section tv3-blog-grid-section">';
-    $html .= '<p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker">' . esc_html( (string) $copy['kicker'] ) . '</span></p>';
-    $html .= '<h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title">' . esc_html( (string) $copy['title'] ) . '</h2>';
-    $html .= '<p class="has-text-align-center tv3-docs-grid-subtitle">' . esc_html( (string) $copy['subtitle'] ) . '</p>';
+    if ( $show_heading ) {
+        $html .= '<p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker">' . esc_html( (string) $copy['kicker'] ) . '</span></p>';
+        $html .= '<h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title">' . esc_html( (string) $copy['title'] ) . '</h2>';
+        $html .= '<p class="has-text-align-center tv3-docs-grid-subtitle">' . esc_html( (string) $copy['subtitle'] ) . '</p>';
+    }
     $html .= (string) $cards_html;
     $html .= '</div>';
 
@@ -3224,173 +3229,33 @@ function themisdb_v3_enqueue_plugin_base_styles() {
  * against stale theme stylesheet caches during iterative local development.
  */
 function themisdb_v3_enqueue_mobile_header_nav_fix() {
-    $css = '@media (max-width: 900px) {
-        .site-header .tv3-header-row {
-            flex-wrap: nowrap;
-            align-items: center;
-            min-height: 64px;
-            gap: 0.55rem;
-        }
-
-        .site-header .tv3-header-brand {
-            flex: 1 1 auto;
-            min-width: 0;
-        }
-
-        .site-header .tv3-header-split-left {
-            order: 2;
-            flex: 0 0 auto;
-            margin-left: auto;
+    $css = '
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-open,
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container,
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-content,
+        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-close {
+            display: none !important;
         }
 
         .site-header .tv3-header-split-left .wp-block-navigation__container {
-            display: none !important;
+            display: flex !important;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.35rem;
         }
 
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-open {
+        .site-header .tv3-header-split-left .wp-block-navigation-item__content {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 0.45rem;
-            min-width: 5.6rem;
-            height: auto;
+            padding: 0.4rem 0.8rem;
             border-radius: 999px;
-            border: 1px solid rgba(40, 77, 116, 0.24);
-            background: rgba(255, 255, 255, 0.92);
-            color: #284d74;
-            padding: 0.55rem 0.9rem;
-            font-size: 0.88rem;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(40, 77, 116, 0.12);
+            color: var(--tv3-navy);
             font-weight: 700;
-            letter-spacing: 0.01em;
-            box-shadow: 0 8px 22px rgba(15, 31, 49, 0.08);
         }
-
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-open::after {
-            content: "Menü";
-        }
-
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-open svg,
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-open img {
-            display: none;
-        }
-
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container {
-            position: fixed;
-            inset: 0;
-            z-index: 9998;
-            width: 100vw;
-            height: 100dvh;
-            border: 0;
-            border-radius: 0;
-            background: rgba(8, 16, 28, 0.56);
-            backdrop-filter: blur(10px);
-            padding: 0.9rem;
-            align-items: flex-start;
-            justify-content: flex-end;
-        }
-
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-content {
-            width: min(26rem, calc(100vw - 1.8rem));
-            max-height: calc(100dvh - 2rem);
-            overflow: auto;
-            margin-left: auto;
-            border-radius: 22px;
-            border: 1px solid rgba(140, 166, 191, 0.22);
-            background: rgba(255, 255, 255, 0.98);
-            box-shadow: 0 24px 70px rgba(8, 16, 28, 0.24);
-            padding: 1rem;
-        }
-
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-close {
-            position: sticky;
-            top: 0;
-            margin-left: auto;
-            margin-bottom: 0.6rem;
-            width: 2.2rem;
-            height: 2.2rem;
-            border-radius: 999px;
-            background: rgba(30, 111, 186, 0.08);
-        }
-
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-close:hover,
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-close:focus {
-            background: rgba(30, 111, 186, 0.14);
-        }
-
-        body:has(.site-header .tv3-header-split-left .wp-block-navigation__responsive-container.is-menu-open) {
-            overflow: hidden;
-            touch-action: none;
-        }
-
-        body:has(.site-header .tv3-header-split-left .wp-block-navigation__responsive-container.is-menu-open) .site-header {
-            position: relative;
-            z-index: 10000;
-        }
-
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container .wp-block-navigation__container {
-            display: flex !important;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 0.25rem;
-        }
-
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container .wp-block-navigation-item__content {
-            width: 100%;
-            justify-content: space-between;
-            border-radius: 14px;
-            padding: 0.78rem 0.92rem;
-        }
-
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container .wp-block-navigation__submenu-container {
-            width: 100%;
-            min-width: 0;
-            margin-top: 0.35rem;
-            box-shadow: none;
-        }
-
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container .wp-block-navigation-submenu__toggle {
-            margin-left: auto;
-        }
-
-        .site-header .tv3-header-utility-actions {
-            order: 3;
-            flex: 0 0 auto;
-            gap: 0.4rem;
-            margin-left: 0.15rem;
-        }
-
-        .site-header .tv3-header-search {
-            width: auto;
-        }
-
-        .site-header .tv3-header-search .wp-block-search__inside-wrapper {
-            min-height: 30px;
-            padding-inline: 0.18rem;
-        }
-
-        .site-header .tv3-header-search .wp-block-search__input {
-            display: none !important;
-        }
-
-        .site-header .tv3-header-search .wp-block-search__button {
-            min-width: 28px;
-            width: 28px;
-            height: 28px;
-            padding: 0;
-        }
-
-        .site-header .tv3-header-login,
-        .site-header .tv3-header-login.wp-block-button {
-            display: none !important;
-        }
-
-        .site-header .tv3-header-split-right,
-        .site-header .tv3-header-split-right.wp-block-group,
-        .site-header .tv3-header-utility-nav,
-        .site-header .tv3-header-utility-nav.wp-block-navigation {
-            display: none !important;
-        }
-    }';
+    ';
 
     wp_register_style( 'themisdb-v3-mobile-header-nav-fix', false, array(), THEMISDB_V3_VERSION );
     wp_enqueue_style( 'themisdb-v3-mobile-header-nav-fix' );
@@ -3650,7 +3515,24 @@ function themisdb_v3_current_page_uses_plugin_login_ui() {
  * @return bool
  */
 function themisdb_v3_is_support_page_bridge() {
-    return shortcode_exists( 'themisdb_support_portal' ) && is_page( 'support' );
+    if ( ! shortcode_exists( 'themisdb_support_portal' ) || ! is_page( 'support' ) ) {
+        return false;
+    }
+
+    $page_template = get_page_template_slug();
+    if ( empty( $page_template ) ) {
+        $page_id = get_queried_object_id();
+        if ( $page_id ) {
+            $page_template = (string) get_post_meta( $page_id, '_wp_page_template', true );
+        }
+    }
+
+    $template_name = wp_basename( (string) $page_template );
+    if ( in_array( $template_name, array( 'page-support.html', 'page-support.php' ), true ) ) {
+        return false;
+    }
+
+    return true;
 }
 
 add_filter( 'the_content', 'themisdb_v3_inject_support_portal_on_support_page', 30 );
@@ -6094,6 +5976,21 @@ function themisdb_v3_render_mixed_cards_shortcode( $atts = array() ) {
     $data = themisdb_v3_prepare_mixed_cards_data( $state );
 
     return themisdb_v3_render_mixed_cards_section( $data );
+}
+
+add_filter( 'themisdb_v3_enable_mixed_cards_on_singular', 'themisdb_v3_allow_mixed_cards_on_blog_pages', 10, 2 );
+function themisdb_v3_allow_mixed_cards_on_blog_pages( $allow, $post_id ) {
+    if ( $allow ) {
+        return true;
+    }
+
+    $post = get_post( $post_id );
+    if ( ! $post || 'page' !== $post->post_type ) {
+        return false;
+    }
+
+    $page_slug = $post->post_name;
+    return in_array( $page_slug, array( 'blog', 'beitraege', 'posts', 'news' ), true );
 }
 
 function themisdb_v3_render_mixed_cards_block( array $attributes = array() ) {
