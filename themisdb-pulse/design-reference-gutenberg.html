@@ -127,15 +127,15 @@
       background: rgba(245, 250, 255, 0.96);
       border-bottom: 1px solid var(--tv3-header-border);
       box-shadow: 0 6px 16px rgba(22, 40, 61, 0.04);
-      position: sticky;
-      top: 0;
-      z-index: 30;
+      position: static;
+      top: auto;
+      z-index: 1;
     }
 
     .sticky-breadcrumbs {
-      position: sticky;
-      top: 0;
-      z-index: 25;
+      position: relative;
+      top: auto;
+      z-index: 1;
       display: flex;
       flex-wrap: wrap;
       gap: 0.45rem;
@@ -145,9 +145,7 @@
       background: rgba(247, 251, 255, 0.96);
       border: 1px solid rgba(187, 205, 220, 0.9);
       border-radius: 12px;
-      box-shadow: 0 8px 22px rgba(25, 52, 74, 0.08);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 8px 22px rgba(25, 52, 74, 0.05);
       color: var(--tv3-text-secondary);
       font-size: 0.82rem;
     }
@@ -1132,10 +1130,7 @@
 
     @media (max-width: 820px) {
       .standard-grid,
-      .core-block-reference {
-        grid-template-columns: 1fr;
-      }
-    }
+      .core-block-reference,
       .hero__inner,
       .wp-block-columns,
       .token-grid,

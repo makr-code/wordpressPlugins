@@ -3,7 +3,7 @@
 <!-- wp:group {"tagName":"main","anchor":"wp--skip-link--target","className":"site-main tv3-single-main-shell","layout":{"type":"constrained","contentSize":"800px"}} -->
 <main id="wp--skip-link--target" class="wp-block-group site-main tv3-single-main-shell tv3-single-main">
 <!-- wp:group {"className":"tv3-single-fallback-hero","layout":{"type":"constrained","contentSize":"1000px"}} -->
-<div class="wp-block-group tv3-single-fallback-hero">
+<div id="top" class="wp-block-group tv3-single-fallback-hero">
 	<div class="tv3-single-fallback-hero__content">
 		<!-- wp:post-title {"level":1,"className":"tv3-single-fallback-title"} /-->
 		<!-- wp:template-part {"slug":"post-meta","tagName":"div","className":"tv3-single-fallback-meta"} /-->
@@ -15,7 +15,9 @@
 	<!-- wp:template-part {"slug":"breadcrumbs","area":"uncategorized","tagName":"nav","className":"tv3-breadcrumbs-single"} /-->
 
 	<!-- Article Content -->
-	<!-- wp:post-content {"className":"tv3-rich-post-content","layout":{"type":"constrained","contentSize":"800px"}} /-->
+	<div id="blocks" class="tv3-article-content-shell">
+		<!-- wp:post-content {"className":"tv3-rich-post-content","layout":{"type":"constrained","contentSize":"800px"}} /-->
+	</div>
 
 	<!-- 3-Spalten Footer: Autor · KI-Qualität · Media -->
 	<!-- wp:group {"className":"tv3-article-footer-grid tv3-article-footer-grid-shell","layout":{"type":"default"}} -->
@@ -49,7 +51,9 @@
 	<!-- /wp:group -->
 
 	<!-- Tags -->
-	<!-- wp:post-terms {"term":"post_tag","prefix":"Schlagwörter: ","className":"tv3-single-tags"} /-->
+	<div id="tokens" class="tv3-single-tags-shell">
+		<!-- wp:post-terms {"term":"post_tag","prefix":"Schlagwörter: ","className":"tv3-single-tags"} /-->
+	</div>
 
 	<!-- wp:separator {"className":"tv3-single-separator"} -->
 	<hr class="wp-block-separator has-alpha-channel-opacity tv3-single-separator" />

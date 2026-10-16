@@ -1,0 +1,41 @@
+- generic [ref=f2e1]:
+  - heading "Anmelden" [level=1] [ref=f2e2]
+  - generic [ref=f2e3]:
+    - link "Präsentiert von WordPress" [ref=f2e4] [cursor=pointer]:
+      - /url: https://de.wordpress.org/
+    - paragraph [ref=f2e6]:
+      - strong [ref=f2e7]: "Fehler:"
+      - text: Das eingegebene Passwort für den Benutzernamen
+      - strong [ref=f2e8]: admin
+      - text: ist nicht korrekt.
+      - link "Passwort vergessen?" [ref=f2e9] [cursor=pointer]:
+        - /url: http://localhost/wordpress/wp-login.php?action=lostpassword
+    - generic [ref=f2e10]:
+      - paragraph [ref=f2e11]:
+        - generic [ref=f2e12]: Benutzername oder E-Mail-Adresse
+        - textbox "Benutzername oder E-Mail-Adresse" [ref=f2e13]: admin
+      - generic [ref=f2e14]:
+        - generic [ref=f2e15]: Passwort
+        - generic [ref=f2e16]:
+          - textbox "Passwort" [active] [ref=f2e17]
+          - button "Passwort anzeigen" [ref=f2e18] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f2e19]: 
+      - paragraph [ref=f2e20]:
+        - checkbox "Angemeldet bleiben" [ref=f2e21] [cursor=pointer]
+        - generic [ref=f2e22]: Angemeldet bleiben
+      - paragraph:
+        - button "Anmelden" [ref=f2e23] [cursor=pointer]
+    - paragraph [ref=f2e24]:
+      - link "Passwort vergessen?" [ref=f2e25] [cursor=pointer]:
+        - /url: http://localhost/wordpress/wp-login.php?action=lostpassword
+    - paragraph [ref=f2e26]:
+      - link "← Zu WordPress Lokal" [ref=f2e27] [cursor=pointer]:
+        - /url: http://localhost/wordpress/
+  - generic [ref=f2e29]:
+    - generic [ref=f2e30]:
+      - generic [aria-hidden] [ref=f2e31]: 
+      - generic [ref=f2e32]: Sprache
+    - combobox "Sprache" [ref=f2e33] [cursor=pointer]:
+      - option "English (United States)"
+      - option "de_DE" [selected]
+    - button "Wechseln" [ref=f2e34] [cursor=pointer]

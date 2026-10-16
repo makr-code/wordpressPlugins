@@ -1,0 +1,11 @@
+[     862ms] [LOG] JQMIGRATE: Migrate is installed, version 3.4.1 @ http://localhost/wordpress/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1:1
+[     937ms] [LOG] TV3 Anchors: found 0 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1792060205:245
+[     953ms] [LOG] D3.js loaded successfully from: http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/vendor/d3.min.js @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:66
+[     954ms] [LOG] Using WordPress content data for graph @ http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation/assets/js/graph-navigation.js?ver=1.1.2:180
+[    1368ms] [LOG] TV3 Anchors: found 5 sections @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1792060205:245
+[    1368ms] [LOG] TV3 Anchors: added link "Security" (#security) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1792060205:295
+[    1368ms] [LOG] TV3 Anchors: added link "Autor:innen" (#autor-innen) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1792060205:295
+[    1369ms] [LOG] TV3 Anchors: added link "Qualität" (#qualitat) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1792060205:295
+[    1369ms] [LOG] TV3 Anchors: added link "KI-Bewertung gemma4Schieberegler: Ihre Bewertung" (#ki-bewertung-gemma4schieberegler-ihre-bewertung) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1792060205:295
+[    1369ms] [LOG] TV3 Anchors: added link "Medien" (#medien) @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1792060205:295
+[    1372ms] [LOG] TV3 Anchors: already ready @ http://localhost/wordpress/wp-content/themes/themisdb-pulse/assets/js/reading-progress.js?ver=1792060205:225

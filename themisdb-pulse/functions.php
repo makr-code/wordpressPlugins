@@ -34,13 +34,18 @@ define( 'THEMISDB_PULSE_TEXT_DOMAIN', 'themisdb-pulse' );
 require_once get_template_directory() . '/includes/class-themisdb-v3-hero-context-nav.php';
 
 add_action( 'after_setup_theme', 'themisdb_v3_setup' );
+add_action( 'init', 'themisdb_v3_register_announcement_post_type', 8 );
+add_action( 'init', 'themisdb_v3_register_announcement_post_meta', 9 );
 add_action( 'init', 'themisdb_v3_register_page_taxonomies', 5 );
 add_action( 'init', 'themisdb_v3_register_pattern_categories', 6 );
+add_action( 'add_meta_boxes', 'themisdb_v3_register_announcement_meta_box', 10, 2 );
+add_action( 'save_post', 'themisdb_v3_save_announcement_meta_box', 10, 2 );
 add_action( 'save_post', 'themisdb_v3_sync_ai_coauthors_on_save', 20, 3 );
 add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue_plugin_base_styles', 5 );
 add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue_mobile_header_nav_fix', 99 );
 add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue_icons_integration', 10 );
 add_action( 'wp_footer', 'themisdb_v3_inject_icon_helper_script', 99 );
+add_filter( 'style_loader_src', 'themisdb_v3_force_theme_style_cache_bust', 10, 2 );
 add_filter( 'themisdb_front_slider_enqueue_frontend_style', 'themisdb_v3_use_theme_front_slider_styles' );
 
 /**
@@ -52,6 +57,191 @@ add_filter( 'themisdb_front_slider_enqueue_frontend_style', 'themisdb_v3_use_the
  */
 function themisdb_v3_use_theme_front_slider_styles( $should_enqueue_plugin_style ) {
     return true;
+}
+
+/**
+ * Register a dedicated announcement content type for timed top-bar updates.
+ */
+function themisdb_v3_register_announcement_post_type() {
+    register_post_type(
+        'announcement',
+        array(
+            'labels' => array(
+                'name'               => __( 'Announcements', THEMISDB_PULSE_TEXT_DOMAIN ),
+                'singular_name'      => __( 'Announcement', THEMISDB_PULSE_TEXT_DOMAIN ),
+                'add_new'            => __( 'New announcement', THEMISDB_PULSE_TEXT_DOMAIN ),
+                'add_new_item'       => __( 'Add announcement', THEMISDB_PULSE_TEXT_DOMAIN ),
+                'edit_item'          => __( 'Edit announcement', THEMISDB_PULSE_TEXT_DOMAIN ),
+                'new_item'           => __( 'New announcement', THEMISDB_PULSE_TEXT_DOMAIN ),
+                'view_item'          => __( 'View announcement', THEMISDB_PULSE_TEXT_DOMAIN ),
+                'search_items'       => __( 'Search announcements', THEMISDB_PULSE_TEXT_DOMAIN ),
+                'not_found'          => __( 'No announcements found', THEMISDB_PULSE_TEXT_DOMAIN ),
+                'not_found_in_trash' => __( 'No announcements found in trash', THEMISDB_PULSE_TEXT_DOMAIN ),
+            ),
+            'public'              => true,
+            'show_ui'             => true,
+            'show_in_menu'        => true,
+            'menu_position'       => 25,
+            'menu_icon'           => 'dashicons-megaphone',
+            'has_archive'         => false,
+            'rewrite'             => array( 'slug' => 'announcement' ),
+            'supports'            => array( 'title', 'editor', 'excerpt', 'thumbnail', 'revisions' ),
+            'show_in_rest'        => true,
+            'exclude_from_search' => false,
+            'publicly_queryable'  => true,
+            'taxonomies'          => array( 'category', 'post_tag' ),
+        )
+    );
+}
+
+function themisdb_v3_register_announcement_post_meta() {
+    $meta_fields = array(
+        'announcement_start_at' => array(
+            'type'              => 'string',
+            'single'            => true,
+            'show_in_rest'      => true,
+            'sanitize_callback' => 'sanitize_text_field',
+            'auth_callback'     => function() {
+                return current_user_can( 'edit_posts' );
+            },
+        ),
+        'announcement_end_at' => array(
+            'type'              => 'string',
+            'single'            => true,
+            'show_in_rest'      => true,
+            'sanitize_callback' => 'sanitize_text_field',
+            'auth_callback'     => function() {
+                return current_user_can( 'edit_posts' );
+            },
+        ),
+        'announcement_link' => array(
+            'type'              => 'string',
+            'single'            => true,
+            'show_in_rest'      => true,
+            'sanitize_callback' => 'esc_url_raw',
+            'auth_callback'     => function() {
+                return current_user_can( 'edit_posts' );
+            },
+        ),
+    );
+
+    foreach ( $meta_fields as $meta_key => $args ) {
+        register_post_meta( 'announcement', $meta_key, $args );
+    }
+}
+
+/**
+ * Register a meta box to configure start and end times for announcement entries.
+ *
+ * @param string $post_type Post type name.
+ */
+function themisdb_v3_register_announcement_meta_box( $post_type ) {
+    if ( 'announcement' !== $post_type ) {
+        return;
+    }
+
+    add_meta_box(
+        'themisdb_announcement_schedule',
+        __( 'Announcement schedule', THEMISDB_PULSE_TEXT_DOMAIN ),
+        'themisdb_v3_render_announcement_meta_box',
+        'announcement',
+        'side',
+        'default'
+    );
+}
+
+/**
+ * Render the start/end date fields for announcement entries.
+ *
+ * @param WP_Post $post Current post object.
+ */
+function themisdb_v3_render_announcement_meta_box( $post ) {
+    wp_nonce_field( 'themisdb_save_announcement_schedule', 'themisdb_announcement_schedule_nonce' );
+
+    $start_raw = (string) get_post_meta( $post->ID, 'announcement_start_at', true );
+    $end_raw   = (string) get_post_meta( $post->ID, 'announcement_end_at', true );
+    $link_raw  = (string) get_post_meta( $post->ID, 'announcement_link', true );
+
+    $start_value = '';
+    if ( '' !== $start_raw ) {
+        $start_value = wp_date( 'Y-m-d\TH:i', themisdb_v3_parse_local_datetime_to_timestamp( $start_raw ), wp_timezone() );
+    }
+
+    $end_value = '';
+    if ( '' !== $end_raw ) {
+        $end_value = wp_date( 'Y-m-d\TH:i', themisdb_v3_parse_local_datetime_to_timestamp( $end_raw ), wp_timezone() );
+    }
+    ?>
+    <p>
+        <label for="themisdb_announcement_start_at"><strong><?php esc_html_e( 'Start', THEMISDB_PULSE_TEXT_DOMAIN ); ?></strong></label>
+        <input type="datetime-local" id="themisdb_announcement_start_at" name="themisdb_announcement_start_at" value="<?php echo esc_attr( $start_value ); ?>" class="widefat" />
+    </p>
+    <p>
+        <label for="themisdb_announcement_end_at"><strong><?php esc_html_e( 'End', THEMISDB_PULSE_TEXT_DOMAIN ); ?></strong></label>
+        <input type="datetime-local" id="themisdb_announcement_end_at" name="themisdb_announcement_end_at" value="<?php echo esc_attr( $end_value ); ?>" class="widefat" />
+    </p>
+    <p>
+        <label for="themisdb_announcement_link"><strong><?php esc_html_e( 'Link', THEMISDB_PULSE_TEXT_DOMAIN ); ?></strong></label>
+        <input type="url" id="themisdb_announcement_link" name="themisdb_announcement_link" value="<?php echo esc_url( $link_raw ); ?>" class="widefat" placeholder="https://example.com" />
+    </p>
+    <?php
+}
+
+/**
+ * Persist the announcement start/end schedule and optional CTA link.
+ *
+ * @param int     $post_id Post ID.
+ * @param WP_Post $post    Post object.
+ */
+function themisdb_v3_save_announcement_meta_box( $post_id, $post ) {
+    if ( ! $post instanceof WP_Post || 'announcement' !== $post->post_type ) {
+        return;
+    }
+
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return;
+    }
+
+    if ( ! isset( $_POST['themisdb_announcement_schedule_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['themisdb_announcement_schedule_nonce'] ) ), 'themisdb_save_announcement_schedule' ) ) {
+        return;
+    }
+
+    if ( ! current_user_can( 'edit_post', $post_id ) ) {
+        return;
+    }
+
+    $start_raw = isset( $_POST['themisdb_announcement_start_at'] ) ? sanitize_text_field( wp_unslash( $_POST['themisdb_announcement_start_at'] ) ) : '';
+    $end_raw   = isset( $_POST['themisdb_announcement_end_at'] ) ? sanitize_text_field( wp_unslash( $_POST['themisdb_announcement_end_at'] ) ) : '';
+    $link_raw  = isset( $_POST['themisdb_announcement_link'] ) ? esc_url_raw( wp_unslash( $_POST['themisdb_announcement_link'] ) ) : '';
+
+    update_post_meta( $post_id, 'announcement_start_at', $start_raw );
+    update_post_meta( $post_id, 'announcement_end_at', $end_raw );
+    update_post_meta( $post_id, 'announcement_link', $link_raw );
+
+    $announcement_term = get_term_by( 'slug', 'announcement', 'category' );
+    if ( ! $announcement_term || is_wp_error( $announcement_term ) ) {
+        $created = wp_insert_term( 'Announcement', 'category', array( 'slug' => 'announcement' ) );
+        if ( ! is_wp_error( $created ) ) {
+            $announcement_term = get_term_by( 'id', (int) $created['term_id'], 'category' );
+        }
+    }
+
+    if ( $announcement_term && ! is_wp_error( $announcement_term ) ) {
+        wp_set_post_terms( $post_id, array( (int) $announcement_term->term_id ), 'category', true );
+    }
+}
+
+function themisdb_v3_force_theme_style_cache_bust( $src, $handle ) {
+    if ( 'style' !== $handle && false === strpos( $src, 'style.css' ) ) {
+        return $src;
+    }
+
+    $local_style_file = get_stylesheet_directory() . '/style.css';
+    if ( ! file_exists( $local_style_file ) ) {
+        return $src;
+    }
+
+    return add_query_arg( 'ver', (string) filemtime( $local_style_file ), $src );
 }
 
 function themisdb_v3_setup() {
@@ -87,7 +277,40 @@ function themisdb_v3_setup() {
         )
     );
 
+    add_filter( 'wp_nav_menu_objects', 'themisdb_v3_filter_primary_menu_items', 10, 2 );
+
     themisdb_v3_ensure_default_nav_menus();
+}
+
+function themisdb_v3_filter_primary_menu_items( $items, $args ) {
+    if ( ! isset( $args->theme_location ) || 'primary' !== $args->theme_location ) {
+        return $items;
+    }
+
+    $visible_items = array();
+    foreach ( $items as $item ) {
+        $classes = array_map( 'strval', (array) $item->classes );
+
+        if ( in_array( 'logged-in-only', $classes, true ) && ! is_user_logged_in() ) {
+            continue;
+        }
+
+        if ( in_array( 'role-admin', $classes, true ) && ! current_user_can( 'manage_options' ) ) {
+            continue;
+        }
+
+        if ( in_array( 'role-support', $classes, true ) && ! current_user_can( 'read_private_pages' ) ) {
+            continue;
+        }
+
+        if ( in_array( 'role-member', $classes, true ) && ! is_user_logged_in() ) {
+            continue;
+        }
+
+        $visible_items[] = $item;
+    }
+
+    return $visible_items;
 }
 
 /**
@@ -254,6 +477,7 @@ function themisdb_v3_render_missing_required_plugins_notice() {
 }
 
 add_action( 'init', 'themisdb_v3_register_shortcodes', 15 );
+add_action( 'wp_body_open', 'themisdb_v3_render_global_announcement_bar', 20 );
 /**
  * Register frontend shortcodes used by template parts.
  */
@@ -263,6 +487,7 @@ function themisdb_v3_register_shortcodes() {
     add_shortcode( 'themisdb_v3_hero_context_nav', 'themisdb_v3_render_hero_context_nav_shortcode' );
     add_shortcode( 'themisdb_v3_feature_cards', 'themisdb_v3_render_feature_cards_shortcode' );
     add_shortcode( 'themisdb_v3_docs_cards', 'themisdb_v3_render_docs_cards_shortcode' );
+    add_shortcode( 'themisdb_v3_download_cards', 'themisdb_v3_render_download_cards_shortcode' );
     add_shortcode( 'themisdb_v3_blog_cards', 'themisdb_v3_render_blog_cards_shortcode' );
     add_shortcode( 'themisdb_v3_blog_section', 'themisdb_v3_render_blog_section_shortcode' );
     add_shortcode( 'themisdb_v3_pricing_cards', 'themisdb_v3_render_pricing_cards_shortcode' );
@@ -359,7 +584,9 @@ function themisdb_v3_parse_local_datetime_to_timestamp( $raw ) {
     $timezone = wp_timezone();
     $formats  = array(
         'Y-m-d H:i:s',
+        'Y-m-d H:i',
         'Y-m-d\\TH:i:s',
+        'Y-m-d\\TH:i',
         'Y-m-d',
     );
 
@@ -389,6 +616,17 @@ function themisdb_v3_parse_local_datetime_to_timestamp( $raw ) {
  * @param array<string,mixed> $atts Shortcode attributes.
  * @return string
  */
+function themisdb_v3_render_global_announcement_bar() {
+    if ( is_admin() ) {
+        return;
+    }
+
+    $html = themisdb_v3_render_announcement_bar_shortcode();
+    if ( '' !== $html ) {
+        echo $html;
+    }
+}
+
 function themisdb_v3_render_announcement_bar_shortcode( $atts = array() ) {
     $atts = shortcode_atts(
         array(
@@ -398,6 +636,7 @@ function themisdb_v3_render_announcement_bar_shortcode( $atts = array() ) {
             'link_label'       => __( 'Mehr erfahren ->', 'themisdb-v3' ),
             'excerpt_words'    => 22,
             'fallback_excerpt' => '',
+            'show_on_pages'    => 'yes',
         ),
         $atts,
         'themisdb_v3_announcement_bar'
@@ -413,20 +652,25 @@ function themisdb_v3_render_announcement_bar_shortcode( $atts = array() ) {
         return '';
     }
 
-    $query = new WP_Query(
-        array(
-            'post_type'              => 'post',
-            'post_status'            => 'publish',
-            'posts_per_page'         => $limit,
-            'ignore_sticky_posts'    => true,
-            'no_found_rows'          => true,
-            'orderby'                => 'date',
-            'order'                  => 'DESC',
-            'category_name'          => $category_slug,
-            'update_post_meta_cache' => true,
-            'update_post_term_cache' => false,
-        )
+    $post_types = array( 'announcement' );
+
+    $query_args = array(
+        'post_type'              => $post_types,
+        'post_status'            => 'publish',
+        'posts_per_page'         => $limit,
+        'ignore_sticky_posts'    => true,
+        'no_found_rows'          => true,
+        'orderby'                => 'date',
+        'order'                  => 'DESC',
+        'update_post_meta_cache' => true,
+        'update_post_term_cache' => false,
     );
+
+    if ( taxonomy_exists( 'category' ) && term_exists( $category_slug, 'category' ) ) {
+        $query_args['category_name'] = $category_slug;
+    }
+
+    $query = new WP_Query( $query_args );
 
     if ( ! $query->have_posts() ) {
         return '';
@@ -438,14 +682,38 @@ function themisdb_v3_render_announcement_bar_shortcode( $atts = array() ) {
             continue;
         }
 
-        $start_dt = get_post_datetime( $candidate, 'date', wp_timezone() );
-        $start_ts = $start_dt instanceof DateTimeImmutable ? $start_dt->getTimestamp() : 0;
-        if ( $start_ts > $now_ts ) {
+        $start_ts = null;
+        if ( 'announcement' === $candidate->post_type ) {
+            $raw_start = trim( (string) get_post_meta( $candidate->ID, 'announcement_start_at', true ) );
+            if ( '' !== $raw_start ) {
+                $start_ts = themisdb_v3_parse_local_datetime_to_timestamp( $raw_start );
+            }
+            if ( null === $start_ts ) {
+                $start_dt = get_post_datetime( $candidate, 'date', wp_timezone() );
+                $start_ts = $start_dt instanceof DateTimeImmutable ? $start_dt->getTimestamp() : 0;
+            }
+        } else {
+            $start_dt = get_post_datetime( $candidate, 'date', wp_timezone() );
+            $start_ts = $start_dt instanceof DateTimeImmutable ? $start_dt->getTimestamp() : 0;
+        }
+
+        if ( null !== $start_ts && $start_ts > $now_ts ) {
             continue;
         }
 
         $end_ts = null;
-        if ( '' !== $end_meta_key ) {
+        if ( 'announcement' === $candidate->post_type ) {
+            $raw_end = trim( (string) get_post_meta( $candidate->ID, 'announcement_end_at', true ) );
+            if ( '' !== $raw_end ) {
+                $end_ts = themisdb_v3_parse_local_datetime_to_timestamp( $raw_end );
+            }
+            if ( null === $end_ts ) {
+                $legacy_end = trim( (string) get_post_meta( $candidate->ID, $end_meta_key, true ) );
+                if ( '' !== $legacy_end ) {
+                    $end_ts = themisdb_v3_parse_local_datetime_to_timestamp( $legacy_end );
+                }
+            }
+        } elseif ( '' !== $end_meta_key ) {
             $end_ts = themisdb_v3_parse_local_datetime_to_timestamp( get_post_meta( $candidate->ID, $end_meta_key, true ) );
         }
 
@@ -476,7 +744,14 @@ function themisdb_v3_render_announcement_bar_shortcode( $atts = array() ) {
         $excerpt = trim( (string) $atts['fallback_excerpt'] );
     }
 
-    $link_url   = get_permalink( $active_post );
+    $link_url = get_permalink( $active_post );
+    if ( 'announcement' === $active_post->post_type ) {
+        $override_url = get_post_meta( $active_post->ID, 'announcement_link', true );
+        if ( is_string( $override_url ) && '' !== trim( $override_url ) ) {
+            $link_url = esc_url_raw( $override_url );
+        }
+    }
+
     $link_label = trim( (string) $atts['link_label'] );
     if ( '' === $link_label ) {
         $link_label = __( 'Mehr erfahren ->', 'themisdb-v3' );
@@ -1817,6 +2092,50 @@ function themisdb_v3_render_hero_context_nav_shortcode( $atts = array() ) {
 }
 
 /**
+ * Resolve a page-based fallback for frontpage sections when no taxonomy matches exist.
+ *
+ * @param array<int,string> $post_types Allowed post types to query.
+ * @param int               $limit      Max cards to return.
+ * @param array<int,string> $paths      Candidate page paths to prefer.
+ * @return array<int,WP_Post>
+ */
+function themisdb_v3_get_frontpage_page_fallback( array $post_types, int $limit, array $paths ) {
+    $limit = max( 1, min( 12, $limit ) );
+    $paths = array_values(
+        array_filter(
+            array_map( 'sanitize_title', array_map( 'trim', (array) $paths ) )
+        )
+    );
+    if ( empty( $paths ) ) {
+        return array();
+    }
+
+    $ids = array();
+    foreach ( $paths as $path ) {
+        $page = get_page_by_path( $path, OBJECT, $post_types );
+        if ( $page instanceof WP_Post ) {
+            $ids[] = (int) $page->ID;
+        }
+    }
+
+    $ids = array_values( array_unique( array_filter( $ids ) ) );
+    if ( empty( $ids ) ) {
+        return array();
+    }
+
+    return get_posts(
+        array(
+            'post_type'      => $post_types,
+            'post_status'    => 'publish',
+            'post__in'       => $ids,
+            'posts_per_page' => $limit,
+            'orderby'        => 'post__in',
+            'no_found_rows'  => true,
+        )
+    );
+}
+
+/**
  * Collect posts for frontpage card grids with category-first selection and
  * an optional priority tag that is used to fill the grid first.
  *
@@ -1999,6 +2318,14 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
     );
 
     $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+
+    if ( empty( $posts ) ) {
+        $posts = themisdb_v3_get_frontpage_page_fallback(
+            $post_types,
+            $limit_value,
+            array( 'features', 'feature-overview', 'capabilities', 'product-overview' )
+        );
+    }
 
     if ( empty( $posts ) ) {
         return '';
@@ -2440,6 +2767,14 @@ function themisdb_v3_render_docs_cards_shortcode( $atts = array() ) {
     $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
 
     if ( empty( $posts ) ) {
+        $posts = themisdb_v3_get_frontpage_page_fallback(
+            $post_types,
+            $limit_value,
+            array( 'documentation', 'docs', 'docs-introduction', 'getting-started' )
+        );
+    }
+
+    if ( empty( $posts ) ) {
         return '';
     }
 
@@ -2523,6 +2858,20 @@ function themisdb_v3_render_blog_cards_shortcode( $atts = array() ) {
     );
 
     $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+    if ( empty( $posts ) ) {
+        $posts = get_posts(
+            array(
+                'post_type'           => $post_types,
+                'post_status'         => 'publish',
+                'posts_per_page'      => $limit_value,
+                'ignore_sticky_posts' => true,
+                'orderby'             => $atts['orderby'],
+                'order'               => $atts['order'],
+                'no_found_rows'       => true,
+            )
+        );
+    }
+
     if ( empty( $posts ) ) {
         return '';
     }
@@ -3170,8 +3519,9 @@ function themisdb_v3_adjust_header_login_button( $block_content, $block ) {
         return $block_content;
     }
 
-    $target_url = is_user_logged_in() ? home_url( '/support/' ) : '#tv3-login-overlay';
-    $label = is_user_logged_in() ? __( 'Portal', 'themisdb-v3' ) : __( 'Anmelden', 'themisdb-v3' );
+    $is_logged_in = is_user_logged_in();
+    $target_url   = $is_logged_in ? wp_logout_url( home_url( '/' ) ) : '#tv3-login-overlay';
+    $label        = $is_logged_in ? __( 'Abmelden', 'themisdb-v3' ) : __( 'Anmelden', 'themisdb-v3' );
 
     $updated = preg_replace(
         '/<a\b([^>]*?)href=("|\")(.*?)("|\")(.*?)>/i',
@@ -3262,6 +3612,137 @@ function themisdb_v3_enqueue_mobile_header_nav_fix() {
     wp_add_inline_style( 'themisdb-v3-mobile-header-nav-fix', $css );
 }
 
+function themisdb_v3_enqueue_live_search_overlay_styles() {
+    $css = '
+        .tv3-live-search-overlay {
+            background: rgba(255, 255, 255, 0.98) !important;
+            border: 1px solid rgba(15, 23, 42, 0.08) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12) !important;
+            color: var(--tv3-navy, #10233d) !important;
+        }
+
+        .tv3-live-search-summary,
+        .tv3-live-search-group-pill,
+        .tv3-live-search-group-label,
+        .tv3-live-search-group-label span,
+        .tv3-live-search-meta {
+            font-size: 0.58rem !important;
+            line-height: 1.2 !important;
+            white-space: nowrap !important;
+        }
+
+        .tv3-live-search-summary {
+            display: block !important;
+            font-size: 0.68rem !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.08em !important;
+            text-transform: uppercase !important;
+            color: var(--tv3-blue, #1e6fba) !important;
+        }
+
+        .tv3-live-search-group-pill {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 0.25rem !important;
+            padding: 0.18rem 0.5rem !important;
+            border-radius: 999px !important;
+            background: rgba(15, 23, 42, 0.05) !important;
+            color: var(--tv3-navy, #10233d) !important;
+            font-weight: 700 !important;
+        }
+
+        .tv3-live-search-group-label {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 0.5rem !important;
+            padding: 0.45rem 0.55rem 0.2rem !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.08em !important;
+            text-transform: uppercase !important;
+            color: #64748b !important;
+        }
+
+        .tv3-live-search-group-label span {
+            display: inline-flex !important;
+            min-width: 1.5rem !important;
+            justify-content: center !important;
+            padding: 0.12rem 0.3rem !important;
+            border-radius: 999px !important;
+            background: rgba(30, 111, 186, 0.08) !important;
+            color: var(--tv3-blue, #1e6fba) !important;
+        }
+
+        .tv3-live-search-item {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: flex-start !important;
+            justify-content: space-between !important;
+            width: 100% !important;
+            padding: 0.72rem 0.75rem !important;
+            margin: 0.2rem 0 0 !important;
+            border: 1px solid rgba(15, 23, 42, 0.06) !important;
+            border-radius: 10px !important;
+            background: rgba(255, 255, 255, 0.94) !important;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04) !important;
+            color: var(--tv3-navy, #10233d) !important;
+            text-decoration: none !important;
+            font-size: 0.72rem !important;
+            line-height: 1.35 !important;
+            overflow: hidden !important;
+        }
+
+        .tv3-live-search-item-main {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            gap: 0.18rem !important;
+        }
+
+        .tv3-live-search-title {
+            display: block !important;
+            min-width: 0 !important;
+            color: var(--tv3-navy, #10233d) !important;
+            font-size: 0.82rem !important;
+            font-weight: 800 !important;
+            line-height: 1.35 !important;
+            letter-spacing: -0.01em !important;
+        }
+
+        .tv3-live-search-teaser {
+            display: block !important;
+            color: #46566c !important;
+            font-size: 0.68rem !important;
+            line-height: 1.45 !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            display: -webkit-box !important;
+            -webkit-line-clamp: 2 !important;
+            -webkit-box-orient: vertical !important;
+        }
+
+        .tv3-live-search-meta {
+            flex: 0 0 auto !important;
+            align-self: flex-start !important;
+            color: #64748b !important;
+            font-size: 0.58rem !important;
+            line-height: 1.2 !important;
+            letter-spacing: 0.08em !important;
+            text-transform: uppercase !important;
+            white-space: nowrap !important;
+            text-align: right !important;
+            margin-left: auto !important;
+            padding-top: 0.12rem !important;
+        }
+    ';
+
+    wp_register_style( 'themisdb-v3-live-search-overlay-inline', false, array(), THEMISDB_V3_VERSION );
+    wp_enqueue_style( 'themisdb-v3-live-search-overlay-inline' );
+    wp_add_inline_style( 'themisdb-v3-live-search-overlay-inline', $css );
+}
+
 function themisdb_v3_enqueue_assets() {
     $color_scheme_file     = get_template_directory() . '/assets/css/color-schemes.css';
     $color_scheme_version  = file_exists( $color_scheme_file ) ? (string) filemtime( $color_scheme_file ) : THEMISDB_V3_VERSION;
@@ -3277,12 +3758,32 @@ function themisdb_v3_enqueue_assets() {
     $podcast_audio_js_ver   = file_exists( $podcast_audio_js_file ) ? (string) filemtime( $podcast_audio_js_file ) : THEMISDB_V3_VERSION;
     $login_overlay_js_file  = get_template_directory() . '/assets/js/login-overlay.js';
     $login_overlay_js_ver   = file_exists( $login_overlay_js_file ) ? (string) filemtime( $login_overlay_js_file ) : THEMISDB_V3_VERSION;
+    $live_search_js_file    = get_template_directory() . '/assets/js/live-search.js';
+    $live_search_js_ver     = file_exists( $live_search_js_file ) ? (string) filemtime( $live_search_js_file ) : THEMISDB_V3_VERSION;
+
+    themisdb_v3_enqueue_live_search_overlay_styles();
 
     wp_enqueue_style(
         'themisdb-v3-color-schemes',
         get_template_directory_uri() . '/assets/css/color-schemes.css',
         array(),
         $color_scheme_version
+    );
+
+    wp_enqueue_script(
+        'themisdb-v3-live-search',
+        get_template_directory_uri() . '/assets/js/live-search.js',
+        array(),
+        $live_search_js_ver,
+        true
+    );
+
+    wp_localize_script(
+        'themisdb-v3-live-search',
+        'themisdbLiveSearch',
+        array(
+            'restUrl' => rest_url( 'themisdb/v1/search' ),
+        )
     );
 
     wp_register_script(
@@ -3388,6 +3889,7 @@ function themisdb_v3_enqueue_assets() {
                 'closeLabel' => __( 'Login-Overlay schliessen', 'themisdb-v3' ),
                 'isLoggedIn' => is_user_logged_in(),
                 'supportUrl' => esc_url_raw( home_url( '/support/' ) ),
+                'logoutUrl'  => esc_url_raw( wp_logout_url( home_url( '/' ) ) ),
             )
         );
 
@@ -6093,6 +6595,83 @@ function themisdb_v3_register_article_meta(): void {
         register_post_meta( $pt, 'tv3_uf_fidelity',    $uf_field );
         register_post_meta( $pt, 'tv3_uf_count',       $uf_field );
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Live Search REST Endpoint
+// ─────────────────────────────────────────────────────────────────────────────
+
+add_action( 'rest_api_init', 'themisdb_v3_register_live_search_endpoint' );
+
+function themisdb_v3_register_live_search_endpoint(): void {
+    register_rest_route(
+        'themisdb/v1',
+        '/search',
+        array(
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => 'themisdb_v3_live_search',
+            'permission_callback' => '__return_true',
+            'args'                => array(
+                'search'   => array(
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ),
+                'per_page' => array(
+                    'required'          => false,
+                    'type'              => 'integer',
+                    'default'           => 5,
+                    'minimum'           => 1,
+                    'maximum'           => 20,
+                    'sanitize_callback' => 'absint',
+                ),
+            ),
+        )
+    );
+}
+
+function themisdb_v3_live_search( WP_REST_Request $request ) {
+    $term = trim( (string) $request->get_param( 'search' ) );
+    $limit = max( 1, min( 20, (int) $request->get_param( 'per_page' ) ?: 5 ) );
+
+    if ( '' === $term ) {
+        return new WP_REST_Response( array(), 200 );
+    }
+
+    $query = new WP_Query(
+        array(
+            's'              => $term,
+            'post_type'      => array( 'post', 'page' ),
+            'post_status'    => 'publish',
+            'posts_per_page' => $limit,
+            'orderby'        => 'relevance',
+            'order'          => 'DESC',
+            'no_found_rows'  => true,
+        )
+    );
+
+    $results = array();
+
+    foreach ( $query->posts as $post ) {
+        $title = get_the_title( $post );
+        $excerpt = get_the_excerpt( $post );
+        if ( empty( $excerpt ) ) {
+            $excerpt = wp_strip_all_tags( get_post_field( 'post_content', $post->ID, 'raw' ) );
+        }
+        $excerpt = trim( wp_trim_words( $excerpt, 18, '…' ) );
+
+        $results[] = array(
+            'id'          => $post->ID,
+            'title'       => array( 'rendered' => $title ),
+            'url'         => get_permalink( $post ),
+            'type'        => $post->post_type,
+            'subtype'     => $post->post_type,
+            'description' => $excerpt,
+            'excerpt'     => array( 'rendered' => $excerpt ),
+        );
+    }
+
+    return new WP_REST_Response( $results, 200 );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

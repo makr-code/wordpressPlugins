@@ -14,12 +14,17 @@
         var overlay = document.getElementById('tv3-login-overlay');
         var triggerLink = document.querySelector('.tv3-header-login a');
 
-        if (triggerLink && cfg.isLoggedIn) {
-            if (cfg.supportUrl) {
-                triggerLink.setAttribute('href', cfg.supportUrl);
+        if (triggerLink) {
+            if (cfg.isLoggedIn) {
+                if (cfg.logoutUrl) {
+                    triggerLink.setAttribute('href', cfg.logoutUrl);
+                }
+                triggerLink.textContent = 'Abmelden';
+                triggerLink.setAttribute('aria-label', 'Abmelden');
+            } else {
+                triggerLink.textContent = 'Anmelden';
+                triggerLink.setAttribute('aria-label', 'Anmelden');
             }
-            triggerLink.textContent = 'Portal';
-            triggerLink.setAttribute('aria-label', 'Zum Support-Portal');
         }
 
         if (!overlay) {

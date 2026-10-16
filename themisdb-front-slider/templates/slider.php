@@ -39,7 +39,6 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
     data-autoplay="<?php echo $autoplay ? '1' : '0'; ?>"
     data-respect-reduced-motion="<?php echo $respect_reduced_motion ? '1' : '0'; ?>"
     data-preset="<?php echo esc_attr( $layout_preset ); ?>"
-    style="--tfs-accent: <?php echo esc_attr( $accent_color ); ?>;"
     role="region"
     aria-label="<?php echo esc_attr( $region_label ); ?>"
     aria-roledescription="carousel"

@@ -46,7 +46,7 @@
 					<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/downloads">⬇ Download Free</a></div>
 					<!-- /wp:button -->
 					<!-- wp:button {"className":"is-style-outline"} -->
-					<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="/docs/getting-started">View Documentation →</a></div>
+					<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="/docs/introduction">View Documentation →</a></div>
 					<!-- /wp:button -->
 				</div>
 				<!-- /wp:buttons -->
@@ -64,7 +64,7 @@
 			<div class="wp-block-button"><a href="/downloads" class="wp-block-button__link wp-element-button has-md-font-size tv3-hero-btn-primary">⬇ Download Free</a></div>
 			<!-- /wp:button -->
 			<!-- wp:button {"className":"is-style-outline","style":{"color":{"text":"rgba(255,255,255,0.9)"},"border":{"radius":"8px","color":"rgba(255,255,255,0.35)","width":"1.5px"},"spacing":{"padding":{"top":"0.875rem","bottom":"0.875rem","left":"2rem","right":"2rem"}}},"fontSize":"md"} -->
-			<div class="wp-block-button is-style-outline"><a href="/docs/getting-started" class="wp-block-button__link wp-element-button has-md-font-size tv3-hero-btn-secondary">View Documentation →</a></div>
+			<div class="wp-block-button is-style-outline"><a href="/docs/introduction" class="wp-block-button__link wp-element-button has-md-font-size tv3-hero-btn-secondary">View Documentation →</a></div>
 			<!-- /wp:button -->
 		</div>
 		<!-- /wp:buttons -->

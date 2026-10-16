@@ -9,9 +9,9 @@
     --tfs-surface: #1a3a52;
     --tfs-text: #f0f5f9;
     --tfs-muted: #a8b5c5;
-    --tfs-accent: #ff8c42;
-    --tfs-accent-soft: #ffa76a;
-    --tfs-border: rgba(255, 140, 66, 0.15);
+    --tfs-accent: #123f59;
+    --tfs-accent-soft: #4c7f9f;
+    --tfs-border: rgba(18, 63, 89, 0.18);
     --tfs-shadow: 0 20px 48px rgba(13, 20, 31, 0.48);
     --tfs-overlay: linear-gradient(110deg, rgba(13, 42, 71, 0.84) 0%, rgba(10, 32, 58, 0.82) 52%, rgba(8, 25, 48, 0.78) 100%);
     --tfs-overlay-strong: linear-gradient(125deg, rgba(13, 20, 31, 0.78) 0%, rgba(13, 20, 31, 0.52) 40%, rgba(13, 20, 31, 0.25) 100%);
@@ -368,9 +368,10 @@
     align-items: center;
     justify-content: center;
     border-radius: 999px;
-    border: 1px solid rgba(20, 46, 72, 0.18);
+    border: 1px solid var(--tfs-border, rgba(255, 255, 255, 0.24));
     background: rgba(255, 255, 255, 0.88);
-    color: var(--tfs-text);
+    color: var(--tfs-accent, #123f59);
+    box-shadow: 0 8px 24px rgba(15, 31, 49, 0.12);
     z-index: 5;
     transition: transform 0.2s ease, background-color 0.2s ease;
 }
@@ -379,6 +380,7 @@
 .themisdb-fs-btn:focus {
     transform: translateY(-50%) scale(1.03);
     background: rgba(255, 255, 255, 0.98);
+    color: var(--tfs-accent, #123f59);
 }
 
 .themisdb-fs-prev { left: 0.65rem; }
@@ -413,7 +415,7 @@
 
 .themisdb-fs-dot.is-active {
     width: 1.6rem;
-    background: var(--tfs-accent, #0284c7);
+    background: var(--tfs-accent, #123f59);
 }
 
 .themisdb-fs-timer-bar {
@@ -429,7 +431,7 @@
 .themisdb-fs-timer-fill {
     width: 0;
     height: 100%;
-    background: linear-gradient(90deg, var(--tfs-accent, #0284c7) 0%, #0ea5e9 100%);
+    background: linear-gradient(90deg, var(--tfs-accent, #123f59) 0%, #0d304a 100%);
 }
 
 .themisdb-fs-btn[disabled],
