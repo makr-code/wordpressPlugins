@@ -12,3 +12,32 @@ Thumbs.db
 *.tmp
 
 page-content/
+page-content-blog/
+page-content-benchmark-data/
+source-links/
+wordpress-site-factory/output/
+wordpress-documentation/
+wordpress-plugin-releases/
+.playwright-mcp/
+
+# Local generated runtime / import state
+*.log
+*.tmp
+.wp_connections.json
+.wp_import_state.json
+local-artifacts/
+
+# Root-level generated website/debug outputs
+_*.html
+*_check*.html
+slider_output.html
+test_breadcrumb_links.html
+browser-console.log
+batch_images_run.log
+swarm_debug.log
+wp_import_run1.log
+wp-live-search.log
+login-check.txt
+conversion_log_bulk.txt
+enrich_debug.log
+enrich_bulk_log.txt

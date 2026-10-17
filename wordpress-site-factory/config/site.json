@@ -1,0 +1,31 @@
+{
+  "profile": "local-test",
+  "site": {
+    "title": "ThemisDB lokal",
+    "description": "ThemisDB public WordPress site",
+    "show_on_front": "page",
+    "page_on_front": 0
+  },
+  "wordpress": {
+    "base_url": "http://localhost/wordpress",
+    "rest_route_style": "wp-json",
+    "user": "test",
+    "app_password": "Tb9l5cHd0LlFzr27PN5hTM9e",
+    "use_auth": true
+  },
+  "theme": {
+    "stylesheet": "themisdb-pulse",
+    "required": true
+  },
+  "plugins": [
+    "themisdb-quality-meter",
+    "themisdb-front-slider",
+    "themisdb-support-portal"
+  ],
+  "public_tag_filter": true,
+  "restricted_tags": [
+    "restricted",
+    "internal",
+    "admin-only"
+  ]
+}

@@ -11,6 +11,94 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Render demo content when a widget query has no published posts.
+ *
+ * This keeps the front-end usable in local/demo environments where no real
+ * content has been created yet, instead of showing a blank empty-state.
+ *
+ * @param int    $count   Number of items to render.
+ * @param string $variant Widget layout: grid or list.
+ * @param int    $columns Columns for grid variants.
+ */
+function themisdb_demo_posts_fallback( $count = 4, $variant = 'grid', $columns = 2 ) {
+    $items = array(
+        array(
+            'title' => 'ThemisDB Search Studio',
+            'category' => 'Search',
+            'date' => '2024-10-18',
+            'excerpt' => 'Semantic search, hybrid ranking and context-rich retrieval workflows for AI-friendly data access.',
+            'permalink' => '#demo-search-studio',
+        ),
+        array(
+            'title' => 'Graph Collaboration Layer',
+            'category' => 'Relationships',
+            'date' => '2024-10-16',
+            'excerpt' => 'Model relationships across documents, entities and processes to reveal the hidden patterns in your data.',
+            'permalink' => '#demo-graph-layer',
+        ),
+        array(
+            'title' => 'Operational Guardrails',
+            'category' => 'Operations',
+            'date' => '2024-10-14',
+            'excerpt' => 'Monitoring, safety checks and governance guardrails that keep production workloads stable and explainable.',
+            'permalink' => '#demo-guardrails',
+        ),
+        array(
+            'title' => 'Release Timeline',
+            'category' => 'Product',
+            'date' => '2024-10-12',
+            'excerpt' => 'A live release overview for milestones, feature experiments and rollout-ready product signals.',
+            'permalink' => '#demo-release-timeline',
+        ),
+    );
+
+    $items = array_slice( $items, 0, max( 1, absint( $count ) ) );
+
+    if ( 'list' === $variant ) {
+        echo '<ul class="themisdb-demo-posts-list">';
+        foreach ( $items as $item ) {
+            $title = esc_html( $item['title'] );
+            $date = esc_html( $item['date'] );
+            $category = esc_html( $item['category'] );
+            $excerpt = esc_html( $item['excerpt'] );
+            $permalink = esc_url( $item['permalink'] );
+
+            echo '<li class="tpw-item themisdb-demo-item">';
+            echo '<div class="tpw-info">';
+            echo '<a class="tpw-title" href="' . $permalink . '">' . $title . '</a>';
+            echo '<span class="tpw-date">📅 ' . $date . '</span>';
+            echo '<span class="tpw-cat">📁 ' . $category . '</span>';
+            echo '<span class="tpw-demo-excerpt">' . $excerpt . '</span>';
+            echo '</div>';
+            echo '</li>';
+        }
+        echo '</ul>';
+        return;
+    }
+
+    $col_class = 3 === absint( $columns ) ? 'themisdb-grid-3col' : 'themisdb-grid-2col';
+
+    echo '<div class="themisdb-posts-grid ' . esc_attr( $col_class ) . ' themisdb-demo-grid">';
+    foreach ( $items as $item ) {
+        $title = esc_html( $item['title'] );
+        $date = esc_html( $item['date'] );
+        $category = esc_html( $item['category'] );
+        $excerpt = esc_html( $item['excerpt'] );
+        $permalink = esc_url( $item['permalink'] );
+
+        echo '<article class="tpg-card themisdb-demo-card">';
+        echo '<div class="tpg-body">';
+        echo '<h4 class="tpg-title"><a href="' . $permalink . '">' . $title . '</a></h4>';
+        echo '<div class="tpg-meta"><span class="tpg-date">📅 ' . $date . '</span><span class="tpg-cat">📁 ' . $category . '</span></div>';
+        echo '<p class="tpg-excerpt">' . $excerpt . '</p>';
+        echo '<a class="tpg-readmore" href="' . $permalink . '">Demo ansehen →</a>';
+        echo '</div>';
+        echo '</article>';
+    }
+    echo '</div>';
+}
+
+/**
  * Featured Posts Slider Widget
  * Displays featured/sticky posts in a slider format
  */
@@ -1380,7 +1468,7 @@ class ThemisDB_Posts_Grid_Widget extends WP_Widget {
             <?php
             wp_reset_postdata();
         else :
-            echo '<p>' . esc_html__( 'No posts found.', 'themisdb' ) . '</p>';
+            themisdb_demo_posts_fallback( $count, 'grid', $columns );
         endif;
 
         echo $args['after_widget'];
@@ -1790,7 +1878,7 @@ class ThemisDB_Popular_Posts_Widget extends WP_Widget {
             <?php
             wp_reset_postdata();
         else :
-            echo '<p>' . esc_html__( 'No posts found.', 'themisdb' ) . '</p>';
+            themisdb_demo_posts_fallback( $count, 'list' );
         endif;
 
         echo $args['after_widget'];
@@ -2108,7 +2196,7 @@ class ThemisDB_Tabbed_Posts_Widget extends WP_Widget {
     /** Render a single list of posts. */
     private function render_list( $query, $show_thumb, $show_date ) {
         if ( ! $query->have_posts() ) {
-            echo '<li class="tpw-empty">' . esc_html__( 'No posts found.', 'themisdb' ) . '</li>';
+            themisdb_demo_posts_fallback( 4, 'list' );
             return;
         }
         while ( $query->have_posts() ) {

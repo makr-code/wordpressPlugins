@@ -8,16 +8,38 @@
 </div>
 <!-- /wp:group -->
 
+<!-- wp:template-part {"slug":"breadcrumbs","area":"uncategorized","tagName":"div","className":"tv3-breadcrumbs-shell tv3-breadcrumbs-frontpage"} /-->
+
 <!-- wp:group {"tagName":"main","anchor":"wp--skip-link--target","className":"site-main tv3-front-main tv3-layout-editorial tv3-archive-main-shell","layout":{"type":"constrained","contentSize":"1200px"}} -->
 <main id="wp--skip-link--target" class="wp-block-group site-main tv3-front-main tv3-layout-editorial tv3-archive-main-shell">
 
-<!-- wp:shortcode -->[themisdb_v3_feature_cards limit="6" post_types="post,page" category="features" priority_tag="frontpage-feature,hero,featured" excerpt_words="24"]<!-- /wp:shortcode -->
+<div class="wp-block-group tv3-feature-section has-global-padding is-layout-constrained">
+    <p class="has-text-align-center tv3-feature-section__badge-wrap"><span class="tv3-feature-section__badge">Features</span></p>
+    <h2 class="wp-block-heading tv3-feature-section__title" id="everything-you-need-in-one-database">Everything you need in one database</h2>
+    <p class="tv3-feature-section__lead">Designed from the ground up for modern applications that need speed, flexibility, and intelligence.</p>
+    <!-- wp:shortcode -->[themisdb_v3_feature_cards limit="6" post_types="post,page" category="feature,features,featured,hero" priority_tag="feature,featured,frontpage-feature,frontpage-featured,hero,recommended,lesenswert" excerpt_words="24"]<!-- /wp:shortcode -->
+</div>
 
-<!-- wp:shortcode -->[themisdb_v3_docs_cards limit="8" post_types="post,page" category="documentation,docs,dokumentation" priority_tag="frontpage-documentation,featured,hero" excerpt_words="24"]<!-- /wp:shortcode -->
+<div class="wp-block-group tv3-docs-grid-section has-global-padding is-layout-constrained">
+    <p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker">Docs</span></p>
+    <h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title">Dokumentation &amp; Leitfaeden</h2>
+    <p class="has-text-align-center tv3-docs-grid-subtitle">Schneller Einstieg, Referenzen und praxisnahe Anleitungen fuer den produktiven Einsatz.</p>
+    <!-- wp:shortcode -->[themisdb_v3_docs_cards limit="8" post_types="post,page" category="documentation,docs,dokumentation" priority_tag="documentation,featured,frontpage-documentation" excerpt_words="24"]<!-- /wp:shortcode -->
+</div>
 
-<!-- wp:shortcode -->[themisdb_v3_pricing_cards limit="3" post_types="page,post" category="pricing,preis,preise" priority_tag="pricing-featured,most-popular,recommended,frontpage-feature" excerpt_words="18"]<!-- /wp:shortcode -->
+<div class="wp-block-group tv3-pricing-section has-global-padding is-layout-constrained">
+    <p class="has-text-align-center tv3-pricing-section__badge-wrap"><span class="tv3-pricing-section__badge">Pricing</span></p>
+    <h2 class="wp-block-heading tv3-pricing-section__title">Editionen &amp; Preise</h2>
+    <p class="tv3-pricing-section__lead">Vergleiche Community-, Cloud- und Enterprise-Optionen fuer dein Einsatzszenario.</p>
+    <!-- wp:shortcode -->[themisdb_v3_pricing_cards limit="6" post_types="page,post" category="pricing,preis,preise" priority_tag="pricing-featured,most-popular,recommended,frontpage-feature" excerpt_words="18"]<!-- /wp:shortcode -->
+</div>
 
-<!-- wp:shortcode -->[themisdb_v3_download_cards limit="3" post_types="page,post" category="downloads,download,docker,compendium" priority_tag="download,recommended,docker,binary,compendium,frontpage-download" excerpt_words="18"]<!-- /wp:shortcode -->
+<div class="wp-block-group tv3-download-section has-global-padding is-layout-constrained">
+    <p class="has-text-align-center tv3-download-kicker-wrap"><span class="tv3-download-kicker">Downloads</span></p>
+    <h2 class="wp-block-heading has-text-align-center tv3-download-title">Pakete &amp; Artefakte</h2>
+    <p class="has-text-align-center tv3-download-subtitle">Finde passende Builds, Docker-Images und Begleitpakete fuer Entwicklung und Betrieb.</p>
+        <!-- wp:shortcode -->[themisdb_v3_download_cards limit="6" post_types="page" category="downloads,download,docker,compendium" priority_tag="download,recommended,docker,binary,compendium,frontpage-download" excerpt_words="18"]<!-- /wp:shortcode -->
+</div>
 
 <!-- wp:shortcode -->[themisdb_v3_blog_section limit="9" post_types="post" category="blog" priority_tag="lesenswert,recommended,editor-pick,hero,frontpage-feature" excerpt_words="24"]<!-- /wp:shortcode -->
 

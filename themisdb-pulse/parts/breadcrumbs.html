@@ -1,9 +1,13 @@
-<!-- wp:group {"align":"full","className":"tv3-breadcrumbs-shell","layout":{"type":"default"}} -->
-<div class="wp-block-group alignfull tv3-breadcrumbs-shell">
-	<nav class="tv3-breadcrumbs" aria-label="Breadcrumb-Navigation">
-		<!-- wp:shortcode -->
-		[themisdb_v3_breadcrumbs]
-		<!-- /wp:shortcode -->
-	</nav>
-</div>
-<!-- /wp:group -->
+<nav class="tv3-breadcrumbs" aria-label="Breadcrumb-Navigation" data-tv3-anchor-nav="true" data-tv3-breadcrumb-before="1" data-tv3-breadcrumb-after="3">
+	<ol class="tv3-breadcrumbs-list" itemscope itemtype="https://schema.org/BreadcrumbList" data-tv3-anchor-list="true" data-tv3-anchor-limit="8" data-tv3-breadcrumb-before="1" data-tv3-breadcrumb-after="3">
+		<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--home" data-tv3-home-breadcrumb="1" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+			<a href="/" itemprop="item"><span itemprop="name">Start</span></a>
+			<meta itemprop="position" content="1" />
+		</li>
+		<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--ellipsis" data-tv3-breadcrumbs-leading="1" aria-hidden="true" style="display:none;">…</li>
+		<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--ellipsis" data-tv3-breadcrumbs-trailing="1" aria-hidden="true" style="display:none;">…</li>
+		<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--progress" data-tv3-reading-progress-breadcrumb="1" aria-live="polite">
+			<span>0% gelesen</span>
+		</li>
+	</ol>
+</nav>

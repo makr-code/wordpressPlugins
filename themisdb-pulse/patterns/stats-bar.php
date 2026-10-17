@@ -23,6 +23,12 @@ $published_posts = wp_count_posts( 'post' );
 
 $docs_count = ( $docs_term && ! is_wp_error( $docs_term ) ) ? (int) $docs_term->count : 0;
 $features_count = ( $features_term && ! is_wp_error( $features_term ) ) ? (int) $features_term->count : 0;
+if ( 0 === $features_count ) {
+    $features_tag = get_term_by( 'slug', 'features', 'post_tag' );
+    if ( $features_tag && ! is_wp_error( $features_tag ) ) {
+        $features_count = (int) $features_tag->count;
+    }
+}
 $downloads_count = is_array( $downloads_pages ) ? count( $downloads_pages ) : 0;
 $articles_count = ( $published_posts && isset( $published_posts->publish ) ) ? (int) $published_posts->publish : 0;
 ?>

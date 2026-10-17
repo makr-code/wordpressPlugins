@@ -115,7 +115,45 @@
 			return;
 		}
 
-		// Add close button if not already present
+		var items = bar.querySelectorAll( '.tv3-announcement-item' );
+		if ( items.length > 1 ) {
+			var currentIndex = 0;
+			var intervalMs = Number( bar.dataset.interval || bar.querySelector( '.tv3-announcement-inner' )?.dataset.interval || 5000 );
+			var timerId = null;
+			var setActiveItem = function ( index ) {
+				currentIndex = ( index + items.length ) % items.length;
+				items.forEach( function ( item, idx ) {
+					var active = idx === currentIndex;
+					item.classList.toggle( 'is-active', active );
+					item.setAttribute( 'aria-hidden', active ? 'false' : 'true' );
+				} );
+			};
+			var startRotation = function () {
+				if ( timerId ) {
+					window.clearInterval( timerId );
+				}
+				timerId = window.setInterval( function () {
+					setActiveItem( currentIndex + 1 );
+				}, intervalMs );
+			};
+			var prevBtn = bar.querySelector( '.tv3-announcement-prev' );
+			var nextBtn = bar.querySelector( '.tv3-announcement-next' );
+			if ( prevBtn ) {
+				prevBtn.addEventListener( 'click', function () {
+					setActiveItem( currentIndex - 1 );
+					startRotation();
+				} );
+			}
+			if ( nextBtn ) {
+				nextBtn.addEventListener( 'click', function () {
+					setActiveItem( currentIndex + 1 );
+					startRotation();
+				} );
+			}
+			setActiveItem( 0 );
+			startRotation();
+		}
+
 		if ( ! bar.querySelector( '.tv3-announcement-close' ) ) {
 			var btn = document.createElement( 'button' );
 			btn.className      = 'tv3-announcement-close';
@@ -123,8 +161,8 @@
 			btn.textContent    = '×';
 			btn.style.cssText  =
 				'position:absolute;right:1rem;top:50%;transform:translateY(-50%);' +
-				'background:none;border:none;color:rgba(255,255,255,0.7);font-size:1.25rem;' +
-				'cursor:pointer;padding:0 0.5rem;line-height:1;';
+				'background:none;border:none;color:rgba(255,255,255,0.8);font-size:1.25rem;' +
+				'cursor:pointer;padding:0 0.5rem;line-height:1;z-index:3;';
 			bar.style.position = 'relative';
 			bar.appendChild( btn );
 

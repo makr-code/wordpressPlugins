@@ -31,9 +31,196 @@ if ( ! defined( 'THEMISDB_V3_REQUIRED_PLUGINS' ) ) {
 
 define( 'THEMISDB_PULSE_TEXT_DOMAIN', 'themisdb-pulse' );
 
+function themisdb_v3_get_restricted_content_tags() {
+    return array(
+        'announcement' => array(
+            'label' => __( 'Announcement', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Frontend announcement bar and highlight items.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'hero' => array(
+            'label' => __( 'Hero', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Homepage hero spotlight.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'feature' => array(
+            'label' => __( 'Feature', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Product and feature cards.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'featured' => array(
+            'label' => __( 'Featured', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'General featured content selection.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'frontpage-feature' => array(
+            'label' => __( 'Frontpage Feature', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Priority frontpage feature selection.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'documentation' => array(
+            'label' => __( 'Documentation', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Documentation and knowledge base cards.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'docs' => array(
+            'label' => __( 'Docs', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Documentation shorthand tag.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'frontpage-documentation' => array(
+            'label' => __( 'Frontpage Documentation', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Priority documentation selection for the frontpage.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'pricing' => array(
+            'label' => __( 'Pricing', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Pricing and plan sections.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'download' => array(
+            'label' => __( 'Download', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Download and package cards.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'downloads' => array(
+            'label' => __( 'Downloads', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Plural download selection alias.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'blog' => array(
+            'label' => __( 'Blog', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Latest blog and news selection.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'recommended' => array(
+            'label' => __( 'Recommended', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Editorial recommendation and promotion.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'lesenswert' => array(
+            'label' => __( 'Lesenswert', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'German editorial recommendation tag.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'editor-pick' => array(
+            'label' => __( 'Editor Pick', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Editor selected content.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+    );
+}
+
+function themisdb_v3_get_restricted_content_tag_slugs() {
+    return array_keys( themisdb_v3_get_restricted_content_tags() );
+}
+
+function themisdb_v3_get_selection_content_tags() {
+    return array(
+        'announcement' => array(
+            'label' => __( 'Announcement', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Frontend announcement bar and highlight items.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'hero' => array(
+            'label' => __( 'Hero', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Homepage hero spotlight.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'feature' => array(
+            'label' => __( 'Feature', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Product and feature cards.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'documentation' => array(
+            'label' => __( 'Documentation', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Documentation and knowledge base cards.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'pricing' => array(
+            'label' => __( 'Pricing', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Pricing and plan sections.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'download' => array(
+            'label' => __( 'Download', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Download and package cards.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'edition' => array(
+            'label' => __( 'Edition', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Edition and plan variant selection.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'blog' => array(
+            'label' => __( 'Blog', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Latest blog and news selection.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'support' => array(
+            'label' => __( 'Support', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Support and portal-related content.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'recommended' => array(
+            'label' => __( 'Recommended', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Editorial recommendation and promotion.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'editor-pick' => array(
+            'label' => __( 'Editor Pick', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Editor selected content.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'release' => array(
+            'label' => __( 'Release', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Release or launch content.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'event' => array(
+            'label' => __( 'Event', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Event or meetup announcement.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'conference' => array(
+            'label' => __( 'Conference', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Conference-related content.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'security' => array(
+            'label' => __( 'Security', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Critical security information or updates.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'benchmark' => array(
+            'label' => __( 'Benchmark', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Benchmark or comparison content.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'case-study' => array(
+            'label' => __( 'Case Study', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Customer case studies.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'trial' => array(
+            'label' => __( 'Trial', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Evaluation or trial content.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+    );
+}
+
+function themisdb_v3_get_selection_content_tag_slugs() {
+    return array_keys( themisdb_v3_get_selection_content_tags() );
+}
+
+function themisdb_v3_filter_public_selection_tag_slugs( array $tag_slugs ): array {
+    $allowed = array_fill_keys( themisdb_v3_get_selection_content_tag_slugs(), true );
+    $filtered = array();
+
+    foreach ( $tag_slugs as $slug ) {
+        $slug = sanitize_title( (string) $slug );
+        if ( '' === $slug ) {
+            continue;
+        }
+
+        if ( isset( $allowed[ $slug ] ) ) {
+            $filtered[ $slug ] = $slug;
+        }
+    }
+
+    return array_values( $filtered );
+}
+
+function themisdb_v3_ensure_restricted_content_tags() {
+    if ( ! taxonomy_exists( 'post_tag' ) ) {
+        return;
+    }
+
+    foreach ( themisdb_v3_get_restricted_content_tags() as $slug => $meta ) {
+        $term = get_term_by( 'slug', $slug, 'post_tag' );
+        if ( $term && ! is_wp_error( $term ) ) {
+            continue;
+        }
+
+        $created = wp_insert_term( $meta['label'], 'post_tag', array( 'slug' => $slug ) );
+        if ( is_wp_error( $created ) ) {
+            continue;
+        }
+    }
+}
+
 require_once get_template_directory() . '/includes/class-themisdb-v3-hero-context-nav.php';
 
 add_action( 'after_setup_theme', 'themisdb_v3_setup' );
+add_action( 'init', 'themisdb_v3_ensure_restricted_content_tags', 6 );
 add_action( 'init', 'themisdb_v3_register_announcement_post_type', 8 );
 add_action( 'init', 'themisdb_v3_register_announcement_post_meta', 9 );
 add_action( 'init', 'themisdb_v3_register_page_taxonomies', 5 );
@@ -94,6 +281,22 @@ function themisdb_v3_register_announcement_post_type() {
     );
 }
 
+function themisdb_v3_ensure_announcement_tag_term() {
+    $taxonomy = 'post_tag';
+    $term = get_term_by( 'slug', 'announcement', $taxonomy );
+    if ( $term && ! is_wp_error( $term ) ) {
+        return $term;
+    }
+
+    $created = wp_insert_term( 'Announcement', $taxonomy, array( 'slug' => 'announcement' ) );
+    if ( is_wp_error( $created ) ) {
+        return false;
+    }
+
+    $term = get_term_by( 'id', (int) $created['term_id'], $taxonomy );
+    return $term && ! is_wp_error( $term ) ? $term : false;
+}
+
 function themisdb_v3_register_announcement_post_meta() {
     $meta_fields = array(
         'announcement_start_at' => array(
@@ -125,8 +328,10 @@ function themisdb_v3_register_announcement_post_meta() {
         ),
     );
 
-    foreach ( $meta_fields as $meta_key => $args ) {
-        register_post_meta( 'announcement', $meta_key, $args );
+    foreach ( array( 'post', 'page', 'announcement' ) as $post_type ) {
+        foreach ( $meta_fields as $meta_key => $args ) {
+            register_post_meta( $post_type, $meta_key, $args );
+        }
     }
 }
 
@@ -136,7 +341,7 @@ function themisdb_v3_register_announcement_post_meta() {
  * @param string $post_type Post type name.
  */
 function themisdb_v3_register_announcement_meta_box( $post_type ) {
-    if ( 'announcement' !== $post_type ) {
+    if ( ! in_array( $post_type, array( 'post', 'page', 'announcement' ), true ) ) {
         return;
     }
 
@@ -144,7 +349,7 @@ function themisdb_v3_register_announcement_meta_box( $post_type ) {
         'themisdb_announcement_schedule',
         __( 'Announcement schedule', THEMISDB_PULSE_TEXT_DOMAIN ),
         'themisdb_v3_render_announcement_meta_box',
-        'announcement',
+        $post_type,
         'side',
         'default'
     );
@@ -194,7 +399,7 @@ function themisdb_v3_render_announcement_meta_box( $post ) {
  * @param WP_Post $post    Post object.
  */
 function themisdb_v3_save_announcement_meta_box( $post_id, $post ) {
-    if ( ! $post instanceof WP_Post || 'announcement' !== $post->post_type ) {
+    if ( ! $post instanceof WP_Post || ! in_array( $post->post_type, array( 'post', 'page', 'announcement' ), true ) ) {
         return;
     }
 
@@ -218,16 +423,21 @@ function themisdb_v3_save_announcement_meta_box( $post_id, $post ) {
     update_post_meta( $post_id, 'announcement_end_at', $end_raw );
     update_post_meta( $post_id, 'announcement_link', $link_raw );
 
-    $announcement_term = get_term_by( 'slug', 'announcement', 'category' );
-    if ( ! $announcement_term || is_wp_error( $announcement_term ) ) {
-        $created = wp_insert_term( 'Announcement', 'category', array( 'slug' => 'announcement' ) );
-        if ( ! is_wp_error( $created ) ) {
-            $announcement_term = get_term_by( 'id', (int) $created['term_id'], 'category' );
+    $announcement_tag = themisdb_v3_ensure_announcement_tag_term();
+    if ( $announcement_tag && ! is_wp_error( $announcement_tag ) ) {
+        wp_set_post_terms( $post_id, array( (int) $announcement_tag->term_id ), 'post_tag', true );
+    }
+
+    $announcement_category = get_term_by( 'slug', 'announcement', 'category' );
+    if ( ! $announcement_category || is_wp_error( $announcement_category ) ) {
+        $created_category = wp_insert_term( 'Announcement', 'category', array( 'slug' => 'announcement' ) );
+        if ( ! is_wp_error( $created_category ) ) {
+            $announcement_category = get_term_by( 'id', (int) $created_category['term_id'], 'category' );
         }
     }
 
-    if ( $announcement_term && ! is_wp_error( $announcement_term ) ) {
-        wp_set_post_terms( $post_id, array( (int) $announcement_term->term_id ), 'category', true );
+    if ( $announcement_category && ! is_wp_error( $announcement_category ) ) {
+        wp_set_post_terms( $post_id, array( (int) $announcement_category->term_id ), 'category', true );
     }
 }
 
@@ -477,7 +687,83 @@ function themisdb_v3_render_missing_required_plugins_notice() {
 }
 
 add_action( 'init', 'themisdb_v3_register_shortcodes', 15 );
-add_action( 'wp_body_open', 'themisdb_v3_render_global_announcement_bar', 20 );
+
+/**
+ * Keep block-template DB overrides for front-page aligned with the current
+ * file template so stale saved templates do not hide dynamic sections.
+ *
+ * @return void
+ */
+function themisdb_v3_sync_front_page_block_template() {
+    if ( ! post_type_exists( 'wp_template' ) ) {
+        return;
+    }
+
+    $template_path = get_theme_file_path( 'templates/front-page.html' );
+    if ( ! is_readable( $template_path ) ) {
+        return;
+    }
+
+    $desired_content = (string) file_get_contents( $template_path );
+    if ( '' === trim( $desired_content ) ) {
+        return;
+    }
+
+    $templates = get_posts(
+        array(
+            'post_type'      => 'wp_template',
+            'name'           => 'front-page',
+            'post_status'    => array( 'publish', 'draft', 'private' ),
+            'posts_per_page' => -1,
+            'orderby'        => 'ID',
+            'order'          => 'ASC',
+            'no_found_rows'  => true,
+        )
+    );
+
+    if ( empty( $templates ) ) {
+        return;
+    }
+
+    foreach ( $templates as $template_post ) {
+        if ( ! $template_post instanceof WP_Post ) {
+            continue;
+        }
+
+        $content = (string) $template_post->post_content;
+        $required_markers = array(
+            'themisdb_v3_feature_cards',
+            'themisdb_v3_docs_cards',
+            'themisdb_v3_pricing_cards',
+            'themisdb_v3_download_cards',
+            'themisdb_v3_blog_section',
+            'tv3-docs-grid-title',
+            'tv3-pricing-section__title',
+            'tv3-download-title',
+        );
+
+        $is_stale_frontpage = false;
+        foreach ( $required_markers as $required_marker ) {
+            if ( false === strpos( $content, $required_marker ) ) {
+                $is_stale_frontpage = true;
+                break;
+            }
+        }
+
+        if ( ! $is_stale_frontpage ) {
+            continue;
+        }
+
+        wp_update_post(
+            array(
+                'ID'           => (int) $template_post->ID,
+                'post_content' => $desired_content,
+            )
+        );
+    }
+}
+add_action( 'init', 'themisdb_v3_sync_front_page_block_template', 16 );
+
 /**
  * Register frontend shortcodes used by template parts.
  */
@@ -616,22 +902,12 @@ function themisdb_v3_parse_local_datetime_to_timestamp( $raw ) {
  * @param array<string,mixed> $atts Shortcode attributes.
  * @return string
  */
-function themisdb_v3_render_global_announcement_bar() {
-    if ( is_admin() ) {
-        return;
-    }
-
-    $html = themisdb_v3_render_announcement_bar_shortcode();
-    if ( '' !== $html ) {
-        echo $html;
-    }
-}
-
 function themisdb_v3_render_announcement_bar_shortcode( $atts = array() ) {
     $atts = shortcode_atts(
         array(
             'category'         => 'announcement',
             'limit'            => 5,
+            'post_types'       => 'post,page',
             'end_meta_key'     => 'announcement_end_at',
             'link_label'       => __( 'Mehr erfahren ->', 'themisdb-v3' ),
             'excerpt_words'    => 22,
@@ -643,16 +919,45 @@ function themisdb_v3_render_announcement_bar_shortcode( $atts = array() ) {
     );
 
     $limit         = max( 1, min( 12, (int) $atts['limit'] ) );
-    $category_slug = sanitize_title( (string) $atts['category'] );
+    $tag_slug      = sanitize_title( (string) $atts['category'] );
     $end_meta_key  = sanitize_key( (string) $atts['end_meta_key'] );
     $excerpt_words = max( 8, min( 60, (int) $atts['excerpt_words'] ) );
     $now_ts        = current_time( 'timestamp' );
 
-    if ( '' === $category_slug ) {
+    if ( '' === $tag_slug ) {
         return '';
     }
 
-    $post_types = array( 'announcement' );
+    $requested_types = array_filter(
+        array_map( 'sanitize_key', array_map( 'trim', explode( ',', (string) $atts['post_types'] ) ) )
+    );
+    $post_types = ! empty( $requested_types ) ? $requested_types : array( 'post', 'page' );
+
+    $selection_tags = themisdb_v3_get_selection_content_tag_slugs();
+    if ( ! in_array( $tag_slug, $selection_tags, true ) ) {
+        return '';
+    }
+
+    $tax_queries = array();
+
+    if ( taxonomy_exists( 'post_tag' ) ) {
+        $tax_queries[] = array(
+            'taxonomy' => 'post_tag',
+            'field'    => 'slug',
+            'terms'    => array( $tag_slug ),
+        );
+    }
+
+    if ( taxonomy_exists( 'category' ) ) {
+        $category_exists = term_exists( $tag_slug, 'category' );
+        if ( $category_exists ) {
+            $tax_queries[] = array(
+                'taxonomy' => 'category',
+                'field'    => 'slug',
+                'terms'    => array( $tag_slug ),
+            );
+        }
+    }
 
     $query_args = array(
         'post_type'              => $post_types,
@@ -663,14 +968,35 @@ function themisdb_v3_render_announcement_bar_shortcode( $atts = array() ) {
         'orderby'                => 'date',
         'order'                  => 'DESC',
         'update_post_meta_cache' => true,
-        'update_post_term_cache' => false,
+        'update_post_term_cache' => true,
     );
 
-    if ( taxonomy_exists( 'category' ) && term_exists( $category_slug, 'category' ) ) {
-        $query_args['category_name'] = $category_slug;
+    if ( ! empty( $tax_queries ) ) {
+        $query_args['tax_query'] = array(
+            'relation' => 'OR',
+        );
+        foreach ( $tax_queries as $tax_query ) {
+            $query_args['tax_query'][] = $tax_query;
+        }
     }
 
     $query = new WP_Query( $query_args );
+
+    if ( ! $query->have_posts() && post_type_exists( 'announcement' ) ) {
+        $query = new WP_Query(
+            array(
+                'post_type'              => 'announcement',
+                'post_status'            => 'publish',
+                'posts_per_page'         => $limit,
+                'ignore_sticky_posts'    => true,
+                'no_found_rows'          => true,
+                'orderby'                => 'date',
+                'order'                  => 'DESC',
+                'update_post_meta_cache' => true,
+                'update_post_term_cache' => false,
+            )
+        );
+    }
 
     if ( ! $query->have_posts() ) {
         return '';
@@ -682,37 +1008,21 @@ function themisdb_v3_render_announcement_bar_shortcode( $atts = array() ) {
             continue;
         }
 
-        $start_ts = null;
-        if ( 'announcement' === $candidate->post_type ) {
-            $raw_start = trim( (string) get_post_meta( $candidate->ID, 'announcement_start_at', true ) );
-            if ( '' !== $raw_start ) {
-                $start_ts = themisdb_v3_parse_local_datetime_to_timestamp( $raw_start );
-            }
-            if ( null === $start_ts ) {
-                $start_dt = get_post_datetime( $candidate, 'date', wp_timezone() );
-                $start_ts = $start_dt instanceof DateTimeImmutable ? $start_dt->getTimestamp() : 0;
-            }
-        } else {
-            $start_dt = get_post_datetime( $candidate, 'date', wp_timezone() );
-            $start_ts = $start_dt instanceof DateTimeImmutable ? $start_dt->getTimestamp() : 0;
+        $start_dt = get_post_datetime( $candidate, 'date', wp_timezone() );
+        $start_ts = $start_dt instanceof DateTimeImmutable ? $start_dt->getTimestamp() : 0;
+        $raw_start = trim( (string) get_post_meta( $candidate->ID, 'announcement_start_at', true ) );
+        if ( '' !== $raw_start ) {
+            $start_ts = themisdb_v3_parse_local_datetime_to_timestamp( $raw_start );
         }
 
         if ( null !== $start_ts && $start_ts > $now_ts ) {
             continue;
         }
 
+        $raw_end = trim( (string) get_post_meta( $candidate->ID, 'announcement_end_at', true ) );
         $end_ts = null;
-        if ( 'announcement' === $candidate->post_type ) {
-            $raw_end = trim( (string) get_post_meta( $candidate->ID, 'announcement_end_at', true ) );
-            if ( '' !== $raw_end ) {
-                $end_ts = themisdb_v3_parse_local_datetime_to_timestamp( $raw_end );
-            }
-            if ( null === $end_ts ) {
-                $legacy_end = trim( (string) get_post_meta( $candidate->ID, $end_meta_key, true ) );
-                if ( '' !== $legacy_end ) {
-                    $end_ts = themisdb_v3_parse_local_datetime_to_timestamp( $legacy_end );
-                }
-            }
+        if ( '' !== $raw_end ) {
+            $end_ts = themisdb_v3_parse_local_datetime_to_timestamp( $raw_end );
         } elseif ( '' !== $end_meta_key ) {
             $end_ts = themisdb_v3_parse_local_datetime_to_timestamp( get_post_meta( $candidate->ID, $end_meta_key, true ) );
         }
@@ -745,11 +1055,9 @@ function themisdb_v3_render_announcement_bar_shortcode( $atts = array() ) {
     }
 
     $link_url = get_permalink( $active_post );
-    if ( 'announcement' === $active_post->post_type ) {
-        $override_url = get_post_meta( $active_post->ID, 'announcement_link', true );
-        if ( is_string( $override_url ) && '' !== trim( $override_url ) ) {
-            $link_url = esc_url_raw( $override_url );
-        }
+    $override_url = get_post_meta( $active_post->ID, 'announcement_link', true );
+    if ( is_string( $override_url ) && '' !== trim( $override_url ) ) {
+        $link_url = esc_url_raw( $override_url );
     }
 
     $link_label = trim( (string) $atts['link_label'] );
@@ -864,29 +1172,42 @@ function themisdb_v3_get_post_author_items( int $post_id, int $avatar_size = 40,
         }
     }
 
-    // Append AI co-authors stored as comma-separated names in the post meta.
-    $ai_meta = trim( (string) get_post_meta( $post_id, 'tv3_ai_coauthors', true ) );
-    if ( '' !== $ai_meta ) {
-        foreach ( explode( ',', $ai_meta ) as $ai_name ) {
-            $ai_name = trim( $ai_name );
-            if ( '' === $ai_name ) {
-                continue;
-            }
-            $ai_slug  = sanitize_title( $ai_name );
-            $ai_brand = themisdb_v3_detect_ai_author_brand( $ai_name, $ai_slug );
-            $ai_avatar = '';
-            if ( '' !== $ai_brand ) {
-                $ai_avatar = themisdb_v3_get_ai_author_avatar_markup( $ai_brand, $ai_name, $avatar_size );
-            }
-            $items[] = array(
-                'id'     => 0,
-                'name'   => $ai_name,
-                'slug'   => $ai_slug,
-                'url'    => '',
-                'avatar' => $ai_avatar,
-                'bio'    => '',
-            );
+    // Append co-authors stored in the importer fallback metadata or AI author meta.
+    $coauthor_meta_keys = array( 'themisdb_coauthors', 'tv3_ai_coauthors', 'themisdb_ai_coauthors' );
+    $coauthor_names = array();
+    foreach ( $coauthor_meta_keys as $meta_key ) {
+        $raw_value = trim( (string) get_post_meta( $post_id, $meta_key, true ) );
+        if ( '' === $raw_value ) {
+            continue;
         }
+        foreach ( preg_split( '/\s*,\s*|\s*;\s*|\s*\n\s*/', $raw_value ) as $co_name ) {
+            $co_name = trim( (string) $co_name );
+            if ( '' !== $co_name ) {
+                $coauthor_names[] = $co_name;
+            }
+        }
+    }
+
+    $coauthor_names = array_values( array_unique( $coauthor_names ) );
+    foreach ( $coauthor_names as $co_name ) {
+        $co_name = trim( (string) $co_name );
+        if ( '' === $co_name ) {
+            continue;
+        }
+        $co_slug  = sanitize_title( $co_name );
+        $co_brand = themisdb_v3_detect_ai_author_brand( $co_name, $co_slug );
+        $co_avatar = '';
+        if ( '' !== $co_brand ) {
+            $co_avatar = themisdb_v3_get_ai_author_avatar_markup( $co_brand, $co_name, $avatar_size );
+        }
+        $items[] = array(
+            'id'     => 0,
+            'name'   => $co_name,
+            'slug'   => $co_slug,
+            'url'    => '',
+            'avatar' => $co_avatar,
+            'bio'    => '',
+        );
     }
 
     // Ensure the primary post author is always represented (and has bio data).
@@ -1916,156 +2237,17 @@ function themisdb_v3_render_read_time_shortcode( $atts = array() ) {
  * @return string
  */
 function themisdb_v3_render_breadcrumbs_shortcode() {
-    $items = array(
-        array(
-            'label'          => __( 'Start', 'themisdb-v3' ),
-            'url'            => home_url( '/' ),
-            'is_home_button' => true,
-        ),
-    );
-
-    $is_home_context = is_front_page() || is_home();
-
-    $current_label = '';
-
-    $truncate_breadcrumb_label = static function( $label, $max_length = 32 ) {
-        $label = trim( wp_strip_all_tags( (string) $label ) );
-        if ( '' === $label ) {
-            return $label;
-        }
-
-        if ( function_exists( 'mb_strlen' ) && function_exists( 'mb_substr' ) ) {
-            if ( mb_strlen( $label ) <= $max_length ) {
-                return $label;
-            }
-
-            return rtrim( mb_substr( $label, 0, $max_length - 1 ) ) . '…';
-        }
-
-        if ( strlen( $label ) <= $max_length ) {
-            return $label;
-        }
-
-        return rtrim( substr( $label, 0, $max_length - 1 ) ) . '…';
-    };
-
-    if ( is_singular() ) {
-        $post = get_queried_object();
-        if ( $post instanceof WP_Post ) {
-            if ( 'page' === $post->post_type ) {
-                $ancestors = array_reverse( get_post_ancestors( $post ) );
-                foreach ( $ancestors as $ancestor_id ) {
-                    $items[] = array(
-                        'label' => get_the_title( $ancestor_id ),
-                        'url'   => get_permalink( $ancestor_id ),
-                    );
-                }
-            } else {
-                $post_type_object = get_post_type_object( $post->post_type );
-                if ( $post_type_object && ! empty( $post_type_object->has_archive ) ) {
-                    $archive_link = get_post_type_archive_link( $post->post_type );
-                    if ( $archive_link ) {
-                        $items[] = array(
-                            'label' => (string) $post_type_object->labels->name,
-                            'url'   => $archive_link,
-                        );
-                    }
-                }
-            }
-
-            $current_label = get_the_title( $post );
-        }
-    } elseif ( is_category() || is_tag() || is_tax() ) {
-        $term = get_queried_object();
-        if ( $term instanceof WP_Term ) {
-            if ( 'category' !== $term->taxonomy && 'post_tag' !== $term->taxonomy ) {
-                $taxonomy = get_taxonomy( $term->taxonomy );
-                if ( $taxonomy && ! empty( $taxonomy->labels->name ) ) {
-                    $items[] = array(
-                        'label' => (string) $taxonomy->labels->name,
-                        'url'   => '',
-                    );
-                }
-            }
-            $current_label = single_term_title( '', false );
-        }
-    } elseif ( is_post_type_archive() ) {
-        $current_label = post_type_archive_title( '', false );
-    } elseif ( is_search() ) {
-        $current_label = sprintf( __( 'Suche: %s', 'themisdb-v3' ), get_search_query() );
-    } elseif ( is_404() ) {
-        $current_label = __( 'Nicht gefunden', 'themisdb-v3' );
-    } else {
-        $current_label = wp_get_document_title();
-    }
-
-    $current_label = $truncate_breadcrumb_label( $current_label );
-    if ( $is_home_context ) {
-        $current_label = '';
-    }
-
-    if ( '' === trim( $current_label ) ) {
-        $current_label = __( 'Aktuelle Seite', 'themisdb-v3' );
-    }
-
-    $html = '<nav class="tv3-breadcrumbs" aria-label="' . esc_attr__( 'Breadcrumb-Navigation', 'themisdb-v3' ) . '">';
-    $html .= '<ol class="tv3-breadcrumbs-list" itemscope itemtype="https://schema.org/BreadcrumbList" data-tv3-anchor-nav="true" data-tv3-anchor-list="true" data-tv3-anchor-limit="8">';
-
-    $position = 1;
-    foreach ( $items as $item ) {
-        $label = isset( $item['label'] ) ? trim( (string) $item['label'] ) : '';
-        $url   = isset( $item['url'] ) ? (string) $item['url'] : '';
-        if ( '' === $label ) {
-            continue;
-        }
-
-        $label = $truncate_breadcrumb_label( $label );
-
-        $item_class = 'tv3-breadcrumbs-item';
-        $html .= '<li class="' . esc_attr( $item_class ) . '" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">';
-        if ( '' !== $url ) {
-            $html .= '<a href="' . esc_url( $url ) . '" itemprop="item">';
-            $html .= '<span itemprop="name">' . esc_html( $label ) . '</span>';
-            $html .= '</a>';
-        } else {
-            $html .= '<span itemprop="name">' . esc_html( $label ) . '</span>';
-        }
-        $html .= '<meta itemprop="position" content="' . (int) $position . '" />';
-        $html .= '</li>';
-        $position++;
-    }
-
-    if ( ! $is_home_context ) {
-        $html .= '<li class="tv3-breadcrumbs-item is-current" aria-current="page" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">';
-        $html .= '<span itemprop="name">' . esc_html( $current_label ) . '</span>';
-        $html .= '<meta itemprop="position" content="' . (int) $position . '" />';
-        $html .= '</li>';
-        $position++;
-    }
-
-    // Add dynamic context links (anchor navigation) to the same breadcrumb list
-    $context_links = ThemisDB_V3_Hero_Context_Nav::get_local_context_links( 8 );
-    if ( ! empty( $context_links ) && is_array( $context_links ) ) {
-        foreach ( $context_links as $link ) {
-            $link_label = isset( $link['label'] ) ? trim( wp_strip_all_tags( (string) $link['label'] ) ) : '';
-            $link_url   = isset( $link['url'] ) ? (string) $link['url'] : '';
-
-            if ( '' === $link_label || '' === $link_url || '#' !== substr( $link_url, 0, 1 ) ) {
-                continue;
-            }
-
-            $link_label = $truncate_breadcrumb_label( $link_label, 24 ); // Shorter max for context links
-
-            $html .= '<li class="tv3-breadcrumbs-item" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">';
-            $html .= '<a href="' . esc_attr( $link_url ) . '" itemprop="item">';
-            $html .= '<span itemprop="name">' . esc_html( $link_label ) . '</span>';
-            $html .= '</a>';
-            $html .= '<meta itemprop="position" content="' . (int) $position . '" />';
-            $html .= '</li>';
-            $position++;
-        }
-    }
-
+    $html = '<nav class="tv3-breadcrumbs" aria-label="' . esc_attr__( 'Breadcrumb-Navigation', 'themisdb-v3' ) . '" data-tv3-anchor-nav="true" data-tv3-breadcrumb-before="1" data-tv3-breadcrumb-after="3">';
+    $html .= '<ol class="tv3-breadcrumbs-list" itemscope itemtype="https://schema.org/BreadcrumbList" data-tv3-anchor-list="true" data-tv3-anchor-limit="8" data-tv3-breadcrumb-before="1" data-tv3-breadcrumb-after="3">';
+    $html .= '<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--home" data-tv3-home-breadcrumb="1" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">';
+    $html .= '<a href="' . esc_url( home_url( '/' ) ) . '" itemprop="item">';
+    $html .= '<span itemprop="name">' . esc_html__( 'Start', 'themisdb-v3' ) . '</span>';
+    $html .= '</a>';
+    $html .= '<meta itemprop="position" content="1" />';
+    $html .= '</li>';
+    $html .= '<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--ellipsis" data-tv3-breadcrumbs-leading="1" aria-hidden="true" style="display:none;">…</li>';
+    $html .= '<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--ellipsis" data-tv3-breadcrumbs-trailing="1" aria-hidden="true" style="display:none;">…</li>';
+    $html .= '<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--progress" data-tv3-reading-progress-breadcrumb="1" aria-live="polite"><span>0% gelesen</span></li>';
     $html .= '</ol></nav>';
 
     return $html;
@@ -2148,6 +2330,57 @@ function themisdb_v3_get_frontpage_page_fallback( array $post_types, int $limit,
  * @param string             $order              Ordering direction.
  * @return array<int,WP_Post>
  */
+function themisdb_v3_get_feature_fallback_cards( $limit = 6 ) {
+    $limit = max( 1, min( 12, absint( $limit ) ) );
+
+    $cards = array(
+        array(
+            'id'        => 0,
+            'title'     => 'Vector Search & Hybrid Retrieval',
+            'permalink' => '#vector-search-hybrid-retrieval',
+            'excerpt'   => 'Semantic retrieval, hybrid ranking and grounded AI context for modern database workloads.',
+            'type'      => 'page',
+        ),
+        array(
+            'id'        => 0,
+            'title'     => 'Graph-native Intelligence',
+            'permalink' => '#graph-native-intelligence',
+            'excerpt'   => 'Connected entities and relationship-aware reasoning that keep multi-hop AI workflows explainable.',
+            'type'      => 'page',
+        ),
+        array(
+            'id'        => 0,
+            'title'     => 'Operational Guardrails & Observability',
+            'permalink' => '#operational-guardrails-observability',
+            'excerpt'   => 'Production-safe monitoring, recovery paths and audit visibility for AI-critical deployments.',
+            'type'      => 'page',
+        ),
+        array(
+            'id'        => 0,
+            'title'     => 'Hybrid Query Planning',
+            'permalink' => '#hybrid-query-planning',
+            'excerpt'   => 'Batches of relational filters, semantic retrieval and cost-aware planning under one execution model.',
+            'type'      => 'page',
+        ),
+        array(
+            'id'        => 0,
+            'title'     => 'Entity-Aware Governance',
+            'permalink' => '#entity-aware-governance',
+            'excerpt'   => 'Protect high-trust workloads with explainable policy checks, lineage and compliance-ready auditing.',
+            'type'      => 'page',
+        ),
+        array(
+            'id'        => 0,
+            'title'     => 'AI-Ready Deployment Paths',
+            'permalink' => '#ai-ready-deployment-paths',
+            'excerpt'   => 'Ship production-grade inference and retrieval landscapes without sacrificing control, resilience or speed.',
+            'type'      => 'page',
+        ),
+    );
+
+    return array_slice( $cards, 0, $limit );
+}
+
 function themisdb_v3_collect_frontpage_cards( array $post_types, $limit, array $category_slugs, array $priority_tag_slugs, array $ids = array(), $orderby = 'date', $order = 'DESC' ) {
     $limit = max( 1, min( 12, absint( $limit ) ) );
 
@@ -2184,8 +2417,8 @@ function themisdb_v3_collect_frontpage_cards( array $post_types, $limit, array $
         return get_posts( $query_args );
     }
 
-    $category_slugs = array_values( array_filter( array_map( 'sanitize_title', $category_slugs ) ) );
-    $priority_tag_slugs = array_values( array_filter( array_map( 'sanitize_title', $priority_tag_slugs ) ) );
+    $category_slugs = themisdb_v3_filter_public_selection_tag_slugs( $category_slugs );
+    $priority_tag_slugs = themisdb_v3_filter_public_selection_tag_slugs( $priority_tag_slugs );
 
     $selected_posts = array();
     $selected_ids   = array();
@@ -2255,6 +2488,36 @@ function themisdb_v3_collect_frontpage_cards( array $post_types, $limit, array $
         }
     }
 
+    if ( count( $selected_posts ) < $limit && ! empty( $category_slugs ) ) {
+        $tag_fallback = get_posts(
+            array(
+                'post_type'           => $post_types,
+                'post_status'         => 'publish',
+                'posts_per_page'      => $limit,
+                'ignore_sticky_posts' => true,
+                'no_found_rows'       => true,
+                'tax_query'           => array(
+                    array(
+                        'taxonomy' => 'post_tag',
+                        'field'    => 'slug',
+                        'terms'    => $category_slugs,
+                    ),
+                ),
+            )
+        );
+
+        foreach ( $tag_fallback as $post ) {
+            if ( in_array( (int) $post->ID, $selected_ids, true ) ) {
+                continue;
+            }
+            $selected_posts[] = $post;
+            $selected_ids[]   = (int) $post->ID;
+            if ( count( $selected_posts ) >= $limit ) {
+                break;
+            }
+        }
+    }
+
     return array_slice( $selected_posts, 0, $limit );
 }
 
@@ -2273,8 +2536,8 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
         array(
             'limit'         => 6,
             'post_types'    => 'post,page',
-            'category'      => 'features',
-            'priority_tag'  => 'frontpage-feature',
+            'category'      => 'feature,features,featured,hero',
+            'priority_tag'  => 'feature,featured,frontpage-feature,frontpage-featured,hero,recommended,lesenswert',
             'ids'           => '',
             'orderby'       => 'date',
             'order'         => 'DESC',
@@ -2319,12 +2582,41 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
 
     $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
 
-    if ( empty( $posts ) ) {
+    if ( empty( $posts ) || count( $posts ) < min( 3, $limit_value ) ) {
+        $feature_slugs = array( 'vector-search-hybrid-retrieval', 'graph-native-intelligence', 'operational-guardrails-observability' );
+        $feature_post_ids = array();
+
+        foreach ( $feature_slugs as $feature_slug ) {
+            $feature_post = get_page_by_path( $feature_slug, OBJECT, $post_types );
+            if ( $feature_post instanceof WP_Post ) {
+                $feature_post_ids[] = (int) $feature_post->ID;
+            }
+        }
+
+        if ( ! empty( $feature_post_ids ) ) {
+            $posts = get_posts(
+                array(
+                    'post_type'      => $post_types,
+                    'post_status'    => 'publish',
+                    'post__in'       => array_values( array_unique( $feature_post_ids ) ),
+                    'orderby'        => 'post__in',
+                    'posts_per_page' => $limit_value,
+                    'no_found_rows'  => true,
+                )
+            );
+        }
+    }
+
+    if ( empty( $posts ) || count( $posts ) < min( 3, $limit_value ) ) {
         $posts = themisdb_v3_get_frontpage_page_fallback(
             $post_types,
             $limit_value,
             array( 'features', 'feature-overview', 'capabilities', 'product-overview' )
         );
+    }
+
+    if ( empty( $posts ) || count( $posts ) < min( 3, $limit_value ) ) {
+        $posts = themisdb_v3_get_feature_fallback_cards( $limit_value );
     }
 
     if ( empty( $posts ) ) {
@@ -2366,26 +2658,37 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
 
     ob_start();
     ?>
-    <div class="wp-block-group tv3-product-grid themis-v3-fade-in">
+    <div class="wp-block-group tv3-feature-grid themis-v3-fade-in">
         <?php foreach ( $posts as $index => $post_item ) : ?>
             <?php
-            $tone         = $tones[ $index % count( $tones ) ];
-            $post_id      = (int) $post_item->ID;
-            $title        = get_the_title( $post_id );
-            $permalink    = get_permalink( $post_id );
-            $raw_excerpt  = get_the_excerpt( $post_id );
-            $source_text  = '' !== trim( (string) $raw_excerpt ) ? (string) $raw_excerpt : wp_strip_all_tags( (string) get_post_field( 'post_content', $post_id ) );
-            $description  = wp_trim_words( $source_text, $words, '…' );
-            $cta_label    = 'page' === get_post_type( $post_id ) ? __( 'Seite lesen →', 'themisdb-v3' ) : __( 'Beitrag lesen →', 'themisdb-v3' );
+            $tone    = $tones[ $index % count( $tones ) ];
+            $is_fallback = is_array( $post_item );
+
+            if ( $is_fallback ) {
+                $post_id   = isset( $post_item['id'] ) ? absint( $post_item['id'] ) : 0;
+                $title     = isset( $post_item['title'] ) ? (string) $post_item['title'] : '';
+                $permalink = isset( $post_item['permalink'] ) ? (string) $post_item['permalink'] : '#';
+                $source_text = isset( $post_item['excerpt'] ) ? (string) $post_item['excerpt'] : '';
+                $description = $source_text;
+                $cta_label = __( 'Mehr erfahren →', 'themisdb-v3' );
+            } else {
+                $post_id      = (int) $post_item->ID;
+                $title        = get_the_title( $post_id );
+                $permalink    = get_permalink( $post_id );
+                $raw_excerpt  = get_the_excerpt( $post_id );
+                $source_text  = '' !== trim( (string) $raw_excerpt ) ? (string) $raw_excerpt : wp_strip_all_tags( (string) get_post_field( 'post_content', $post_id ) );
+                $description  = wp_trim_words( $source_text, $words, '…' );
+                $cta_label    = 'page' === get_post_type( $post_id ) ? __( 'Seite lesen →', 'themisdb-v3' ) : __( 'Beitrag lesen →', 'themisdb-v3' );
+            }
             ?>
-            <div class="wp-block-group tv3-product-card">
-                <div class="wp-block-group tv3-card-top-border <?php echo esc_attr( $tone['border'] ); ?>"></div>
-                <p class="tv3-product-card__icon <?php echo esc_attr( $tone['icon'] ); ?>"><?php echo wp_kses_post( $tone['glyph'] ); ?></p>
-                <div class="wp-block-group">
-                    <h3 class="wp-block-heading tv3-product-card__title"><?php echo esc_html( $title ); ?></h3>
-                    <p class="tv3-product-card__desc"><?php echo esc_html( $description ); ?></p>
+            <div class="wp-block-group tv3-feature-card">
+                <div class="wp-block-group tv3-feature-card__top <?php echo esc_attr( $tone['border'] ); ?>"></div>
+                <p class="tv3-feature-card__icon <?php echo esc_attr( $tone['icon'] ); ?>"><?php echo wp_kses_post( $tone['glyph'] ); ?></p>
+                <div class="wp-block-group tv3-feature-card__body">
+                    <h3 class="wp-block-heading tv3-feature-card__title"><?php echo esc_html( $title ); ?></h3>
+                    <p class="tv3-feature-card__desc"><?php echo esc_html( $description ); ?></p>
                 </div>
-                <p class="tv3-product-card__cta"><a href="<?php echo esc_url( $permalink ); ?>"><?php echo esc_html( $cta_label ); ?></a></p>
+                <p class="tv3-feature-card__cta"><a href="<?php echo esc_url( $permalink ); ?>"><?php echo esc_html( $cta_label ); ?></a></p>
             </div>
         <?php endforeach; ?>
     </div>
@@ -2398,7 +2701,7 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
 function themisdb_v3_render_pricing_cards_shortcode( $atts = array() ) {
     $atts = shortcode_atts(
         array(
-            'limit'         => 3,
+            'limit'         => 6,
             'post_types'    => 'page,post',
             'category'      => 'pricing',
             'priority_tag'  => 'pricing-featured,most-popular,recommended,frontpage-feature',
@@ -2411,7 +2714,7 @@ function themisdb_v3_render_pricing_cards_shortcode( $atts = array() ) {
         'themisdb_v3_pricing_cards'
     );
 
-    $limit_value = max( 1, min( 3, absint( $atts['limit'] ) ) );
+    $limit_value = max( 1, min( 6, absint( $atts['limit'] ) ) );
     $words       = max( 8, min( 48, absint( $atts['excerpt_words'] ) ) );
 
     $supported_types = themisdb_v3_get_supported_content_post_types();
@@ -2720,8 +3023,8 @@ function themisdb_v3_render_docs_cards_shortcode( $atts = array() ) {
         array(
             'limit'         => 8,
             'post_types'    => 'post,page',
-            'category'      => 'documentation',
-            'priority_tag'  => 'frontpage-documentation',
+            'category'      => 'documentation,docs,dokumentation',
+            'priority_tag'  => 'documentation,featured,frontpage-documentation',
             'ids'           => '',
             'orderby'       => 'date',
             'order'         => 'DESC',
@@ -3793,7 +4096,7 @@ function themisdb_v3_enqueue_assets() {
         THEMISDB_V3_VERSION,
         true
     );
-    if ( themisdb_v3_should_show_reading_progress() ) {
+    if ( themisdb_v3_should_show_reading_progress() || is_front_page() || is_home() ) {
         $minutes_total = is_singular() ? themisdb_v3_get_read_time_minutes() : 0;
         $reading_progress_js_file = get_template_directory() . '/assets/js/reading-progress.js';
         $reading_progress_js_ver  = file_exists( $reading_progress_js_file ) ? (string) filemtime( $reading_progress_js_file ) : THEMISDB_V3_VERSION;

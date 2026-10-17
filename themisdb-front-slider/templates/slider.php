@@ -30,10 +30,12 @@ $readmore_aria_format = isset( $labels['readmore_aria'] ) ? (string) $labels['re
 $has_multiple_slides = $query->post_count > 1;
 $initial_active_id = isset( $initial_active_id ) ? (int) $initial_active_id : 0;
 $is_hero_context = isset( $hero_label ) && '' !== (string) $hero_label;
+$variant = isset( $variant ) ? sanitize_key( (string) $variant ) : 'hero';
 $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_reduced_motion : true;
+$announcement_mode = 'announcement' === $variant;
 ?>
 <div
-    class="themisdb-fs-wrapper la-hero-slider themisdb-fs-preset-<?php echo esc_attr( $layout_preset ); ?><?php echo $is_hero_context ? ' themisdb-fs-context-hero' : ''; ?><?php echo $respect_reduced_motion ? '' : ' themisdb-fs-force-motion'; ?>"
+    class="themisdb-fs-wrapper la-hero-slider themisdb-fs-preset-<?php echo esc_attr( $layout_preset ); ?><?php echo $is_hero_context ? ' themisdb-fs-context-hero' : ''; ?><?php echo $announcement_mode ? ' themisdb-fs-variant-announcement' : ''; ?><?php echo $respect_reduced_motion ? '' : ' themisdb-fs-force-motion'; ?>"
     id="<?php echo esc_attr( $slider_id ); ?>"
     data-interval="<?php echo esc_attr( $interval ); ?>"
     data-autoplay="<?php echo $autoplay ? '1' : '0'; ?>"
@@ -54,7 +56,11 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
             while ( $query->have_posts() ) :
                 $query->the_post();
                 $post_id      = get_the_ID();
-                $raw_title    = wp_strip_all_tags( (string) get_the_title( $post_id ) );
+                $demo_slide = array();
+                if ( $post_id < 0 && isset( $demo_slide_data_map[ $post_id ] ) ) {
+                    $demo_slide = $demo_slide_data_map[ $post_id ];
+                }
+                $raw_title = ! empty( $demo_slide ) ? (string) $demo_slide['title'] : wp_strip_all_tags( (string) get_the_title( $post_id ) );
                 $display_title = $is_hero_context ? wp_trim_words( $raw_title, 18, '…' ) : $raw_title;
                 $categories   = get_the_category();
                 $first_cat    = ! empty( $categories ) ? $categories[0] : null;
@@ -84,6 +90,13 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
                 }
                 $ribbons = array_values( array_unique( $ribbons, SORT_REGULAR ) );
                 $ribbons = array_slice( $ribbons, 0, 5 );
+                $post_url = ! empty( $demo_slide ) ? (string) $demo_slide['url'] : get_permalink( $post_id );
+                if ( $announcement_mode ) {
+                    $announcement_link = trim( (string) get_post_meta( $post_id, 'announcement_link', true ) );
+                    if ( '' !== $announcement_link ) {
+                        $post_url = esc_url_raw( $announcement_link );
+                    }
+                }
                 $has_thumb    = has_post_thumbnail();
                 $thumb_id     = $has_thumb ? get_post_thumbnail_id( $post_id ) : 0;
                 $hero_images  = array();
@@ -92,6 +105,10 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
                     if ( is_string( $featured_src ) && '' !== $featured_src ) {
                         $hero_images[] = $featured_src;
                     }
+                }
+
+                if ( ! empty( $demo_slide ) && ! empty( $demo_slide['thumbnail'] ) ) {
+                    $hero_images[] = (string) $demo_slide['thumbnail'];
                 }
 
                 $post_content = (string) get_post_field( 'post_content', $post_id );
@@ -137,7 +154,11 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
 
                     <!-- Left column: text content -->
                     <div class="themisdb-fs-slide-content la-slide-content">
-                        <?php if ( $show_category && ! empty( $ribbons ) ) : ?>
+                        <?php if ( $announcement_mode ) : ?>
+                        <div class="themisdb-fs-ribbons" role="list" aria-label="Announcement-Labels">
+                            <span class="themisdb-fs-category themisdb-fs-ribbon">Announcement</span>
+                        </div>
+                        <?php elseif ( $show_category && ! empty( $ribbons ) ) : ?>
                         <div class="themisdb-fs-ribbons" role="list" aria-label="Beitrags-Labels">
                             <?php foreach ( $ribbons as $ribbon ) : ?>
                             <a
@@ -154,7 +175,7 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
 
                         <h2 class="themisdb-fs-title la-section-title">
                             <a
-                                href="<?php the_permalink(); ?>"
+                                href="<?php echo esc_url( $post_url ); ?>"
                                 tabindex="<?php echo $is_active ? '0' : '-1'; ?>"
                             >
                                 <?php echo esc_html( $display_title ); ?>
@@ -163,7 +184,7 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
 
                         <?php if ( $show_excerpt ) : ?>
                         <?php
-                        $excerpt = wp_strip_all_tags( (string) get_the_excerpt( $post_id ) );
+                        $excerpt = ! empty( $demo_slide ) && isset( $demo_slide['excerpt'] ) ? (string) $demo_slide['excerpt'] : wp_strip_all_tags( (string) get_the_excerpt( $post_id ) );
                         if ( '' === $excerpt ) {
                             $excerpt = wp_strip_all_tags( (string) get_post_field( 'post_content', $post_id ) );
                         }
@@ -184,18 +205,18 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
                             <?php if ( $show_date ) : ?>
                             <time
                                 class="themisdb-fs-date"
-                                datetime="<?php echo esc_attr( get_the_date( 'c' ) ); ?>"
+                                datetime="<?php echo esc_attr( ! empty( $demo_slide ) && isset( $demo_slide['date'] ) ? (string) $demo_slide['date'] : get_the_date( 'c' ) ); ?>"
                             >
-                                <?php echo esc_html( get_the_date() ); ?>
+                                <?php echo esc_html( ! empty( $demo_slide ) && isset( $demo_slide['date'] ) ? (string) $demo_slide['date'] : get_the_date() ); ?>
                             </time>
                             <?php endif; ?>
                             <a
                                 class="themisdb-fs-readmore"
-                                href="<?php the_permalink(); ?>"
+                                href="<?php echo esc_url( $post_url ); ?>"
                                 tabindex="<?php echo $is_active ? '0' : '-1'; ?>"
                                 aria-label="<?php echo esc_attr( sprintf( $readmore_aria_format, $readmore_text, $raw_title ) ); ?>"
                             >
-                                <?php echo esc_html( $readmore_text ); ?>
+                                <?php echo esc_html( $announcement_mode ? __( 'Mehr erfahren', 'themisdb-front-slider' ) : $readmore_text ); ?>
                             </a>
 
                             <?php if ( ! empty( $extra_cta_buttons ) ) : ?>
@@ -216,7 +237,7 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
                         </div>
                     </div>
 
-                    <?php if ( ! empty( $hero_images ) ) : ?>
+                    <?php if ( ! $announcement_mode && ! empty( $hero_images ) ) : ?>
                     <!-- Right column: featured image in card -->
                     <div class="themisdb-fs-slide-image">
                         <div class="themisdb-fs-image-card" data-image-count="<?php echo esc_attr( count( $hero_images ) ); ?>">
@@ -247,40 +268,12 @@ $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_red
         </div><!-- .themisdb-fs-track -->
     </div><!-- .themisdb-fs-track-outer -->
 
-    <?php if ( $has_multiple_slides ) : ?>
-    <button
-        class="themisdb-fs-btn themisdb-fs-prev la-slider-arrow la-slider-arrow-prev"
-        aria-label="<?php echo esc_attr( $previous_label ); ?>"
-        aria-controls="<?php echo esc_attr( $slider_id ); ?>"
-    >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
-    </button>
-    <button
-        class="themisdb-fs-btn themisdb-fs-next la-slider-arrow la-slider-arrow-next"
-        aria-label="<?php echo esc_attr( $next_label ); ?>"
-        aria-controls="<?php echo esc_attr( $slider_id ); ?>"
-    >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-    </button>
-
-    <div class="themisdb-fs-dots la-slider-dots" role="tablist" aria-label="<?php echo esc_attr( $pagination_label ); ?>">
-        <?php for ( $i = 0; $i < $slide_index; $i++ ) : ?>
-        <button
-            class="themisdb-fs-dot la-slider-dot<?php echo ( 0 === $i ) ? ' is-active' : ''; ?>"
-            role="tab"
-            aria-selected="<?php echo ( 0 === $i ) ? 'true' : 'false'; ?>"
-            aria-label="<?php echo esc_attr( sprintf( $slide_label_format, $i + 1, $slide_index ) ); ?>"
-            data-index="<?php echo esc_attr( $i ); ?>"
-        ></button>
-        <?php endfor; ?>
-    </div>
-
-    <div class="themisdb-fs-timer-bar" aria-hidden="true">
-        <div class="themisdb-fs-timer-fill la-hero-progress-bar"></div>
+    <?php if ( $has_multiple_slides && ! $announcement_mode ) : ?>
+    <div class="themisdb-fs-controls" aria-hidden="false">
+        <button class="themisdb-fs-btn themisdb-fs-prev la-slider-arrow la-slider-arrow-prev" aria-label="<?php echo esc_attr( $previous_label ); ?>" aria-controls="<?php echo esc_attr( $slider_id ); ?>"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+        <button class="themisdb-fs-btn themisdb-fs-next la-slider-arrow la-slider-arrow-next" aria-label="<?php echo esc_attr( $next_label ); ?>" aria-controls="<?php echo esc_attr( $slider_id ); ?>"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+        <div class="themisdb-fs-dots la-slider-dots" role="tablist" aria-label="<?php echo esc_attr( $pagination_label ); ?>"><?php for ( $i = 0; $i < $slide_index; $i++ ) : ?><button class="themisdb-fs-dot la-slider-dot<?php echo ( 0 === $i ) ? ' is-active' : ''; ?>" role="tab" aria-selected="<?php echo ( 0 === $i ) ? 'true' : 'false'; ?>" aria-label="<?php echo esc_attr( sprintf( $slide_label_format, $i + 1, $slide_index ) ); ?>" data-index="<?php echo esc_attr( $i ); ?>"></button><?php endfor; ?></div>
+        <div class="themisdb-fs-timer-bar" aria-hidden="true"><div class="themisdb-fs-timer-fill la-hero-progress-bar"></div></div>
     </div>
     <?php endif; ?>
 </div>

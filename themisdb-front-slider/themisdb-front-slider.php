@@ -186,6 +186,49 @@ function themisdb_fs_get_default_no_posts_text() {
     return esc_html__( 'Keine Inhalte gefunden.', 'themisdb-front-slider' );
 }
 
+function themisdb_fs_is_active_announcement( $post_id ) {
+    $post_id = absint( $post_id );
+    if ( $post_id <= 0 ) {
+        return false;
+    }
+
+    $start_raw = trim( (string) get_post_meta( $post_id, 'announcement_start_at', true ) );
+    if ( '' !== $start_raw ) {
+        $start_ts = themisdb_fs_parse_local_datetime_to_timestamp( $start_raw );
+        if ( null !== $start_ts && $start_ts > time() ) {
+            return false;
+        }
+    }
+
+    $end_raw = trim( (string) get_post_meta( $post_id, 'announcement_end_at', true ) );
+    if ( '' !== $end_raw ) {
+        $end_ts = themisdb_fs_parse_local_datetime_to_timestamp( $end_raw );
+        if ( null !== $end_ts && $end_ts < time() ) {
+            return false;
+        }
+    }
+
+    return 'publish' === get_post_status( $post_id );
+}
+
+function themisdb_fs_parse_local_datetime_to_timestamp( $value ) {
+    if ( ! is_string( $value ) ) {
+        $value = (string) $value;
+    }
+
+    $value = trim( $value );
+    if ( '' === $value ) {
+        return null;
+    }
+
+    $timestamp = strtotime( $value );
+    if ( false === $timestamp ) {
+        return null;
+    }
+
+    return (int) $timestamp;
+}
+
 function themisdb_fs_get_region_label( $category_slug ) {
     if ( ! empty( $category_slug ) ) {
         $term = get_category_by_slug( $category_slug );
@@ -351,6 +394,10 @@ function themisdb_fs_compact_markup( $html ) {
     // Defensive cleanup for occasional wpautop paragraph artifacts around block elements.
     $html = preg_replace( '/(?:<p>\s*)+(?=<(?:div|section|article|header|footer|nav|aside|main|figure|ul|ol|li|button)\b)/i', '', $html );
     $html = preg_replace( '/<\/p>\s*(?=<(?:div|section|article|header|footer|nav|aside|main|figure|ul|ol|li|button)\b)/i', '', $html );
+    $html = preg_replace( '/<p\b[^>]*>\s*(?=<button\b|<div\b)/i', '', $html );
+    $html = preg_replace( '/<\/p>\s*(?=<div\b|<button\b|<svg\b)/i', '', $html );
+    $html = preg_replace( '/<p\b[^>]*>\s*<\/p>/i', '', $html );
+    $html = preg_replace( '/<p\b[^>]*>\s*(?:&nbsp;|\s*)\s*<\/p>/i', '', $html );
 
     return trim( (string) $html );
 }
@@ -769,6 +816,61 @@ function themisdb_fs_save_hero_focus_metabox( $post_id ) {
  *   img_size      – WP image size                   (default: large)
  * ---------------------------------------------------------------------- */
 
+function themisdb_fs_get_demo_slides( $posts_count, $variant ) {
+    $slides = array(
+        array(
+            'title' => 'ThemisDB Search Studio',
+            'url' => '#demo-search-studio',
+            'date' => '2024-10-18',
+            'excerpt' => 'Semantic search, hybrid ranking and context-rich retrieval workflows for AI-friendly data access.',
+            'thumbnail' => '',
+        ),
+        array(
+            'title' => 'Graph Collaboration Layer',
+            'url' => '#demo-graph-layer',
+            'date' => '2024-10-16',
+            'excerpt' => 'Model relationships across documents, entities and processes to reveal hidden patterns in your data.',
+            'thumbnail' => '',
+        ),
+        array(
+            'title' => 'Operational Guardrails',
+            'url' => '#demo-guardrails',
+            'date' => '2024-10-14',
+            'excerpt' => 'Monitoring, safety checks and governance guardrails that keep production workloads stable and explainable.',
+            'thumbnail' => '',
+        ),
+        array(
+            'title' => 'Release Timeline',
+            'url' => '#demo-release-timeline',
+            'date' => '2024-10-12',
+            'excerpt' => 'Your product roadmap, feature signals and milestone visibility in one clear timeline.',
+            'thumbnail' => '',
+        ),
+        array(
+            'title' => 'AI-ready Deployment Paths',
+            'url' => '#demo-deployment',
+            'date' => '2024-10-09',
+            'excerpt' => 'Ship modern AI workflows with resilient deployment patterns and maintainable operational defaults.',
+            'thumbnail' => '',
+        ),
+    );
+
+    $items = array_slice( $slides, 0, max( 1, min( (int) $posts_count, 5 ) ) );
+    foreach ( $items as $index => $slide ) {
+        $items[ $index ] = array_merge(
+            $slide,
+            array(
+                'id' => 0 - ( $index + 1 ),
+                'variant' => $variant,
+            )
+        );
+    }
+
+    return $items;
+}
+
+add_filter( 'the_content', 'shortcode_unautop', 9 );
+
 add_shortcode( 'themisdb_front_slider', 'themisdb_fs_shortcode' );
 function themisdb_fs_shortcode( $atts ) {
     $opts = (array) get_option( 'themisdb_fs_options', array() );
@@ -808,6 +910,7 @@ function themisdb_fs_shortcode( $atts ) {
             'accent_color'  => '#0284c7',
             'img_size'      => 'large',
             'layout_preset' => 'standard',
+            'variant' => 'hero',
             'respect_reduced_motion' => isset( $opts['respect_reduced_motion'] ) ? $opts['respect_reduced_motion'] : false,
         ),
         $raw_atts,
@@ -820,6 +923,8 @@ function themisdb_fs_shortcode( $atts ) {
     $posts_count   = max( 1, min( 20, (int) $atts['posts'] ) );
     $interval      = max( 1000, min( 30000, (int) $atts['interval'] ) );
     $category      = sanitize_text_field( $atts['category'] );
+    $variant       = sanitize_key( (string) $atts['variant'] );
+    $variant       = in_array( $variant, array( 'hero', 'announcement' ), true ) ? $variant : 'hero';
     $show_excerpt  = filter_var( $atts['excerpt'],   FILTER_VALIDATE_BOOLEAN );
     $show_date     = filter_var( $atts['date'],      FILTER_VALIDATE_BOOLEAN );
     $show_category = filter_var( $atts['cat_label'], FILTER_VALIDATE_BOOLEAN );
@@ -873,20 +978,92 @@ function themisdb_fs_shortcode( $atts ) {
 
     $query = new WP_Query( $query_args );
 
-    if ( ! $query->have_posts() ) {
-        return '<p class="themisdb-fs-no-posts">' . esc_html( $labels['empty'] ) . '</p>';
+    if ( 'announcement' === $variant ) {
+        $filtered_posts = array();
+        foreach ( $query->posts as $announcement_post ) {
+            if ( ! $announcement_post instanceof WP_Post ) {
+                continue;
+            }
+            if ( themisdb_fs_is_active_announcement( $announcement_post->ID ) ) {
+                $filtered_posts[] = $announcement_post;
+            }
+        }
+        $query->posts = array_slice( $filtered_posts, 0, $posts_count );
+        $query->post_count = count( $query->posts );
+        $query->found_posts = $query->post_count;
     }
 
     $slides = array();
-    foreach ( $query->posts as $post_obj ) {
+    $demo_fallback_items = array();
+    if ( ! $query->have_posts() ) {
+        $demo_fallback_items = themisdb_fs_get_demo_slides( $posts_count, $variant );
+        $demo_posts = array();
+        foreach ( $demo_fallback_items as $index => $slide ) {
+            $post_id = (int) ( 0 - ( $index + 1 ) );
+            $demo_posts[] = new WP_Post(
+                (object) array(
+                    'ID'                    => $post_id,
+                    'post_author'           => 0,
+                    'post_date'             => current_time( 'mysql' ),
+                    'post_date_gmt'         => current_time( 'mysql', 1 ),
+                    'post_content'          => $slide['excerpt'],
+                    'post_title'            => $slide['title'],
+                    'post_excerpt'          => $slide['excerpt'],
+                    'post_status'           => 'publish',
+                    'comment_status'        => 'closed',
+                    'ping_status'           => 'closed',
+                    'post_password'         => '',
+                    'post_name'             => sanitize_title( $slide['title'] ),
+                    'to_ping'               => '',
+                    'pinged'                => '',
+                    'post_modified'         => current_time( 'mysql' ),
+                    'post_modified_gmt'     => current_time( 'mysql', 1 ),
+                    'post_content_filtered' => '',
+                    'post_parent'           => 0,
+                    'guid'                  => home_url( '/' ) . '?p=' . $post_id,
+                    'menu_order'            => 0,
+                    'post_type'             => 'post',
+                    'post_mime_type'        => '',
+                    'comment_count'         => 0,
+                    'filter'                => 'raw',
+                    'post_category'         => array(),
+                )
+            );
+        }
+
+        $query->posts = $demo_posts;
+        $query->post_count = count( $demo_posts );
+        $query->found_posts = $query->post_count;
+        $query->max_num_pages = 1;
+        $query->current_post = -1;
+        $query->rewind_posts();
+    }
+
+    foreach ( $query->posts as $index => $post_obj ) {
+        $is_demo = $post_obj->ID < 0;
+        $demo_data = $is_demo && isset( $demo_fallback_items[ $index ] ) ? $demo_fallback_items[ $index ] : array();
+
+        $slide_url = $is_demo && ! empty( $demo_data ) ? (string) $demo_data['url'] : (string) get_permalink( $post_obj->ID );
+        if ( 'announcement' === $variant ) {
+            $announcement_url = trim( (string) get_post_meta( $post_obj->ID, 'announcement_link', true ) );
+            if ( '' !== $announcement_url ) {
+                $slide_url = esc_url_raw( $announcement_url );
+            }
+        }
+
         $slides[] = array(
             'id' => (int) $post_obj->ID,
-            'title' => (string) get_the_title( $post_obj->ID ),
-            'url' => (string) get_permalink( $post_obj->ID ),
-            'date' => (string) get_the_date( '', $post_obj->ID ),
-            'excerpt' => (string) get_the_excerpt( $post_obj->ID ),
-            'thumbnail' => (string) get_the_post_thumbnail_url( $post_obj->ID, 'full' ),
+            'title' => $is_demo && ! empty( $demo_data ) ? (string) $demo_data['title'] : (string) get_the_title( $post_obj->ID ),
+            'url' => $slide_url,
+            'date' => $is_demo && ! empty( $demo_data ) ? (string) $demo_data['date'] : (string) get_the_date( '', $post_obj->ID ),
+            'excerpt' => $is_demo && ! empty( $demo_data ) ? (string) $demo_data['excerpt'] : (string) get_the_excerpt( $post_obj->ID ),
+            'thumbnail' => $is_demo && ! empty( $demo_data ) ? (string) $demo_data['thumbnail'] : (string) get_the_post_thumbnail_url( $post_obj->ID, 'full' ),
+            'variant' => $variant,
         );
+    }
+
+    if ( empty( $slides ) ) {
+        return '<p class="themisdb-fs-no-posts">' . esc_html( $labels['empty'] ) . '</p>';
     }
 
     $initial_active_id = 0;
@@ -917,6 +1094,17 @@ function themisdb_fs_shortcode( $atts ) {
         }
     }
 
+    $demo_slide_data_map = array();
+    foreach ( $slides as $slide_meta ) {
+        if ( ! is_array( $slide_meta ) ) {
+            continue;
+        }
+        $slide_id = isset( $slide_meta['id'] ) ? (int) $slide_meta['id'] : 0;
+        if ( $slide_id < 0 ) {
+            $demo_slide_data_map[ $slide_id ] = $slide_meta;
+        }
+    }
+
     $payload = array(
         'query'         => $query,
         'posts_count'   => $posts_count,
@@ -937,7 +1125,9 @@ function themisdb_fs_shortcode( $atts ) {
         'labels'        => $labels,
         'query_args'    => $query_args,
         'slides'        => $slides,
+        'demo_slide_data_map' => $demo_slide_data_map,
         'initial_active_id' => $initial_active_id,
+        'variant'       => $variant,
     );
     $payload = apply_filters( 'themisdb_front_slider_shortcode_payload', $payload, $atts );
 
@@ -952,6 +1142,7 @@ function themisdb_fs_shortcode( $atts ) {
     extract( $payload, EXTR_SKIP );
     include THEMISDB_FS_PLUGIN_DIR . 'templates/slider.php';
     $html = ob_get_clean();
+    $html = shortcode_unautop( $html );
     $html = themisdb_fs_compact_markup( (string) $html );
     wp_reset_postdata();
 

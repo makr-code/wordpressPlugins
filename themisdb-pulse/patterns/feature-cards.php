@@ -39,17 +39,61 @@
 	<p class="tv3-feature-section__lead"><?php echo esc_html( (string) $feature_copy['subtitle'] ); ?></p>
 	<!-- /wp:paragraph -->
 
-	<?php
-	if ( function_exists( 'themisdb_v3_render_feature_cards_shortcode' ) ) {
-		echo themisdb_v3_render_feature_cards_shortcode(
-			array(
-				'limit'      => 6,
-				'post_types' => 'post,page',
-				'category'   => 'features',
-				'priority_tag' => 'frontpage-feature',
-			)
-		);
-	}
-	?>
+	<div class="wp-block-group tv3-feature-grid themis-v3-fade-in">
+		<div class="wp-block-group tv3-feature-card">
+			<div class="wp-block-group tv3-feature-card__top tv3-feature-card__top--blue"></div>
+			<p class="tv3-feature-card__icon tv3-feature-card__icon--blue">&#128240;</p>
+			<div class="wp-block-group tv3-feature-card__body">
+				<h3 class="wp-block-heading tv3-feature-card__title">Vector Search &amp; Hybrid Retrieval</h3>
+				<p class="tv3-feature-card__desc">Semantic retrieval, hybrid ranking and grounded AI context for modern database workloads.</p>
+			</div>
+			<p class="tv3-feature-card__cta"><a href="#vector-search-hybrid-retrieval">Mehr erfahren →</a></p>
+		</div>
+		<div class="wp-block-group tv3-feature-card">
+			<div class="wp-block-group tv3-feature-card__top tv3-feature-card__top--navy"></div>
+			<p class="tv3-feature-card__icon tv3-feature-card__icon--navy">&#129302;</p>
+			<div class="wp-block-group tv3-feature-card__body">
+				<h3 class="wp-block-heading tv3-feature-card__title">Graph-native Intelligence</h3>
+				<p class="tv3-feature-card__desc">Connected entities and relationship-aware reasoning that keep multi-hop AI workflows explainable.</p>
+			</div>
+			<p class="tv3-feature-card__cta"><a href="#graph-native-intelligence">Mehr erfahren →</a></p>
+		</div>
+		<div class="wp-block-group tv3-feature-card">
+			<div class="wp-block-group tv3-feature-card__top tv3-feature-card__top--green"></div>
+			<p class="tv3-feature-card__icon tv3-feature-card__icon--green">&#9889;</p>
+			<div class="wp-block-group tv3-feature-card__body">
+				<h3 class="wp-block-heading tv3-feature-card__title">Operational Guardrails &amp; Observability</h3>
+				<p class="tv3-feature-card__desc">Production-safe monitoring, recovery paths and audit visibility for AI-critical deployments.</p>
+			</div>
+			<p class="tv3-feature-card__cta"><a href="#operational-guardrails-observability">Mehr erfahren →</a></p>
+		</div>
+		<div class="wp-block-group tv3-feature-card">
+			<div class="wp-block-group tv3-feature-card__top tv3-feature-card__top--cyan"></div>
+			<p class="tv3-feature-card__icon tv3-feature-card__icon--cyan">&#128187;</p>
+			<div class="wp-block-group tv3-feature-card__body">
+				<h3 class="wp-block-heading tv3-feature-card__title">Hybrid Query Planning</h3>
+				<p class="tv3-feature-card__desc">Batches of relational filters, semantic retrieval and cost-aware planning under one execution model.</p>
+			</div>
+			<p class="tv3-feature-card__cta"><a href="#hybrid-query-planning">Mehr erfahren →</a></p>
+		</div>
+		<div class="wp-block-group tv3-feature-card">
+			<div class="wp-block-group tv3-feature-card__top tv3-feature-card__top--amber"></div>
+			<p class="tv3-feature-card__icon tv3-feature-card__icon--amber">&#129513;</p>
+			<div class="wp-block-group tv3-feature-card__body">
+				<h3 class="wp-block-heading tv3-feature-card__title">Entity-Aware Governance</h3>
+				<p class="tv3-feature-card__desc">Protect high-trust workloads with explainable policy checks, lineage and compliance-ready auditing.</p>
+			</div>
+			<p class="tv3-feature-card__cta"><a href="#entity-aware-governance">Mehr erfahren →</a></p>
+		</div>
+		<div class="wp-block-group tv3-feature-card">
+			<div class="wp-block-group tv3-feature-card__top tv3-feature-card__top--red"></div>
+			<p class="tv3-feature-card__icon tv3-feature-card__icon--red">&#128202;</p>
+			<div class="wp-block-group tv3-feature-card__body">
+				<h3 class="wp-block-heading tv3-feature-card__title">AI-Ready Deployment Paths</h3>
+				<p class="tv3-feature-card__desc">Ship production-grade inference and retrieval landscapes without sacrificing control, resilience or speed.</p>
+			</div>
+			<p class="tv3-feature-card__cta"><a href="#ai-ready-deployment-paths">Mehr erfahren →</a></p>
+		</div>
+	</div>
 </div>
 <!-- /wp:group -->

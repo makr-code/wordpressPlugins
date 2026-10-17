@@ -1,0 +1,85 @@
+{
+  "pages": [
+    {
+      "title": "Home",
+      "slug": "home",
+      "status": "publish",
+      "template": "front-page",
+      "menu_order": 0,
+      "parent": null,
+      "tags": ["hero", "announcement"]
+    },
+    {
+      "title": "Features",
+      "slug": "features",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 10,
+      "parent": null,
+      "tags": ["feature"]
+    },
+    {
+      "title": "Documentation",
+      "slug": "documentation",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 20,
+      "parent": null,
+      "tags": ["documentation"]
+    },
+    {
+      "title": "Blog",
+      "slug": "blog",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 30,
+      "parent": null,
+      "tags": ["blog"]
+    },
+    {
+      "title": "Downloads",
+      "slug": "downloads",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 40,
+      "parent": null,
+      "tags": ["download"]
+    },
+    {
+      "title": "Pricing",
+      "slug": "pricing",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 50,
+      "parent": null,
+      "tags": ["pricing"]
+    },
+    {
+      "title": "Support",
+      "slug": "support",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 60,
+      "parent": null,
+      "tags": ["support"]
+    },
+    {
+      "title": "Getting Started",
+      "slug": "getting-started",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 10,
+      "parent": "documentation",
+      "tags": ["documentation", "recommended"]
+    },
+    {
+      "title": "API Reference",
+      "slug": "api-reference",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 20,
+      "parent": "documentation",
+      "tags": ["documentation", "recommended"]
+    }
+  ]
+}
