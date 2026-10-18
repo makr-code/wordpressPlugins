@@ -11,6 +11,8 @@
         chart: null,
         currentData: null,
         settings: {},
+        currentSlideIndex: 0,
+        autoRotateTimer: null,
 
         /**
          * Initialize the visualizer
@@ -18,6 +20,7 @@
         init: function() {
             // Store settings from PHP
             this.settings = themisdbBV.settings || {};
+            this.currentSlideIndex = 0;
 
             // Set up event listeners
             this.setupEventListeners();
@@ -33,8 +36,13 @@
             const self = this;
 
             // Filter changes
-            $('#bv-category-filter, #bv-metric-filter, #bv-chart-type').on('change', function() {
+            $('#bv-metric-filter, #bv-chart-type').on('change', function() {
                 self.loadData();
+            });
+
+            $('.themisdb-benchmark-arrow').on('click', function() {
+                const dir = $(this).data('bv-dir') === 'prev' ? -1 : 1;
+                self.changeSlide(dir);
             });
 
             // Refresh button
@@ -83,10 +91,13 @@
                 success: function(response) {
                     if (response.success) {
                         self.currentData = response.data;
+                        self.currentSlideIndex = 0;
                         self.renderChart();
+                        self.renderSliderMeta();
                         self.renderMermaidDiagram();
                         self.renderResultsTable();
                         self.generateInsights();
+                        self.startAutoRotate();
                     } else {
                         self.showError('Failed to load benchmark data');
                     }
@@ -107,12 +118,123 @@
             this.loadData();
         },
 
+        getMetricUnit: function(metric) {
+            const units = {
+                latency: 'ms',
+                throughput: 'ops/s',
+                memory: 'MB'
+            };
+            return units[metric] || '';
+        },
+
+        clearAutoRotate: function() {
+            if (this.autoRotateTimer) {
+                clearInterval(this.autoRotateTimer);
+                this.autoRotateTimer = null;
+            }
+        },
+
+        startAutoRotate: function() {
+            this.clearAutoRotate();
+
+            if (!this.currentData || !Array.isArray(this.currentData.datasets) || this.currentData.datasets.length < 2) {
+                return;
+            }
+
+            const self = this;
+            this.autoRotateTimer = setInterval(function() {
+                if (!self.currentData || !Array.isArray(self.currentData.datasets)) {
+                    return;
+                }
+
+                self.currentSlideIndex = (self.currentSlideIndex + 1) % self.currentData.datasets.length;
+                self.renderSliderMeta();
+            }, 5000);
+        },
+
+        changeSlide: function(direction) {
+            if (!this.currentData || !Array.isArray(this.currentData.datasets) || !this.currentData.datasets.length) {
+                return;
+            }
+
+            const total = this.currentData.datasets.length;
+            this.currentSlideIndex = (this.currentSlideIndex + direction + total) % total;
+            this.renderSliderMeta();
+            this.startAutoRotate();
+        },
+
+        renderSliderMeta: function() {
+            if (!this.currentData || !Array.isArray(this.currentData.datasets) || !this.currentData.datasets.length) {
+                return;
+            }
+
+            const datasetIndex = ((this.currentSlideIndex % this.currentData.datasets.length) + this.currentData.datasets.length) % this.currentData.datasets.length;
+            const dataset = this.currentData.datasets[datasetIndex];
+            const metric = $('#bv-metric-filter').val() || 'latency';
+            const unit = this.getMetricUnit(metric);
+            const values = Array.isArray(dataset.data) ? dataset.data : [];
+            const avg = values.length ? values.reduce(function(sum, value) {
+                const numeric = Number(value) || 0;
+                return sum + numeric;
+            }, 0) / values.length : 0;
+            const fastest = values.length ? Math.min.apply(null, values.map(function(value) { return Number(value) || 0; })) : 0;
+            const slowest = values.length ? Math.max.apply(null, values.map(function(value) { return Number(value) || 0; })) : 0;
+
+            $('#bv-slide-title').text(dataset.label || 'Benchmark');
+            $('#bv-slide-value').text(avg.toFixed(2));
+            $('#bv-slide-unit').text(unit);
+            $('#bv-slide-summary').text(
+                metric === 'throughput'
+                    ? 'Higher throughput indicates better sustained capacity under demand.'
+                    : metric === 'memory'
+                        ? 'Lower memory footprint reduces overhead and improves efficiency.'
+                        : 'Lower is better for latency-sensitive reads and retrieval workloads.'
+            );
+
+            $('#bv-summary-avg').text(avg.toFixed(2) + ' ' + unit);
+            $('#bv-summary-fastest').text(fastest.toFixed(2) + ' ' + unit);
+            $('#bv-summary-count').text(String(this.currentData.labels ? this.currentData.labels.length : values.length));
+
+            const dots = this.currentData.datasets.map(function(item, index) {
+                const activeClass = index === datasetIndex ? ' is-active' : '';
+                return '<button class="themisdb-benchmark-dot' + activeClass + '" type="button" data-bv-index="' + index + '" aria-label="Show ' + (item.label || 'benchmark') + '"></button>';
+            }).join('');
+            $('#bv-slider-dots').html(dots);
+
+            const self = this;
+            $('#bv-slider-dots .themisdb-benchmark-dot').on('click', function() {
+                const idx = Number($(this).data('bv-index'));
+                if (!isNaN(idx)) {
+                    self.currentSlideIndex = idx;
+                    self.renderSliderMeta();
+                    self.startAutoRotate();
+                }
+            });
+        },
+
         /**
          * Render chart using Chart.js
          */
+        updateFocusState: function(activeIndex) {
+            const focus = document.getElementById('themisdb-benchmark-focus');
+            if (!focus || !this.currentData || !Array.isArray(this.currentData.labels) || !Array.isArray(this.currentData.datasets)) {
+                return;
+            }
+
+            const label = this.currentData.labels[activeIndex] || 'Vector Search';
+            const dataset = this.currentData.datasets[0] || {};
+            const value = Array.isArray(dataset.data) && dataset.data[activeIndex] !== undefined ? dataset.data[activeIndex] : 0;
+            const metric = $('#bv-metric-filter').val() || 'latency';
+            const unit = this.getMetricUnit(metric);
+
+            const titleEl = document.getElementById('themisdb-benchmark-focus__title');
+            const valueEl = document.getElementById('themisdb-benchmark-focus__value');
+            if (titleEl) titleEl.textContent = label;
+            if (valueEl) valueEl.textContent = Number(value).toFixed(2) + ' ' + unit;
+        },
+
         renderChart: function() {
             if (!this.currentData) return;
-
             const ctx = document.getElementById('themisdb-benchmark-chart');
             if (!ctx) return;
 
@@ -124,32 +246,90 @@
                 this.chart.destroy();
             }
 
+            const self = this;
+
+            const baseStyle = {
+                borderWidth: 0,
+                borderRadius: 0,
+                borderSkipped: false,
+                borderAlign: 'center',
+                pointRadius: chartType === 'line' ? 4 : 0,
+                pointHoverRadius: chartType === 'line' ? 6 : 0,
+                pointBackgroundColor: 'rgba(255, 255, 255, 0.95)',
+                pointBorderWidth: 2,
+                pointBorderColor: 'rgba(86, 160, 255, 0.9)',
+                hoverBorderWidth: 2,
+                hoverBorderColor: 'rgba(255,255,255,0.9)',
+                hoverBackgroundColor: 'rgba(159, 214, 255, 0.95)'
+            };
+
             // Chart configuration
             const config = {
                 type: chartType,
                 data: {
                     labels: this.currentData.labels,
-                    datasets: this.currentData.datasets
+                    datasets: this.currentData.datasets.map(function(dataset) {
+                        const normalized = Object.assign({}, dataset, baseStyle);
+                        normalized.backgroundColor = dataset.backgroundColor || 'rgba(103, 189, 255, 0.78)';
+                        normalized.borderColor = dataset.borderColor || 'rgba(116, 204, 255, 0.95)';
+                        return normalized;
+                    })
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: {
+                        duration: 1400,
+                        easing: 'easeOutCubic',
+                        delay: function(context) {
+                            return context.type === 'data' ? context.dataIndex * 80 + context.datasetIndex * 30 : 0;
+                        },
+                        onComplete: function(animation) {
+                            const chart = animation.chart;
+                            chart.ctx.save();
+                            chart.ctx.shadowColor = 'rgba(52, 152, 219, 0.18)';
+                            chart.ctx.shadowBlur = 12;
+                            chart.ctx.restore();
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false,
+                    },
+                    onHover: function(event, activeElements) {
+                        if (!activeElements || !activeElements.length) {
+                            return;
+                        }
+                        const activeIndex = activeElements[0].index;
+                        if (typeof activeIndex === 'number') {
+                            self.updateFocusState(activeIndex);
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            left: 12,
+                            right: 12,
+                            top: 12,
+                            bottom: 12
+                        }
+                    },
                     plugins: {
                         title: {
-                            display: true,
-                            text: this.getChartTitle(metric),
-                            font: {
-                                size: 18,
-                                weight: 'bold'
-                            }
+                            display: false
                         },
                         legend: {
-                            display: true,
+                            display: false,
                             position: 'top',
                         },
                         tooltip: {
+                            enabled: true,
                             mode: 'index',
                             intersect: false,
+                            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            padding: 10,
+                            displayColors: false,
                             callbacks: {
                                 label: function(context) {
                                     let label = context.dataset.label || '';
@@ -157,7 +337,7 @@
                                         label += ': ';
                                     }
                                     label += context.parsed.y.toFixed(2);
-                                    label += ' ' + (metric === 'latency' ? 'ms' : 
+                                    label += ' ' + (metric === 'latency' ? 'ms' :
                                                    metric === 'throughput' ? 'ops/sec' : 'MB');
                                     return label;
                                 }
@@ -167,16 +347,58 @@
                     scales: {
                         y: {
                             beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255,255,255,0.12)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: 'rgba(255,255,255,0.8)',
+                                maxTicksLimit: 6
+                            },
+                            display: true,
+                            border: {
+                                display: false
+                            },
                             title: {
-                                display: true,
-                                text: this.getYAxisLabel(metric)
+                                display: false
                             }
                         },
                         x: {
+                            grid: {
+                                display: false,
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: 'rgba(255,255,255,0.8)',
+                                maxRotation: 0,
+                                autoSkip: false
+                            },
+                            border: {
+                                display: false
+                            },
                             title: {
-                                display: true,
-                                text: 'Operation Type'
+                                display: false
                             }
+                        }
+                    },
+                    elements: {
+                        bar: {
+                            borderRadius: 0,
+                            borderSkipped: false,
+                            borderWidth: 0,
+                            hoverBorderWidth: 2,
+                            hoverBorderColor: 'rgba(255,255,255,0.8)'
+                        },
+                        line: {
+                            borderWidth: 3,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            pointHoverRadius: 7
+                        },
+                        point: {
+                            radius: 4,
+                            hoverRadius: 7,
+                            hitRadius: 12
                         }
                     }
                 }
@@ -184,6 +406,7 @@
 
             // Create chart
             this.chart = new Chart(ctx, config);
+            this.updateFocusState(0);
         },
 
         /**

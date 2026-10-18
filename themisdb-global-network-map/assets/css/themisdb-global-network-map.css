@@ -1,0 +1,240 @@
+:root {
+    --themisdb-gnm-bg: #071a2b;
+    --themisdb-gnm-bg-soft: rgba(10, 29, 47, 0.9);
+    --themisdb-gnm-grid: rgba(148, 196, 255, 0.16);
+    --themisdb-gnm-surface: rgba(8, 21, 35, 0.86);
+    --themisdb-gnm-border: rgba(129, 190, 255, 0.18);
+    --themisdb-gnm-text: #ebf6ff;
+    --themisdb-gnm-muted: rgba(214, 232, 255, 0.75);
+    --themisdb-gnm-accent: #6cc4ff;
+    --themisdb-gnm-warm: #ffbb5c;
+    --themisdb-gnm-hot: #ff7b7b;
+}
+
+.themisdb-global-network-map {
+    position: relative;
+    width: 100%;
+    margin-top: 2rem;
+    padding: 0;
+    color: var(--themisdb-gnm-text);
+    background: linear-gradient(180deg, rgba(8, 22, 35, 0.94), rgba(11, 28, 43, 0.96));
+    border: 1px solid rgba(153, 192, 220, 0.14);
+    border-radius: 1.2rem;
+    box-shadow: 0 14px 32px rgba(4, 14, 27, 0.14);
+    overflow: hidden;
+}
+
+.themisdb-global-network-map__controls {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0;
+    pointer-events: auto;
+}
+
+.themisdb-global-network-map__button-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.themisdb-global-network-map__mode {
+    appearance: none;
+    border: 1px solid rgba(162, 212, 255, 0.22);
+    background: rgba(12, 27, 41, 0.58);
+    color: var(--themisdb-gnm-muted);
+    border-radius: 999px;
+    padding: 0.42rem 0.78rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.themisdb-global-network-map__split-button {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(162, 212, 255, 0.22);
+    border-radius: 999px;
+    background: rgba(12, 27, 41, 0.58);
+    overflow: hidden;
+}
+
+.themisdb-global-network-map__split-button-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.1rem;
+    padding: 0.35rem 0.8rem;
+    border-right: 1px solid rgba(162, 212, 255, 0.18);
+    color: rgba(214, 232, 255, 0.8);
+    font-size: 0.64rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.themisdb-global-network-map__target {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.2rem 0.8rem 0.2rem 0.7rem;
+    color: var(--themisdb-gnm-muted);
+}
+
+.themisdb-global-network-map__target-select {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--themisdb-gnm-text);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding-right: 0.4rem;
+    cursor: pointer;
+    outline: none;
+}
+
+.themisdb-global-network-map__control {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.3rem 0.8rem 0.3rem 0.7rem;
+    border: 1px solid rgba(162, 212, 255, 0.22);
+    border-radius: 999px;
+    background: rgba(12, 27, 41, 0.58);
+    color: var(--themisdb-gnm-muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.themisdb-global-network-map__control span {
+    color: rgba(214, 232, 255, 0.8);
+}
+
+.themisdb-global-network-map__control input[type="range"] {
+    width: 110px;
+    accent-color: #85d1ff;
+    cursor: pointer;
+}
+
+.themisdb-global-network-map__mode.is-active {
+    background: rgba(115, 183, 255, 0.16);
+    border-color: rgba(166, 226, 255, 0.5);
+    color: #edf9ff;
+    box-shadow: inset 0 0 0 1px rgba(158, 214, 255, 0.18);
+}
+
+.themisdb-global-network-map__eyebrow {
+    display: none;
+    margin-bottom: 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #a1d6ff;
+}
+
+.themisdb-global-network-map__header {
+    display: none !important;
+}
+
+.themisdb-global-network-map__header h2 {
+    display: none;
+    margin: 0;
+    font-size: clamp(1.4rem, 2vw, 2.1rem);
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    color: #f3f9ff;
+}
+
+.themisdb-global-network-map__canvas-wrap {
+    position: relative;
+    padding: 0;
+    background: linear-gradient(180deg, rgba(10, 26, 40, 0.9), rgba(7, 18, 29, 0.96));
+}
+
+.themisdb-global-network-map__svg,
+.themisdb-global-network-map__canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: transparent;
+}
+
+.themisdb-global-network-map__svg {
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 8px 18px rgba(59, 129, 187, 0.15));
+}
+
+.themisdb-global-network-map__canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: auto;
+    background: transparent;
+    cursor: crosshair;
+}
+
+.themisdb-global-network-map__tooltip {
+    position: absolute;
+    z-index: 3;
+    left: 0;
+    top: 0;
+    min-width: 160px;
+    max-width: 240px;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid rgba(166, 210, 255, 0.25);
+    border-radius: 0.75rem;
+    background: rgba(8, 18, 29, 0.9);
+    color: #eaf7ff;
+    font-size: 0.72rem;
+    line-height: 1.45;
+    box-shadow: 0 16px 28px rgba(2, 11, 20, 0.38);
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(0, 0, 0);
+    transition: opacity 0.15s ease;
+}
+
+.themisdb-global-network-map__tooltip.is-visible {
+    opacity: 1;
+}
+
+.themisdb-global-network-map__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem 1.5rem 1.5rem;
+    color: var(--themisdb-gnm-muted);
+    font-size: 0.83rem;
+}
+
+.themisdb-global-network-map__legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dot {
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    box-shadow: 0 0 16px currentColor;
+}
+
+.dot--low { background: #7fe7ff; color: #7fe7ff; }
+.dot--mid { background: #73b1ff; color: #73b1ff; }
+.dot--high { background: #ff8a73; color: #ff8a73; }

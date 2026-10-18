@@ -581,17 +581,19 @@ main pre.mermaid svg {
 }
 
 .tv3-pricing-card {
-    background: #fff;
-    border: 1px solid #dde3ec;
+    background: linear-gradient(180deg, #eef7ff 0%, #ffffff 100%);
+    border: 1px solid #bfd8f7;
     border-radius: 12px;
     padding: 2.5rem;
     display: flex;
     flex-direction: column;
+    box-shadow: 0 12px 28px rgba(0, 72, 139, 0.08);
 }
 
 .tv3-pricing-card--featured {
+    background: linear-gradient(180deg, #ebf5ff 0%, #ffffff 100%);
     border: 2px solid #0078d4;
-    box-shadow: 0 4px 24px rgba(0, 120, 212, 0.18);
+    box-shadow: 0 12px 32px rgba(0, 120, 212, 0.18);
     position: relative;
 }
 

@@ -1,0 +1,29 @@
+Found 5 matches for "Network":
+
+- generic [active] [ref=f15e1]:
+  - generic [ref=f15e4]:
+    - main [ref=f15e76]:
+      - generic [ref=f15e247]:
+        ...
+        - generic [ref=f15e252]:
+          ...
+          - generic [ref=f15e309]:
+            ...
+            - paragraph [ref=f15e314]:
+              - link "Beitrag lesen →" [ref=f15e315] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/vector-search-in-themisdb/
+      - generic [ref=f15e316]:
+        - generic [ref=f15e317]:
+          - generic [ref=f15e318]: Network
+          - paragraph
+          - heading "ThemisDB Global Network" [level=2] [ref=f15e319]
+          - paragraph
+        - generic [ref=f15e320]:
+          - img "ThemisDB global network map" [ref=f15e321]
+          - generic "ThemisDB network heatmap overlay" [ref=f15e613]
+          - paragraph
+          - paragraph
+        - generic "Network heatmap legend" [ref=f15e614]:
+          - generic [ref=f15e615]: Low load
+          - generic [ref=f15e617]: Active
+          - generic [ref=f15e619]: High load

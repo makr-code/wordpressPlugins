@@ -357,6 +357,11 @@ function themisdb_register_shortcode_fallbacks() {
 			} );
 		}
 	}
+
+	if ( class_exists( 'ThemisDB_Benchmark_Visualizer' ) ) {
+		remove_shortcode( 'themisdb_benchmark_visualizer' );
+		add_shortcode( 'themisdb_benchmark_visualizer', array( ThemisDB_Benchmark_Visualizer::get_instance(), 'render_visualizer' ) );
+	}
 }
 
 function themisdb_latest_shortcode( $atts ) {

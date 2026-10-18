@@ -1,0 +1,10 @@
+Found 2 matches for "Target":
+
+- generic [active] [ref=f15e1]:
+  - link "Zum Inhalt springen" [ref=f15e2] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - link "Zum Inhalt springen" [ref=f15e3] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [ref=f15e4]:
+    - banner [ref=f15e5]:
+      - banner [ref=f15e6]:

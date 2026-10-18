@@ -28,13 +28,21 @@ get_header();
         </div>
 
         <div class="wp-block-group tv3-benchmark-section has-global-padding is-layout-constrained">
-            <p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker">Benchmarks</span></p>
-            <h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title">Performance-Benchmarks</h2>
-            <p class="has-text-align-center tv3-docs-grid-subtitle">Vergleiche der wichtigsten Betriebs- und Analyse-Workloads in einer interaktiven Übersicht.</p>
             <?php if ( class_exists( 'ThemisDB_Benchmark_Visualizer' ) ) : ?>
-                <?php echo ThemisDB_Benchmark_Visualizer::get_instance()->render_visualizer( array( 'category' => 'all', 'metric' => 'latency' ) ); ?>
+                <?php echo ThemisDB_Benchmark_Visualizer::get_instance()->render_visualizer( array(
+                    'category' => 'all',
+                    'metric' => 'latency',
+                    'show_header' => 'false',
+                    'show_chart' => 'true',
+                    'show_overlay' => 'false',
+                    'show_mermaid' => 'false',
+                    'show_controls' => 'false',
+                    'show_nav' => 'false',
+                    'show_stats' => 'false',
+                    'show_table' => 'false',
+                ) ); ?>
             <?php elseif ( shortcode_exists( 'themisdb_benchmark_visualizer' ) ) : ?>
-                <?php echo do_shortcode( '[themisdb_benchmark_visualizer category="all" metric="latency"]' ); ?>
+                <?php echo do_shortcode( '[themisdb_benchmark_visualizer category="all" metric="latency" show_header="false" show_chart="true" show_overlay="false" show_mermaid="false" show_controls="false" show_nav="false" show_stats="false" show_table="false"]' ); ?>
             <?php endif; ?>
         </div>
 
@@ -60,6 +68,12 @@ get_header();
         </div>
 
         <?php echo do_shortcode( '[themisdb_v3_blog_section limit="9" post_types="post" category="blog" priority_tag="blog,recommended,editor-pick" excerpt_words="24"]' ); ?>
+
+        <?php if ( function_exists( 'themisdb_global_network_map_exists' ) || shortcode_exists( 'themisdb_global_network_map' ) ) : ?>
+            <div class="wp-block-group tv3-network-map-section has-global-padding is-layout-constrained" style="margin-top: 3rem;">
+                <?php echo do_shortcode( '[themisdb_global_network_map height="520"]' ); ?>
+            </div>
+        <?php endif; ?>
     </main>
 </div>
 

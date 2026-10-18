@@ -31,16 +31,22 @@ if ( ! defined( 'THEMISDB_V3_REQUIRED_PLUGINS' ) ) {
 
 define( 'THEMISDB_PULSE_TEXT_DOMAIN', 'themisdb-pulse' );
 
+if ( file_exists( WP_CONTENT_DIR . '/plugins/themisdb-global-network-map/themisdb-global-network-map.php' ) ) {
+    require_once WP_CONTENT_DIR . '/plugins/themisdb-global-network-map/themisdb-global-network-map.php';
+}
+
 add_action(
     'init',
     function () {
-        if ( class_exists( 'ThemisDB_Benchmark_Visualizer' ) && ! shortcode_exists( 'themisdb_benchmark_visualizer' ) ) {
+        if ( class_exists( 'ThemisDB_Benchmark_Visualizer' ) ) {
+            remove_shortcode( 'themisdb_benchmark_visualizer' );
             add_shortcode(
                 'themisdb_benchmark_visualizer',
                 array( ThemisDB_Benchmark_Visualizer::get_instance(), 'render_visualizer' )
             );
         }
-    }
+    },
+    100
 );
 
 function themisdb_v3_get_restricted_content_tags() {

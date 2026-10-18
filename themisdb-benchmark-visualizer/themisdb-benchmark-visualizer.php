@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Plugin for ThemisDB.
- * Version: 1.0.1
+ * Version: 1.0.3
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -47,7 +47,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('THEMISDB_BV_VERSION', '1.0.1');
+define('THEMISDB_BV_VERSION', '1.0.3');
 define('THEMISDB_BV_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_BV_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_BV_PLUGIN_FILE', __FILE__);
@@ -248,14 +248,47 @@ class ThemisDB_Benchmark_Visualizer {
      */
     public function render_visualizer($atts) {
 		$raw_atts = (array) $atts;
+		$normalize_bool = static function ($value, $default = false) {
+			if (is_bool($value)) {
+				return $value;
+			}
+			if (is_int($value)) {
+				return (bool) $value;
+			}
+			if (is_string($value)) {
+				$parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+				if (null !== $parsed) {
+					return $parsed;
+				}
+			}
+			return $default;
+		};
+
 		$atts = shortcode_atts(array(
             'category' => get_option('themisdb_bv_default_category', 'all'),
             'compare' => get_option('themisdb_bv_default_comparison_dbs', 'postgresql,mongodb'),
             'metric' => get_option('themisdb_bv_default_metric', 'latency'),
             'chart_type' => 'bar',
+            'show_header' => 'false',
+            'show_controls' => 'false',
+            'show_chart' => 'true',
+            'show_overlay' => 'false',
+            'show_mermaid' => 'false',
+            'show_nav' => 'false',
+            'show_stats' => 'false',
+            'show_table' => 'false',
         ), $raw_atts, 'themisdb_benchmark_visualizer');
 
 		$atts = apply_filters('themisdb_benchmark_visualizer_shortcode_atts', $atts, $raw_atts);
+
+		$atts['show_header'] = $normalize_bool($atts['show_header'] ?? false, false);
+		$atts['show_controls'] = $normalize_bool($atts['show_controls'] ?? false, false);
+		$atts['show_chart'] = $normalize_bool($atts['show_chart'] ?? true, true);
+		$atts['show_overlay'] = $normalize_bool($atts['show_overlay'] ?? false, false);
+		$atts['show_mermaid'] = $normalize_bool($atts['show_mermaid'] ?? false, false);
+		$atts['show_nav'] = $normalize_bool($atts['show_nav'] ?? false, false);
+		$atts['show_stats'] = $normalize_bool($atts['show_stats'] ?? false, false);
+		$atts['show_table'] = $normalize_bool($atts['show_table'] ?? false, false);
 
 		$payload = array(
 			'category' => isset($atts['category']) ? sanitize_key($atts['category']) : 'all',
@@ -263,6 +296,14 @@ class ThemisDB_Benchmark_Visualizer {
 			'metric' => isset($atts['metric']) ? sanitize_key($atts['metric']) : 'latency',
 			'chart_type' => isset($atts['chart_type']) ? sanitize_key($atts['chart_type']) : 'bar',
 			'chart_theme' => get_option('themisdb_bv_chart_theme', 'light'),
+			'show_header' => (bool) $atts['show_header'],
+			'show_controls' => (bool) $atts['show_controls'],
+			'show_chart' => (bool) $atts['show_chart'],
+			'show_overlay' => (bool) $atts['show_overlay'],
+			'show_mermaid' => (bool) $atts['show_mermaid'],
+			'show_nav' => (bool) $atts['show_nav'],
+			'show_stats' => (bool) $atts['show_stats'],
+			'show_table' => (bool) $atts['show_table'],
 		);
 
 		$payload = apply_filters('themisdb_benchmark_visualizer_shortcode_payload', $payload, $atts);
