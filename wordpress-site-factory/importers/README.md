@@ -37,6 +37,17 @@ python docs_sync.py --manifest wordpress-site-factory/output/docs_cache.json
 These outputs are stored under `wordpress-site-factory/output/` and can be used by later
 importers or validation scripts.
 
+## Bootstrap and site assembly
+
+The site factory does more than scan source files. The main build entry point also boots the WordPress instance by:
+
+- validating the site connection and active theme/plugin state
+- ensuring the AI guest-author roster is present for ThemisDB co-author metadata
+- uploading AI author avatars into the WordPress media library and attaching them to the guest-author profiles
+- applying taxonomy and page scaffolding before the docs import pipeline runs
+
+This keeps the WordPress instance aligned with the repository-backed source and ensures imported documents can be assigned to the expected co-author identities.
+
 ## Planned additions
 
 - docs importer -> WP posts

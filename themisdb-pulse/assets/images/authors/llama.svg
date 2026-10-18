@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Meta Llama 3">
+  <defs>
+    <linearGradient id="llama-grad" x1="10" y1="8" x2="88" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f97316"/>
+      <stop offset="1" stop-color="#facc15"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="92" height="92" rx="46" fill="#fff7ed"/>
+  <circle cx="48" cy="48" r="28" fill="url(#llama-grad)"/>
+  <path d="M34 60V37h6v-8h12v8h6v23h-6v-17H40v17h-6Zm18-23h8v6h-8v-6Z" fill="#fff"/>
+</svg>

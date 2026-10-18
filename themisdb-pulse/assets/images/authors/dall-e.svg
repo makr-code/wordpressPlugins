@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="OpenAI DALL-E">
+  <defs>
+    <linearGradient id="dalle-grad" x1="8" y1="8" x2="88" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="92" height="92" rx="46" fill="#fdf2f8"/>
+  <circle cx="48" cy="48" r="29" fill="url(#dalle-grad)"/>
+  <path d="M33 31h30v10H33V31Zm-2 15h34v8H31v-8Zm7 15h20v8H38v-8Z" fill="#fff"/>
+</svg>

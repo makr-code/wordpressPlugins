@@ -84,6 +84,7 @@
                     if (response.success) {
                         self.currentData = response.data;
                         self.renderChart();
+                        self.renderMermaidDiagram();
                         self.renderResultsTable();
                         self.generateInsights();
                     } else {
@@ -183,6 +184,77 @@
 
             // Create chart
             this.chart = new Chart(ctx, config);
+        },
+
+        /**
+         * Build a compact Mermaid architecture overview from the loaded benchmark data.
+         */
+        renderMermaidDiagram: function() {
+            if (!this.currentData || !this.currentData.datasets) {
+                return;
+            }
+
+            const target = document.getElementById('themisdb-benchmark-mermaid');
+            if (!target) {
+                return;
+            }
+
+            if (!window.mermaid) {
+                target.innerHTML = '<p class="themisdb-mermaid-error">Mermaid is not available yet.</p>';
+                return;
+            }
+
+            const graph = this.buildMermaidGraph(this.currentData);
+            if (!graph) {
+                return;
+            }
+
+            target.innerHTML = '<pre class="mermaid">' + graph + '</pre>';
+            try {
+                const nodes = target.querySelectorAll('.mermaid');
+                if (nodes.length) {
+                    window.mermaid.initialize({ startOnLoad: false, theme: 'default' });
+                    window.mermaid.run({ nodes: Array.from(nodes) });
+                }
+            } catch (error) {
+                target.innerHTML = '<pre class="mermaid">' + graph + '</pre><p class="themisdb-mermaid-error">Mermaid rendering failed.</p>';
+            }
+        },
+
+        buildMermaidGraph: function(data) {
+            const datasets = Array.isArray(data.datasets) ? data.datasets : [];
+            if (!datasets.length) {
+                return '';
+            }
+
+            const metric = $('#bv-metric-filter').val() || 'latency';
+            const unit = metric === 'latency' ? 'ms' : (metric === 'throughput' ? 'ops/s' : 'MB');
+            const tops = datasets.slice(0, 4);
+
+            const lines = [
+                'flowchart LR',
+                '    A["Benchmark overview"]',
+            ];
+
+            tops.forEach(function(dataset, index) {
+                const average = Array.isArray(dataset.data) && dataset.data.length
+                    ? dataset.data.reduce(function(sum, value) { return sum + Number(value || 0); }, 0) / dataset.data.length
+                    : 0;
+                const label = dataset.label || 'Engine';
+                const nodeId = 'n' + index;
+                lines.push('    ' + nodeId + '["' + label + ': ' + average.toFixed(2) + ' ' + unit + '"]');
+                if (index === 0) {
+                    lines.push('    A --> ' + nodeId);
+                }
+            });
+
+            if (tops.length > 1) {
+                for (let i = 1; i < tops.length; i++) {
+                    lines.push('    n0 --> n' + i);
+                }
+            }
+
+            return lines.join('\n');
         },
 
         /**

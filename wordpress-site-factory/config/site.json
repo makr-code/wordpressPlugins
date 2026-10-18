@@ -13,14 +13,18 @@
     "app_password": "Tb9l5cHd0LlFzr27PN5hTM9e",
     "use_auth": true
   },
+  "bootstrap": {
+    "ai_coauthors": true,
+    "upload_avatars": true
+  },
   "theme": {
     "stylesheet": "themisdb-pulse",
     "required": true
   },
   "plugins": [
-    "themisdb-quality-meter",
-    "themisdb-front-slider",
-    "themisdb-support-portal"
+    "themisdb-quality-meter/themisdb-quality-meter",
+    "themisdb-front-slider/themisdb-front-slider",
+    "themisdb-support-portal/themisdb-support-portal"
   ],
   "public_tag_filter": true,
   "restricted_tags": [

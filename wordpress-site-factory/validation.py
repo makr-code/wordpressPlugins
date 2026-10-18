@@ -23,7 +23,7 @@ def smoke_test(config: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:
     if not isinstance(posts, list):
         raise RuntimeError("Unable to query posts for validation")
 
-    public_tags = ["announcement", "hero", "feature", "documentation", "pricing", "download", "edition", "blog", "support", "recommended", "editor-pick"]
+    public_tags = ["announcement", "hero", "feature", "featured", "frontpage-feature", "frontpage-featured", "documentation", "pricing", "download", "edition", "blog", "support", "recommended", "lesenswert", "editor-pick"]
     restricted_tags = ["restricted", "internal", "admin-only"]
 
     message = {

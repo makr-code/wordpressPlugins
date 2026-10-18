@@ -31,6 +31,18 @@ if ( ! defined( 'THEMISDB_V3_REQUIRED_PLUGINS' ) ) {
 
 define( 'THEMISDB_PULSE_TEXT_DOMAIN', 'themisdb-pulse' );
 
+add_action(
+    'init',
+    function () {
+        if ( class_exists( 'ThemisDB_Benchmark_Visualizer' ) && ! shortcode_exists( 'themisdb_benchmark_visualizer' ) ) {
+            add_shortcode(
+                'themisdb_benchmark_visualizer',
+                array( ThemisDB_Benchmark_Visualizer::get_instance(), 'render_visualizer' )
+            );
+        }
+    }
+);
+
 function themisdb_v3_get_restricted_content_tags() {
     return array(
         'announcement' => array(
@@ -1468,19 +1480,52 @@ function themisdb_v3_resolve_ai_coauthor_logins( $model_names ): array {
     }
 
     $map = array(
-        'gemini'         => 'google-gemini',
-        'googlegemini'  => 'google-gemini',
-        'google-gemini' => 'google-gemini',
-        'copilot'        => 'github-copilot',
-        'githubcopilot'  => 'github-copilot',
-        'github-copilot' => 'github-copilot',
-        'gemma4'         => 'gemma4-lektor',
-        'gemma4lektor'   => 'gemma4-lektor',
-        'gemma-4'        => 'gemma4-lektor',
-        'gemma4-lektor'  => 'gemma4-lektor',
-        'swarmui'        => 'swarmui-grafiker',
-        'swarmui-grafiker' => 'swarmui-grafiker',
-        'swarm-ui'       => 'swarmui-grafiker',
+        'gemini'               => 'google-gemini',
+        'googlegemini'        => 'google-gemini',
+        'googlegemini'        => 'google-gemini',
+        'google-gemini'       => 'google-gemini',
+        'copilot'             => 'github-copilot',
+        'githubcopilot'       => 'github-copilot',
+        'githubcopilot'       => 'github-copilot',
+        'github-copilot'      => 'github-copilot',
+        'gemma4'              => 'gemma4-lektor',
+        'gemma4lektor'        => 'gemma4-lektor',
+        'gemma4lektor'        => 'gemma4-lektor',
+        'gemma-4'             => 'gemma4-lektor',
+        'gemma4-lektor'       => 'gemma4-lektor',
+        'swarmui'             => 'swarmui-grafiker',
+        'swarmuigrafiker'     => 'swarmui-grafiker',
+        'swarmui-grafiker'    => 'swarmui-grafiker',
+        'swarm-ui'            => 'swarmui-grafiker',
+        'claude'              => 'anthropic-claude',
+        'anthropic'           => 'anthropic-claude',
+        'anthropicclaude'     => 'anthropic-claude',
+        'anthropic-claude'    => 'anthropic-claude',
+        'gpt4o'               => 'openai-gpt-4o',
+        'openaigpt4o'        => 'openai-gpt-4o',
+        'gpt-4o'              => 'openai-gpt-4o',
+        'openai-gpt-4o'       => 'openai-gpt-4o',
+        'llama'               => 'meta-llama-3',
+        'llama3'              => 'meta-llama-3',
+        'metallama3'          => 'meta-llama-3',
+        'meta-llama-3'        => 'meta-llama-3',
+        'mistral'             => 'mistral-large',
+        'mistrallarge'        => 'mistral-large',
+        'mistral-large'       => 'mistral-large',
+        'deepseek'            => 'deepseek-r1',
+        'deepseekr1'          => 'deepseek-r1',
+        'deepseek-r1'         => 'deepseek-r1',
+        'dalle'               => 'openai-dall-e',
+        'dalle2'              => 'openai-dall-e',
+        'dalle-2'             => 'openai-dall-e',
+        'openaidalle'         => 'openai-dall-e',
+        'openai-dall-e'       => 'openai-dall-e',
+        'stablediffusion'     => 'stable-diffusion',
+        'stable-diffusion'     => 'stable-diffusion',
+        'midjourney'          => 'midjourney',
+        'flux'                => 'blackforest-flux',
+        'blackforestlabsflux' => 'blackforest-flux',
+        'blackforest-flux'    => 'blackforest-flux',
     );
 
     $resolved = array();
@@ -1495,13 +1540,27 @@ function themisdb_v3_resolve_ai_coauthor_logins( $model_names ): array {
             continue;
         }
 
-        if ( isset( $map[ $normalized ] ) ) {
-            $resolved[] = $map[ $normalized ];
+        $variants = array(
+            $normalized,
+            strtolower( str_replace( '-', '', $candidate ) ),
+            strtolower( preg_replace( '/[^a-z0-9]+/', '', strtolower( trim( $candidate ) ) ) ),
+        );
+
+        $resolved_login = null;
+        foreach ( $variants as $variant ) {
+            if ( isset( $map[ $variant ] ) ) {
+                $resolved_login = $map[ $variant ];
+                break;
+            }
+        }
+
+        if ( null !== $resolved_login ) {
+            $resolved[] = $resolved_login;
             continue;
         }
 
         foreach ( $map as $key => $login ) {
-            if ( $normalized === $key ) {
+            if ( false !== strpos( $normalized, $key ) || false !== strpos( $key, $normalized ) ) {
                 $resolved[] = $login;
                 break;
             }
@@ -1567,6 +1626,42 @@ function themisdb_v3_detect_ai_author_brand( string $name, string $slug = '' ): 
         return 'swarmui';
     }
 
+    if ( false !== strpos( $haystack, 'claude' ) || false !== strpos( $haystack, 'anthropic' ) || false !== strpos( $haystack, 'anthropic-claude' ) ) {
+        return 'claude';
+    }
+
+    if ( false !== strpos( $haystack, 'gpt-4o' ) || false !== strpos( $haystack, 'gpt4o' ) || false !== strpos( $haystack, 'openai-gpt-4o' ) ) {
+        return 'gpt4o';
+    }
+
+    if ( false !== strpos( $haystack, 'llama' ) || false !== strpos( $haystack, 'meta-llama-3' ) ) {
+        return 'llama';
+    }
+
+    if ( false !== strpos( $haystack, 'mistral' ) || false !== strpos( $haystack, 'mistral-large' ) ) {
+        return 'mistral';
+    }
+
+    if ( false !== strpos( $haystack, 'deepseek' ) || false !== strpos( $haystack, 'r1' ) ) {
+        return 'deepseek';
+    }
+
+    if ( false !== strpos( $haystack, 'dall-e' ) || false !== strpos( $haystack, 'dalle' ) || false !== strpos( $haystack, 'openai-dall-e' ) ) {
+        return 'dalle';
+    }
+
+    if ( false !== strpos( $haystack, 'stable diffusion' ) || false !== strpos( $haystack, 'stablediffusion' ) || false !== strpos( $haystack, 'stable-diffusion' ) ) {
+        return 'stablediffusion';
+    }
+
+    if ( false !== strpos( $haystack, 'midjourney' ) ) {
+        return 'midjourney';
+    }
+
+    if ( false !== strpos( $haystack, 'flux' ) || false !== strpos( $haystack, 'blackforest' ) || false !== strpos( $haystack, 'blackforest-flux' ) ) {
+        return 'flux';
+    }
+
     return '';
 }
 
@@ -1582,10 +1677,19 @@ function themisdb_v3_get_ai_author_avatar_markup( string $brand, string $name, i
     $size = max( 24, min( 96, absint( $size ) ) );
     $brand = sanitize_key( $brand );
     $logo_map = array(
-        'gemini'  => 'assets/images/authors/gemini.svg',
-        'copilot' => 'assets/images/authors/copilot.svg',
-        'gemma4'  => 'assets/images/authors/gemma4.svg',
-        'swarmui' => 'assets/images/authors/swarmui.svg',
+        'gemini'          => 'assets/images/authors/gemini.svg',
+        'copilot'         => 'assets/images/authors/copilot.svg',
+        'gemma4'          => 'assets/images/authors/gemma4.svg',
+        'swarmui'         => 'assets/images/authors/swarmui.svg',
+        'claude'          => 'assets/images/authors/claude.svg',
+        'gpt4o'           => 'assets/images/authors/gpt-4o.svg',
+        'llama'           => 'assets/images/authors/llama.svg',
+        'mistral'         => 'assets/images/authors/mistral.svg',
+        'deepseek'        => 'assets/images/authors/deepseek.svg',
+        'dalle'           => 'assets/images/authors/dall-e.svg',
+        'stablediffusion' => 'assets/images/authors/stable-diffusion.svg',
+        'midjourney'      => 'assets/images/authors/midjourney.svg',
+        'flux'            => 'assets/images/authors/flux.svg',
     );
 
     if ( ! isset( $logo_map[ $brand ] ) ) {

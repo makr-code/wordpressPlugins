@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Mistral Large">
+  <defs>
+    <linearGradient id="mistral-grad" x1="12" y1="10" x2="88" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22c55e"/>
+      <stop offset="1" stop-color="#0ea5e9"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="92" height="92" rx="46" fill="#ecfeff"/>
+  <circle cx="48" cy="48" r="29" fill="url(#mistral-grad)"/>
+  <path d="M28 60V36h8v24h-8Zm13-24h8v24h-8V36Zm13 11h8v13h-8V47Zm13-11h8v24h-8V36Z" fill="#fff"/>
+</svg>

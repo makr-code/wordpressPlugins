@@ -1,0 +1,96 @@
+document:
+  schema_version: 1.0
+  metadata:
+    title: "Required human-readable title"
+    slug: "url-safe-slug"
+    lang: "de"
+    source_path: "source-links/docs/.../file.md"
+    source_hash: "sha256"
+    author: "ThemisDB"
+    coauthors: ["Anthropic Claude", "GitHub Copilot"]
+    tags: ["documentation", "architecture"]
+    status: "publish"
+    review:
+      readiness: "ready|needs_review|blocked"
+      score: 85
+      flags: ["missing_frontmatter"]
+
+  structure:
+    blocks:
+      - type: heading
+        level: 1
+        text: "Top-level chapter title"
+
+      - type: paragraph
+        text: "This is standard narrative content."
+
+      - type: list
+        ordered: false
+        items:
+          - "First bullet"
+          - "Second bullet"
+
+      - type: list
+        ordered: true
+        items:
+          - "Step 1"
+          - "Step 2"
+
+      - type: table
+        headers: ["Area", "Status", "Notes"]
+        rows:
+          - ["Docs", "Ready", "Published"]
+          - ["API", "Review", "Needs final pass"]
+
+      - type: image
+        src: "assets/diagram.png"
+        alt: "Architecture diagram"
+        caption: "System overview"
+
+      - type: mermaid
+        code: |
+          flowchart TD
+            A[Docs] --> B[Import]
+            B --> C[WordPress]
+        caption: "Import flow"
+
+      - type: code
+        language: "bash"
+        code: |
+          python build_site.py --profile local-test
+
+      - type: blockquote
+        text: "Important note for editors."
+
+      - type: callout
+        variant: "warning"
+        title: "Attention"
+        text: "This section requires review before publication."
+
+      - type: html
+        allowed_tags: ["div", "p", "strong", "em", "a", "ul", "ol", "li", "table", "thead", "tbody", "tr", "td", "th", "figure", "figcaption", "img", "blockquote", "code", "pre", "h1", "h2", "h3", "h4", "h5", "h6"]
+        html: "<div class='note'><strong>Note:</strong> keep only safe markup.</div>"
+
+  rules:
+    comments:
+      action: remove
+      reason: "Comments are not part of public content."
+
+    unsupported_inline_markup:
+      action: preserve_as_text
+      example: "[[value]] or odd markdown remains plain text when not parseable."
+
+    relative_links:
+      resolve_to: "wordpress_post_slug_or_static_url"
+      preserve_anchor: true
+
+    media:
+      local_images: "upload to WordPress media library"
+      mermaid: "render to SVG image, then upload"
+      alt_text_required: true
+
+    sanitization:
+      strip_iframe: true
+      strip_script: true
+      strip_style: true
+      allow_safe_html_only: true

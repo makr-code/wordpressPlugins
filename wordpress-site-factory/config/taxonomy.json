@@ -3,6 +3,9 @@
     "announcement",
     "hero",
     "feature",
+    "featured",
+    "frontpage-feature",
+    "frontpage-featured",
     "documentation",
     "pricing",
     "download",
@@ -10,6 +13,7 @@
     "blog",
     "support",
     "recommended",
+    "lesenswert",
     "editor-pick",
     "release",
     "event",
@@ -17,7 +21,18 @@
     "security",
     "benchmark",
     "case-study",
-    "trial"
+    "trial",
+    "air-gap",
+    "sovereignty",
+    "local-ai",
+    "ddil",
+    "on-premise",
+    "self-hosted",
+    "zero-trust",
+    "runbook",
+    "incident-response",
+    "mission-critical",
+    "resilience"
   ],
   "restricted_tags": [
     "restricted",
@@ -57,6 +72,18 @@
     "support",
     "release",
     "analysis",
-    "research"
+    "research",
+    "air-gap",
+    "ddil",
+    "local-ai",
+    "sovereignty",
+    "data-sovereignty",
+    "zero-trust",
+    "on-premise",
+    "self-hosted",
+    "mission-critical",
+    "incident-response",
+    "operational-resilience",
+    "resilience"
   ]
 }

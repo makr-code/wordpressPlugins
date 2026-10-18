@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Black Forest Labs Flux">
+  <defs>
+    <linearGradient id="flux-grad" x1="8" y1="8" x2="88" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="92" height="92" rx="46" fill="#ecfeff"/>
+  <circle cx="48" cy="48" r="29" fill="url(#flux-grad)"/>
+  <path d="M32 60V36h7l11 14L61 36h7v24h-8V46l-10 12-10-12v14h-8Z" fill="#fff"/>
+</svg>

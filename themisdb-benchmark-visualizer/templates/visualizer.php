@@ -101,6 +101,11 @@ if (!defined('ABSPATH')) {
         </div>
     </div>
 
+    <div class="themisdb-section themisdb-mermaid-section">
+        <h3><?php _e('Benchmark Architecture Overview', 'themisdb-benchmark-visualizer'); ?></h3>
+        <div id="themisdb-benchmark-mermaid" class="themisdb-mermaid-diagram"></div>
+    </div>
+
     <!-- Results Section -->
     <div class="themisdb-section themisdb-results">
         <h3><?php _e('Benchmark Details', 'themisdb-benchmark-visualizer'); ?></h3>

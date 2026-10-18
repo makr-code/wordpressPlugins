@@ -27,6 +27,17 @@ get_header();
             <?php echo do_shortcode( '[themisdb_v3_feature_cards limit="6" post_types="post,page" category="feature,hero" priority_tag="feature,hero,recommended,editor-pick" excerpt_words="24"]' ); ?>
         </div>
 
+        <div class="wp-block-group tv3-benchmark-section has-global-padding is-layout-constrained">
+            <p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker">Benchmarks</span></p>
+            <h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title">Performance-Benchmarks</h2>
+            <p class="has-text-align-center tv3-docs-grid-subtitle">Vergleiche der wichtigsten Betriebs- und Analyse-Workloads in einer interaktiven Übersicht.</p>
+            <?php if ( class_exists( 'ThemisDB_Benchmark_Visualizer' ) ) : ?>
+                <?php echo ThemisDB_Benchmark_Visualizer::get_instance()->render_visualizer( array( 'category' => 'all', 'metric' => 'latency' ) ); ?>
+            <?php elseif ( shortcode_exists( 'themisdb_benchmark_visualizer' ) ) : ?>
+                <?php echo do_shortcode( '[themisdb_benchmark_visualizer category="all" metric="latency"]' ); ?>
+            <?php endif; ?>
+        </div>
+
         <div class="wp-block-group tv3-docs-grid-section has-global-padding is-layout-constrained">
             <p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker">Docs</span></p>
             <h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title">Dokumentation &amp; Leitfaeden</h2>

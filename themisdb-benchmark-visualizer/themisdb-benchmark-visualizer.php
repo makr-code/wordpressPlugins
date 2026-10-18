@@ -165,9 +165,12 @@ class ThemisDB_Benchmark_Visualizer {
      */
     public function enqueue_assets() {
         global $post;
-        
-        // Only load if shortcode is present
-        if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'themisdb_benchmark_visualizer')) {
+
+        $has_shortcode_in_content = is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'themisdb_benchmark_visualizer');
+        $is_front_page_render = is_front_page() || is_page_template('front-page.php') || (is_page() && (int) get_option('page_on_front') === (int) get_queried_object_id());
+
+        // Load assets when the shortcode is embedded in page content or rendered on the active front-page template.
+        if (!$has_shortcode_in_content && !$is_front_page_render) {
             return;
         }
 
@@ -183,6 +186,14 @@ class ThemisDB_Benchmark_Visualizer {
             'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
             array(),
             '4.4.0',
+            true
+        );
+
+        wp_enqueue_script(
+            'mermaidjs',
+            'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js',
+            array(),
+            '10.9.1',
             true
         );
         
@@ -204,7 +215,7 @@ class ThemisDB_Benchmark_Visualizer {
         wp_enqueue_script(
             'themisdb-bv-script',
             THEMISDB_BV_PLUGIN_URL . 'assets/js/benchmark-visualizer.js',
-            array('jquery', 'chartjs'),
+            array('jquery', 'chartjs', 'mermaidjs'),
             THEMISDB_BV_VERSION,
             true
         );
@@ -226,7 +237,7 @@ class ThemisDB_Benchmark_Visualizer {
      * Add crossorigin attribute to CDN scripts for SRI readiness.
      */
     public function add_crossorigin_to_cdn_scripts($tag, $handle, $src) {
-        if ($handle === 'chartjs') {
+        if (in_array($handle, array('chartjs', 'mermaidjs'), true)) {
             return str_replace('<script ', '<script crossorigin="anonymous" ', $tag);
         }
         return $tag;

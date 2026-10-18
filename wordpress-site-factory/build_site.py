@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
-from bootstrap import ensure_site_ready, load_json
+from bootstrap import ensure_ai_coauthors, ensure_site_ready, load_json
 from pages import generate_pages
 from taxonomy import apply_taxonomy
 from validation import smoke_test
@@ -57,6 +57,7 @@ def main() -> None:
         return
 
     ensure_site_ready(config, dry_run=args.dry_run)
+    ensure_ai_coauthors(config, dry_run=args.dry_run)
     apply_taxonomy(config, dry_run=args.dry_run)
     generate_pages(config, dry_run=args.dry_run)
     smoke_test(config, dry_run=args.dry_run)

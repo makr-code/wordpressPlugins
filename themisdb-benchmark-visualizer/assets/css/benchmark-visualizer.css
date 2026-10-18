@@ -166,6 +166,26 @@
     min-height: 400px;
 }
 
+.themisdb-mermaid-section {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.04), rgba(124, 77, 255, 0.04));
+}
+
+.themisdb-mermaid-diagram {
+    min-height: 220px;
+    overflow: auto;
+    padding: 12px;
+    border: 1px solid var(--themisdb-border);
+    border-radius: 8px;
+    background: #fafbff;
+}
+
+.themisdb-mermaid-diagram .mermaid {
+    min-height: 180px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 .themisdb-chart-container {
     position: relative;
     height: 400px;
