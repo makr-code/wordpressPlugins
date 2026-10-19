@@ -93,6 +93,27 @@
         geojson: null
     };
 
+    function getRuntimeMode() {
+        const mode = window.themisdbGnmData && window.themisdbGnmData.mode ? window.themisdbGnmData.mode : 'auto';
+        return mode === 'production' || mode === 'demo' ? mode : 'auto';
+    }
+
+    function getNodeGeo(node) {
+        const lat = typeof node.lat === 'number' ? node.lat : parseFloat(node.lat);
+        const lon = typeof node.lon === 'number' ? node.lon : parseFloat(node.lon);
+        const hasGeo = Number.isFinite(lat) && Number.isFinite(lon);
+
+        if (hasGeo) {
+            return { lat: clamp(lat, -90, 90), lon: clamp(lon, -180, 180) };
+        }
+
+        if (getRuntimeMode() === 'production') {
+            return null;
+        }
+
+        return node.geo || deriveLocationFromNetwork(node.network);
+    }
+
     function shouldDisplayLabel(node) {
         const load = clamp(node.load || 0, 0, 100);
         const instanceCount = node.instances || 0;
@@ -433,6 +454,11 @@
         }
     }
 
+    function getLocalGeoJsonUrl() {
+        const data = window.themisdbGnmData || {};
+        return data.geojsonUrl || ''; 
+    }
+
     function buildBaseMap(width, height) {
         const svg = document.getElementById('themisdb-global-network-map-svg');
         if (!svg) {
@@ -533,7 +559,12 @@
 
         renderGlobeOverlay(svg, width, height);
 
-        return fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson')
+        const geojsonUrl = getLocalGeoJsonUrl();
+        if (!geojsonUrl) {
+            return Promise.resolve();
+        }
+
+        return fetch(geojsonUrl)
             .then(function (response) {
                 if (!response.ok) {
                     throw new Error('GeoJSON not available');
@@ -596,20 +627,34 @@
                 return (item.city || item.region) === city;
             });
 
-            if (node) {
-                const geo = node.geo || deriveLocationFromNetwork(node.network);
-                const point = projectGeoToScreen(geo, width, height);
-                ordered.push({
-                    ...node,
-                    x: point.x,
-                    y: point.y,
-                    geo: geo
-                });
+            if (!node) {
+                return;
             }
+
+            const geo = getNodeGeo(node);
+            if (!geo) {
+                return;
+            }
+
+            const point = projectGeoToScreen(geo, width, height);
+            ordered.push({
+                ...node,
+                x: point.x,
+                y: point.y,
+                geo: geo
+            });
         });
 
-        return ordered.length ? ordered : nodes.map(function (node) {
-            const geo = node.geo || deriveLocationFromNetwork(node.network);
+        if (ordered.length) {
+            return ordered;
+        }
+
+        return nodes.map(function (node) {
+            const geo = getNodeGeo(node);
+            if (!geo) {
+                return null;
+            }
+
             const point = projectGeoToScreen(geo, width, height);
             return {
                 ...node,
@@ -617,7 +662,7 @@
                 y: point.y,
                 geo: geo
             };
-        });
+        }).filter(Boolean);
     }
 
     function projectWorldPoint(lon, lat, width, height) {
@@ -633,7 +678,10 @@
     }
 
     function getStaticNodePosition(node, width, height) {
-        const geo = node.geo || deriveLocationFromNetwork(node.network);
+        const geo = getNodeGeo(node);
+        if (!geo) {
+            return { x: 0, y: 0 };
+        }
         return projectOrthographicPoint(geo.lon, geo.lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
     }
 
@@ -681,7 +729,11 @@
         ctx.globalCompositeOperation = 'screen';
 
         nodes.forEach(function (node) {
-            const position = getStaticNodePosition(node, width, height);
+            const geo = getNodeGeo(node);
+            if (!geo) {
+                return;
+            }
+            const position = projectOrthographicPoint(geo.lon, geo.lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
             const x = position.x;
             const y = position.y;
             const load = clamp(node.load || 50, 0, 100);
@@ -772,9 +824,12 @@
         }
 
         const nodes = rawNodes.map(function (node) {
-            return Object.assign({}, node, {
-                geo: deriveLocationFromNetwork(node.network)
-            });
+            const lat = typeof node.lat === 'number' ? node.lat : parseFloat(node.lat);
+            const lon = typeof node.lon === 'number' ? node.lon : parseFloat(node.lon);
+            const geo = Number.isFinite(lat) && Number.isFinite(lon)
+                ? { lat: clamp(lat, -90, 90), lon: clamp(lon, -180, 180) }
+                : (node.geo || deriveLocationFromNetwork(node.network));
+            return Object.assign({}, node, { geo: geo });
         });
         const flightRoute = buildFlightRoute(nodes, width, height);
 
@@ -785,7 +840,9 @@
             let hovered = null;
 
             nodes.forEach(function (node) {
-                const geo = node.geo || deriveLocationFromNetwork(node.network);
+                const geo = node.geo && Number.isFinite(node.geo.lat) && Number.isFinite(node.geo.lon)
+                    ? node.geo
+                    : deriveLocationFromNetwork(node.network);
                 const point = CAMERA_ANIMATION.mode === 'globe'
                     ? projectOrthographicPoint(geo.lon, geo.lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat)
                     : { x: toMercatorX(geo.lon, width), y: toMercatorY(geo.lat, height) };
