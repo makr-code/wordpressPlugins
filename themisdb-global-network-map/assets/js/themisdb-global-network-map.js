@@ -22,30 +22,48 @@
             oceanStart: '#0d233a',
             oceanEnd: '#081a2a',
             land: 'rgba(157, 188, 206, 0.62)',
+            landSoft: 'rgba(202, 232, 248, 0.8)',
+            landDeep: 'rgba(100, 139, 172, 0.46)',
             landStroke: 'rgba(237, 245, 255, 0.58)',
             globe: 'rgba(19, 48, 68, 0.92)',
             glow: 'rgba(156, 214, 255, 0.22)',
-            accent: 'rgba(153, 205, 255, 0.12)'
+            accent: 'rgba(153, 205, 255, 0.12)',
+            atmosphere: 'rgba(126, 205, 255, 0.28)',
+            shadow: 'rgba(5, 16, 28, 0.38)',
+            backdropFill: 'rgba(255,255,255,0.02)',
+            terminator: 'rgba(255, 255, 255, 0.2)'
         },
         aurora: {
             background: '#071d2d',
             oceanStart: '#0d3243',
             oceanEnd: '#081f2a',
             land: 'rgba(112, 197, 176, 0.68)',
+            landSoft: 'rgba(186, 245, 227, 0.84)',
+            landDeep: 'rgba(52, 127, 105, 0.48)',
             landStroke: 'rgba(221, 255, 243, 0.6)',
             globe: 'rgba(15, 58, 69, 0.94)',
             glow: 'rgba(121, 228, 210, 0.22)',
-            accent: 'rgba(132, 244, 223, 0.14)'
+            accent: 'rgba(132, 244, 223, 0.14)',
+            atmosphere: 'rgba(130, 249, 211, 0.24)',
+            shadow: 'rgba(8, 21, 27, 0.42)',
+            backdropFill: 'rgba(255,255,255,0.02)',
+            terminator: 'rgba(255, 255, 255, 0.22)'
         },
         night: {
             background: '#090d1d',
             oceanStart: '#101a2f',
             oceanEnd: '#090c18',
             land: 'rgba(145, 160, 220, 0.64)',
+            landSoft: 'rgba(214, 223, 255, 0.8)',
+            landDeep: 'rgba(89, 101, 161, 0.46)',
             landStroke: 'rgba(228, 235, 255, 0.6)',
             globe: 'rgba(26, 28, 50, 0.94)',
             glow: 'rgba(156, 170, 255, 0.22)',
-            accent: 'rgba(169, 183, 255, 0.14)'
+            accent: 'rgba(169, 183, 255, 0.14)',
+            atmosphere: 'rgba(164, 186, 255, 0.24)',
+            shadow: 'rgba(6, 7, 17, 0.42)',
+            backdropFill: 'rgba(255,255,255,0.02)',
+            terminator: 'rgba(255, 255, 255, 0.2)'
         }
     };
 
@@ -60,6 +78,8 @@
         dragOriginLat: 0,
         zoom: 1.1
     };
+
+    const GLOBE_SOLAR_ANGLE = 0.6;
 
     const REGION_TARGETS = [
         { id: 'north-america', name: 'North America', lon: -98, lat: 38 },
@@ -325,7 +345,7 @@
                 const theme = getActiveColorTheme();
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 path.setAttribute('d', makePathFromCoordinates(coordinates, width, height, [-360, 0, 360], projectionMode));
-                path.setAttribute('fill', theme.land);
+                path.setAttribute('fill', 'url(#themisdb-land-fill)');
                 path.setAttribute('stroke', theme.landStroke);
                 path.setAttribute('stroke-width', projectionMode === 'globe' ? '1.05' : '1.2');
                 path.setAttribute('stroke-linejoin', 'round');
@@ -343,7 +363,7 @@
                     const theme = getActiveColorTheme();
                     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                     path.setAttribute('d', makePathFromCoordinates(polygon, width, height, [-360, 0, 360], projectionMode));
-                    path.setAttribute('fill', theme.land);
+                    path.setAttribute('fill', 'url(#themisdb-land-fill)');
                     path.setAttribute('stroke', theme.landStroke);
                     path.setAttribute('stroke-width', projectionMode === 'globe' ? '1.05' : '1.2');
                     path.setAttribute('stroke-linejoin', 'round');
@@ -382,7 +402,7 @@
             }).join(' ') + ' Z';
 
             path.setAttribute('d', d);
-            path.setAttribute('fill', theme.land);
+            path.setAttribute('fill', 'url(#themisdb-land-fill)');
             path.setAttribute('stroke', theme.landStroke);
             path.setAttribute('stroke-width', '1.2');
             path.setAttribute('stroke-linejoin', 'round');
@@ -408,6 +428,24 @@
         layer.setAttribute('id', 'themisdb-globe-layer');
         layer.setAttribute('filter', 'url(#themisdb-land-shadow)');
 
+        const globeBackdrop = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        globeBackdrop.setAttribute('cx', String(width / 2));
+        globeBackdrop.setAttribute('cy', String(height / 2));
+        globeBackdrop.setAttribute('r', String(globeRadius * 1.08));
+        globeBackdrop.setAttribute('fill', theme.backdropFill);
+        layer.appendChild(globeBackdrop);
+
+        const atmosphere = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        atmosphere.setAttribute('cx', String(width / 2));
+        atmosphere.setAttribute('cy', String(height / 2));
+        atmosphere.setAttribute('r', String(globeRadius * 1.1));
+        atmosphere.setAttribute('fill', 'none');
+        atmosphere.setAttribute('stroke', theme.atmosphere);
+        atmosphere.setAttribute('stroke-width', '5');
+        atmosphere.setAttribute('opacity', '0.85');
+        atmosphere.setAttribute('filter', 'url(#themisdb-atmosphere-glow)');
+        layer.appendChild(atmosphere);
+
         const globeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         globeCircle.setAttribute('cx', String(width / 2));
         globeCircle.setAttribute('cy', String(height / 2));
@@ -416,6 +454,29 @@
         globeCircle.setAttribute('stroke', 'rgba(176, 225, 255, 0.35)');
         globeCircle.setAttribute('stroke-width', '1.4');
         layer.appendChild(globeCircle);
+
+        const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        shadow.setAttribute('cx', String(width / 2 + globeRadius * 0.32));
+        shadow.setAttribute('cy', String(height / 2 + globeRadius * 0.08));
+        shadow.setAttribute('r', String(globeRadius));
+        shadow.setAttribute('fill', theme.shadow);
+        shadow.setAttribute('opacity', '0.7');
+        shadow.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+        layer.appendChild(shadow);
+
+        const terminator = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        terminator.setAttribute('cx', String(width / 2));
+        terminator.setAttribute('cy', String(height / 2));
+        terminator.setAttribute('rx', String(globeRadius));
+        terminator.setAttribute('ry', String(globeRadius * 0.72));
+        terminator.setAttribute('fill', 'none');
+        terminator.setAttribute('stroke', theme.terminator);
+        terminator.setAttribute('stroke-width', '2.2');
+        terminator.setAttribute('stroke-dasharray', '2 10');
+        terminator.setAttribute('opacity', '0.62');
+        terminator.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+        terminator.setAttribute('transform', 'rotate(' + (MAP_CAMERA.centerLon * GLOBE_SOLAR_ANGLE) + ' ' + String(width / 2) + ' ' + String(height / 2) + ')');
+        layer.appendChild(terminator);
 
         for (let lat = -60; lat <= 60; lat += 30) {
             const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -514,6 +575,44 @@
         glow.appendChild(glowStop1);
         glow.appendChild(glowStop2);
         defs.appendChild(glow);
+
+        // Recreate the gradient on every render so the active theme updates immediately for all land masses.
+        const landGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+        landGradient.setAttribute('id', 'themisdb-land-fill');
+        landGradient.setAttribute('x1', '0');
+        landGradient.setAttribute('x2', '1');
+        landGradient.setAttribute('y1', '0');
+        landGradient.setAttribute('y2', '1');
+        landGradient.setAttribute('gradientUnits', 'objectBoundingBox');
+        const landGradientStop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        landGradientStop1.setAttribute('offset', '0%');
+        landGradientStop1.setAttribute('stop-color', theme.landSoft);
+        const landGradientStop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        landGradientStop2.setAttribute('offset', '100%');
+        landGradientStop2.setAttribute('stop-color', theme.landDeep);
+        landGradient.appendChild(landGradientStop1);
+        landGradient.appendChild(landGradientStop2);
+        defs.appendChild(landGradient);
+
+        const atmosphereGlow = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+        atmosphereGlow.setAttribute('id', 'themisdb-atmosphere-glow');
+        atmosphereGlow.setAttribute('x', '-30%');
+        atmosphereGlow.setAttribute('y', '-30%');
+        atmosphereGlow.setAttribute('width', '160%');
+        atmosphereGlow.setAttribute('height', '160%');
+        const atmosphereBlur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        atmosphereBlur.setAttribute('stdDeviation', '3');
+        atmosphereBlur.setAttribute('result', 'blur');
+        atmosphereGlow.appendChild(atmosphereBlur);
+        const atmosphereMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+        const atmosphereMergeNode1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+        atmosphereMergeNode1.setAttribute('in', 'blur');
+        const atmosphereMergeNode2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+        atmosphereMergeNode2.setAttribute('in', 'SourceGraphic');
+        atmosphereMerge.appendChild(atmosphereMergeNode1);
+        atmosphereMerge.appendChild(atmosphereMergeNode2);
+        atmosphereGlow.appendChild(atmosphereMerge);
+        defs.appendChild(atmosphereGlow);
 
         const shadowFilter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
         shadowFilter.setAttribute('id', 'themisdb-land-shadow');
