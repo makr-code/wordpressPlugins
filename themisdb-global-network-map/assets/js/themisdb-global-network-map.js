@@ -26,9 +26,9 @@
     };
 
     const MAP_MODE_SETTINGS = {
-        globe: { zoom: 1.35, maxZoom: 2.4, globeScale: 1.45, animationSpeed: 0.0045, focusZoom: 2.8 },
-        region: { zoom: 3.2, maxZoom: 4.8, globeScale: 2.8, animationSpeed: 0.008, focusZoom: 6.4 },
-        country: { zoom: 4.8, maxZoom: 6.2, globeScale: 4.6, animationSpeed: 0.012, focusZoom: 8.4 }
+        globe: { zoom: 1.8, maxZoom: 4.5, globeScale: 2.6, animationSpeed: 0.0045, focusZoom: 4.2 },
+        region: { zoom: 5.2, maxZoom: 10.5, globeScale: 6.4, animationSpeed: 0.008, focusZoom: 12.4 },
+        country: { zoom: 7.8, maxZoom: 18, globeScale: 9.2, animationSpeed: 0.012, focusZoom: 18 }
     };
 
     const MAP_COLOR_THEMES = {
@@ -140,6 +140,8 @@
         geojson: null
     };
 
+    let animationFrameHandle = null;
+
     function getRuntimeMode() {
         const mode = window.themisdbGnmData && window.themisdbGnmData.mode ? window.themisdbGnmData.mode : 'auto';
         return mode === 'production' || mode === 'demo' ? mode : 'auto';
@@ -236,17 +238,17 @@
     function getVisualGlobeScale() {
         const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
         const zoomFactor = clamp(MAP_CAMERA.zoom || 1, 0.7, 22);
-        const focusBoost = clamp((modeSettings.globeScale || 1) - 1, 0, 4.5);
-        const rawScale = 0.9 + (zoomFactor - 1) * 0.32 + focusBoost * 0.42;
-        return clamp(rawScale, 0.9, 4.6);
+        const focusBoost = clamp(modeSettings.globeScale || 1, 1, 12);
+        const rawScale = (0.8 + (zoomFactor - 1) * 0.5) * (0.75 + focusBoost * 0.27);
+        return clamp(rawScale, 1.2, 11.5);
     }
 
     function getGlobeRenderRadius(width, height) {
         const baseRadius = Math.max(1, Math.min(width || 1, height || 1)) * 0.36;
         const visualScale = getVisualGlobeScale();
-        const maxRadius = baseRadius * 2.2;
         const targetRadius = baseRadius * visualScale;
-        return clamp(targetRadius, baseRadius * 0.78, maxRadius);
+        const maxRadius = baseRadius * 2.9;
+        return clamp(targetRadius, baseRadius * 1.05, maxRadius);
     }
 
     function projectOrthographicPoint(lon, lat, width, height, centerLon, centerLat) {
@@ -336,6 +338,16 @@
 
     function lerp(start, end, amount) {
         return start + (end - start) * amount;
+    }
+
+    function pyramidSpeedCurve(value) {
+        const t = clamp(value, 0, 1);
+        return 0.25 + Math.pow(t, 1.7) * 1.75;
+    }
+
+    function getDynamicPyramidVelocity(targetDistance, mode) {
+        const modeFactor = mode === 'country' ? 1.55 : mode === 'region' ? 1.25 : 1;
+        return pyramidSpeedCurve(targetDistance) * modeFactor;
     }
 
     function easeInOutCubic(value) {
@@ -1320,15 +1332,16 @@
             CAMERA_ANIMATION.lastSwitch = performance.now();
         }
 
-        function updateCamera(now) {
+        function updateCamera(now, deltaScale) {
             const modeSettings = getModeSettings(CAMERA_ANIMATION.mode);
-            const animationSpeed = modeSettings.animationSpeed || 0.006;
+            const animationSpeed = (modeSettings.animationSpeed || 0.006) * deltaScale;
             const targetFocus = CAMERA_ANIMATION.focusTarget;
 
             if (!MAP_UI_STATE.animationEnabled) {
                 MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, clamp(MAP_UI_STATE.zoom, 0.7, getMaxUiZoom()), 0.08);
                 MAP_UI_STATE.zoom = clamp(MAP_CAMERA.zoom, 0.7, getMaxUiZoom());
                 syncUiControls();
+                renderGlobeOverlay(svg, width, height);
                 return;
             }
 
@@ -1346,10 +1359,16 @@
                 const shortestLongitudeDelta = longitudeDelta > 180 ? longitudeDelta - 360 : (longitudeDelta < -180 ? longitudeDelta + 360 : longitudeDelta);
 
                 const focusSettings = FOCUS_SENSITIVITY[CAMERA_ANIMATION.mode] || FOCUS_SENSITIVITY.globe;
+                const distanceRatio = clamp(
+                    ((Math.abs(shortestLongitudeDelta) / 180) + (Math.abs(desiredLat - MAP_CAMERA.centerLat) / 90) + (Math.abs(desiredZoom - MAP_CAMERA.zoom) / Math.max(0.1, getMaxUiZoom()))) / 3,
+                    0,
+                    1
+                );
+                const pyramidVelocity = getDynamicPyramidVelocity(distanceRatio, CAMERA_ANIMATION.mode);
 
-                CAMERA_ANIMATION.velocityLon = (CAMERA_ANIMATION.velocityLon + (shortestLongitudeDelta * focusSettings.lonInfluence)) * CAMERA_ANIMATION.followInertia;
-                CAMERA_ANIMATION.velocityLat = (CAMERA_ANIMATION.velocityLat + (desiredLat - MAP_CAMERA.centerLat) * (0.028 + focusSettings.orbitInfluence)) * CAMERA_ANIMATION.followInertia;
-                CAMERA_ANIMATION.velocityZoom = (CAMERA_ANIMATION.velocityZoom + (desiredZoom - MAP_CAMERA.zoom) * focusSettings.focusStrength) * CAMERA_ANIMATION.followInertia;
+                CAMERA_ANIMATION.velocityLon = (CAMERA_ANIMATION.velocityLon + (shortestLongitudeDelta * focusSettings.lonInfluence * pyramidVelocity)) * CAMERA_ANIMATION.followInertia;
+                CAMERA_ANIMATION.velocityLat = (CAMERA_ANIMATION.velocityLat + (desiredLat - MAP_CAMERA.centerLat) * (0.028 + focusSettings.orbitInfluence) * pyramidVelocity) * CAMERA_ANIMATION.followInertia;
+                CAMERA_ANIMATION.velocityZoom = (CAMERA_ANIMATION.velocityZoom + (desiredZoom - MAP_CAMERA.zoom) * focusSettings.focusStrength * pyramidVelocity) * CAMERA_ANIMATION.followInertia;
 
                 MAP_CAMERA.centerLon = normalizeLongitude(MAP_CAMERA.centerLon + CAMERA_ANIMATION.velocityLon);
                 MAP_CAMERA.centerLat = clamp(MAP_CAMERA.centerLat + CAMERA_ANIMATION.velocityLat, -80, 80);
@@ -1375,20 +1394,32 @@
             renderGlobeOverlay(svg, width, height);
         }
 
-        function tickFrame() {
+        function tickFrame(timestamp) {
             const ctx = canvas.getContext('2d');
             if (!ctx) {
                 return;
             }
 
-            const now = performance.now();
-            updateCamera(now);
+            if (!tickFrame.lastTimestamp) {
+                tickFrame.lastTimestamp = timestamp;
+            }
+
+            const deltaScale = clamp((timestamp - tickFrame.lastTimestamp) / 16.67, 0.5, 2.2);
+            tickFrame.lastTimestamp = timestamp;
+
+            updateCamera(timestamp, deltaScale);
             ctx.clearRect(0, 0, width, height);
-            drawFlightPath(ctx, flightRoute, now);
+            drawFlightPath(ctx, flightRoute, timestamp);
             drawHeatmap(ctx, nodes, width, height, interactionState);
 
             if (MAP_UI_STATE.animationEnabled) {
-                requestAnimationFrame(tickFrame);
+                animationFrameHandle = requestAnimationFrame(tickFrame);
+            } else {
+                tickFrame.lastTimestamp = 0;
+                if (animationFrameHandle) {
+                    cancelAnimationFrame(animationFrameHandle);
+                    animationFrameHandle = null;
+                }
             }
         }
 
@@ -1432,8 +1463,16 @@
             animationToggle.addEventListener('click', function () {
                 MAP_UI_STATE.animationEnabled = !MAP_UI_STATE.animationEnabled;
                 syncUiControls();
+
                 if (MAP_UI_STATE.animationEnabled) {
-                    tickFrame();
+                    if (animationFrameHandle) {
+                        cancelAnimationFrame(animationFrameHandle);
+                    }
+                    tickFrame.lastTimestamp = 0;
+                    animationFrameHandle = requestAnimationFrame(tickFrame);
+                } else if (animationFrameHandle) {
+                    cancelAnimationFrame(animationFrameHandle);
+                    animationFrameHandle = null;
                 }
             });
         }
@@ -1511,7 +1550,10 @@
         CAMERA_ANIMATION.lastSwitch = performance.now();
         setMode('globe');
         pickRandomTarget();
-        tickFrame();
+        if (animationFrameHandle) {
+            cancelAnimationFrame(animationFrameHandle);
+        }
+        animationFrameHandle = requestAnimationFrame(tickFrame);
     }
 
     if (document.readyState === 'loading') {
