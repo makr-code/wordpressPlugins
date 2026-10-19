@@ -10,7 +10,7 @@
     "base_url": "http://localhost/wordpress",
     "rest_route_style": "wp-json",
     "user": "test",
-    "app_password": "Tb9l5cHd0LlFzr27PN5hTM9e",
+    "app_password": "",
     "use_auth": true
   },
   "bootstrap": {
