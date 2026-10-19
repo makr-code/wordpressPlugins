@@ -50,6 +50,15 @@ def resolve_parent_page_id(base_url: str, user: str, password: str, parent_value
 def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, Any]) -> Dict[str, Any]:
     slug = page_data["slug"]
     existing = find_page_by_slug(base_url, user, password, slug)
+    parent_slug = page_data.get("parent")
+    parent_id = None
+    if parent_slug:
+        parent_page = find_page_by_slug(base_url, user, password, parent_slug)
+        if isinstance(parent_page, dict):
+            parent_id_candidate = parent_page.get("id")
+            if isinstance(parent_id_candidate, int):
+                parent_id = parent_id_candidate
+
     payload = {
         "title": page_data["title"],
         "slug": slug,

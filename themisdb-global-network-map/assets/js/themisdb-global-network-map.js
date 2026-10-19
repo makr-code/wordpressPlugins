@@ -82,9 +82,11 @@
         }
     };
 
+    const REDUCED_MOTION_QUERY = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+
     const MAP_UI_STATE = {
         color: 'ocean',
-        animationEnabled: true,
+        animationEnabled: !REDUCED_MOTION_QUERY || !REDUCED_MOTION_QUERY.matches,
         mouseControlEnabled: true,
         dragActive: false,
         dragStartX: 0,
@@ -400,20 +402,24 @@
         const wrapOffsets = offsets || [0];
         return wrapOffsets.map(function (offset) {
             return coords.map(function (ring) {
-                const points = ring.map(function (point) {
+                const projectedPoints = ring.map(function (point) {
                     const lon = point[0] + offset;
                     const lat = point[1];
-                    const projected = projectionMode === 'globe'
-                        ? projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat)
-                        : {
-                            x: toMercatorX(lon, width),
-                            y: toMercatorY(lat, height)
-                        };
-                    return projected.x.toFixed(2) + ' ' + projected.y.toFixed(2);
+                    return projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
+                }).filter(function (point) {
+                    return point.z >= 0.01;
+                });
+
+                if (!projectedPoints.length) {
+                    return '';
+                }
+
+                const points = projectedPoints.map(function (point) {
+                    return point.x.toFixed(2) + ' ' + point.y.toFixed(2);
                 });
 
                 return 'M ' + points.join(' L ') + ' Z';
-            }).join(' ');
+            }).filter(Boolean).join(' ');
         }).join(' ');
     }
 
@@ -595,34 +601,37 @@
         terminator.setAttribute('transform', 'rotate(' + (MAP_CAMERA.centerLon * GLOBE_SOLAR_ANGLE) + ' ' + String(width / 2) + ' ' + String(height / 2) + ')');
         layer.appendChild(terminator);
 
-        for (let lat = -60; lat <= 60; lat += 30) {
-            const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            const d = [];
-            for (let lon = -180; lon <= 180; lon += 5) {
-                const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
-                d.push((lon === -180 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
+        const reducedMotion = !!(REDUCED_MOTION_QUERY && REDUCED_MOTION_QUERY.matches);
+        if (!reducedMotion) {
+            for (let lat = -60; lat <= 60; lat += 30) {
+                const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const d = [];
+                for (let lon = -180; lon <= 180; lon += 5) {
+                    const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
+                    d.push((lon === -180 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
+                }
+                arc.setAttribute('d', d.join(' '));
+                arc.setAttribute('fill', 'none');
+                arc.setAttribute('stroke', 'rgba(153, 205, 255, 0.14)');
+                arc.setAttribute('stroke-width', '1');
+                arc.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+                layer.appendChild(arc);
             }
-            arc.setAttribute('d', d.join(' '));
-            arc.setAttribute('fill', 'none');
-            arc.setAttribute('stroke', 'rgba(153, 205, 255, 0.14)');
-            arc.setAttribute('stroke-width', '1');
-            arc.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
-            layer.appendChild(arc);
-        }
 
-        for (let lon = -150; lon <= 150; lon += 30) {
-            const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            const d = [];
-            for (let lat = -90; lat <= 90; lat += 5) {
-                const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
-                d.push((lat === -90 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
+            for (let lon = -150; lon <= 150; lon += 30) {
+                const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const d = [];
+                for (let lat = -90; lat <= 90; lat += 5) {
+                    const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
+                    d.push((lat === -90 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
+                }
+                arc.setAttribute('d', d.join(' '));
+                arc.setAttribute('fill', 'none');
+                arc.setAttribute('stroke', 'rgba(153, 205, 255, 0.12)');
+                arc.setAttribute('stroke-width', '1');
+                arc.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+                layer.appendChild(arc);
             }
-            arc.setAttribute('d', d.join(' '));
-            arc.setAttribute('fill', 'none');
-            arc.setAttribute('stroke', 'rgba(153, 205, 255, 0.12)');
-            arc.setAttribute('stroke-width', '1');
-            arc.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
-            layer.appendChild(arc);
         }
 
         const mapGroup = svg.querySelector('#themisdb-map-group');
@@ -951,7 +960,20 @@
         const focusNodeId = interactionState && interactionState.selected ? getNodeIdentity(interactionState.selected) : '';
         const now = performance.now();
 
-        nodes.forEach(function (node) {
+        const reducedMotion = !!(REDUCED_MOTION_QUERY && REDUCED_MOTION_QUERY.matches);
+        const prioritizedNodes = nodes.slice().sort(function (left, right) {
+            const leftPriority = (left.load || 0) + (left.instances || 0) * 8;
+            const rightPriority = (right.load || 0) + (right.instances || 0) * 8;
+            return rightPriority - leftPriority;
+        });
+        const maxNodesPerFrame = reducedMotion ? 180 : 300;
+        let drawnNodes = 0;
+
+        prioritizedNodes.forEach(function (node) {
+            if (drawnNodes >= maxNodesPerFrame) {
+                return;
+            }
+
             const geo = getNodeGeo(node);
             if (!geo) {
                 return;
@@ -972,7 +994,7 @@
             const pulseRadius = Math.max(0.9, 0.45 + (load / 130)) * pulseScale + Math.sin(pulsePhase) * (selected ? 0.8 : 0.45);
             let nodeStatus = null;
 
-            for (let i = 0; i < Math.min(instanceCount, 2); i++) {
+            for (let i = 0; i < Math.min(instanceCount, reducedMotion ? 1 : 2); i++) {
                 const jitterX = (i - 0.5) * 0.55;
                 const jitterY = (i - 0.5) * 0.55;
                 const radius = baseRadius + (i * 0.18) + (selected || hovered ? 0.8 : 0);
@@ -1006,7 +1028,7 @@
                 ctx.stroke();
             }
 
-            if (shouldDisplayLabel(node, { selected: selected, hovered: hovered })) {
+            if (shouldDisplayLabel(node, { selected: selected, hovered: hovered }) && !reducedMotion) {
                 if (CAMERA_ANIMATION.mode === 'globe') {
                     ctx.fillStyle = selected ? '#f4fbff' : hovered ? '#dfefff' : 'rgba(228, 240, 255, 0.72)';
                     ctx.font = selected ? '700 8px sans-serif' : '600 7px sans-serif';
@@ -1023,6 +1045,7 @@
             ctx.strokeStyle = selected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.52)';
             ctx.lineWidth = selected ? 1.5 : 1;
             ctx.stroke();
+            drawnNodes += 1;
         });
 
         ctx.globalCompositeOperation = 'source-over';
@@ -1251,6 +1274,7 @@
             buttons.forEach(function (button) {
                 const active = button.getAttribute('data-map-mode') === nextMode;
                 button.classList.toggle('is-active', active);
+                button.setAttribute('aria-pressed', active ? 'true' : 'false');
             });
 
             syncUiControls();
@@ -1353,12 +1377,19 @@
 
         function tickFrame() {
             const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                return;
+            }
+
             const now = performance.now();
             updateCamera(now);
             ctx.clearRect(0, 0, width, height);
             drawFlightPath(ctx, flightRoute, now);
             drawHeatmap(ctx, nodes, width, height, interactionState);
-            requestAnimationFrame(tickFrame);
+
+            if (MAP_UI_STATE.animationEnabled) {
+                requestAnimationFrame(tickFrame);
+            }
         }
 
         document.querySelectorAll('[data-map-mode]').forEach(function (button) {
@@ -1401,6 +1432,9 @@
             animationToggle.addEventListener('click', function () {
                 MAP_UI_STATE.animationEnabled = !MAP_UI_STATE.animationEnabled;
                 syncUiControls();
+                if (MAP_UI_STATE.animationEnabled) {
+                    tickFrame();
+                }
             });
         }
 
@@ -1439,6 +1473,41 @@
             });
         }
 
+        const canvasWrap = document.querySelector('.themisdb-global-network-map__canvas-wrap');
+        if (canvasWrap) {
+            canvasWrap.setAttribute('tabindex', '0');
+            canvasWrap.addEventListener('keydown', function (event) {
+                const step = event.shiftKey ? 0.12 : 0.08;
+                const panStep = event.shiftKey ? 14 : 8;
+                if (event.key === 'ArrowLeft') {
+                    MAP_CAMERA.centerLon = normalizeLongitude(MAP_CAMERA.centerLon - panStep);
+                } else if (event.key === 'ArrowRight') {
+                    MAP_CAMERA.centerLon = normalizeLongitude(MAP_CAMERA.centerLon + panStep);
+                } else if (event.key === 'ArrowUp') {
+                    MAP_CAMERA.centerLat = clamp(MAP_CAMERA.centerLat + (event.shiftKey ? 8 : 5), -80, 80);
+                } else if (event.key === 'ArrowDown') {
+                    MAP_CAMERA.centerLat = clamp(MAP_CAMERA.centerLat - (event.shiftKey ? 8 : 5), -80, 80);
+                } else if (event.key === '+' || event.key === 'PageUp') {
+                    adjustZoom(step);
+                } else if (event.key === '-' || event.key === 'PageDown') {
+                    adjustZoom(-step);
+                } else if (event.key === 'Home') {
+                    MAP_CAMERA.centerLon = 8;
+                    MAP_CAMERA.centerLat = 50;
+                    MAP_CAMERA.zoom = 1.1;
+                    CAMERA_ANIMATION.targetZoom = 1.1;
+                } else {
+                    return;
+                }
+
+                event.preventDefault();
+            });
+        }
+
+        const mapSvg = document.getElementById('themisdb-global-network-map-svg');
+        if (mapSvg) {
+            mapSvg.setAttribute('focusable', 'false');
+        }
         CAMERA_ANIMATION.lastSwitch = performance.now();
         setMode('globe');
         pickRandomTarget();
