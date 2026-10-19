@@ -96,6 +96,15 @@ class ThemisDB_Global_Network_Map {
 
     public static function deactivate() {
         delete_option('themisdb_gnm_db_version');
+        delete_option('themisdb_gnm_mode');
+        delete_option('themisdb_gnm_allow_demo_fallback');
+        delete_option('themisdb_gnm_max_nodes');
+        delete_option('themisdb_gnm_cache_ttl');
+
+        delete_transient('themisdb_gnm_production_nodes_250');
+        delete_transient('themisdb_gnm_production_nodes_500');
+        delete_transient('themisdb_gnm_production_nodes_1000');
+        wp_cache_flush();
     }
 
     private function __construct() {
@@ -231,14 +240,15 @@ class ThemisDB_Global_Network_Map {
 
         global $wpdb;
         $homecalls_table = $wpdb->prefix . 'themisdb_gnm_homecalls';
-        $homecalls_check = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $homecalls_table));
+        $homecalls_table = esc_sql($homecalls_table);
+        $homecalls_check = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->prefix . 'themisdb_gnm_homecalls'));
         if (empty($homecalls_check)) {
             return array();
         }
 
-        $limit = max(1, (int) $max_nodes > 0 ? (int) $max_nodes : 250);
+        $limit = max(1, ((int) $max_nodes > 0 ? (int) $max_nodes : 250));
         $query = $wpdb->prepare(
-            "SELECT * FROM $homecalls_table WHERE is_active = 1 AND (updated_at IS NOT NULL OR created_at IS NOT NULL) ORDER BY updated_at DESC, created_at DESC LIMIT %d",
+            "SELECT id, instance_id, ip_address, network, city, region, country, lat, lon, instances, load, status, is_active, source, updated_at, created_at FROM $homecalls_table WHERE is_active = 1 ORDER BY updated_at DESC, created_at DESC LIMIT %d",
             $limit
         );
         $rows = $wpdb->get_results($query, ARRAY_A);
@@ -252,14 +262,15 @@ class ThemisDB_Global_Network_Map {
         foreach ($rows as $row) {
             $row = array_map('stripslashes_deep', $row);
             $ip = isset($row['ip_address']) ? sanitize_text_field($row['ip_address']) : '';
-            $geo = $this->resolve_geo_for_ip($ip, $row);
 
             if (empty($ip) && empty($row['network'])) {
                 continue;
             }
 
-            $lat = $this->sanitize_coordinate($row['lat'] ?? $geo['lat'] ?? null, 'lat');
-            $lon = $this->sanitize_coordinate($row['lon'] ?? $geo['lon'] ?? null, 'lon');
+            $geo = $this->resolve_geo_for_ip($ip, $row);
+
+            $lat = $this->sanitize_coordinate($geo['lat'] ?? $row['lat'] ?? null, 'lat');
+            $lon = $this->sanitize_coordinate($geo['lon'] ?? $row['lon'] ?? null, 'lon');
             if ($lat === null || $lon === null) {
                 continue;
             }
@@ -283,8 +294,14 @@ class ThemisDB_Global_Network_Map {
 
             $aggregated[$key]['instances'] += max(1, (int) ($row['instances'] ?? 1));
             $aggregated[$key]['load'] = max((float) $aggregated[$key]['load'], (float) ($row['load'] ?? 0));
-            $aggregated[$key]['status'] = sanitize_key($row['status'] ?? $aggregated[$key]['status']);
-            $aggregated[$key]['updated_at'] = $row['updated_at'] ?? $aggregated[$key]['updated_at'];
+
+            if (empty($aggregated[$key]['status']) || empty($row['status'])) {
+                $aggregated[$key]['status'] = sanitize_key($row['status'] ?? $aggregated[$key]['status']);
+            }
+
+            if (empty($aggregated[$key]['updated_at']) || empty($row['updated_at'])) {
+                $aggregated[$key]['updated_at'] = $row['updated_at'] ?? $aggregated[$key]['updated_at'];
+            }
         }
 
         $nodes = array_values($aggregated);
@@ -305,6 +322,7 @@ class ThemisDB_Global_Network_Map {
 
         global $wpdb;
         $geo_cache_table = $wpdb->prefix . 'themisdb_gnm_geo_cache';
+        $geo_cache_table = esc_sql($geo_cache_table);
         $cache_query = $wpdb->prepare(
             "SELECT * FROM $geo_cache_table WHERE ip_address = %s ORDER BY updated_at DESC LIMIT 1",
             $ip
@@ -352,6 +370,7 @@ class ThemisDB_Global_Network_Map {
 
         global $wpdb;
         $geo_cache_table = $wpdb->prefix . 'themisdb_gnm_geo_cache';
+        $geo_cache_table = esc_sql($geo_cache_table);
         $city = isset($geo_data['city']) ? sanitize_text_field($geo_data['city']) : '';
         $region = isset($geo_data['region']) ? sanitize_text_field($geo_data['region']) : '';
         $country = isset($geo_data['country']) ? sanitize_text_field($geo_data['country']) : '';

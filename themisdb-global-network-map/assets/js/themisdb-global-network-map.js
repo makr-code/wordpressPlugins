@@ -99,19 +99,25 @@
     }
 
     function getNodeGeo(node) {
+        if (!node) {
+            return null;
+        }
+
         const lat = typeof node.lat === 'number' ? node.lat : parseFloat(node.lat);
         const lon = typeof node.lon === 'number' ? node.lon : parseFloat(node.lon);
-        const hasGeo = Number.isFinite(lat) && Number.isFinite(lon);
-
-        if (hasGeo) {
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
             return { lat: clamp(lat, -90, 90), lon: clamp(lon, -180, 180) };
+        }
+
+        if (node.geo && Number.isFinite(node.geo.lat) && Number.isFinite(node.geo.lon)) {
+            return { lat: clamp(node.geo.lat, -90, 90), lon: clamp(node.geo.lon, -180, 180) };
         }
 
         if (getRuntimeMode() === 'production') {
             return null;
         }
 
-        return node.geo || deriveLocationFromNetwork(node.network);
+        return deriveLocationFromNetwork(node.network || '');
     }
 
     function shouldDisplayLabel(node) {
@@ -456,7 +462,7 @@
 
     function getLocalGeoJsonUrl() {
         const data = window.themisdbGnmData || {};
-        return data.geojsonUrl || ''; 
+        return data.geojsonUrl || '';
     }
 
     function buildBaseMap(width, height) {
@@ -680,7 +686,7 @@
     function getStaticNodePosition(node, width, height) {
         const geo = getNodeGeo(node);
         if (!geo) {
-            return { x: 0, y: 0 };
+            return null;
         }
         return projectOrthographicPoint(geo.lon, geo.lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
     }
@@ -823,14 +829,13 @@
             MAP_CAMERA.centerLat = clamp(MAP_UI_STATE.dragOriginLat + (dy / height) * 30, -80, 80);
         }
 
-        const nodes = rawNodes.map(function (node) {
-            const lat = typeof node.lat === 'number' ? node.lat : parseFloat(node.lat);
-            const lon = typeof node.lon === 'number' ? node.lon : parseFloat(node.lon);
-            const geo = Number.isFinite(lat) && Number.isFinite(lon)
-                ? { lat: clamp(lat, -90, 90), lon: clamp(lon, -180, 180) }
-                : (node.geo || deriveLocationFromNetwork(node.network));
-            return Object.assign({}, node, { geo: geo });
-        });
+        const nodes = rawNodes
+            .map(function (node) {
+                return Object.assign({}, node, { geo: getNodeGeo(node) });
+            })
+            .filter(function (node) {
+                return node && node.geo && Number.isFinite(node.geo.lat) && Number.isFinite(node.geo.lon);
+            });
         const flightRoute = buildFlightRoute(nodes, width, height);
 
         function getNodeAtPointer(clientX, clientY) {
@@ -840,9 +845,10 @@
             let hovered = null;
 
             nodes.forEach(function (node) {
-                const geo = node.geo && Number.isFinite(node.geo.lat) && Number.isFinite(node.geo.lon)
-                    ? node.geo
-                    : deriveLocationFromNetwork(node.network);
+                const geo = getNodeGeo(node);
+                if (!geo) {
+                    return;
+                }
                 const point = CAMERA_ANIMATION.mode === 'globe'
                     ? projectOrthographicPoint(geo.lon, geo.lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat)
                     : { x: toMercatorX(geo.lon, width), y: toMercatorY(geo.lat, height) };
