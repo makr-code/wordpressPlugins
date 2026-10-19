@@ -68,12 +68,12 @@ get_header();
         </div>
 
         <?php echo do_shortcode( '[themisdb_v3_blog_section limit="9" post_types="post" category="blog" priority_tag="blog,recommended,editor-pick" excerpt_words="24"]' ); ?>
-
-        <?php if ( function_exists( 'themisdb_global_network_map_exists' ) || shortcode_exists( 'themisdb_global_network_map' ) ) : ?>
-            <div class="wp-block-group tv3-network-map-section has-global-padding is-layout-constrained" style="margin-top: 3rem;">
-                <?php echo do_shortcode( '[themisdb_global_network_map height="520"]' ); ?>
-            </div>
-        <?php endif; ?>
+        
+        <div class="wp-block-group tv3-network-map-section has-global-padding is-layout-constrained" style="margin-top: 3rem;">
+            <p class="has-text-align-center tv3-download-kicker-wrap"><span class="tv3-download-kicker">wordwide</span></p>
+            <h2 class="wp-block-heading has-text-align-center tv3-download-title">global heatmap of ThemisDB instance</h2>
+            <?php if ( function_exists( 'themisdb_global_network_map_exists' ) || shortcode_exists( 'themisdb_global_network_map' ) ) : echo do_shortcode( '[themisdb_global_network_map height="520"]' ); endif; ?>
+        </div>
     </main>
 </div>
 

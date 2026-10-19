@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict
 
@@ -14,11 +15,38 @@ ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "config" / "site.json"
 
 
+def coerce_env_value(raw: str, target_key: str) -> Any:
+    if target_key == "use_auth":
+        lowered = raw.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+    return raw
+
+
 def load_config(profile: str | None = None) -> Dict[str, Any]:
     config = load_json(CONFIG_PATH)
+    env_overrides = {
+        "wordpress.base_url": ("WP_BASE_URL", "base_url"),
+        "wordpress.user": ("WP_USER", "user"),
+        "wordpress.app_password": ("WP_APP_PASSWORD", "app_password"),
+        "wordpress.use_auth": ("WP_USE_AUTH", "use_auth"),
+        "theme.stylesheet": ("WP_THEME", "stylesheet"),
+    }
+
+    for dotted_key, (env_name, target_key) in env_overrides.items():
+        value = os.environ.get(env_name)
+        if value is None or value == "":
+            continue
+        keys = dotted_key.split(".")
+        target = config
+        for key in keys[:-1]:
+            target = target.setdefault(key, {})
+        target[keys[-1]] = coerce_env_value(value, target_key)
+
     if profile:
         config["profile"] = profile
-        # keep the same base config; profile-specific overrides can be added here later
     return config
 
 

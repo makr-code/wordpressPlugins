@@ -1,9 +1,24 @@
 (function () {
     'use strict';
 
+    const DEFAULT_VIEW = {
+        lon: 8,
+        lat: 50
+    };
+
+    const DRAG_SENSITIVITY = {
+        lon: 44,
+        lat: 34
+    };
+
+    const ZOOM_VELOCITY = {
+        drag: 0.24,
+        inertia: 0.2
+    };
+
     const MAP_CAMERA = {
-        centerLon: 8,
-        centerLat: 50,
+        centerLon: DEFAULT_VIEW.lon,
+        centerLat: DEFAULT_VIEW.lat,
         zoom: 1.1,
         scale: 1.1,
         offsetX: 0.5,
@@ -11,41 +26,59 @@
     };
 
     const MAP_MODE_SETTINGS = {
-        globe: { zoom: 1.3, maxZoom: 3.2, globeScale: 1.45, animationSpeed: 0.005 },
-        region: { zoom: 2.1, maxZoom: 5.4, globeScale: 2.9, animationSpeed: 0.009 },
-        country: { zoom: 3.2, maxZoom: 6.6, globeScale: 4.2, animationSpeed: 0.013 }
+        globe: { zoom: 1.35, maxZoom: 2.4, globeScale: 1.45, animationSpeed: 0.0045, focusZoom: 2.8 },
+        region: { zoom: 3.2, maxZoom: 4.8, globeScale: 2.8, animationSpeed: 0.008, focusZoom: 6.4 },
+        country: { zoom: 4.8, maxZoom: 6.2, globeScale: 4.6, animationSpeed: 0.012, focusZoom: 8.4 }
     };
 
     const MAP_COLOR_THEMES = {
         ocean: {
             background: '#071a2b',
-            oceanStart: '#113a58',
-            oceanEnd: '#071a2b',
-            land: 'rgba(196, 232, 248, 0.98)',
-            landStroke: 'rgba(246, 250, 255, 1)',
-            globe: 'rgba(18, 46, 64, 0.98)',
-            glow: 'rgba(126, 196, 255, 0.46)',
-            accent: 'rgba(153, 205, 255, 0.22)'
+            oceanStart: '#0d233a',
+            oceanEnd: '#081a2a',
+            land: 'rgba(157, 188, 206, 0.62)',
+            landSoft: 'rgba(202, 232, 248, 0.8)',
+            landDeep: 'rgba(100, 139, 172, 0.46)',
+            landStroke: 'rgba(237, 245, 255, 0.58)',
+            globe: 'rgba(19, 48, 68, 0.92)',
+            glow: 'rgba(156, 214, 255, 0.22)',
+            accent: 'rgba(153, 205, 255, 0.12)',
+            atmosphere: 'rgba(126, 205, 255, 0.28)',
+            shadow: 'rgba(5, 16, 28, 0.38)',
+            backdropFill: 'rgba(255,255,255,0.02)',
+            terminator: 'rgba(255, 255, 255, 0.2)'
         },
         aurora: {
             background: '#071d2d',
             oceanStart: '#144d63',
             oceanEnd: '#081f2a',
-            land: 'rgba(135, 225, 211, 0.98)',
-            landStroke: 'rgba(236, 255, 250, 1)',
-            globe: 'rgba(15, 58, 69, 0.98)',
-            glow: 'rgba(121, 228, 210, 0.46)',
-            accent: 'rgba(132, 244, 223, 0.22)'
+            land: 'rgba(112, 197, 176, 0.68)',
+            landSoft: 'rgba(186, 245, 227, 0.84)',
+            landDeep: 'rgba(52, 127, 105, 0.48)',
+            landStroke: 'rgba(221, 255, 243, 0.6)',
+            globe: 'rgba(15, 58, 69, 0.94)',
+            glow: 'rgba(121, 228, 210, 0.22)',
+            accent: 'rgba(132, 244, 223, 0.14)',
+            atmosphere: 'rgba(130, 249, 211, 0.24)',
+            shadow: 'rgba(8, 21, 27, 0.42)',
+            backdropFill: 'rgba(255,255,255,0.02)',
+            terminator: 'rgba(255, 255, 255, 0.22)'
         },
         night: {
             background: '#090d1d',
             oceanStart: '#1d2646',
             oceanEnd: '#090c18',
-            land: 'rgba(179, 191, 246, 0.98)',
-            landStroke: 'rgba(239, 244, 255, 1)',
-            globe: 'rgba(26, 29, 52, 0.98)',
-            glow: 'rgba(156, 170, 255, 0.46)',
-            accent: 'rgba(169, 183, 255, 0.22)'
+            land: 'rgba(145, 160, 220, 0.64)',
+            landSoft: 'rgba(214, 223, 255, 0.8)',
+            landDeep: 'rgba(89, 101, 161, 0.46)',
+            landStroke: 'rgba(228, 235, 255, 0.6)',
+            globe: 'rgba(26, 28, 50, 0.94)',
+            glow: 'rgba(156, 170, 255, 0.22)',
+            accent: 'rgba(169, 183, 255, 0.14)',
+            atmosphere: 'rgba(164, 186, 255, 0.24)',
+            shadow: 'rgba(6, 7, 17, 0.42)',
+            backdropFill: 'rgba(255,255,255,0.02)',
+            terminator: 'rgba(255, 255, 255, 0.2)'
         }
     };
 
@@ -59,6 +92,13 @@
         dragOriginLon: 0,
         dragOriginLat: 0,
         zoom: 1.1
+    };
+
+    const GLOBE_SOLAR_ANGLE = 0.6;
+    const FOCUS_SENSITIVITY = {
+        globe: { lonInfluence: 0.03, orbitInfluence: 0.016, focusStrength: 0.09 },
+        region: { lonInfluence: 0.03, orbitInfluence: 0.016, focusStrength: 0.09 },
+        country: { lonInfluence: 0.03, orbitInfluence: 0.022, focusStrength: 0.11 }
     };
 
     const REGION_TARGETS = [
@@ -86,18 +126,82 @@
         globeDrift: 0,
         orbitPhase: 0,
         switchIntervalMs: 20000,
-        regionIndex: 1
+        regionIndex: 1,
+        focusTarget: null,
+        velocityLon: 0,
+        velocityLat: 0,
+        velocityZoom: 0,
+        followInertia: 0.82
     };
 
     const GLOBE_STATE = {
         geojson: null
     };
 
-    function shouldDisplayLabel(node) {
+    function getRuntimeMode() {
+        const mode = window.themisdbGnmData && window.themisdbGnmData.mode ? window.themisdbGnmData.mode : 'auto';
+        return mode === 'production' || mode === 'demo' ? mode : 'auto';
+    }
+
+    function getNodeGeo(node) {
+        if (!node) {
+            return null;
+        }
+
+        const lat = typeof node.lat === 'number' ? node.lat : parseFloat(node.lat);
+        const lon = typeof node.lon === 'number' ? node.lon : parseFloat(node.lon);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+            return { lat: clamp(lat, -90, 90), lon: clamp(lon, -180, 180) };
+        }
+
+        if (node.geo && Number.isFinite(node.geo.lat) && Number.isFinite(node.geo.lon)) {
+            return { lat: clamp(node.geo.lat, -90, 90), lon: clamp(node.geo.lon, -180, 180) };
+        }
+
+        if (getRuntimeMode() === 'production') {
+            return null;
+        }
+
+        return deriveLocationFromNetwork(node.network || '');
+    }
+
+    function getNodeIdentity(node) {
+        if (!node) {
+            return '';
+        }
+
+        return [node.city, node.region, node.country, node.network, node.instance_id, node.id].filter(Boolean).join('|') || 'node';
+    }
+
+    function getNodeLoadLevel(node) {
+        const load = clamp(node.load || 0, 0, 100);
+        if (load >= 80) {
+            return 'high';
+        }
+        if (load >= 65) {
+            return 'mid';
+        }
+        return 'low';
+    }
+
+    function getNodeStatusLabel(node) {
+        const status = String(node.status || 'active').toLowerCase();
+        if (status === 'warning' || status === 'degraded' || status === 'busy') {
+            return 'warning';
+        }
+        if (status === 'critical' || status === 'offline' || status === 'down') {
+            return 'critical';
+        }
+        return 'active';
+    }
+
+    function shouldDisplayLabel(node, interaction) {
         const load = clamp(node.load || 0, 0, 100);
         const instanceCount = node.instances || 0;
         const notableCities = ['New York', 'London', 'Frankfurt', 'Tokyo', 'Singapore', 'Dubai', 'São Paulo', 'Sydney'];
-        return load >= 65 || instanceCount >= 10 || notableCities.indexOf(node.city) !== -1;
+        const selected = !!(interaction && interaction.selected);
+        const hovered = !!(interaction && interaction.hovered);
+        return selected || hovered || load >= 65 || instanceCount >= 10 || notableCities.indexOf(node.city) !== -1;
     }
 
     function toMercatorX(longitude, width) {
@@ -168,9 +272,38 @@
         return MAP_COLOR_THEMES[MAP_UI_STATE.color] || MAP_COLOR_THEMES.ocean;
     }
 
+    function getModeSettings(mode) {
+        return MAP_MODE_SETTINGS[mode] || MAP_MODE_SETTINGS.globe;
+    }
+
     function getMaxUiZoom() {
-        const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
+        const modeSettings = getModeSettings(CAMERA_ANIMATION.mode);
         return Math.max(2.8, modeSettings.maxZoom || 2.8);
+    }
+
+    function getTargetZoomForMode(mode) {
+        const modeSettings = getModeSettings(mode);
+        return clamp(modeSettings.zoom || 1.2, 0.7, modeSettings.maxZoom || 12);
+    }
+
+    function getFocusZoomForMode(mode) {
+        const modeSettings = getModeSettings(mode);
+        return clamp(modeSettings.focusZoom || getTargetZoomForMode(mode), 0.7, modeSettings.maxZoom || 12);
+    }
+
+    function setFocusTarget(target) {
+        CAMERA_ANIMATION.focusTarget = target || null;
+    }
+
+    function clearFocusTarget() {
+        CAMERA_ANIMATION.focusTarget = null;
+    }
+
+    function getAmbientTargetZoom() {
+        if (CAMERA_ANIMATION.focusTarget && CAMERA_ANIMATION.focusTarget.zoom) {
+            return CAMERA_ANIMATION.focusTarget.zoom;
+        }
+        return getTargetZoomForMode(CAMERA_ANIMATION.mode);
     }
 
     function syncUiControls() {
@@ -312,7 +445,7 @@
                 const theme = getActiveColorTheme();
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 path.setAttribute('d', makePathFromCoordinates(coordinates, width, height, [-360, 0, 360], projectionMode));
-                path.setAttribute('fill', theme.land);
+                path.setAttribute('fill', 'url(#themisdb-land-fill)');
                 path.setAttribute('stroke', theme.landStroke);
                 path.setAttribute('stroke-width', projectionMode === 'globe' ? '1.05' : '1.2');
                 path.setAttribute('stroke-linejoin', 'round');
@@ -330,7 +463,7 @@
                     const theme = getActiveColorTheme();
                     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                     path.setAttribute('d', makePathFromCoordinates(polygon, width, height, [-360, 0, 360], projectionMode));
-                    path.setAttribute('fill', theme.land);
+                    path.setAttribute('fill', 'url(#themisdb-land-fill)');
                     path.setAttribute('stroke', theme.landStroke);
                     path.setAttribute('stroke-width', projectionMode === 'globe' ? '1.05' : '1.2');
                     path.setAttribute('stroke-linejoin', 'round');
@@ -369,7 +502,7 @@
             }).join(' ') + ' Z';
 
             path.setAttribute('d', d);
-            path.setAttribute('fill', theme.land);
+            path.setAttribute('fill', 'url(#themisdb-land-fill)');
             path.setAttribute('stroke', theme.landStroke);
             path.setAttribute('stroke-width', '1.2');
             path.setAttribute('stroke-linejoin', 'round');
@@ -394,6 +527,34 @@
         layer.setAttribute('id', 'themisdb-globe-layer');
         layer.setAttribute('filter', 'url(#themisdb-land-shadow)');
 
+        const globeBackdrop = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        globeBackdrop.setAttribute('cx', String(width / 2));
+        globeBackdrop.setAttribute('cy', String(height / 2));
+        globeBackdrop.setAttribute('r', String(globeRadius * 1.08));
+        globeBackdrop.setAttribute('fill', theme.backdropFill);
+        layer.appendChild(globeBackdrop);
+
+        const atmosphereHalo = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        atmosphereHalo.setAttribute('cx', String(width / 2));
+        atmosphereHalo.setAttribute('cy', String(height / 2));
+        atmosphereHalo.setAttribute('r', String(globeRadius * 1.18));
+        atmosphereHalo.setAttribute('fill', 'none');
+        atmosphereHalo.setAttribute('stroke', theme.atmosphere);
+        atmosphereHalo.setAttribute('stroke-width', '5');
+        atmosphereHalo.setAttribute('opacity', '0.9');
+        atmosphereHalo.setAttribute('filter', 'url(#themisdb-atmosphere-glow)');
+        layer.appendChild(atmosphereHalo);
+
+        const atmosphereInner = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        atmosphereInner.setAttribute('cx', String(width / 2));
+        atmosphereInner.setAttribute('cy', String(height / 2));
+        atmosphereInner.setAttribute('r', String(globeRadius * 1.07));
+        atmosphereInner.setAttribute('fill', 'none');
+        atmosphereInner.setAttribute('stroke', 'rgba(166, 225, 255, 0.28)');
+        atmosphereInner.setAttribute('stroke-width', '2.5');
+        atmosphereInner.setAttribute('opacity', '0.75');
+        layer.appendChild(atmosphereInner);
+
         const globeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         globeCircle.setAttribute('cx', String(width / 2));
         globeCircle.setAttribute('cy', String(height / 2));
@@ -402,6 +563,37 @@
         globeCircle.setAttribute('stroke', 'rgba(176, 225, 255, 0.35)');
         globeCircle.setAttribute('stroke-width', '1.4');
         layer.appendChild(globeCircle);
+
+        const daylight = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        daylight.setAttribute('cx', String(width / 2 + globeRadius * 0.2));
+        daylight.setAttribute('cy', String(height / 2 - globeRadius * 0.18));
+        daylight.setAttribute('r', String(globeRadius * 0.7));
+        daylight.setAttribute('fill', 'rgba(158, 224, 255, 0.14)');
+        daylight.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+        layer.appendChild(daylight);
+
+        const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        shadow.setAttribute('cx', String(width / 2 + globeRadius * 0.32));
+        shadow.setAttribute('cy', String(height / 2 + globeRadius * 0.08));
+        shadow.setAttribute('r', String(globeRadius));
+        shadow.setAttribute('fill', theme.shadow);
+        shadow.setAttribute('opacity', '0.7');
+        shadow.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+        layer.appendChild(shadow);
+
+        const terminator = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        terminator.setAttribute('cx', String(width / 2));
+        terminator.setAttribute('cy', String(height / 2));
+        terminator.setAttribute('rx', String(globeRadius));
+        terminator.setAttribute('ry', String(globeRadius * 0.72));
+        terminator.setAttribute('fill', 'none');
+        terminator.setAttribute('stroke', theme.terminator);
+        terminator.setAttribute('stroke-width', '2.2');
+        terminator.setAttribute('stroke-dasharray', '2 10');
+        terminator.setAttribute('opacity', '0.62');
+        terminator.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+        terminator.setAttribute('transform', 'rotate(' + (MAP_CAMERA.centerLon * GLOBE_SOLAR_ANGLE) + ' ' + String(width / 2) + ' ' + String(height / 2) + ')');
+        layer.appendChild(terminator);
 
         for (let lat = -60; lat <= 60; lat += 30) {
             const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -444,6 +636,11 @@
         } else {
             drawFallbackLandmass(svg, width, height);
         }
+    }
+
+    function getLocalGeoJsonUrl() {
+        const data = window.themisdbGnmData || {};
+        return data.geojsonUrl || '';
     }
 
     function buildBaseMap(width, height) {
@@ -496,6 +693,44 @@
         glow.appendChild(glowStop2);
         defs.appendChild(glow);
 
+        // Recreate the gradient on every render so the active theme updates immediately for all land masses.
+        const landGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+        landGradient.setAttribute('id', 'themisdb-land-fill');
+        landGradient.setAttribute('x1', '0');
+        landGradient.setAttribute('x2', '1');
+        landGradient.setAttribute('y1', '0');
+        landGradient.setAttribute('y2', '1');
+        landGradient.setAttribute('gradientUnits', 'objectBoundingBox');
+        const landGradientStop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        landGradientStop1.setAttribute('offset', '0%');
+        landGradientStop1.setAttribute('stop-color', theme.landSoft);
+        const landGradientStop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        landGradientStop2.setAttribute('offset', '100%');
+        landGradientStop2.setAttribute('stop-color', theme.landDeep);
+        landGradient.appendChild(landGradientStop1);
+        landGradient.appendChild(landGradientStop2);
+        defs.appendChild(landGradient);
+
+        const atmosphereGlow = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+        atmosphereGlow.setAttribute('id', 'themisdb-atmosphere-glow');
+        atmosphereGlow.setAttribute('x', '-30%');
+        atmosphereGlow.setAttribute('y', '-30%');
+        atmosphereGlow.setAttribute('width', '160%');
+        atmosphereGlow.setAttribute('height', '160%');
+        const atmosphereBlur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        atmosphereBlur.setAttribute('stdDeviation', '3');
+        atmosphereBlur.setAttribute('result', 'blur');
+        atmosphereGlow.appendChild(atmosphereBlur);
+        const atmosphereMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+        const atmosphereMergeNode1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+        atmosphereMergeNode1.setAttribute('in', 'blur');
+        const atmosphereMergeNode2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+        atmosphereMergeNode2.setAttribute('in', 'SourceGraphic');
+        atmosphereMerge.appendChild(atmosphereMergeNode1);
+        atmosphereMerge.appendChild(atmosphereMergeNode2);
+        atmosphereGlow.appendChild(atmosphereMerge);
+        defs.appendChild(atmosphereGlow);
+
         const shadowFilter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
         shadowFilter.setAttribute('id', 'themisdb-land-shadow');
         shadowFilter.setAttribute('x', '-20%');
@@ -545,7 +780,12 @@
 
         renderGlobeOverlay(svg, width, height);
 
-        return fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson')
+        const geojsonUrl = getLocalGeoJsonUrl();
+        if (!geojsonUrl) {
+            return Promise.resolve();
+        }
+
+        return fetch(geojsonUrl)
             .then(function (response) {
                 if (!response.ok) {
                     throw new Error('GeoJSON not available');
@@ -608,20 +848,34 @@
                 return (item.city || item.region) === city;
             });
 
-            if (node) {
-                const geo = node.geo || deriveLocationFromNetwork(node.network);
-                const point = projectGeoToScreen(geo, width, height);
-                ordered.push({
-                    ...node,
-                    x: point.x,
-                    y: point.y,
-                    geo: geo
-                });
+            if (!node) {
+                return;
             }
+
+            const geo = getNodeGeo(node);
+            if (!geo) {
+                return;
+            }
+
+            const point = projectGeoToScreen(geo, width, height);
+            ordered.push({
+                ...node,
+                x: point.x,
+                y: point.y,
+                geo: geo
+            });
         });
 
-        return ordered.length ? ordered : nodes.map(function (node) {
-            const geo = node.geo || deriveLocationFromNetwork(node.network);
+        if (ordered.length) {
+            return ordered;
+        }
+
+        return nodes.map(function (node) {
+            const geo = getNodeGeo(node);
+            if (!geo) {
+                return null;
+            }
+
             const point = projectGeoToScreen(geo, width, height);
             return {
                 ...node,
@@ -629,7 +883,7 @@
                 y: point.y,
                 geo: geo
             };
-        });
+        }).filter(Boolean);
     }
 
     function projectWorldPoint(lon, lat, width, height) {
@@ -645,7 +899,10 @@
     }
 
     function getStaticNodePosition(node, width, height) {
-        const geo = node.geo || deriveLocationFromNetwork(node.network);
+        const geo = getNodeGeo(node);
+        if (!geo) {
+            return null;
+        }
         return projectOrthographicPoint(geo.lon, geo.lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
     }
 
@@ -688,24 +945,38 @@
         ctx.restore();
     }
 
-    function drawHeatmap(ctx, nodes, width, height) {
+    function drawHeatmap(ctx, nodes, width, height, interactionState) {
         ctx.clearRect(0, 0, width, height);
         ctx.globalCompositeOperation = 'screen';
+        const focusNodeId = interactionState && interactionState.selected ? getNodeIdentity(interactionState.selected) : '';
+        const now = performance.now();
 
         nodes.forEach(function (node) {
-            const position = getStaticNodePosition(node, width, height);
+            const geo = getNodeGeo(node);
+            if (!geo) {
+                return;
+            }
+            const position = projectOrthographicPoint(geo.lon, geo.lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
             const x = position.x;
             const y = position.y;
             const load = clamp(node.load || 50, 0, 100);
+            const nodeIdentity = getNodeIdentity(node);
+            const selected = focusNodeId && focusNodeId === nodeIdentity;
+            const hovered = interactionState && interactionState.hovered && getNodeIdentity(interactionState.hovered) === nodeIdentity;
             const color = load > 80 ? '#ff7b7b' : load > 65 ? '#ffb55a' : '#7fe7ff';
             const instanceCount = Math.max(1, node.instances || 1);
             const baseRadius = 0.7 + instanceCount * 0.06;
+            const emphasisRadius = selected ? 2.6 : hovered ? 2.1 : 1.3;
+            const pulseScale = selected ? 1.5 : hovered ? 1.25 : 1;
+            const pulsePhase = (now * 0.004) + (node.instances || 1) * 0.6;
+            const pulseRadius = Math.max(0.9, 0.45 + (load / 130)) * pulseScale + Math.sin(pulsePhase) * (selected ? 0.8 : 0.45);
+            let nodeStatus = null;
 
             for (let i = 0; i < Math.min(instanceCount, 2); i++) {
                 const jitterX = (i - 0.5) * 0.55;
                 const jitterY = (i - 0.5) * 0.55;
-                const radius = baseRadius + (i * 0.18);
-                const glow = ctx.createRadialGradient(x + jitterX, y + jitterY, 0.2, x + jitterX, y + jitterY, radius * 2.7);
+                const radius = baseRadius + (i * 0.18) + (selected || hovered ? 0.8 : 0);
+                const glow = ctx.createRadialGradient(x + jitterX, y + jitterY, 0.2, x + jitterX, y + jitterY, radius * (selected ? 3.2 : 2.7));
 
                 glow.addColorStop(0, color + 'd1');
                 glow.addColorStop(0.22, color + '7e');
@@ -714,34 +985,43 @@
 
                 ctx.fillStyle = glow;
                 ctx.beginPath();
-                ctx.arc(x + jitterX, y + jitterY, radius * 2.7, 0, Math.PI * 2);
+                ctx.arc(x + jitterX, y + jitterY, radius * (selected ? 3.2 : 2.7), 0, Math.PI * 2);
                 ctx.fill();
             }
 
-            ctx.fillStyle = 'rgba(241, 248, 255, 0.68)';
-            ctx.shadowColor = color;
-            ctx.shadowBlur = 2.5;
+            ctx.fillStyle = selected ? 'rgba(255,255,255,0.98)' : hovered ? 'rgba(231, 244, 255, 0.92)' : 'rgba(241, 248, 255, 0.68)';
+            ctx.shadowColor = selected ? '#bfe6ff' : color;
+            ctx.shadowBlur = selected ? 18 : hovered ? 11 : 2.5;
             ctx.beginPath();
-            ctx.arc(x, y, Math.max(0.9, 0.45 + (load / 130)), 0, Math.PI * 2);
+            ctx.arc(x, y, pulseRadius, 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
 
-            if (shouldDisplayLabel(node)) {
+            if (selected || hovered) {
+                nodeStatus = getNodeStatusLabel(node);
+                ctx.beginPath();
+                ctx.arc(x, y, pulseRadius + emphasisRadius, 0, Math.PI * 2);
+                ctx.strokeStyle = nodeStatus === 'critical' ? 'rgba(255, 123, 123, 0.95)' : selected ? 'rgba(147, 214, 255, 0.95)' : 'rgba(122, 208, 255, 0.75)';
+                ctx.lineWidth = selected ? 1.8 : 1.4;
+                ctx.stroke();
+            }
+
+            if (shouldDisplayLabel(node, { selected: selected, hovered: hovered })) {
                 if (CAMERA_ANIMATION.mode === 'globe') {
-                    ctx.fillStyle = 'rgba(228, 240, 255, 0.72)';
-                    ctx.font = '600 7px sans-serif';
-                    ctx.fillText(node.city || node.region || 'Node', x + 6, y - 5);
+                    ctx.fillStyle = selected ? '#f4fbff' : hovered ? '#dfefff' : 'rgba(228, 240, 255, 0.72)';
+                    ctx.font = selected ? '700 8px sans-serif' : '600 7px sans-serif';
+                    ctx.fillText(node.city || node.region || 'Node', x + 7, y - 6);
                 } else {
-                    ctx.fillStyle = 'rgba(230, 240, 255, 0.85)';
-                    ctx.font = '600 8px sans-serif';
-                    ctx.fillText(node.city || node.region || 'Node', x + 6, y - 6);
+                    ctx.fillStyle = selected ? '#f5fbff' : hovered ? '#e7f3ff' : 'rgba(230, 240, 255, 0.85)';
+                    ctx.font = selected ? '700 8.5px sans-serif' : '600 8px sans-serif';
+                    ctx.fillText(node.city || node.region || 'Node', x + 7, y - 6);
                 }
             }
 
             ctx.beginPath();
-            ctx.arc(x, y, 1.5, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255,255,255,0.52)';
-            ctx.lineWidth = 1;
+            ctx.arc(x, y, selected ? 2.35 : 1.5, 0, Math.PI * 2);
+            ctx.strokeStyle = selected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.52)';
+            ctx.lineWidth = selected ? 1.5 : 1;
             ctx.stroke();
         });
 
@@ -759,16 +1039,22 @@
         const width = canvas.width;
         const height = canvas.height;
         const rawNodes = window.themisdbGnmData && window.themisdbGnmData.nodes ? window.themisdbGnmData.nodes : [];
+        const interactionState = {
+            hovered: null,
+            selected: null
+        };
 
         MAP_UI_STATE.zoom = clamp(MAP_CAMERA.zoom, 0.7, getMaxUiZoom());
         syncUiControls();
         buildBaseMap(width, height);
 
         function adjustZoom(delta) {
-            const nextValue = clamp(MAP_CAMERA.zoom + delta, 0.7, getMaxUiZoom());
+            const previousZoom = MAP_CAMERA.zoom;
+            const nextValue = clamp(previousZoom + delta, 0.7, getMaxUiZoom());
             MAP_CAMERA.zoom = nextValue;
             MAP_UI_STATE.zoom = nextValue;
             CAMERA_ANIMATION.targetZoom = nextValue;
+            CAMERA_ANIMATION.velocityZoom = ((nextValue - previousZoom) * ZOOM_VELOCITY.drag) + CAMERA_ANIMATION.velocityZoom * ZOOM_VELOCITY.inertia;
             syncUiControls();
         }
 
@@ -777,17 +1063,28 @@
                 return;
             }
 
+            const previousLon = MAP_CAMERA.centerLon;
+            const previousLat = MAP_CAMERA.centerLat;
             const dx = event.clientX - MAP_UI_STATE.dragStartX;
             const dy = event.clientY - MAP_UI_STATE.dragStartY;
-            MAP_CAMERA.centerLon = MAP_UI_STATE.dragOriginLon - (dx / width) * 40;
-            MAP_CAMERA.centerLat = clamp(MAP_UI_STATE.dragOriginLat + (dy / height) * 30, -80, 80);
+            const nextLon = MAP_UI_STATE.dragOriginLon - (dx / width) * DRAG_SENSITIVITY.lon;
+            const nextLat = clamp(MAP_UI_STATE.dragOriginLat + (dy / height) * DRAG_SENSITIVITY.lat, -80, 80);
+            MAP_CAMERA.centerLon = nextLon;
+            MAP_CAMERA.centerLat = nextLat;
+            CAMERA_ANIMATION.targetLon = nextLon;
+            CAMERA_ANIMATION.targetLat = nextLat;
+            clearFocusTarget();
+            CAMERA_ANIMATION.velocityLon = (nextLon - previousLon) * ZOOM_VELOCITY.drag;
+            CAMERA_ANIMATION.velocityLat = (nextLat - previousLat) * ZOOM_VELOCITY.drag;
         }
 
-        const nodes = rawNodes.map(function (node) {
-            return Object.assign({}, node, {
-                geo: deriveLocationFromNetwork(node.network)
+        const nodes = rawNodes
+            .map(function (node) {
+                return Object.assign({}, node, { geo: getNodeGeo(node) });
+            })
+            .filter(function (node) {
+                return node && node.geo && Number.isFinite(node.geo.lat) && Number.isFinite(node.geo.lon);
             });
-        });
         const flightRoute = buildFlightRoute(nodes, width, height);
 
         function getNodeAtPointer(clientX, clientY) {
@@ -797,7 +1094,10 @@
             let hovered = null;
 
             nodes.forEach(function (node) {
-                const geo = node.geo || deriveLocationFromNetwork(node.network);
+                const geo = getNodeGeo(node);
+                if (!geo) {
+                    return;
+                }
                 const point = CAMERA_ANIMATION.mode === 'globe'
                     ? projectOrthographicPoint(geo.lon, geo.lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat)
                     : { x: toMercatorX(geo.lon, width), y: toMercatorY(geo.lat, height) };
@@ -814,6 +1114,21 @@
             return hovered;
         }
 
+        function focusOnGeo(geo, focusZoom) {
+            if (!geo) {
+                return;
+            }
+
+            const targetZoom = focusZoom || getTargetZoomForMode(CAMERA_ANIMATION.mode);
+            CAMERA_ANIMATION.targetLon = geo.lon;
+            CAMERA_ANIMATION.targetLat = geo.lat;
+            CAMERA_ANIMATION.targetZoom = clamp(targetZoom, 0.7, getMaxUiZoom());
+            CAMERA_ANIMATION.lastSwitch = performance.now();
+            CAMERA_ANIMATION.velocityLon = 0;
+            CAMERA_ANIMATION.velocityLat = 0;
+            CAMERA_ANIMATION.velocityZoom = 0;
+        }
+
         function showTooltip(event, node) {
             if (!tooltip || !node) {
                 return;
@@ -822,9 +1137,11 @@
             const rect = canvas.getBoundingClientRect();
             const x = event.clientX - rect.left + 16;
             const y = event.clientY - rect.top + 16;
-            const label = node.region || 'Network node';
+            const label = node.city || node.region || 'Network node';
             const load = clamp(node.load || 0, 0, 100);
-            tooltip.innerHTML = '<strong>' + label + '</strong><br>' + (node.country || 'Region') + '<br>' + (node.instances || 0) + ' instances · ' + load + '% load';
+            const status = getNodeStatusLabel(node);
+            const statusLabel = status === 'critical' ? 'Critical' : status === 'warning' ? 'Warning' : 'Active';
+            tooltip.innerHTML = '<strong>' + label + '</strong><br>' + (node.country || 'Region') + '<br>' + statusLabel + ' · ' + (node.instances || 0) + ' instances · ' + load + '% load';
             tooltip.style.left = x + 'px';
             tooltip.style.top = y + 'px';
             tooltip.classList.add('is-visible');
@@ -836,8 +1153,17 @@
             }
         }
 
+        function syncInteractionState(nextHovered, updateSelection) {
+            interactionState.hovered = nextHovered;
+
+            if (updateSelection) {
+                interactionState.selected = nextHovered;
+            }
+        }
+
         canvas.addEventListener('mousemove', function (event) {
             const point = getNodeAtPointer(event.clientX, event.clientY);
+            syncInteractionState(point, false);
             if (point) {
                 showTooltip(event, point);
             } else {
@@ -845,8 +1171,36 @@
             }
         });
 
+        canvas.addEventListener('click', function (event) {
+            const point = getNodeAtPointer(event.clientX, event.clientY);
+            if (!point) {
+                interactionState.selected = null;
+                clearFocusTarget();
+                hideTooltip();
+                return;
+            }
+
+            syncInteractionState(point, true);
+            showTooltip(event, point);
+
+            const geo = getNodeGeo(point);
+            if (!geo) {
+                return;
+            }
+
+            const focusZoom = getFocusZoomForMode(CAMERA_ANIMATION.mode);
+            setFocusTarget({
+                lon: geo.lon,
+                lat: geo.lat,
+                zoom: focusZoom
+            });
+            focusOnGeo(geo, focusZoom);
+            return;
+        });
+
         canvas.addEventListener('mouseleave', function () {
             hideTooltip();
+            interactionState.hovered = null;
             MAP_UI_STATE.dragActive = false;
         });
 
@@ -860,6 +1214,7 @@
             MAP_UI_STATE.dragStartY = event.clientY;
             MAP_UI_STATE.dragOriginLon = MAP_CAMERA.centerLon;
             MAP_UI_STATE.dragOriginLat = MAP_CAMERA.centerLat;
+            clearFocusTarget();
             canvas.setPointerCapture && canvas.setPointerCapture(event.pointerId);
         });
 
@@ -882,14 +1237,15 @@
 
             event.preventDefault();
             const delta = event.deltaY > 0 ? -0.08 : 0.08;
+            clearFocusTarget();
             adjustZoom(delta);
         }, { passive: false });
 
         function setMode(mode) {
             const nextMode = MAP_MODE_SETTINGS[mode] ? mode : 'globe';
             CAMERA_ANIMATION.mode = nextMode;
-            CAMERA_ANIMATION.targetZoom = MAP_MODE_SETTINGS[nextMode].zoom;
-            MAP_UI_STATE.zoom = clamp(CAMERA_ANIMATION.targetZoom, 0.7, getMaxUiZoom());
+            const focusZoom = CAMERA_ANIMATION.focusTarget && CAMERA_ANIMATION.focusTarget.zoom ? CAMERA_ANIMATION.focusTarget.zoom : getTargetZoomForMode(nextMode);
+            CAMERA_ANIMATION.targetZoom = focusZoom;
 
             const buttons = document.querySelectorAll('[data-map-mode]');
             buttons.forEach(function (button) {
@@ -911,12 +1267,10 @@
             CAMERA_ANIMATION.targetLat = region.lat;
             CAMERA_ANIMATION.orbitPhase = Math.random() * Math.PI * 2;
 
-            const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
-            const baseZoom = CAMERA_ANIMATION.mode === 'country' ? 5.8 : CAMERA_ANIMATION.mode === 'region' ? 4.2 : 2.3;
-            const nextZoom = clamp(baseZoom, modeSettings.zoom, modeSettings.maxZoom);
-            CAMERA_ANIMATION.targetZoom = nextZoom;
-            MAP_UI_STATE.zoom = clamp(nextZoom, 0.7, getMaxUiZoom());
-            syncUiControls();
+            const modeSettings = getModeSettings(CAMERA_ANIMATION.mode);
+            const baseZoom = CAMERA_ANIMATION.mode === 'country' ? 10.6 : CAMERA_ANIMATION.mode === 'region' ? 6.2 : 2.1;
+            CAMERA_ANIMATION.targetZoom = clamp(baseZoom, modeSettings.zoom, modeSettings.maxZoom);
+            setFocusTarget({ lon: region.lon, lat: region.lat, zoom: CAMERA_ANIMATION.targetZoom });
         }
 
         function pickRandomTarget() {
@@ -943,6 +1297,10 @@
         }
 
         function updateCamera(now) {
+            const modeSettings = getModeSettings(CAMERA_ANIMATION.mode);
+            const animationSpeed = modeSettings.animationSpeed || 0.006;
+            const targetFocus = CAMERA_ANIMATION.focusTarget;
+
             if (!MAP_UI_STATE.animationEnabled) {
                 MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, clamp(MAP_UI_STATE.zoom, 0.7, getMaxUiZoom()), 0.08);
                 MAP_UI_STATE.zoom = clamp(MAP_CAMERA.zoom, 0.7, getMaxUiZoom());
@@ -950,22 +1308,43 @@
                 return;
             }
 
-            if (now - CAMERA_ANIMATION.lastSwitch > CAMERA_ANIMATION.switchIntervalMs) {
+            if (now - CAMERA_ANIMATION.lastSwitch > CAMERA_ANIMATION.switchIntervalMs && !targetFocus) {
                 CAMERA_ANIMATION.lastSwitch = now;
                 pickRandomTarget();
             }
 
-            const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
-            const animationSpeed = modeSettings.animationSpeed || 0.006;
-            const driftScale = CAMERA_ANIMATION.mode === 'country' ? 7 : CAMERA_ANIMATION.mode === 'region' ? 10 : 13;
-            const driftLon = Math.sin(CAMERA_ANIMATION.globeDrift) * driftScale + Math.cos(CAMERA_ANIMATION.orbitPhase) * (CAMERA_ANIMATION.mode === 'country' ? 3.8 : 5.5);
-            const driftLat = Math.sin(CAMERA_ANIMATION.globeDrift * 0.7) * (CAMERA_ANIMATION.mode === 'country' ? 5 : 6) + Math.cos(CAMERA_ANIMATION.orbitPhase * 0.8) * (CAMERA_ANIMATION.mode === 'country' ? 2.7 : 3.8);
-            const easedLon = normalizeLongitude(CAMERA_ANIMATION.targetLon + driftLon);
-            const easedLat = clamp(CAMERA_ANIMATION.targetLat + driftLat, -24, 56);
+            if (targetFocus) {
+                const normalizedCenterLon = normalizeLongitude(MAP_CAMERA.centerLon);
+                const desiredLon = normalizeLongitude(targetFocus.lon);
+                const desiredLat = clamp(targetFocus.lat, -60, 68);
+                const desiredZoom = clamp(targetFocus.zoom || CAMERA_ANIMATION.targetZoom, 0.7, getMaxUiZoom());
+                const longitudeDelta = desiredLon - normalizedCenterLon;
+                const shortestLongitudeDelta = longitudeDelta > 180 ? longitudeDelta - 360 : (longitudeDelta < -180 ? longitudeDelta + 360 : longitudeDelta);
 
-            MAP_CAMERA.centerLon = lerp(MAP_CAMERA.centerLon, easedLon, animationSpeed);
-            MAP_CAMERA.centerLat = lerp(MAP_CAMERA.centerLat, easedLat, animationSpeed);
-            MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, CAMERA_ANIMATION.targetZoom, animationSpeed * 1.25);
+                const focusSettings = FOCUS_SENSITIVITY[CAMERA_ANIMATION.mode] || FOCUS_SENSITIVITY.globe;
+
+                CAMERA_ANIMATION.velocityLon = (CAMERA_ANIMATION.velocityLon + (shortestLongitudeDelta * focusSettings.lonInfluence)) * CAMERA_ANIMATION.followInertia;
+                CAMERA_ANIMATION.velocityLat = (CAMERA_ANIMATION.velocityLat + (desiredLat - MAP_CAMERA.centerLat) * (0.028 + focusSettings.orbitInfluence)) * CAMERA_ANIMATION.followInertia;
+                CAMERA_ANIMATION.velocityZoom = (CAMERA_ANIMATION.velocityZoom + (desiredZoom - MAP_CAMERA.zoom) * focusSettings.focusStrength) * CAMERA_ANIMATION.followInertia;
+
+                MAP_CAMERA.centerLon = normalizeLongitude(MAP_CAMERA.centerLon + CAMERA_ANIMATION.velocityLon);
+                MAP_CAMERA.centerLat = clamp(MAP_CAMERA.centerLat + CAMERA_ANIMATION.velocityLat, -80, 80);
+                MAP_CAMERA.zoom = clamp(MAP_CAMERA.zoom + CAMERA_ANIMATION.velocityZoom, 0.7, getMaxUiZoom());
+                CAMERA_ANIMATION.targetLon = MAP_CAMERA.centerLon;
+                CAMERA_ANIMATION.targetLat = MAP_CAMERA.centerLat;
+                CAMERA_ANIMATION.targetZoom = desiredZoom;
+            } else {
+                const driftScale = CAMERA_ANIMATION.mode === 'country' ? 7 : CAMERA_ANIMATION.mode === 'region' ? 10 : 13;
+                const driftLon = Math.sin(CAMERA_ANIMATION.globeDrift) * driftScale + Math.cos(CAMERA_ANIMATION.orbitPhase) * (CAMERA_ANIMATION.mode === 'country' ? 3.8 : 5.5);
+                const driftLat = Math.sin(CAMERA_ANIMATION.globeDrift * 0.7) * (CAMERA_ANIMATION.mode === 'country' ? 5 : 6) + Math.cos(CAMERA_ANIMATION.orbitPhase * 0.8) * (CAMERA_ANIMATION.mode === 'country' ? 2.7 : 3.8);
+                const easedLon = normalizeLongitude(CAMERA_ANIMATION.targetLon + driftLon);
+                const easedLat = clamp(CAMERA_ANIMATION.targetLat + driftLat, -24, 56);
+
+                MAP_CAMERA.centerLon = lerp(MAP_CAMERA.centerLon, easedLon, animationSpeed);
+                MAP_CAMERA.centerLat = lerp(MAP_CAMERA.centerLat, easedLat, animationSpeed);
+                MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, CAMERA_ANIMATION.targetZoom, animationSpeed * 1.25);
+            }
+
             MAP_UI_STATE.zoom = clamp(MAP_CAMERA.zoom, 0.7, getMaxUiZoom());
             CAMERA_ANIMATION.globeDrift += animationSpeed * 1.2;
             CAMERA_ANIMATION.orbitPhase += animationSpeed * 1.2;
@@ -977,7 +1356,8 @@
             const now = performance.now();
             updateCamera(now);
             ctx.clearRect(0, 0, width, height);
-            drawHeatmap(ctx, nodes, width, height);
+            drawFlightPath(ctx, flightRoute, now);
+            drawHeatmap(ctx, nodes, width, height, interactionState);
             requestAnimationFrame(tickFrame);
         }
 
@@ -1038,6 +1418,24 @@
                 const targetId = event.target.value;
                 CAMERA_ANIMATION.lastSwitch = performance.now();
                 applyTargetSelection(targetId);
+            });
+        }
+
+        const resetButton = document.querySelector('[data-map-reset]');
+        if (resetButton) {
+            resetButton.addEventListener('click', function () {
+                clearFocusTarget();
+                CAMERA_ANIMATION.velocityLon = 0;
+                CAMERA_ANIMATION.velocityLat = 0;
+                CAMERA_ANIMATION.velocityZoom = 0;
+                CAMERA_ANIMATION.targetLon = DEFAULT_VIEW.lon;
+                CAMERA_ANIMATION.targetLat = DEFAULT_VIEW.lat;
+                CAMERA_ANIMATION.targetZoom = getTargetZoomForMode(CAMERA_ANIMATION.mode);
+                MAP_CAMERA.centerLon = CAMERA_ANIMATION.targetLon;
+                MAP_CAMERA.centerLat = CAMERA_ANIMATION.targetLat;
+                MAP_CAMERA.zoom = CAMERA_ANIMATION.targetZoom;
+                MAP_UI_STATE.zoom = CAMERA_ANIMATION.targetZoom;
+                syncUiControls();
             });
         }
 
