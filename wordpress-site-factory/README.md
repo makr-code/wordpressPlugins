@@ -34,18 +34,11 @@ Apply the full setup:
 python build_site.py --profile local-test
 ```
 
-## Architecture and migration contract
+## Live audit and bootstrap notes
 
-The authoritative reference for the WordPress site factory is the architecture and migration contract in [ARCHITECTURE.md](./ARCHITECTURE.md).
+The repository includes a dedicated audit and bootstrap baseline at [AUDIT_REPORT.md](./AUDIT_REPORT.md). It captures the live ThemisDB reference environment, the delta analysis between repo state and production, and the dry-run/live-run setup workflow for a fresh WordPress instance.
 
-It defines:
-
-- the greenfield target model for new ThemisDB installations
-- theme, plugin, and page structure
-- reserved tag model and taxonomy boundaries
-- URL/domain strategy and slug conventions
-- import and migration contract for content, media, and redirects
-- the explicit delta between greenfield setup and live-instance differences
+Use the audit as the operational baseline for migration planning, but keep the repo as the repeatable implementation source for the factory scripts.
 
 ## Current scope
 

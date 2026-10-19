@@ -32,6 +32,21 @@ def find_page_by_slug(base_url: str, user: str, password: str, slug: str) -> Opt
     return None
 
 
+def resolve_parent_page_id(base_url: str, user: str, password: str, parent_value: Optional[Any]) -> Optional[int]:
+    if parent_value in (None, "", "0"):
+        return None
+    if isinstance(parent_value, int):
+        return parent_value
+    if isinstance(parent_value, dict):
+        parent_value = parent_value.get("slug") or parent_value.get("id")
+    if isinstance(parent_value, str):
+        parent = find_page_by_slug(base_url, user, password, parent_value)
+        if parent and isinstance(parent.get("id"), int):
+            return parent["id"]
+        return None
+    return None
+
+
 def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, Any]) -> Dict[str, Any]:
     slug = page_data["slug"]
     existing = find_page_by_slug(base_url, user, password, slug)
@@ -52,8 +67,11 @@ def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, An
         "content": page_data.get("content", ""),
     }
 
-    if page_data.get("template"):
-        payload["template"] = page_data["template"]
+    template = page_data.get("template")
+    if template:
+        payload["template"] = template
+
+    parent_id = resolve_parent_page_id(base_url, user, password, page_data.get("parent"))
     if parent_id is not None:
         payload["parent"] = parent_id
 

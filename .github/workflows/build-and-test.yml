@@ -7,6 +7,9 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+
 env:
   PHP_VERSION: 7.4
   WORDPRESS_VERSION: 6.0
@@ -28,7 +31,7 @@ jobs:
           --health-retries=3
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -68,12 +71,11 @@ jobs:
           ./vendor/bin/phpcs --standard=WordPress --extensions=php \
             --ignore=vendor,node_modules \
             themisdb-support-portal/includes/ \
-            themisdb-order-request/includes/ \
-            themisdb-license-manager/includes/ || true
+            themisdb-order-request/includes/
       
       - name: PHPUnit Tests
         run: |
-          ./vendor/bin/phpunit --configuration phpunit.xml || true
+          ./vendor/bin/phpunit --configuration phpunit.xml
       
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -87,11 +89,12 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
       
       - name: Extract version from tag
@@ -102,31 +105,28 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Building artifacts for v$VERSION"
       
-      - name: Update update-info.json for all plugins
+      - name: Validate update-info.json versions
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          for plugin in themisdb-support-portal themisdb-order-request themisdb-license-manager; do
+          for plugin in themisdb-support-portal themisdb-order-request; do
             JSON_FILE="$plugin/update-info.json"
-            if [ -f "$JSON_FILE" ]; then
-              # Update version field in update-info.json
-              jq ".version = \"$VERSION\"" "$JSON_FILE" > "${JSON_FILE}.tmp" && mv "${JSON_FILE}.tmp" "$JSON_FILE"
-              echo "Updated $JSON_FILE to v$VERSION"
+            if [ ! -f "$JSON_FILE" ]; then
+              echo "Missing $JSON_FILE" >&2
+              exit 1
             fi
+            FILE_VERSION=$(jq -r '.version' "$JSON_FILE")
+            if [ "$FILE_VERSION" != "$VERSION" ]; then
+              echo "Version mismatch in $JSON_FILE: expected $VERSION, got $FILE_VERSION" >&2
+              exit 1
+            fi
+            echo "Validated $JSON_FILE -> $FILE_VERSION"
           done
-      
-      - name: Commit updated update-info.json files
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add "*/update-info.json" 2>/dev/null || true
-          git diff --cached --quiet || git commit -m "chore(release): bump update-info.json to v${{ steps.version.outputs.version }} [skip ci]"
-          git push origin HEAD:main || true
       
       - name: Build plugin ZIPs
         run: |
           mkdir -p build/
           VERSION=${{ steps.version.outputs.version }}
-          for plugin in themisdb-support-portal themisdb-order-request themisdb-license-manager; do
+          for plugin in themisdb-support-portal themisdb-order-request; do
             if [ -d "$plugin" ]; then
               echo "Building $plugin..."
               cd "$plugin"
@@ -142,7 +142,7 @@ jobs:
           ls -la build/
       
       - name: Create GitHub Release with artifacts
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Release v${{ steps.version.outputs.version }}

@@ -121,18 +121,21 @@ class ThemisDB_Global_Network_Map {
                 return;
             }
 
+            $css_version = THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/css/themisdb-global-network-map.css');
+            $js_version = THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/js/themisdb-global-network-map.js');
+
             wp_enqueue_style(
                 'themisdb-global-network-map-style',
                 THEMISDB_GNM_PLUGIN_URL . 'assets/css/themisdb-global-network-map.css',
                 array(),
-                THEMISDB_GNM_VERSION
+                $css_version
             );
 
             wp_enqueue_script(
                 'themisdb-global-network-map-script',
                 THEMISDB_GNM_PLUGIN_URL . 'assets/js/themisdb-global-network-map.js',
                 array(),
-                THEMISDB_GNM_VERSION,
+                $js_version,
                 true
             );
 
