@@ -32,15 +32,22 @@ if (!defined('ABSPATH')) {
                 <span class="themisdb-global-network-map__split-button-label">Target</span>
                 <label class="themisdb-global-network-map__target" aria-label="Focus target selector">
                     <select id="themisdb-global-network-map-target" class="themisdb-global-network-map__target-select">
-                        <option value="auto">Auto route</option>
+                        <option value="auto">Auto</option>
                         <option value="north-america">North America</option>
+                        <option value="united-states">United States</option>
                         <option value="france">France</option>
-                        <option value="south-america">South America</option>
+                        <option value="germany">Germany</option>
                         <option value="europe">Europe</option>
+                        <option value="south-america">South America</option>
+                        <option value="brazil">Brazil</option>
                         <option value="africa">Africa</option>
+                        <option value="south-africa">South Africa</option>
                         <option value="middle-east">Middle East</option>
+                        <option value="india">India</option>
                         <option value="asia-pacific">Asia Pacific</option>
+                        <option value="japan">Japan</option>
                         <option value="oceania">Oceania</option>
+                        <option value="australia">Australia</option>
                     </select>
                 </label>
             </div>
@@ -50,26 +57,20 @@ if (!defined('ABSPATH')) {
                 <input id="themisdb-global-network-map-zoom" type="range" min="0.7" max="22" step="0.05" value="1.8" />
             </label>
 
-            <label class="themisdb-global-network-map__control themisdb-global-network-map__control--select" aria-label="Map color palette">
-                <span>Color</span>
-                <select id="themisdb-global-network-map-color" class="themisdb-global-network-map__control-select">
-                    <option value="ocean">Ocean</option>
-                    <option value="aurora">Aurora</option>
-                    <option value="night">Night</option>
-                </select>
+            <label class="themisdb-global-network-map__control" aria-label="Rotation speed">
+                <span>Spin</span>
+                <input id="themisdb-global-network-map-rotation-speed" type="range" min="0.1" max="1.5" step="0.05" value="0.35" />
             </label>
 
-            <button type="button" class="themisdb-global-network-map__toggle is-enabled" data-map-animation-toggle aria-label="Toggle animation">
-                Animation: On
-            </button>
-
-            <button type="button" class="themisdb-global-network-map__toggle is-enabled" data-map-mouse-toggle aria-label="Toggle mouse control">
-                Mouse: On
-            </button>
-
             <button type="button" class="themisdb-global-network-map__button" data-map-reset aria-label="Reset view">
-                Reset view
+                Reset
             </button>
+        </div>
+
+        <div id="themisdb-global-network-map-debug" class="themisdb-global-network-map__debug" aria-live="polite">
+            <span>Nodes: <strong data-debug="nodes">0</strong></span>
+            <span>Edges: <strong data-debug="edges">0</strong></span>
+            <span>FPS: <strong data-debug="fps">0</strong></span>
         </div>
 
         <div id="themisdb-global-network-map-tooltip" class="themisdb-global-network-map__tooltip" aria-live="polite"></div>
@@ -77,9 +78,9 @@ if (!defined('ABSPATH')) {
 
     <?php if (!empty($atts['show_legend'])) : ?>
         <div class="themisdb-global-network-map__legend" aria-label="Network heatmap legend">
-            <span><i class="dot dot--low"></i> Low load</span>
-            <span><i class="dot dot--mid"></i> Active</span>
-            <span><i class="dot dot--high"></i> High load</span>
+            <span><i class="dot dot--low"></i>Low</span>
+            <span><i class="dot dot--mid"></i>Active</span>
+            <span><i class="dot dot--high"></i>High</span>
         </div>
     <?php endif; ?>
 </div>

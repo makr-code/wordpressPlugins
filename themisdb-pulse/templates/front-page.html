@@ -50,7 +50,13 @@
 
 <!-- wp:shortcode -->[themisdb_v3_blog_section limit="9" post_types="post" category="blog" priority_tag="lesenswert,recommended,editor-pick,hero,frontpage-feature" excerpt_words="24"]<!-- /wp:shortcode -->
 
-<!-- wp:shortcode -->[themisdb_global_network_map height="520"]<!-- /wp:shortcode -->
+<!-- wp:group {"tagName":"div","className":"wp-block-group tv3-network-map-section has-global-padding is-layout-constrained"} -->
+<div class="wp-block-group tv3-network-map-section has-global-padding is-layout-constrained">
+    <p class="has-text-align-center tv3-download-kicker-wrap"><span class="tv3-download-kicker">Worldwide</span></p>
+    <h2 class="wp-block-heading has-text-align-center tv3-download-title">Global heatmap of ThemisDB instances</h2>
+    <!-- wp:shortcode -->[themisdb_global_network_map height="520"]<!-- /wp:shortcode -->
+</div>
+<!-- /wp:group -->
 
 </main>
 <!-- /wp:group -->

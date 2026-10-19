@@ -26,9 +26,9 @@
     };
 
     const MAP_MODE_SETTINGS = {
-        globe: { zoom: 1.8, maxZoom: 4.5, globeScale: 2.6, animationSpeed: 0.0045, focusZoom: 4.2 },
-        region: { zoom: 5.2, maxZoom: 10.5, globeScale: 6.4, animationSpeed: 0.008, focusZoom: 12.4 },
-        country: { zoom: 7.8, maxZoom: 18, globeScale: 9.2, animationSpeed: 0.012, focusZoom: 18 }
+        globe: { zoom: 3.8, maxZoom: 16, globeScale: 12.8, animationSpeed: 0.0078, focusZoom: 14.5 },
+        region: { zoom: 20, maxZoom: 42, globeScale: 36, animationSpeed: 0.0134, focusZoom: 42 },
+        country: { zoom: 28, maxZoom: 64, globeScale: 52, animationSpeed: 0.0188, focusZoom: 58 }
     };
 
     const MAP_COLOR_THEMES = {
@@ -86,21 +86,30 @@
 
     const MAP_UI_STATE = {
         color: 'ocean',
-        animationEnabled: !REDUCED_MOTION_QUERY || !REDUCED_MOTION_QUERY.matches,
+        animationEnabled: true,
         mouseControlEnabled: true,
         dragActive: false,
         dragStartX: 0,
         dragStartY: 0,
         dragOriginLon: 0,
         dragOriginLat: 0,
-        zoom: 1.1
+        zoom: 1.1,
+        rotationSpeed: 0.35
     };
+
+    const EDGE_RENDER_LIMITS = {
+        routeNodes: 4,
+        heatmapNodes: 80,
+        heatmapNodesReduced: 60
+    };
+
+    const SVG_RENDER_INTERVAL_MS = 80;
 
     const GLOBE_SOLAR_ANGLE = 0.6;
     const FOCUS_SENSITIVITY = {
-        globe: { lonInfluence: 0.03, orbitInfluence: 0.016, focusStrength: 0.09 },
-        region: { lonInfluence: 0.03, orbitInfluence: 0.016, focusStrength: 0.09 },
-        country: { lonInfluence: 0.03, orbitInfluence: 0.022, focusStrength: 0.11 }
+        globe: { lonInfluence: 0.032, orbitInfluence: 0.018, focusStrength: 0.12 },
+        region: { lonInfluence: 0.035, orbitInfluence: 0.02, focusStrength: 0.18 },
+        country: { lonInfluence: 0.04, orbitInfluence: 0.024, focusStrength: 0.24 }
     };
 
     const REGION_TARGETS = [
@@ -114,10 +123,26 @@
         { id: 'africa', name: 'Africa', lon: 20, lat: 4 }
     ];
 
+    const COUNTRY_TARGETS = {
+        france: { id: 'france', name: 'France', lon: 2.2, lat: 46.2 },
+        germany: { id: 'germany', name: 'Germany', lon: 10.4, lat: 51.2 },
+        'united-states': { id: 'united-states', name: 'United States', lon: -98.6, lat: 39.8 },
+        brazil: { id: 'brazil', name: 'Brazil', lon: -51.9, lat: -14.2 },
+        india: { id: 'india', name: 'India', lon: 78.9, lat: 22.3 },
+        japan: { id: 'japan', name: 'Japan', lon: 138.3, lat: 36.2 },
+        australia: { id: 'australia', name: 'Australia', lon: 133.8, lat: -25.3 },
+        'south-africa': { id: 'south-africa', name: 'South Africa', lon: 24.9, lat: -29.0 }
+    };
+
     const TARGET_BY_ID = REGION_TARGETS.reduce(function (accumulator, target, index) {
         accumulator[target.id] = Object.assign({ index: index }, target);
         return accumulator;
     }, {});
+
+    Object.keys(COUNTRY_TARGETS).forEach(function (key) {
+        const target = COUNTRY_TARGETS[key];
+        TARGET_BY_ID[target.id] = Object.assign({ index: REGION_TARGETS.length + Object.keys(COUNTRY_TARGETS).indexOf(key) }, target);
+    });
 
     const CAMERA_ANIMATION = {
         mode: 'globe',
@@ -140,7 +165,343 @@
         geojson: null
     };
 
+    const WEBGL_GLOBE = {
+        enabled: false,
+        renderer: null,
+        scene: null,
+        camera: null,
+        globe: null,
+        grid: null,
+        rafId: null,
+        pointer: null,
+        lastTime: 0
+    };
+
     let animationFrameHandle = null;
+    let lastSvgRenderStamp = 0;
+    let svgSceneDirty = true;
+    let lastSvgSignature = '';
+
+    function lonLatToSpherePoint(lon, lat, radius) {
+        if (!window.THREE) {
+            return { x: 0, y: 0, z: radius };
+        }
+
+        const THREE = window.THREE;
+        const latRad = lat * Math.PI / 180;
+        const lonRad = lon * Math.PI / 180;
+        const x = radius * Math.cos(latRad) * Math.sin(lonRad);
+        const y = radius * Math.sin(latRad);
+        const z = radius * Math.cos(latRad) * Math.cos(lonRad);
+        return new THREE.Vector3(x, y, z);
+    }
+
+    function buildGeoJsonLandmass(geojson, radius) {
+        const THREE = window.THREE;
+        if (!THREE || !geojson || !Array.isArray(geojson.features)) {
+            return null;
+        }
+
+        const landGroup = new THREE.Group();
+        const features = geojson.features.slice(0, 48);
+        let added = 0;
+
+        features.forEach(function (feature) {
+            if (!feature || !feature.geometry || added >= 32) {
+                return;
+            }
+
+            const geometry = feature.geometry;
+            const polygonSet = geometry.type === 'MultiPolygon' ? geometry.coordinates : [geometry.coordinates];
+
+            polygonSet.forEach(function (polygon) {
+                if (!Array.isArray(polygon) || !polygon.length || added >= 32) {
+                    return;
+                }
+
+                const rings = Array.isArray(polygon[0]) && Array.isArray(polygon[0][0]) ? polygon : [polygon];
+                rings.forEach(function (ring) {
+                    if (!Array.isArray(ring) || ring.length < 3 || added >= 32) {
+                        return;
+                    }
+
+                    const points = [];
+                    let centerLon = 0;
+                    let centerLat = 0;
+                    let validVertices = 0;
+
+                    ring.forEach(function (vertex) {
+                        if (!Array.isArray(vertex) || vertex.length < 2) {
+                            return;
+                        }
+
+                        const lon = Number(vertex[0]);
+                        const lat = Number(vertex[1]);
+                        if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+                            return;
+                        }
+
+                        centerLon += lon;
+                        centerLat += lat;
+                        validVertices += 1;
+                        points.push(new THREE.Vector2(lon, lat));
+                    });
+
+                    if (points.length < 3 || validVertices < 3) {
+                        return;
+                    }
+
+                    const shape = new THREE.Shape();
+                    points.forEach(function (point, pointIndex) {
+                        if (pointIndex === 0) {
+                            shape.moveTo(point.x, point.y);
+                            return;
+                        }
+                        shape.lineTo(point.x, point.y);
+                    });
+                    shape.closePath();
+
+                    const geometryOut = new THREE.ShapeGeometry(shape);
+                    const positions = [];
+                    const attr = geometryOut.attributes.position;
+                    for (let index = 0; index < attr.count; index += 1) {
+                        const lon = attr.getX(index);
+                        const lat = attr.getY(index);
+                        const point = lonLatToSpherePoint(lon, lat, radius);
+                        positions.push(point.x, point.y, point.z);
+                    }
+
+                    const sphereGeometry = new THREE.BufferGeometry();
+                    sphereGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                    if (geometryOut.index && geometryOut.index.count) {
+                        sphereGeometry.setIndex(geometryOut.index.array);
+                    }
+                    sphereGeometry.computeVertexNormals();
+
+                    const mesh = new THREE.Mesh(
+                        sphereGeometry,
+                        new THREE.MeshStandardMaterial({
+                            color: 0xe8f7ff,
+                            emissive: 0x99d9ff,
+                            emissiveIntensity: 0.4,
+                            transparent: true,
+                            opacity: 0.96,
+                            side: THREE.DoubleSide,
+                            roughness: 0.7,
+                            metalness: 0.05
+                        })
+                    );
+                    mesh.name = 'geojson-land-patch';
+                    mesh.position.set(0, 0, 0);
+                    landGroup.add(mesh);
+                    added += 1;
+                });
+            });
+        });
+
+        return landGroup.children.length ? landGroup : null;
+    }
+
+    function initWebGLGlobe() {
+        if (WEBGL_GLOBE.enabled || !window.THREE) {
+            return;
+        }
+
+        const canvas = document.getElementById('themisdb-global-network-map-canvas');
+        const svg = document.getElementById('themisdb-global-network-map-svg');
+        if (!canvas) {
+            return;
+        }
+
+        const glContext = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!glContext) {
+            if (svg) {
+                svg.style.display = 'block';
+            }
+            canvas.style.display = 'none';
+            return;
+        }
+
+        const THREE = window.THREE;
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            alpha: true,
+            antialias: true
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setClearColor(0x000000, 0);
+        renderer.setSize(canvas.clientWidth || canvas.width || 1200, canvas.clientHeight || canvas.height || 540, false);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(32, (canvas.clientWidth || canvas.width || 1200) / Math.max(canvas.clientHeight || canvas.height || 1, 1), 0.1, 1000);
+        camera.position.z = 4.2;
+
+        const ambientLight = new THREE.AmbientLight(0xbfe8ff, 1.6);
+        scene.add(ambientLight);
+
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        keyLight.position.set(3.8, 2.9, 4.5);
+        scene.add(keyLight);
+
+        const glowLight = new THREE.PointLight(0x66ccff, 1.35, 20);
+        glowLight.position.set(-3.2, 2.2, 4.2);
+        scene.add(glowLight);
+
+        const globeGroup = new THREE.Group();
+        scene.add(globeGroup);
+
+        const globeGeometry = new THREE.SphereGeometry(1.6, 72, 72);
+        const globeMaterial = new THREE.MeshStandardMaterial({
+            color: 0x73c9ff,
+            emissive: 0x153d5b,
+            metalness: 0.08,
+            roughness: 0.9,
+            transparent: true,
+            opacity: 0.68
+        });
+        const globe = new THREE.Mesh(globeGeometry, globeMaterial);
+        globeGroup.add(globe);
+
+        const atmosphere = new THREE.Mesh(
+            new THREE.SphereGeometry(1.78, 32, 32),
+            new THREE.MeshBasicMaterial({
+                color: 0xcfeaff,
+                transparent: true,
+                opacity: 0.28,
+                side: THREE.BackSide
+            })
+        );
+        globeGroup.add(atmosphere);
+
+        const grid = new THREE.Group();
+        const latBands = [-75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75];
+        const lonBands = [-150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150];
+        latBands.forEach(function (lat) {
+            const points = [];
+            for (let lon = -180; lon <= 180; lon += 7) {
+                const latRad = lat * Math.PI / 180;
+                const lonRad = lon * Math.PI / 180;
+                const x = Math.cos(latRad) * Math.sin(lonRad) * 1.72;
+                const y = Math.sin(latRad) * 1.72;
+                const z = Math.cos(latRad) * Math.cos(lonRad) * 1.72;
+                points.push(new THREE.Vector3(x, y, z));
+            }
+            const line = new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints(points),
+                new THREE.LineBasicMaterial({ color: 0xa9d8ff, transparent: true, opacity: 0.42 })
+            );
+            grid.add(line);
+        });
+        lonBands.forEach(function (lon) {
+            const points = [];
+            for (let lat = -90; lat <= 90; lat += 7) {
+                const latRad = lat * Math.PI / 180;
+                const lonRad = lon * Math.PI / 180;
+                const x = Math.cos(latRad) * Math.sin(lonRad) * 1.72;
+                const y = Math.sin(latRad) * 1.72;
+                const z = Math.cos(latRad) * Math.cos(lonRad) * 1.72;
+                points.push(new THREE.Vector3(x, y, z));
+            }
+            const line = new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints(points),
+                new THREE.LineBasicMaterial({ color: 0x8fc8ff, transparent: true, opacity: 0.28 })
+            );
+            grid.add(line);
+        });
+        const geojson = GLOBE_STATE.geojson || null;
+        const landGroup = geojson ? buildGeoJsonLandmass(geojson, 1.62) : null;
+        if (landGroup) {
+            globeGroup.add(landGroup);
+        }
+        globeGroup.add(grid);
+
+        WEBGL_GLOBE.enabled = true;
+        WEBGL_GLOBE.renderer = renderer;
+        WEBGL_GLOBE.scene = scene;
+        WEBGL_GLOBE.camera = camera;
+        WEBGL_GLOBE.globe = globeGroup;
+        WEBGL_GLOBE.grid = grid;
+        WEBGL_GLOBE.land = landGroup;
+        WEBGL_GLOBE.pointer = new THREE.Vector2();
+
+        if (!GLOBE_STATE.geojson) {
+            const geojsonUrl = getLocalGeoJsonUrl();
+            if (geojsonUrl) {
+                fetch(geojsonUrl)
+                    .then(function (response) {
+                        if (!response.ok) {
+                            return null;
+                        }
+                        return response.json();
+                    })
+                    .then(function (geojson) {
+                        if (!geojson || !WEBGL_GLOBE.globe) {
+                            return;
+                        }
+                        GLOBE_STATE.geojson = geojson;
+                        const worldLand = buildGeoJsonLandmass(geojson, 1.62);
+                        if (worldLand) {
+                            WEBGL_GLOBE.globe.add(worldLand);
+                            WEBGL_GLOBE.land = worldLand;
+                        }
+                    })
+                    .catch(function () {
+                        return null;
+                    });
+            }
+        }
+
+        const worldTarget = new THREE.Vector3(0, 0, 0);
+        globeGroup.lookAt(worldTarget);
+
+        if (svg) {
+            svg.style.display = 'none';
+        }
+        canvas.style.display = 'block';
+    }
+
+    function updateWebGLGlobe(timestamp) {
+        if (!WEBGL_GLOBE.enabled || !WEBGL_GLOBE.renderer || !WEBGL_GLOBE.scene || !WEBGL_GLOBE.camera) {
+            return;
+        }
+
+        const THREE = window.THREE;
+        if (!THREE) {
+            return;
+        }
+
+        const globe = WEBGL_GLOBE.globe;
+        if (!globe) {
+            return;
+        }
+
+        const canvas = document.getElementById('themisdb-global-network-map-canvas');
+        if (canvas) {
+            const width = canvas.clientWidth || canvas.width || 1200;
+            const height = canvas.clientHeight || canvas.height || 540;
+            WEBGL_GLOBE.camera.aspect = width / Math.max(height, 1);
+            WEBGL_GLOBE.camera.updateProjectionMatrix();
+            WEBGL_GLOBE.renderer.setSize(width, height, false);
+        }
+
+        const rotationSpeed = Number(MAP_UI_STATE.rotationSpeed) || 0.35;
+        const spinTime = (timestamp || 0) * 0.00012 * rotationSpeed;
+        const lon = (MAP_CAMERA.centerLon || 0) * Math.PI / 180;
+        const lat = (MAP_CAMERA.centerLat || 0) * Math.PI / 180;
+
+        globe.rotation.y = -lon + spinTime * 10;
+        globe.rotation.x = -lat * 0.35;
+        globe.scale.setScalar(1 + (MAP_CAMERA.zoom - 1) * 0.14);
+
+        const radius = 4.2 + ((MAP_CAMERA.zoom || 1) - 1) * 0.08;
+        WEBGL_GLOBE.camera.position.x = Math.sin(lon) * radius;
+        WEBGL_GLOBE.camera.position.y = -Math.sin(lat) * radius * 0.8;
+        WEBGL_GLOBE.camera.position.z = Math.cos(lat) * radius + 1.2;
+        WEBGL_GLOBE.camera.lookAt(0, 0, 0);
+        globe.rotation.z = Math.sin((timestamp || 0) * 0.00018) * 0.12;
+
+        WEBGL_GLOBE.renderer.render(WEBGL_GLOBE.scene, WEBGL_GLOBE.camera);
+    }
 
     function getRuntimeMode() {
         const mode = window.themisdbGnmData && window.themisdbGnmData.mode ? window.themisdbGnmData.mode : 'auto';
@@ -237,18 +598,20 @@
 
     function getVisualGlobeScale() {
         const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
-        const zoomFactor = clamp(MAP_CAMERA.zoom || 1, 0.7, 22);
-        const focusBoost = clamp(modeSettings.globeScale || 1, 1, 12);
-        const rawScale = (0.8 + (zoomFactor - 1) * 0.5) * (0.75 + focusBoost * 0.27);
-        return clamp(rawScale, 1.2, 11.5);
+        const zoomFactor = clamp(MAP_CAMERA.zoom || 1, 0.7, 64);
+        const sceneBoost = CAMERA_ANIMATION.focusTarget ? (CAMERA_ANIMATION.mode === 'country' ? 1.65 : CAMERA_ANIMATION.mode === 'region' ? 1.4 : 1.18) : 1;
+        const focusBoost = clamp((modeSettings.globeScale || 1) * sceneBoost, 8, 58);
+        const rawScale = 1.85 + (zoomFactor - 1) * 0.72 + focusBoost * 0.28;
+        return clamp(rawScale, 2.6, 30);
     }
 
     function getGlobeRenderRadius(width, height) {
-        const baseRadius = Math.max(1, Math.min(width || 1, height || 1)) * 0.36;
+        const viewportMin = Math.max(1, Math.min(width || 1, height || 1));
+        const baseRadius = viewportMin * 0.42;
         const visualScale = getVisualGlobeScale();
         const targetRadius = baseRadius * visualScale;
-        const maxRadius = baseRadius * 2.9;
-        return clamp(targetRadius, baseRadius * 1.05, maxRadius);
+        const maxRadius = viewportMin * 0.78;
+        return clamp(targetRadius, viewportMin * 0.34, maxRadius);
     }
 
     function projectOrthographicPoint(lon, lat, width, height, centerLon, centerLat) {
@@ -318,6 +681,11 @@
             zoomControl.value = clamp(MAP_UI_STATE.zoom, 0.7, maxZoom).toFixed(2);
         }
 
+        const rotationControl = document.getElementById('themisdb-global-network-map-rotation-speed');
+        if (rotationControl) {
+            rotationControl.value = String(clamp(Number(MAP_UI_STATE.rotationSpeed) || 0.35, 0.1, 1.5));
+        }
+
         const colorSelect = document.getElementById('themisdb-global-network-map-color');
         if (colorSelect) {
             colorSelect.value = MAP_UI_STATE.color;
@@ -333,6 +701,29 @@
         if (mouseButton) {
             mouseButton.classList.toggle('is-enabled', MAP_UI_STATE.mouseControlEnabled);
             mouseButton.textContent = 'Mouse: ' + (MAP_UI_STATE.mouseControlEnabled ? 'On' : 'Off');
+        }
+    }
+
+    function updateDebugOverlay(nodes, edges, fps) {
+        const debugPanel = document.getElementById('themisdb-global-network-map-debug');
+        if (!debugPanel) {
+            return;
+        }
+
+        const nodeValue = debugPanel.querySelector('[data-debug="nodes"]');
+        const edgeValue = debugPanel.querySelector('[data-debug="edges"]');
+        const fpsValue = debugPanel.querySelector('[data-debug="fps"]');
+
+        if (nodeValue) {
+            nodeValue.textContent = String(Math.max(0, Number(nodes) || 0));
+        }
+
+        if (edgeValue) {
+            edgeValue.textContent = String(Math.max(0, Number(edges) || 0));
+        }
+
+        if (fpsValue) {
+            fpsValue.textContent = String(Math.max(0, Number(fps) || 0));
         }
     }
 
@@ -443,9 +834,9 @@
 
         const landGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         landGroup.setAttribute('id', 'themisdb-land-layer');
-        landGroup.setAttribute('filter', 'url(#themisdb-land-shadow)');
         const target = svg.querySelector('#themisdb-map-group') || svg;
         const features = geojson && Array.isArray(geojson.features) ? geojson.features : [];
+        const theme = getActiveColorTheme();
 
         features.forEach(function (feature) {
             if (!feature || !feature.geometry) {
@@ -460,16 +851,15 @@
             }
 
             if (geometryType === 'Polygon') {
-                const theme = getActiveColorTheme();
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 path.setAttribute('d', makePathFromCoordinates(coordinates, width, height, [-360, 0, 360], projectionMode));
-                path.setAttribute('fill', 'url(#themisdb-land-fill)');
-                path.setAttribute('stroke', theme.landStroke);
-                path.setAttribute('stroke-width', projectionMode === 'globe' ? '1.05' : '1.2');
+                path.setAttribute('fill', 'rgba(148, 202, 255, 0.14)');
+                path.setAttribute('stroke', 'rgba(180, 224, 255, 0.34)');
+                path.setAttribute('stroke-width', projectionMode === 'globe' ? '0.9' : '1.0');
                 path.setAttribute('stroke-linejoin', 'round');
                 path.setAttribute('stroke-linecap', 'round');
                 path.setAttribute('vector-effect', 'non-scaling-stroke');
-                path.setAttribute('opacity', '0.96');
+                path.setAttribute('opacity', '0.9');
                 if (projectionMode === 'globe') {
                     path.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
                 }
@@ -478,16 +868,15 @@
 
             if (geometryType === 'MultiPolygon') {
                 coordinates.forEach(function (polygon) {
-                    const theme = getActiveColorTheme();
                     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                     path.setAttribute('d', makePathFromCoordinates(polygon, width, height, [-360, 0, 360], projectionMode));
-                    path.setAttribute('fill', 'url(#themisdb-land-fill)');
-                    path.setAttribute('stroke', theme.landStroke);
-                    path.setAttribute('stroke-width', projectionMode === 'globe' ? '1.05' : '1.2');
+                    path.setAttribute('fill', 'rgba(148, 202, 255, 0.14)');
+                    path.setAttribute('stroke', 'rgba(180, 224, 255, 0.34)');
+                    path.setAttribute('stroke-width', projectionMode === 'globe' ? '0.9' : '1.0');
                     path.setAttribute('stroke-linejoin', 'round');
                     path.setAttribute('stroke-linecap', 'round');
                     path.setAttribute('vector-effect', 'non-scaling-stroke');
-                    path.setAttribute('opacity', '0.96');
+                    path.setAttribute('opacity', '0.9');
                     if (projectionMode === 'globe') {
                         path.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
                     }
@@ -496,7 +885,68 @@
             }
         });
 
-        target.appendChild(landGroup);
+        if (landGroup.childNodes.length) {
+            target.appendChild(landGroup);
+        }
+    }
+
+    function simplifyGeoRing(ring, stride) {
+        if (!Array.isArray(ring) || !ring.length) {
+            return [];
+        }
+
+        const step = Math.max(1, Number(stride) || 6);
+        const simplified = [];
+        for (let index = 0; index < ring.length; index += step) {
+            const point = ring[index];
+            if (!point || !Array.isArray(point) || point.length < 2) {
+                continue;
+            }
+            simplified.push([Number(point[0]), Number(point[1])]);
+        }
+
+        const last = ring[ring.length - 1];
+        if (last && simplified.length && (simplified[simplified.length - 1][0] !== Number(last[0]) || simplified[simplified.length - 1][1] !== Number(last[1]))) {
+            simplified.push([Number(last[0]), Number(last[1])]);
+        }
+
+        return simplified.filter(function (point) {
+            return Number.isFinite(point[0]) && Number.isFinite(point[1]);
+        });
+    }
+
+    function createFallbackContoursFromGeoJson(geojson) {
+        if (!geojson || !Array.isArray(geojson.features)) {
+            return createFallbackContours();
+        }
+
+        const contours = [];
+        geojson.features.forEach(function (feature) {
+            if (!feature || !feature.geometry) {
+                return;
+            }
+
+            const geometryType = feature.geometry.type;
+            const geometryCoords = feature.geometry.coordinates;
+            if (!geometryCoords || !Array.isArray(geometryCoords)) {
+                return;
+            }
+
+            const polygons = geometryType === 'MultiPolygon' ? geometryCoords : [geometryCoords];
+            polygons.forEach(function (polygon) {
+                if (!Array.isArray(polygon) || !polygon.length) {
+                    return;
+                }
+
+                const ring = Array.isArray(polygon[0]) && Array.isArray(polygon[0][0]) ? polygon[0] : polygon;
+                const simplified = simplifyGeoRing(ring, Math.max(4, Math.floor(ring.length / 30)));
+                if (simplified.length > 6) {
+                    contours.push({ name: feature.properties && feature.properties.name ? feature.properties.name : 'land', points: simplified });
+                }
+            });
+        });
+
+        return contours.length ? contours.slice(0, 24) : createFallbackContours();
     }
 
     function drawFallbackLandmass(svg, width, height) {
@@ -505,157 +955,137 @@
             existing.remove();
         }
 
-        const theme = getActiveColorTheme();
         const landGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         landGroup.setAttribute('id', 'themisdb-land-layer');
-        landGroup.setAttribute('filter', 'url(#themisdb-land-shadow)');
         const target = svg.querySelector('#themisdb-map-group') || svg;
-        const continents = createFallbackContours();
-        continents.forEach(function (continent) {
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            const d = continent.points.map(function (point, index) {
-                const x = toMercatorX(point[0], width);
-                const y = toMercatorY(point[1], height);
-                return (index === 0 ? 'M ' : 'L ') + x.toFixed(2) + ' ' + y.toFixed(2);
-            }).join(' ') + ' Z';
+        const contours = GLOBE_STATE.geojson ? createFallbackContoursFromGeoJson(GLOBE_STATE.geojson) : createFallbackContours();
 
+        contours.forEach(function (continent) {
+            if (!continent || !Array.isArray(continent.points) || !continent.points.length) {
+                return;
+            }
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const d = makePathFromCoordinates([continent.points], width, height, [-360, 0, 360], 'globe');
             path.setAttribute('d', d);
-            path.setAttribute('fill', 'url(#themisdb-land-fill)');
-            path.setAttribute('stroke', theme.landStroke);
-            path.setAttribute('stroke-width', '1.2');
+            path.setAttribute('fill', 'rgba(145, 206, 255, 0.26)');
+            path.setAttribute('stroke', 'rgba(202, 230, 255, 0.52)');
+            path.setAttribute('stroke-width', '0.9');
             path.setAttribute('stroke-linejoin', 'round');
             path.setAttribute('stroke-linecap', 'round');
             path.setAttribute('vector-effect', 'non-scaling-stroke');
-            path.setAttribute('opacity', '0.96');
+            path.setAttribute('opacity', '1');
+            path.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
             landGroup.appendChild(path);
         });
 
-        target.appendChild(landGroup);
+        if (landGroup.childNodes.length) {
+            target.appendChild(landGroup);
+        }
     }
 
     function renderGlobeOverlay(svg, width, height) {
-        const globeLayer = svg.querySelector('#themisdb-globe-layer');
-        if (globeLayer) {
-            globeLayer.remove();
+        let globeLayer = svg.querySelector('#themisdb-globe-layer');
+        if (!globeLayer) {
+            globeLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            globeLayer.setAttribute('id', 'themisdb-globe-layer');
+            svg.appendChild(globeLayer);
         }
 
         const theme = getActiveColorTheme();
-        const globeRadius = getGlobeRenderRadius(width, height);
-        const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        layer.setAttribute('id', 'themisdb-globe-layer');
-        layer.setAttribute('filter', 'url(#themisdb-land-shadow)');
+        const radius = getGlobeRenderRadius(width, height);
+        const cx = width / 2;
+        const cy = height / 2;
 
-        const globeBackdrop = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        globeBackdrop.setAttribute('cx', String(width / 2));
-        globeBackdrop.setAttribute('cy', String(height / 2));
-        globeBackdrop.setAttribute('r', String(globeRadius * 1.08));
-        globeBackdrop.setAttribute('fill', theme.backdropFill);
-        layer.appendChild(globeBackdrop);
-
-        const atmosphereHalo = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        atmosphereHalo.setAttribute('cx', String(width / 2));
-        atmosphereHalo.setAttribute('cy', String(height / 2));
-        atmosphereHalo.setAttribute('r', String(globeRadius * 1.18));
-        atmosphereHalo.setAttribute('fill', 'none');
-        atmosphereHalo.setAttribute('stroke', theme.atmosphere);
-        atmosphereHalo.setAttribute('stroke-width', '5');
-        atmosphereHalo.setAttribute('opacity', '0.9');
-        atmosphereHalo.setAttribute('filter', 'url(#themisdb-atmosphere-glow)');
-        layer.appendChild(atmosphereHalo);
-
-        const atmosphereInner = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        atmosphereInner.setAttribute('cx', String(width / 2));
-        atmosphereInner.setAttribute('cy', String(height / 2));
-        atmosphereInner.setAttribute('r', String(globeRadius * 1.07));
-        atmosphereInner.setAttribute('fill', 'none');
-        atmosphereInner.setAttribute('stroke', 'rgba(166, 225, 255, 0.28)');
-        atmosphereInner.setAttribute('stroke-width', '2.5');
-        atmosphereInner.setAttribute('opacity', '0.75');
-        layer.appendChild(atmosphereInner);
-
-        const globeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        globeCircle.setAttribute('cx', String(width / 2));
-        globeCircle.setAttribute('cy', String(height / 2));
-        globeCircle.setAttribute('r', String(globeRadius));
-        globeCircle.setAttribute('fill', theme.globe);
-        globeCircle.setAttribute('stroke', 'rgba(176, 225, 255, 0.35)');
-        globeCircle.setAttribute('stroke-width', '1.4');
-        layer.appendChild(globeCircle);
-
-        const daylight = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        daylight.setAttribute('cx', String(width / 2 + globeRadius * 0.2));
-        daylight.setAttribute('cy', String(height / 2 - globeRadius * 0.18));
-        daylight.setAttribute('r', String(globeRadius * 0.7));
-        daylight.setAttribute('fill', 'rgba(158, 224, 255, 0.14)');
-        daylight.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
-        layer.appendChild(daylight);
-
-        const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        shadow.setAttribute('cx', String(width / 2 + globeRadius * 0.32));
-        shadow.setAttribute('cy', String(height / 2 + globeRadius * 0.08));
-        shadow.setAttribute('r', String(globeRadius));
-        shadow.setAttribute('fill', theme.shadow);
-        shadow.setAttribute('opacity', '0.7');
-        shadow.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
-        layer.appendChild(shadow);
-
-        const terminator = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-        terminator.setAttribute('cx', String(width / 2));
-        terminator.setAttribute('cy', String(height / 2));
-        terminator.setAttribute('rx', String(globeRadius));
-        terminator.setAttribute('ry', String(globeRadius * 0.72));
-        terminator.setAttribute('fill', 'none');
-        terminator.setAttribute('stroke', theme.terminator);
-        terminator.setAttribute('stroke-width', '2.2');
-        terminator.setAttribute('stroke-dasharray', '2 10');
-        terminator.setAttribute('opacity', '0.62');
-        terminator.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
-        terminator.setAttribute('transform', 'rotate(' + (MAP_CAMERA.centerLon * GLOBE_SOLAR_ANGLE) + ' ' + String(width / 2) + ' ' + String(height / 2) + ')');
-        layer.appendChild(terminator);
-
-        const reducedMotion = !!(REDUCED_MOTION_QUERY && REDUCED_MOTION_QUERY.matches);
-        if (!reducedMotion) {
-            for (let lat = -60; lat <= 60; lat += 30) {
-                const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                const d = [];
-                for (let lon = -180; lon <= 180; lon += 5) {
-                    const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
-                    d.push((lon === -180 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
-                }
-                arc.setAttribute('d', d.join(' '));
-                arc.setAttribute('fill', 'none');
-                arc.setAttribute('stroke', 'rgba(153, 205, 255, 0.14)');
-                arc.setAttribute('stroke-width', '1');
-                arc.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
-                layer.appendChild(arc);
-            }
-
-            for (let lon = -150; lon <= 150; lon += 30) {
-                const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                const d = [];
-                for (let lat = -90; lat <= 90; lat += 5) {
-                    const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
-                    d.push((lat === -90 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
-                }
-                arc.setAttribute('d', d.join(' '));
-                arc.setAttribute('fill', 'none');
-                arc.setAttribute('stroke', 'rgba(153, 205, 255, 0.12)');
-                arc.setAttribute('stroke-width', '1');
-                arc.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
-                layer.appendChild(arc);
-            }
+        let baseCircle = globeLayer.querySelector('circle[data-globe-base]');
+        if (!baseCircle) {
+            baseCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            baseCircle.setAttribute('data-globe-base', 'true');
+            globeLayer.appendChild(baseCircle);
         }
+        baseCircle.setAttribute('cx', String(cx));
+        baseCircle.setAttribute('cy', String(cy));
+        baseCircle.setAttribute('r', String(radius));
+        baseCircle.setAttribute('fill', theme.globe);
+        baseCircle.setAttribute('stroke', 'rgba(176, 225, 255, 0.25)');
+        baseCircle.setAttribute('stroke-width', '1');
+
+        let ring = globeLayer.querySelector('circle[data-globe-ring]');
+        if (!ring) {
+            ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            ring.setAttribute('data-globe-ring', 'true');
+            globeLayer.appendChild(ring);
+        }
+        ring.setAttribute('cx', String(cx));
+        ring.setAttribute('cy', String(cy));
+        ring.setAttribute('r', String(radius * 1.06));
+        ring.setAttribute('fill', 'none');
+        ring.setAttribute('stroke', 'rgba(147, 214, 255, 0.15)');
+        ring.setAttribute('stroke-width', '1.2');
+        ring.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+
+        const latitudeBands = [-75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75];
+        const longitudeBands = [-165, -135, -105, -75, -45, -15, 15, 45, 75, 105, 135, 165];
+
+        let latPaths = globeLayer.__latPaths;
+        if (!latPaths) {
+            latPaths = [];
+            latitudeBands.forEach(function () {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', 'rgba(160, 214, 255, 0.20)');
+                path.setAttribute('stroke-width', '0.85');
+                path.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+                globeLayer.appendChild(path);
+                latPaths.push(path);
+            });
+            globeLayer.__latPaths = latPaths;
+        }
+
+        let lonPaths = globeLayer.__lonPaths;
+        if (!lonPaths) {
+            lonPaths = [];
+            longitudeBands.forEach(function () {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', 'rgba(160, 214, 255, 0.15)');
+                path.setAttribute('stroke-width', '0.85');
+                path.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+                globeLayer.appendChild(path);
+                lonPaths.push(path);
+            });
+            globeLayer.__lonPaths = lonPaths;
+        }
+
+        latitudeBands.forEach(function (lat, index) {
+            const path = latPaths[index];
+            if (!path) {
+                return;
+            }
+            const d = [];
+            for (let lon = -180; lon <= 180; lon += 5) {
+                const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
+                d.push((lon === -180 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
+            }
+            path.setAttribute('d', d.join(' '));
+        });
+
+        longitudeBands.forEach(function (lon, index) {
+            const path = lonPaths[index];
+            if (!path) {
+                return;
+            }
+            const d = [];
+            for (let lat = -90; lat <= 90; lat += 5) {
+                const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
+                d.push((lat === -90 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
+            }
+            path.setAttribute('d', d.join(' '));
+        });
 
         const mapGroup = svg.querySelector('#themisdb-map-group');
-        if (mapGroup) {
-            mapGroup.appendChild(layer);
-        }
-
-        const geojson = GLOBE_STATE.geojson || null;
-        if (geojson) {
-            drawGeoJsonLandmass(svg, width, height, geojson, CAMERA_ANIMATION.mode);
-        } else {
-            drawFallbackLandmass(svg, width, height);
+        if (mapGroup && !mapGroup.contains(globeLayer)) {
+            mapGroup.appendChild(globeLayer);
         }
     }
 
@@ -665,10 +1095,21 @@
     }
 
     function buildBaseMap(width, height) {
+        if (WEBGL_GLOBE.enabled) {
+            return Promise.resolve();
+        }
+
         const svg = document.getElementById('themisdb-global-network-map-svg');
         if (!svg) {
             return Promise.resolve();
         }
+
+        const signature = width + 'x' + height + '|' + MAP_UI_STATE.color + '|' + CAMERA_ANIMATION.mode;
+        if (signature === lastSvgSignature && !svgSceneDirty) {
+            return Promise.resolve();
+        }
+        lastSvgSignature = signature;
+        svgSceneDirty = false;
 
         svg.innerHTML = '';
 
@@ -800,26 +1241,11 @@
         mapGroup.appendChild(oceanGlow);
 
         renderGlobeOverlay(svg, width, height);
+        drawFallbackLandmass(svg, width, height);
 
-        const geojsonUrl = getLocalGeoJsonUrl();
-        if (!geojsonUrl) {
-            return Promise.resolve();
-        }
-
-        return fetch(geojsonUrl)
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error('GeoJSON not available');
-                }
-                return response.json();
-            })
-            .then(function (geojson) {
-                GLOBE_STATE.geojson = geojson;
-                renderGlobeOverlay(svg, width, height);
-            })
-            .catch(function () {
-                renderGlobeOverlay(svg, width, height);
-            });
+        renderGlobeOverlay(svg, width, height);
+        drawFallbackLandmass(svg, width, height);
+        return Promise.resolve();
     }
 
     function deriveLocationFromNetwork(network) {
@@ -888,10 +1314,10 @@
         });
 
         if (ordered.length) {
-            return ordered;
+            return ordered.slice(0, EDGE_RENDER_LIMITS.routeNodes);
         }
 
-        return nodes.map(function (node) {
+        return nodes.slice(0, EDGE_RENDER_LIMITS.routeNodes).map(function (node) {
             const geo = getNodeGeo(node);
             if (!geo) {
                 return null;
@@ -928,145 +1354,20 @@
     }
 
     function drawFlightPath(ctx, route, now) {
-        if (!route.length) {
-            return;
-        }
-
-        ctx.save();
-        ctx.lineWidth = 1.15;
-        ctx.strokeStyle = 'rgba(130, 214, 255, 0.24)';
-        ctx.setLineDash([4, 8]);
-        ctx.beginPath();
-        route.forEach(function (point, index) {
-            if (index === 0) {
-                ctx.moveTo(point.x, point.y);
-            } else {
-                ctx.lineTo(point.x, point.y);
-            }
-        });
-        ctx.stroke();
-
-        const pulseIndex = 0;
-        const current = route[pulseIndex] || route[0];
-        const next = route[(pulseIndex + 1) % route.length] || route[0];
-        const t = 0.35 + Math.sin(now * 0.0007) * 0.15;
-        const x = lerp(current.x, next.x, t);
-        const y = lerp(current.y, next.y, t);
-        const radius = 8 + Math.sin(now * 0.012) * 2;
-        const glow = ctx.createRadialGradient(x, y, 2, x, y, radius * 5);
-        glow.addColorStop(0, 'rgba(255,255,255,0.85)');
-        glow.addColorStop(0.15, 'rgba(136, 220, 255, 0.75)');
-        glow.addColorStop(1, 'rgba(136, 220, 255, 0)');
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(x, y, radius * 5, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.setLineDash([]);
-        ctx.restore();
+        return;
     }
 
     function drawHeatmap(ctx, nodes, width, height, interactionState) {
-        ctx.clearRect(0, 0, width, height);
-        ctx.globalCompositeOperation = 'screen';
-        const focusNodeId = interactionState && interactionState.selected ? getNodeIdentity(interactionState.selected) : '';
-        const now = performance.now();
-
-        const reducedMotion = !!(REDUCED_MOTION_QUERY && REDUCED_MOTION_QUERY.matches);
-        const prioritizedNodes = nodes.slice().sort(function (left, right) {
-            const leftPriority = (left.load || 0) + (left.instances || 0) * 8;
-            const rightPriority = (right.load || 0) + (right.instances || 0) * 8;
-            return rightPriority - leftPriority;
-        });
-        const maxNodesPerFrame = reducedMotion ? 180 : 300;
-        let drawnNodes = 0;
-
-        prioritizedNodes.forEach(function (node) {
-            if (drawnNodes >= maxNodesPerFrame) {
-                return;
-            }
-
-            const geo = getNodeGeo(node);
-            if (!geo) {
-                return;
-            }
-            const position = projectOrthographicPoint(geo.lon, geo.lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
-            const x = position.x;
-            const y = position.y;
-            const load = clamp(node.load || 50, 0, 100);
-            const nodeIdentity = getNodeIdentity(node);
-            const selected = focusNodeId && focusNodeId === nodeIdentity;
-            const hovered = interactionState && interactionState.hovered && getNodeIdentity(interactionState.hovered) === nodeIdentity;
-            const color = load > 80 ? '#ff7b7b' : load > 65 ? '#ffb55a' : '#7fe7ff';
-            const instanceCount = Math.max(1, node.instances || 1);
-            const baseRadius = 0.7 + instanceCount * 0.06;
-            const emphasisRadius = selected ? 2.6 : hovered ? 2.1 : 1.3;
-            const pulseScale = selected ? 1.5 : hovered ? 1.25 : 1;
-            const pulsePhase = (now * 0.004) + (node.instances || 1) * 0.6;
-            const pulseRadius = Math.max(0.9, 0.45 + (load / 130)) * pulseScale + Math.sin(pulsePhase) * (selected ? 0.8 : 0.45);
-            let nodeStatus = null;
-
-            for (let i = 0; i < Math.min(instanceCount, reducedMotion ? 1 : 2); i++) {
-                const jitterX = (i - 0.5) * 0.55;
-                const jitterY = (i - 0.5) * 0.55;
-                const radius = baseRadius + (i * 0.18) + (selected || hovered ? 0.8 : 0);
-                const glow = ctx.createRadialGradient(x + jitterX, y + jitterY, 0.2, x + jitterX, y + jitterY, radius * (selected ? 3.2 : 2.7));
-
-                glow.addColorStop(0, color + 'd1');
-                glow.addColorStop(0.22, color + '7e');
-                glow.addColorStop(0.52, color + '1f');
-                glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-                ctx.fillStyle = glow;
-                ctx.beginPath();
-                ctx.arc(x + jitterX, y + jitterY, radius * (selected ? 3.2 : 2.7), 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            ctx.fillStyle = selected ? 'rgba(255,255,255,0.98)' : hovered ? 'rgba(231, 244, 255, 0.92)' : 'rgba(241, 248, 255, 0.68)';
-            ctx.shadowColor = selected ? '#bfe6ff' : color;
-            ctx.shadowBlur = selected ? 18 : hovered ? 11 : 2.5;
-            ctx.beginPath();
-            ctx.arc(x, y, pulseRadius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-
-            if (selected || hovered) {
-                nodeStatus = getNodeStatusLabel(node);
-                ctx.beginPath();
-                ctx.arc(x, y, pulseRadius + emphasisRadius, 0, Math.PI * 2);
-                ctx.strokeStyle = nodeStatus === 'critical' ? 'rgba(255, 123, 123, 0.95)' : selected ? 'rgba(147, 214, 255, 0.95)' : 'rgba(122, 208, 255, 0.75)';
-                ctx.lineWidth = selected ? 1.8 : 1.4;
-                ctx.stroke();
-            }
-
-            if (shouldDisplayLabel(node, { selected: selected, hovered: hovered }) && !reducedMotion) {
-                if (CAMERA_ANIMATION.mode === 'globe') {
-                    ctx.fillStyle = selected ? '#f4fbff' : hovered ? '#dfefff' : 'rgba(228, 240, 255, 0.72)';
-                    ctx.font = selected ? '700 8px sans-serif' : '600 7px sans-serif';
-                    ctx.fillText(node.city || node.region || 'Node', x + 7, y - 6);
-                } else {
-                    ctx.fillStyle = selected ? '#f5fbff' : hovered ? '#e7f3ff' : 'rgba(230, 240, 255, 0.85)';
-                    ctx.font = selected ? '700 8.5px sans-serif' : '600 8px sans-serif';
-                    ctx.fillText(node.city || node.region || 'Node', x + 7, y - 6);
-                }
-            }
-
-            ctx.beginPath();
-            ctx.arc(x, y, selected ? 2.35 : 1.5, 0, Math.PI * 2);
-            ctx.strokeStyle = selected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.52)';
-            ctx.lineWidth = selected ? 1.5 : 1;
-            ctx.stroke();
-            drawnNodes += 1;
-        });
-
-        ctx.globalCompositeOperation = 'source-over';
+        return;
     }
 
     function renderMap() {
         const canvas = document.getElementById('themisdb-global-network-map-canvas');
         const svg = document.getElementById('themisdb-global-network-map-svg');
         const tooltip = document.getElementById('themisdb-global-network-map-tooltip');
+        if (window.THREE) {
+            initWebGLGlobe();
+        }
         if (!canvas || !svg) {
             return;
         }
@@ -1079,9 +1380,22 @@
             selected: null
         };
 
+        const refreshViewport = function () {
+            if (!canvas || !svg) {
+                return;
+            }
+
+            const nextWidth = canvas.width;
+            const nextHeight = canvas.height;
+            if (nextWidth && nextHeight) {
+                buildBaseMap(nextWidth, nextHeight);
+            }
+        };
+
         MAP_UI_STATE.zoom = clamp(MAP_CAMERA.zoom, 0.7, getMaxUiZoom());
         syncUiControls();
         buildBaseMap(width, height);
+        window.addEventListener('resize', refreshViewport);
 
         function adjustZoom(delta) {
             const previousZoom = MAP_CAMERA.zoom;
@@ -1273,6 +1587,7 @@
             event.preventDefault();
             const delta = event.deltaY > 0 ? -0.08 : 0.08;
             clearFocusTarget();
+            svgSceneDirty = true;
             adjustZoom(delta);
         }, { passive: false });
 
@@ -1280,7 +1595,11 @@
             const nextMode = MAP_MODE_SETTINGS[mode] ? mode : 'globe';
             CAMERA_ANIMATION.mode = nextMode;
             const focusZoom = CAMERA_ANIMATION.focusTarget && CAMERA_ANIMATION.focusTarget.zoom ? CAMERA_ANIMATION.focusTarget.zoom : getTargetZoomForMode(nextMode);
-            CAMERA_ANIMATION.targetZoom = focusZoom;
+            const nextZoom = clamp(focusZoom, 0.7, getMaxUiZoom());
+            CAMERA_ANIMATION.targetZoom = nextZoom;
+            MAP_CAMERA.zoom = nextZoom;
+            MAP_UI_STATE.zoom = nextZoom;
+            svgSceneDirty = true;
 
             const buttons = document.querySelectorAll('[data-map-mode]');
             buttons.forEach(function (button) {
@@ -1304,9 +1623,13 @@
             CAMERA_ANIMATION.orbitPhase = Math.random() * Math.PI * 2;
 
             const modeSettings = getModeSettings(CAMERA_ANIMATION.mode);
-            const baseZoom = CAMERA_ANIMATION.mode === 'country' ? 10.6 : CAMERA_ANIMATION.mode === 'region' ? 6.2 : 2.1;
-            CAMERA_ANIMATION.targetZoom = clamp(baseZoom, modeSettings.zoom, modeSettings.maxZoom);
-            setFocusTarget({ lon: region.lon, lat: region.lat, zoom: CAMERA_ANIMATION.targetZoom });
+            const baseZoom = getFocusZoomForMode(CAMERA_ANIMATION.mode);
+            const nextZoom = clamp(baseZoom, modeSettings.zoom, modeSettings.maxZoom);
+            CAMERA_ANIMATION.targetZoom = nextZoom;
+            MAP_CAMERA.zoom = nextZoom;
+            MAP_UI_STATE.zoom = nextZoom;
+            svgSceneDirty = true;
+            setFocusTarget({ lon: region.lon, lat: region.lat, zoom: nextZoom });
         }
 
         function pickRandomTarget() {
@@ -1334,14 +1657,13 @@
 
         function updateCamera(now, deltaScale) {
             const modeSettings = getModeSettings(CAMERA_ANIMATION.mode);
-            const animationSpeed = (modeSettings.animationSpeed || 0.006) * deltaScale;
+            const animationSpeed = (modeSettings.animationSpeed || 0.006) * deltaScale * 1.8;
             const targetFocus = CAMERA_ANIMATION.focusTarget;
 
             if (!MAP_UI_STATE.animationEnabled) {
                 MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, clamp(MAP_UI_STATE.zoom, 0.7, getMaxUiZoom()), 0.08);
                 MAP_UI_STATE.zoom = clamp(MAP_CAMERA.zoom, 0.7, getMaxUiZoom());
                 syncUiControls();
-                renderGlobeOverlay(svg, width, height);
                 return;
             }
 
@@ -1364,11 +1686,11 @@
                     0,
                     1
                 );
-                const pyramidVelocity = getDynamicPyramidVelocity(distanceRatio, CAMERA_ANIMATION.mode);
+                const pyramidVelocity = getDynamicPyramidVelocity(distanceRatio, CAMERA_ANIMATION.mode) * 2.4;
 
                 CAMERA_ANIMATION.velocityLon = (CAMERA_ANIMATION.velocityLon + (shortestLongitudeDelta * focusSettings.lonInfluence * pyramidVelocity)) * CAMERA_ANIMATION.followInertia;
-                CAMERA_ANIMATION.velocityLat = (CAMERA_ANIMATION.velocityLat + (desiredLat - MAP_CAMERA.centerLat) * (0.028 + focusSettings.orbitInfluence) * pyramidVelocity) * CAMERA_ANIMATION.followInertia;
-                CAMERA_ANIMATION.velocityZoom = (CAMERA_ANIMATION.velocityZoom + (desiredZoom - MAP_CAMERA.zoom) * focusSettings.focusStrength * pyramidVelocity) * CAMERA_ANIMATION.followInertia;
+                CAMERA_ANIMATION.velocityLat = (CAMERA_ANIMATION.velocityLat + (desiredLat - MAP_CAMERA.centerLat) * (0.032 + focusSettings.orbitInfluence) * pyramidVelocity) * CAMERA_ANIMATION.followInertia;
+                CAMERA_ANIMATION.velocityZoom = (CAMERA_ANIMATION.velocityZoom + (desiredZoom - MAP_CAMERA.zoom) * (focusSettings.focusStrength * 1.5) * pyramidVelocity) * CAMERA_ANIMATION.followInertia;
 
                 MAP_CAMERA.centerLon = normalizeLongitude(MAP_CAMERA.centerLon + CAMERA_ANIMATION.velocityLon);
                 MAP_CAMERA.centerLat = clamp(MAP_CAMERA.centerLat + CAMERA_ANIMATION.velocityLat, -80, 80);
@@ -1377,24 +1699,36 @@
                 CAMERA_ANIMATION.targetLat = MAP_CAMERA.centerLat;
                 CAMERA_ANIMATION.targetZoom = desiredZoom;
             } else {
-                const driftScale = CAMERA_ANIMATION.mode === 'country' ? 7 : CAMERA_ANIMATION.mode === 'region' ? 10 : 13;
-                const driftLon = Math.sin(CAMERA_ANIMATION.globeDrift) * driftScale + Math.cos(CAMERA_ANIMATION.orbitPhase) * (CAMERA_ANIMATION.mode === 'country' ? 3.8 : 5.5);
-                const driftLat = Math.sin(CAMERA_ANIMATION.globeDrift * 0.7) * (CAMERA_ANIMATION.mode === 'country' ? 5 : 6) + Math.cos(CAMERA_ANIMATION.orbitPhase * 0.8) * (CAMERA_ANIMATION.mode === 'country' ? 2.7 : 3.8);
+                const driftScale = CAMERA_ANIMATION.mode === 'country' ? 10 : CAMERA_ANIMATION.mode === 'region' ? 14 : 18;
+                const driftLon = Math.sin(CAMERA_ANIMATION.globeDrift) * driftScale + Math.cos(CAMERA_ANIMATION.orbitPhase) * (CAMERA_ANIMATION.mode === 'country' ? 5 : 7);
+                const driftLat = Math.sin(CAMERA_ANIMATION.globeDrift * 0.7) * (CAMERA_ANIMATION.mode === 'country' ? 6 : 8) + Math.cos(CAMERA_ANIMATION.orbitPhase * 0.8) * (CAMERA_ANIMATION.mode === 'country' ? 3.5 : 4.8);
                 const easedLon = normalizeLongitude(CAMERA_ANIMATION.targetLon + driftLon);
                 const easedLat = clamp(CAMERA_ANIMATION.targetLat + driftLat, -24, 56);
 
                 MAP_CAMERA.centerLon = lerp(MAP_CAMERA.centerLon, easedLon, animationSpeed);
                 MAP_CAMERA.centerLat = lerp(MAP_CAMERA.centerLat, easedLat, animationSpeed);
-                MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, CAMERA_ANIMATION.targetZoom, animationSpeed * 1.25);
+                MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, CAMERA_ANIMATION.targetZoom, animationSpeed * 1.45);
             }
 
             MAP_UI_STATE.zoom = clamp(MAP_CAMERA.zoom, 0.7, getMaxUiZoom());
             CAMERA_ANIMATION.globeDrift += animationSpeed * 1.2;
             CAMERA_ANIMATION.orbitPhase += animationSpeed * 1.2;
-            renderGlobeOverlay(svg, width, height);
+
+            if (now - lastSvgRenderStamp > SVG_RENDER_INTERVAL_MS) {
+                renderGlobeOverlay(svg, width, height);
+                lastSvgRenderStamp = now;
+            }
         }
 
         function tickFrame(timestamp) {
+            if (WEBGL_GLOBE.enabled) {
+                updateWebGLGlobe(timestamp);
+                if (MAP_UI_STATE.animationEnabled) {
+                    animationFrameHandle = requestAnimationFrame(tickFrame);
+                }
+                return;
+            }
+
             const ctx = canvas.getContext('2d');
             if (!ctx) {
                 return;
@@ -1404,13 +1738,13 @@
                 tickFrame.lastTimestamp = timestamp;
             }
 
-            const deltaScale = clamp((timestamp - tickFrame.lastTimestamp) / 16.67, 0.5, 2.2);
+            const deltaMs = Math.max(16, timestamp - tickFrame.lastTimestamp);
+            const deltaScale = clamp(deltaMs / 16.67, 0.5, 3.5);
             tickFrame.lastTimestamp = timestamp;
 
             updateCamera(timestamp, deltaScale);
             ctx.clearRect(0, 0, width, height);
-            drawFlightPath(ctx, flightRoute, timestamp);
-            drawHeatmap(ctx, nodes, width, height, interactionState);
+            updateDebugOverlay(nodes.length, 0, Math.max(1, Math.round(1000 / deltaMs)));
 
             if (MAP_UI_STATE.animationEnabled) {
                 animationFrameHandle = requestAnimationFrame(tickFrame);
@@ -1445,6 +1779,16 @@
                 MAP_UI_STATE.zoom = nextZoom;
                 MAP_CAMERA.zoom = clamp(nextZoom, 0.7, maxZoom);
                 CAMERA_ANIMATION.targetZoom = clamp(nextZoom, 0.7, maxZoom);
+                svgSceneDirty = true;
+                syncUiControls();
+            });
+        }
+
+        const rotationControl = document.getElementById('themisdb-global-network-map-rotation-speed');
+        if (rotationControl) {
+            rotationControl.addEventListener('input', function () {
+                const nextSpeed = parseFloat(this.value) || 0.35;
+                MAP_UI_STATE.rotationSpeed = clamp(nextSpeed, 0.1, 1.5);
                 syncUiControls();
             });
         }
@@ -1547,6 +1891,7 @@
         if (mapSvg) {
             mapSvg.setAttribute('focusable', 'false');
         }
+        lastSvgRenderStamp = 0;
         CAMERA_ANIMATION.lastSwitch = performance.now();
         setMode('globe');
         pickRandomTarget();

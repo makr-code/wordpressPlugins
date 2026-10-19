@@ -121,8 +121,8 @@ class ThemisDB_Global_Network_Map {
                 return;
             }
 
-            $css_version = THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/css/themisdb-global-network-map.css');
-            $js_version = THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/js/themisdb-global-network-map.js');
+            $css_version = THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/css/themisdb-global-network-map.css') . '.' . time();
+            $js_version = THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/js/themisdb-global-network-map.js') . '.' . time();
 
             wp_enqueue_style(
                 'themisdb-global-network-map-style',
@@ -132,9 +132,17 @@ class ThemisDB_Global_Network_Map {
             );
 
             wp_enqueue_script(
+                'themisdb-global-network-map-three',
+                'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+                array(),
+                'r128',
+                true
+            );
+
+            wp_enqueue_script(
                 'themisdb-global-network-map-script',
                 THEMISDB_GNM_PLUGIN_URL . 'assets/js/themisdb-global-network-map.js',
-                array(),
+                array('themisdb-global-network-map-three'),
                 $js_version,
                 true
             );
