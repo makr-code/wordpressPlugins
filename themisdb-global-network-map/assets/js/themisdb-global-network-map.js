@@ -125,7 +125,7 @@
             return '';
         }
 
-        return [node.city, node.region, node.country, node.network, node.instance_id, node.id].filter(Boolean).join('|') || String(node.city || node.region || node.country || node.network || 'node');
+        return [node.city, node.region, node.country, node.network, node.instance_id, node.id].filter(Boolean).join('|') || 'node';
     }
 
     function getNodeLoadLevel(node) {
@@ -766,6 +766,7 @@
         ctx.clearRect(0, 0, width, height);
         ctx.globalCompositeOperation = 'screen';
         const focusNodeId = interactionState && interactionState.selected ? getNodeIdentity(interactionState.selected) : '';
+        const now = performance.now();
 
         nodes.forEach(function (node) {
             const geo = getNodeGeo(node);
@@ -776,16 +777,17 @@
             const x = position.x;
             const y = position.y;
             const load = clamp(node.load || 50, 0, 100);
-            const status = getNodeStatusLabel(node);
-            const selected = focusNodeId && focusNodeId === getNodeIdentity(node);
-            const hovered = interactionState && interactionState.hovered && getNodeIdentity(interactionState.hovered) === getNodeIdentity(node);
+            const nodeIdentity = getNodeIdentity(node);
+            const selected = focusNodeId && focusNodeId === nodeIdentity;
+            const hovered = interactionState && interactionState.hovered && getNodeIdentity(interactionState.hovered) === nodeIdentity;
             const color = load > 80 ? '#ff7b7b' : load > 65 ? '#ffb55a' : '#7fe7ff';
             const instanceCount = Math.max(1, node.instances || 1);
             const baseRadius = 0.7 + instanceCount * 0.06;
             const emphasisRadius = selected ? 2.6 : hovered ? 2.1 : 1.3;
             const pulseScale = selected ? 1.5 : hovered ? 1.25 : 1;
-            const pulsePhase = (performance.now() * 0.004) + (node.instances || 1) * 0.6;
+            const pulsePhase = (now * 0.004) + (node.instances || 1) * 0.6;
             const pulseRadius = Math.max(0.9, 0.45 + (load / 130)) * pulseScale + Math.sin(pulsePhase) * (selected ? 0.8 : 0.45);
+            let nodeStatus = null;
 
             for (let i = 0; i < Math.min(instanceCount, 2); i++) {
                 const jitterX = (i - 0.5) * 0.55;
@@ -813,9 +815,10 @@
             ctx.shadowBlur = 0;
 
             if (selected || hovered) {
+                nodeStatus = getNodeStatusLabel(node);
                 ctx.beginPath();
                 ctx.arc(x, y, pulseRadius + emphasisRadius, 0, Math.PI * 2);
-                ctx.strokeStyle = status === 'critical' ? 'rgba(255, 123, 123, 0.95)' : selected ? 'rgba(147, 214, 255, 0.95)' : 'rgba(122, 208, 255, 0.75)';
+                ctx.strokeStyle = nodeStatus === 'critical' ? 'rgba(255, 123, 123, 0.95)' : selected ? 'rgba(147, 214, 255, 0.95)' : 'rgba(122, 208, 255, 0.75)';
                 ctx.lineWidth = selected ? 1.8 : 1.4;
                 ctx.stroke();
             }
@@ -941,13 +944,10 @@
             }
         }
 
-        function syncInteractionState(nextHovered, shouldPersistSelection) {
-            const previousHovered = interactionState.hovered;
-            if (previousHovered !== nextHovered) {
-                interactionState.hovered = nextHovered;
-            }
+        function syncInteractionState(nextHovered, updateSelection) {
+            interactionState.hovered = nextHovered;
 
-            if (shouldPersistSelection && nextHovered) {
+            if (updateSelection) {
                 interactionState.selected = nextHovered;
             }
         }
@@ -964,7 +964,6 @@
 
         canvas.addEventListener('click', function (event) {
             const point = getNodeAtPointer(event.clientX, event.clientY);
-            interactionState.selected = point || interactionState.selected;
             if (!point) {
                 interactionState.selected = null;
                 hideTooltip();
