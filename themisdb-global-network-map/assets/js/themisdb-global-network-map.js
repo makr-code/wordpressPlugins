@@ -120,11 +120,43 @@
         return deriveLocationFromNetwork(node.network || '');
     }
 
-    function shouldDisplayLabel(node) {
+    function getNodeIdentity(node) {
+        if (!node) {
+            return '';
+        }
+
+        return [node.city, node.region, node.country, node.network, node.instance_id, node.id].filter(Boolean).join('|') || String(node.city || node.region || node.country || node.network || 'node');
+    }
+
+    function getNodeLoadLevel(node) {
+        const load = clamp(node.load || 0, 0, 100);
+        if (load >= 80) {
+            return 'high';
+        }
+        if (load >= 65) {
+            return 'mid';
+        }
+        return 'low';
+    }
+
+    function getNodeStatusLabel(node) {
+        const status = String(node.status || 'active').toLowerCase();
+        if (status === 'warning' || status === 'degraded' || status === 'busy') {
+            return 'warning';
+        }
+        if (status === 'critical' || status === 'offline' || status === 'down') {
+            return 'critical';
+        }
+        return 'active';
+    }
+
+    function shouldDisplayLabel(node, interaction) {
         const load = clamp(node.load || 0, 0, 100);
         const instanceCount = node.instances || 0;
         const notableCities = ['New York', 'London', 'Frankfurt', 'Tokyo', 'Singapore', 'Dubai', 'São Paulo', 'Sydney'];
-        return load >= 65 || instanceCount >= 10 || notableCities.indexOf(node.city) !== -1;
+        const selected = !!(interaction && interaction.selected);
+        const hovered = !!(interaction && interaction.hovered);
+        return selected || hovered || load >= 65 || instanceCount >= 10 || notableCities.indexOf(node.city) !== -1;
     }
 
     function toMercatorX(longitude, width) {
@@ -730,9 +762,10 @@
         ctx.restore();
     }
 
-    function drawHeatmap(ctx, nodes, width, height) {
+    function drawHeatmap(ctx, nodes, width, height, interactionState) {
         ctx.clearRect(0, 0, width, height);
         ctx.globalCompositeOperation = 'screen';
+        const focusNodeId = interactionState && interactionState.selected ? getNodeIdentity(interactionState.selected) : '';
 
         nodes.forEach(function (node) {
             const geo = getNodeGeo(node);
@@ -743,15 +776,22 @@
             const x = position.x;
             const y = position.y;
             const load = clamp(node.load || 50, 0, 100);
+            const status = getNodeStatusLabel(node);
+            const selected = focusNodeId && focusNodeId === getNodeIdentity(node);
+            const hovered = interactionState && interactionState.hovered && getNodeIdentity(interactionState.hovered) === getNodeIdentity(node);
             const color = load > 80 ? '#ff7b7b' : load > 65 ? '#ffb55a' : '#7fe7ff';
             const instanceCount = Math.max(1, node.instances || 1);
             const baseRadius = 0.7 + instanceCount * 0.06;
+            const emphasisRadius = selected ? 2.6 : hovered ? 2.1 : 1.3;
+            const pulseScale = selected ? 1.5 : hovered ? 1.25 : 1;
+            const pulsePhase = (performance.now() * 0.004) + (node.instances || 1) * 0.6;
+            const pulseRadius = Math.max(0.9, 0.45 + (load / 130)) * pulseScale + Math.sin(pulsePhase) * (selected ? 0.8 : 0.45);
 
             for (let i = 0; i < Math.min(instanceCount, 2); i++) {
                 const jitterX = (i - 0.5) * 0.55;
                 const jitterY = (i - 0.5) * 0.55;
-                const radius = baseRadius + (i * 0.18);
-                const glow = ctx.createRadialGradient(x + jitterX, y + jitterY, 0.2, x + jitterX, y + jitterY, radius * 2.7);
+                const radius = baseRadius + (i * 0.18) + (selected || hovered ? 0.8 : 0);
+                const glow = ctx.createRadialGradient(x + jitterX, y + jitterY, 0.2, x + jitterX, y + jitterY, radius * (selected ? 3.2 : 2.7));
 
                 glow.addColorStop(0, color + 'd1');
                 glow.addColorStop(0.22, color + '7e');
@@ -760,34 +800,42 @@
 
                 ctx.fillStyle = glow;
                 ctx.beginPath();
-                ctx.arc(x + jitterX, y + jitterY, radius * 2.7, 0, Math.PI * 2);
+                ctx.arc(x + jitterX, y + jitterY, radius * (selected ? 3.2 : 2.7), 0, Math.PI * 2);
                 ctx.fill();
             }
 
-            ctx.fillStyle = 'rgba(241, 248, 255, 0.68)';
-            ctx.shadowColor = color;
-            ctx.shadowBlur = 2.5;
+            ctx.fillStyle = selected ? 'rgba(255,255,255,0.98)' : hovered ? 'rgba(231, 244, 255, 0.92)' : 'rgba(241, 248, 255, 0.68)';
+            ctx.shadowColor = selected ? '#bfe6ff' : color;
+            ctx.shadowBlur = selected ? 18 : hovered ? 11 : 2.5;
             ctx.beginPath();
-            ctx.arc(x, y, Math.max(0.9, 0.45 + (load / 130)), 0, Math.PI * 2);
+            ctx.arc(x, y, pulseRadius, 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
 
-            if (shouldDisplayLabel(node)) {
+            if (selected || hovered) {
+                ctx.beginPath();
+                ctx.arc(x, y, pulseRadius + emphasisRadius, 0, Math.PI * 2);
+                ctx.strokeStyle = status === 'critical' ? 'rgba(255, 123, 123, 0.95)' : selected ? 'rgba(147, 214, 255, 0.95)' : 'rgba(122, 208, 255, 0.75)';
+                ctx.lineWidth = selected ? 1.8 : 1.4;
+                ctx.stroke();
+            }
+
+            if (shouldDisplayLabel(node, { selected: selected, hovered: hovered })) {
                 if (CAMERA_ANIMATION.mode === 'globe') {
-                    ctx.fillStyle = 'rgba(228, 240, 255, 0.72)';
-                    ctx.font = '600 7px sans-serif';
-                    ctx.fillText(node.city || node.region || 'Node', x + 6, y - 5);
+                    ctx.fillStyle = selected ? '#f4fbff' : hovered ? '#dfefff' : 'rgba(228, 240, 255, 0.72)';
+                    ctx.font = selected ? '700 8px sans-serif' : '600 7px sans-serif';
+                    ctx.fillText(node.city || node.region || 'Node', x + 7, y - 6);
                 } else {
-                    ctx.fillStyle = 'rgba(230, 240, 255, 0.85)';
-                    ctx.font = '600 8px sans-serif';
-                    ctx.fillText(node.city || node.region || 'Node', x + 6, y - 6);
+                    ctx.fillStyle = selected ? '#f5fbff' : hovered ? '#e7f3ff' : 'rgba(230, 240, 255, 0.85)';
+                    ctx.font = selected ? '700 8.5px sans-serif' : '600 8px sans-serif';
+                    ctx.fillText(node.city || node.region || 'Node', x + 7, y - 6);
                 }
             }
 
             ctx.beginPath();
-            ctx.arc(x, y, 1.5, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255,255,255,0.52)';
-            ctx.lineWidth = 1;
+            ctx.arc(x, y, selected ? 2.35 : 1.5, 0, Math.PI * 2);
+            ctx.strokeStyle = selected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.52)';
+            ctx.lineWidth = selected ? 1.5 : 1;
             ctx.stroke();
         });
 
@@ -805,6 +853,10 @@
         const width = canvas.width;
         const height = canvas.height;
         const rawNodes = window.themisdbGnmData && window.themisdbGnmData.nodes ? window.themisdbGnmData.nodes : [];
+        const interactionState = {
+            hovered: null,
+            selected: null
+        };
 
         MAP_UI_STATE.zoom = clamp(MAP_CAMERA.zoom, 0.7, getMaxUiZoom());
         syncUiControls();
@@ -873,9 +925,11 @@
             const rect = canvas.getBoundingClientRect();
             const x = event.clientX - rect.left + 16;
             const y = event.clientY - rect.top + 16;
-            const label = node.region || 'Network node';
+            const label = node.city || node.region || 'Network node';
             const load = clamp(node.load || 0, 0, 100);
-            tooltip.innerHTML = '<strong>' + label + '</strong><br>' + (node.country || 'Region') + '<br>' + (node.instances || 0) + ' instances · ' + load + '% load';
+            const status = getNodeStatusLabel(node);
+            const statusLabel = status === 'critical' ? 'Critical' : status === 'warning' ? 'Warning' : 'Active';
+            tooltip.innerHTML = '<strong>' + label + '</strong><br>' + (node.country || 'Region') + '<br>' + statusLabel + ' · ' + (node.instances || 0) + ' instances · ' + load + '% load';
             tooltip.style.left = x + 'px';
             tooltip.style.top = y + 'px';
             tooltip.classList.add('is-visible');
@@ -887,8 +941,20 @@
             }
         }
 
+        function syncInteractionState(nextHovered, shouldPersistSelection) {
+            const previousHovered = interactionState.hovered;
+            if (previousHovered !== nextHovered) {
+                interactionState.hovered = nextHovered;
+            }
+
+            if (shouldPersistSelection && nextHovered) {
+                interactionState.selected = nextHovered;
+            }
+        }
+
         canvas.addEventListener('mousemove', function (event) {
             const point = getNodeAtPointer(event.clientX, event.clientY);
+            syncInteractionState(point, false);
             if (point) {
                 showTooltip(event, point);
             } else {
@@ -896,8 +962,21 @@
             }
         });
 
+        canvas.addEventListener('click', function (event) {
+            const point = getNodeAtPointer(event.clientX, event.clientY);
+            interactionState.selected = point || interactionState.selected;
+            if (!point) {
+                interactionState.selected = null;
+                hideTooltip();
+                return;
+            }
+            syncInteractionState(point, true);
+            showTooltip(event, point);
+        });
+
         canvas.addEventListener('mouseleave', function () {
             hideTooltip();
+            interactionState.hovered = null;
             MAP_UI_STATE.dragActive = false;
         });
 
@@ -1020,7 +1099,8 @@
             const now = performance.now();
             updateCamera(now);
             ctx.clearRect(0, 0, width, height);
-            drawHeatmap(ctx, nodes, width, height);
+            drawFlightPath(ctx, flightRoute, now);
+            drawHeatmap(ctx, nodes, width, height, interactionState);
             requestAnimationFrame(tickFrame);
         }
 
