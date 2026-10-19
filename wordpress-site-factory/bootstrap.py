@@ -22,7 +22,8 @@ def load_json(path: Path) -> Dict[str, Any]:
 
 def rest_request(base_url: str, path: str, user: str, password: str, method: str = "GET", payload: Optional[Dict[str, Any]] = None):
     url = base_url.rstrip("/") + "/" + path.lstrip("/")
-    auth = (user, password)
+    password_value = str(password or "").strip()
+    auth = (user, password_value) if user and password_value else None
     response = requests.request(method=method, url=url, auth=auth, json=payload, timeout=20)
     if response.status_code >= 400:
         raise RuntimeError(f"REST request failed: {method} {url} -> {response.status_code}: {response.text[:400]}")

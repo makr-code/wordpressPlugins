@@ -49,9 +49,11 @@
         }
     };
 
+    const REDUCED_MOTION_QUERY = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+
     const MAP_UI_STATE = {
         color: 'ocean',
-        animationEnabled: true,
+        animationEnabled: !REDUCED_MOTION_QUERY || !REDUCED_MOTION_QUERY.matches,
         mouseControlEnabled: true,
         dragActive: false,
         dragStartX: 0,
@@ -417,34 +419,37 @@
         globeCircle.setAttribute('stroke-width', '1.4');
         layer.appendChild(globeCircle);
 
-        for (let lat = -60; lat <= 60; lat += 30) {
-            const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            const d = [];
-            for (let lon = -180; lon <= 180; lon += 5) {
-                const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
-                d.push((lon === -180 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
+        const reducedMotion = !!(REDUCED_MOTION_QUERY && REDUCED_MOTION_QUERY.matches);
+        if (!reducedMotion) {
+            for (let lat = -60; lat <= 60; lat += 30) {
+                const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const d = [];
+                for (let lon = -180; lon <= 180; lon += 5) {
+                    const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
+                    d.push((lon === -180 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
+                }
+                arc.setAttribute('d', d.join(' '));
+                arc.setAttribute('fill', 'none');
+                arc.setAttribute('stroke', 'rgba(153, 205, 255, 0.14)');
+                arc.setAttribute('stroke-width', '1');
+                arc.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+                layer.appendChild(arc);
             }
-            arc.setAttribute('d', d.join(' '));
-            arc.setAttribute('fill', 'none');
-            arc.setAttribute('stroke', 'rgba(153, 205, 255, 0.14)');
-            arc.setAttribute('stroke-width', '1');
-            arc.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
-            layer.appendChild(arc);
-        }
 
-        for (let lon = -150; lon <= 150; lon += 30) {
-            const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            const d = [];
-            for (let lat = -90; lat <= 90; lat += 5) {
-                const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
-                d.push((lat === -90 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
+            for (let lon = -150; lon <= 150; lon += 30) {
+                const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const d = [];
+                for (let lat = -90; lat <= 90; lat += 5) {
+                    const point = projectOrthographicPoint(lon, lat, width, height, MAP_CAMERA.centerLon, MAP_CAMERA.centerLat);
+                    d.push((lat === -90 ? 'M' : 'L') + ' ' + point.x.toFixed(2) + ' ' + point.y.toFixed(2));
+                }
+                arc.setAttribute('d', d.join(' '));
+                arc.setAttribute('fill', 'none');
+                arc.setAttribute('stroke', 'rgba(153, 205, 255, 0.12)');
+                arc.setAttribute('stroke-width', '1');
+                arc.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+                layer.appendChild(arc);
             }
-            arc.setAttribute('d', d.join(' '));
-            arc.setAttribute('fill', 'none');
-            arc.setAttribute('stroke', 'rgba(153, 205, 255, 0.12)');
-            arc.setAttribute('stroke-width', '1');
-            arc.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
-            layer.appendChild(arc);
         }
 
         const mapGroup = svg.querySelector('#themisdb-map-group');
@@ -734,7 +739,20 @@
         ctx.clearRect(0, 0, width, height);
         ctx.globalCompositeOperation = 'screen';
 
-        nodes.forEach(function (node) {
+        const reducedMotion = !!(REDUCED_MOTION_QUERY && REDUCED_MOTION_QUERY.matches);
+        const prioritizedNodes = nodes.slice().sort(function (left, right) {
+            const leftPriority = (left.load || 0) + (left.instances || 0) * 8;
+            const rightPriority = (right.load || 0) + (right.instances || 0) * 8;
+            return rightPriority - leftPriority;
+        });
+        const maxNodesPerFrame = reducedMotion ? 180 : 300;
+        let drawnNodes = 0;
+
+        prioritizedNodes.forEach(function (node) {
+            if (drawnNodes >= maxNodesPerFrame) {
+                return;
+            }
+
             const geo = getNodeGeo(node);
             if (!geo) {
                 return;
@@ -747,7 +765,7 @@
             const instanceCount = Math.max(1, node.instances || 1);
             const baseRadius = 0.7 + instanceCount * 0.06;
 
-            for (let i = 0; i < Math.min(instanceCount, 2); i++) {
+            for (let i = 0; i < Math.min(instanceCount, reducedMotion ? 1 : 2); i++) {
                 const jitterX = (i - 0.5) * 0.55;
                 const jitterY = (i - 0.5) * 0.55;
                 const radius = baseRadius + (i * 0.18);
@@ -772,7 +790,7 @@
             ctx.fill();
             ctx.shadowBlur = 0;
 
-            if (shouldDisplayLabel(node)) {
+            if (shouldDisplayLabel(node) && !reducedMotion) {
                 if (CAMERA_ANIMATION.mode === 'globe') {
                     ctx.fillStyle = 'rgba(228, 240, 255, 0.72)';
                     ctx.font = '600 7px sans-serif';
@@ -789,6 +807,7 @@
             ctx.strokeStyle = 'rgba(255,255,255,0.52)';
             ctx.lineWidth = 1;
             ctx.stroke();
+            drawnNodes += 1;
         });
 
         ctx.globalCompositeOperation = 'source-over';
@@ -945,6 +964,7 @@
             buttons.forEach(function (button) {
                 const active = button.getAttribute('data-map-mode') === nextMode;
                 button.classList.toggle('is-active', active);
+                button.setAttribute('aria-pressed', active ? 'true' : 'false');
             });
 
             buildBaseMap(width, height);
@@ -1017,11 +1037,18 @@
 
         function tickFrame() {
             const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                return;
+            }
+
             const now = performance.now();
             updateCamera(now);
             ctx.clearRect(0, 0, width, height);
             drawHeatmap(ctx, nodes, width, height);
-            requestAnimationFrame(tickFrame);
+
+            if (MAP_UI_STATE.animationEnabled) {
+                requestAnimationFrame(tickFrame);
+            }
         }
 
         document.querySelectorAll('[data-map-mode]').forEach(function (button) {
@@ -1064,6 +1091,9 @@
             animationToggle.addEventListener('click', function () {
                 MAP_UI_STATE.animationEnabled = !MAP_UI_STATE.animationEnabled;
                 syncUiControls();
+                if (MAP_UI_STATE.animationEnabled) {
+                    tickFrame();
+                }
             });
         }
 
@@ -1082,6 +1112,42 @@
                 CAMERA_ANIMATION.lastSwitch = performance.now();
                 applyTargetSelection(targetId);
             });
+        }
+
+        const canvasWrap = document.querySelector('.themisdb-global-network-map__canvas-wrap');
+        if (canvasWrap) {
+            canvasWrap.setAttribute('tabindex', '0');
+            canvasWrap.addEventListener('keydown', function (event) {
+                const step = event.shiftKey ? 0.12 : 0.08;
+                const panStep = event.shiftKey ? 14 : 8;
+                if (event.key === 'ArrowLeft') {
+                    MAP_CAMERA.centerLon = normalizeLongitude(MAP_CAMERA.centerLon - panStep);
+                } else if (event.key === 'ArrowRight') {
+                    MAP_CAMERA.centerLon = normalizeLongitude(MAP_CAMERA.centerLon + panStep);
+                } else if (event.key === 'ArrowUp') {
+                    MAP_CAMERA.centerLat = clamp(MAP_CAMERA.centerLat + (event.shiftKey ? 8 : 5), -80, 80);
+                } else if (event.key === 'ArrowDown') {
+                    MAP_CAMERA.centerLat = clamp(MAP_CAMERA.centerLat - (event.shiftKey ? 8 : 5), -80, 80);
+                } else if (event.key === '+' || event.key === 'PageUp') {
+                    adjustZoom(step);
+                } else if (event.key === '-' || event.key === 'PageDown') {
+                    adjustZoom(-step);
+                } else if (event.key === 'Home') {
+                    MAP_CAMERA.centerLon = 8;
+                    MAP_CAMERA.centerLat = 50;
+                    MAP_CAMERA.zoom = 1.1;
+                    CAMERA_ANIMATION.targetZoom = 1.1;
+                } else {
+                    return;
+                }
+
+                event.preventDefault();
+            });
+        }
+
+        const mapSvg = document.getElementById('themisdb-global-network-map-svg');
+        if (mapSvg) {
+            mapSvg.setAttribute('focusable', 'false');
         }
 
         CAMERA_ANIMATION.lastSwitch = performance.now();

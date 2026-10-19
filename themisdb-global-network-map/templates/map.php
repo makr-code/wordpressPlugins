@@ -23,9 +23,9 @@ if (!defined('ABSPATH')) {
 
         <div class="themisdb-global-network-map__controls" aria-label="Map controls">
             <div class="themisdb-global-network-map__button-group">
-                <button type="button" class="themisdb-global-network-map__mode is-active" data-map-mode="globe">Globe</button>
-                <button type="button" class="themisdb-global-network-map__mode" data-map-mode="region">Region</button>
-                <button type="button" class="themisdb-global-network-map__mode" data-map-mode="country">Country</button>
+                <button type="button" class="themisdb-global-network-map__mode is-active" data-map-mode="globe" aria-pressed="true">Globe</button>
+                <button type="button" class="themisdb-global-network-map__mode" data-map-mode="region" aria-pressed="false">Region</button>
+                <button type="button" class="themisdb-global-network-map__mode" data-map-mode="country" aria-pressed="false">Country</button>
             </div>
 
             <div class="themisdb-global-network-map__split-button" aria-label="Focus target">

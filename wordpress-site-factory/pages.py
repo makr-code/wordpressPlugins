@@ -35,6 +35,15 @@ def find_page_by_slug(base_url: str, user: str, password: str, slug: str) -> Opt
 def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, Any]) -> Dict[str, Any]:
     slug = page_data["slug"]
     existing = find_page_by_slug(base_url, user, password, slug)
+    parent_slug = page_data.get("parent")
+    parent_id = None
+    if parent_slug:
+        parent_page = find_page_by_slug(base_url, user, password, parent_slug)
+        if isinstance(parent_page, dict):
+            parent_id_candidate = parent_page.get("id")
+            if isinstance(parent_id_candidate, int):
+                parent_id = parent_id_candidate
+
     payload = {
         "title": page_data["title"],
         "slug": slug,
@@ -42,6 +51,11 @@ def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, An
         "menu_order": page_data.get("menu_order", 0),
         "content": page_data.get("content", ""),
     }
+
+    if page_data.get("template"):
+        payload["template"] = page_data["template"]
+    if parent_id is not None:
+        payload["parent"] = parent_id
 
     if existing:
         payload["id"] = existing["id"]
