@@ -34,6 +34,12 @@ Apply the full setup:
 python build_site.py --profile local-test
 ```
 
+## Live audit and bootstrap notes
+
+The repository includes a dedicated audit and bootstrap baseline at [AUDIT_REPORT.md](./AUDIT_REPORT.md). It captures the live ThemisDB reference environment, the delta analysis between repo state and production, and the dry-run/live-run setup workflow for a fresh WordPress instance.
+
+Use the audit as the operational baseline for migration planning, but keep the repo as the repeatable implementation source for the factory scripts.
+
 ## Current scope
 
 This factory is intentionally aligned with the existing ThemisDB repo setup:
