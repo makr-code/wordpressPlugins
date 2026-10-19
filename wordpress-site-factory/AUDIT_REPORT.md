@@ -92,7 +92,7 @@ A fresh WordPress instance must validate the following before production setup:
 3. Run a dry-run:
 
 ```bash
-cd /home/runner/work/wordpressPlugins/wordpressPlugins/wordpress-site-factory
+cd <repo-root>/wordpress-site-factory
 python build_site.py --dry-run
 ```
 
@@ -100,7 +100,7 @@ python build_site.py --dry-run
 5. Execute the live setup:
 
 ```bash
-cd /home/runner/work/wordpressPlugins/wordpressPlugins/wordpress-site-factory
+cd <repo-root>/wordpress-site-factory
 python build_site.py --profile local-test
 ```
 

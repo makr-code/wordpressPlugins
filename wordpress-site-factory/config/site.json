@@ -11,7 +11,7 @@
     "rest_route_style": "wp-json",
     "user": "test",
     "app_password": "",
-    "use_auth": true
+    "use_auth": false
   },
   "bootstrap": {
     "ai_coauthors": true,

@@ -20,9 +20,37 @@ def load_json(path: Path) -> Dict[str, Any]:
         return json.load(handle)
 
 
-def rest_request(base_url: str, path: str, user: str, password: str, method: str = "GET", payload: Optional[Dict[str, Any]] = None):
+def build_auth_tuple(user: str, password: str, use_auth: bool = True):
+    if not use_auth:
+        return None
+    if not user or not str(password or "").strip():
+        return None
+    return (user, str(password))
+
+
+def validate_wordpress_auth_settings(config: Dict[str, Any], dry_run: bool = False) -> None:
+    wordpress_cfg = config.get("wordpress", {})
+    use_auth = bool(wordpress_cfg.get("use_auth", False))
+    password = str(wordpress_cfg.get("app_password") or "").strip()
+
+    if dry_run:
+        if use_auth and not password:
+            print("[bootstrap] Dry run: auth is enabled but no app_password is configured; skipping live credential validation.")
+        elif not use_auth:
+            print("[bootstrap] Dry run: auth is disabled; safe preview without live REST credentials.")
+        return
+
+    if not use_auth:
+        raise RuntimeError(
+            "WordPress auth is disabled. For a live factory run, set wordpress.use_auth to true and configure a valid app_password before calling wp-json/wp/v2/settings."
+        )
+    if not password:
+        raise RuntimeError("WordPress auth is enabled but app_password is empty. Set the password before running the live factory.")
+
+
+def rest_request(base_url: str, path: str, user: str, password: str, method: str = "GET", payload: Optional[Dict[str, Any]] = None, use_auth: bool = True):
     url = base_url.rstrip("/") + "/" + path.lstrip("/")
-    auth = (user, password)
+    auth = build_auth_tuple(user, password, use_auth)
     response = requests.request(method=method, url=url, auth=auth, json=payload, timeout=20)
     if response.status_code >= 400:
         raise RuntimeError(f"REST request failed: {method} {url} -> {response.status_code}: {response.text[:400]}")
@@ -68,21 +96,25 @@ def ensure_site_ready(config: Dict[str, Any], dry_run: bool = False) -> Dict[str
     base_url = wordpress_cfg["base_url"]
     user = wordpress_cfg["user"]
     password = wordpress_cfg["app_password"]
+    use_auth = bool(wordpress_cfg.get("use_auth", False))
 
     print(f"[bootstrap] Checking WordPress connection at {base_url}")
     if dry_run:
+        validate_wordpress_auth_settings(config, dry_run=True)
         print("[bootstrap] Dry run: connection check only")
         return {"status": "dry-run", "base_url": base_url}
 
+    validate_wordpress_auth_settings(config, dry_run=False)
+
     try:
-        settings = rest_request(base_url, "wp-json/wp/v2/settings", user, password)
+        settings = rest_request(base_url, "wp-json/wp/v2/settings", user, password, use_auth=use_auth)
         site_title = settings.get("title", "") if isinstance(settings, dict) else ""
         print(f"[bootstrap] Site reachable: {site_title or 'WordPress'}")
     except Exception as exc:  # pragma: no cover - network fallback
         raise RuntimeError(f"WordPress REST API unavailable: {exc}") from exc
 
     theme_cfg = config["theme"]
-    themes = rest_request(base_url, "wp-json/wp/v2/themes", user, password)
+    themes = rest_request(base_url, "wp-json/wp/v2/themes", user, password, use_auth=use_auth)
     theme_names = [theme.get("stylesheet") for theme in themes if isinstance(theme, dict)]
     if theme_cfg["stylesheet"] not in theme_names:
         print(f"[bootstrap] Theme '{theme_cfg['stylesheet']}' is not currently installed. Check theme install step before applying full site setup.")
@@ -90,7 +122,7 @@ def ensure_site_ready(config: Dict[str, Any], dry_run: bool = False) -> Dict[str
         print(f"[bootstrap] Theme '{theme_cfg['stylesheet']}' is available")
 
     plugins = config.get("plugins", [])
-    installed_plugins = rest_request(base_url, "wp-json/wp/v2/plugins", user, password)
+    installed_plugins = rest_request(base_url, "wp-json/wp/v2/plugins", user, password, use_auth=use_auth)
     installed_map = {}
     for plugin in installed_plugins if isinstance(installed_plugins, list) else []:
         if isinstance(plugin, dict):
@@ -112,7 +144,7 @@ def ensure_site_ready(config: Dict[str, Any], dry_run: bool = False) -> Dict[str
             continue
 
         print(f"[bootstrap] Activating plugin '{resolved}' from status '{status}'")
-        activation = rest_request(base_url, f"wp-json/wp/v2/plugins/{resolved}", user, password, method="PUT", payload={"status": "active"})
+        activation = rest_request(base_url, f"wp-json/wp/v2/plugins/{resolved}", user, password, method="PUT", payload={"status": "active"}, use_auth=use_auth)
         print(f"[bootstrap] Activation result: {activation}")
 
     return {"status": "ok", "base_url": base_url, "theme": theme_cfg["stylesheet"]}
