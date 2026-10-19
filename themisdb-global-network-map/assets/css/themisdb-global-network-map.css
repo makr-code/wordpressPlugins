@@ -182,7 +182,8 @@
 .themisdb-global-network-map__canvas-wrap {
     position: relative;
     padding: 0;
-    background: linear-gradient(180deg, rgba(10, 26, 40, 0.9), rgba(7, 18, 29, 0.96));
+    background: radial-gradient(circle at top, rgba(18, 48, 68, 0.75), rgba(8, 18, 28, 0.96) 55%);
+    box-shadow: inset 0 0 30px rgba(112, 180, 255, 0.08);
 }
 
 .themisdb-global-network-map__svg,
@@ -196,7 +197,8 @@
 .themisdb-global-network-map__svg {
     position: relative;
     z-index: 1;
-    filter: drop-shadow(0 8px 18px rgba(59, 129, 187, 0.15));
+    filter: drop-shadow(0 14px 26px rgba(59, 129, 187, 0.16)) saturate(1.1);
+    transform: scale(1.002);
 }
 
 .themisdb-global-network-map__canvas {

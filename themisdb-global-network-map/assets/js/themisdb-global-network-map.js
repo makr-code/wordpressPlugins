@@ -95,6 +95,11 @@
     };
 
     const GLOBE_SOLAR_ANGLE = 0.6;
+    const FOCUS_SENSITIVITY = {
+        globe: { lonInfluence: 0.03, orbitInfluence: 0.016, focusStrength: 0.09 },
+        region: { lonInfluence: 0.03, orbitInfluence: 0.016, focusStrength: 0.09 },
+        country: { lonInfluence: 0.03, orbitInfluence: 0.022, focusStrength: 0.11 }
+    };
 
     const REGION_TARGETS = [
         { id: 'north-america', name: 'North America', lon: -98, lat: 38 },
@@ -516,16 +521,26 @@
         globeBackdrop.setAttribute('fill', theme.backdropFill);
         layer.appendChild(globeBackdrop);
 
-        const atmosphere = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        atmosphere.setAttribute('cx', String(width / 2));
-        atmosphere.setAttribute('cy', String(height / 2));
-        atmosphere.setAttribute('r', String(globeRadius * 1.1));
-        atmosphere.setAttribute('fill', 'none');
-        atmosphere.setAttribute('stroke', theme.atmosphere);
-        atmosphere.setAttribute('stroke-width', '5');
-        atmosphere.setAttribute('opacity', '0.85');
-        atmosphere.setAttribute('filter', 'url(#themisdb-atmosphere-glow)');
-        layer.appendChild(atmosphere);
+        const atmosphereHalo = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        atmosphereHalo.setAttribute('cx', String(width / 2));
+        atmosphereHalo.setAttribute('cy', String(height / 2));
+        atmosphereHalo.setAttribute('r', String(globeRadius * 1.18));
+        atmosphereHalo.setAttribute('fill', 'none');
+        atmosphereHalo.setAttribute('stroke', theme.atmosphere);
+        atmosphereHalo.setAttribute('stroke-width', '5');
+        atmosphereHalo.setAttribute('opacity', '0.9');
+        atmosphereHalo.setAttribute('filter', 'url(#themisdb-atmosphere-glow)');
+        layer.appendChild(atmosphereHalo);
+
+        const atmosphereInner = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        atmosphereInner.setAttribute('cx', String(width / 2));
+        atmosphereInner.setAttribute('cy', String(height / 2));
+        atmosphereInner.setAttribute('r', String(globeRadius * 1.07));
+        atmosphereInner.setAttribute('fill', 'none');
+        atmosphereInner.setAttribute('stroke', 'rgba(166, 225, 255, 0.28)');
+        atmosphereInner.setAttribute('stroke-width', '2.5');
+        atmosphereInner.setAttribute('opacity', '0.75');
+        layer.appendChild(atmosphereInner);
 
         const globeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         globeCircle.setAttribute('cx', String(width / 2));
@@ -535,6 +550,14 @@
         globeCircle.setAttribute('stroke', 'rgba(176, 225, 255, 0.35)');
         globeCircle.setAttribute('stroke-width', '1.4');
         layer.appendChild(globeCircle);
+
+        const daylight = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        daylight.setAttribute('cx', String(width / 2 + globeRadius * 0.2));
+        daylight.setAttribute('cy', String(height / 2 - globeRadius * 0.18));
+        daylight.setAttribute('r', String(globeRadius * 0.7));
+        daylight.setAttribute('fill', 'rgba(158, 224, 255, 0.14)');
+        daylight.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+        layer.appendChild(daylight);
 
         const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         shadow.setAttribute('cx', String(width / 2 + globeRadius * 0.32));
@@ -1140,13 +1163,13 @@
             const point = getNodeAtPointer(event.clientX, event.clientY);
             if (!point) {
                 interactionState.selected = null;
+                clearFocusTarget();
                 hideTooltip();
                 return;
             }
+
             syncInteractionState(point, true);
             showTooltip(event, point);
-                return;
-            }
 
             const geo = getNodeGeo(point);
             if (!geo) {
@@ -1160,6 +1183,7 @@
                 zoom: focusZoom
             });
             focusOnGeo(geo, focusZoom);
+            return;
         });
 
         canvas.addEventListener('mouseleave', function () {
@@ -1282,9 +1306,11 @@
                 const longitudeDelta = desiredLon - normalizedCenterLon;
                 const shortestLongitudeDelta = longitudeDelta > 180 ? longitudeDelta - 360 : (longitudeDelta < -180 ? longitudeDelta + 360 : longitudeDelta);
 
-                CAMERA_ANIMATION.velocityLon = (CAMERA_ANIMATION.velocityLon + (shortestLongitudeDelta * 0.03)) * CAMERA_ANIMATION.followInertia;
-                CAMERA_ANIMATION.velocityLat = (CAMERA_ANIMATION.velocityLat + (desiredLat - MAP_CAMERA.centerLat) * 0.025) * CAMERA_ANIMATION.followInertia;
-                CAMERA_ANIMATION.velocityZoom = (CAMERA_ANIMATION.velocityZoom + (desiredZoom - MAP_CAMERA.zoom) * 0.08) * CAMERA_ANIMATION.followInertia;
+                const focusSettings = FOCUS_SENSITIVITY[CAMERA_ANIMATION.mode] || FOCUS_SENSITIVITY.globe;
+
+                CAMERA_ANIMATION.velocityLon = (CAMERA_ANIMATION.velocityLon + (shortestLongitudeDelta * focusSettings.lonInfluence)) * CAMERA_ANIMATION.followInertia;
+                CAMERA_ANIMATION.velocityLat = (CAMERA_ANIMATION.velocityLat + (desiredLat - MAP_CAMERA.centerLat) * (0.028 + focusSettings.orbitInfluence)) * CAMERA_ANIMATION.followInertia;
+                CAMERA_ANIMATION.velocityZoom = (CAMERA_ANIMATION.velocityZoom + (desiredZoom - MAP_CAMERA.zoom) * focusSettings.focusStrength) * CAMERA_ANIMATION.followInertia;
 
                 MAP_CAMERA.centerLon = normalizeLongitude(MAP_CAMERA.centerLon + CAMERA_ANIMATION.velocityLon);
                 MAP_CAMERA.centerLat = clamp(MAP_CAMERA.centerLat + CAMERA_ANIMATION.velocityLat, -80, 80);
