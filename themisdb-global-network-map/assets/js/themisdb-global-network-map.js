@@ -1,9 +1,24 @@
 (function () {
     'use strict';
 
+    const DEFAULT_VIEW = {
+        lon: 8,
+        lat: 50
+    };
+
+    const DRAG_SENSITIVITY = {
+        lon: 44,
+        lat: 34
+    };
+
+    const ZOOM_VELOCITY = {
+        drag: 0.24,
+        inertia: 0.2
+    };
+
     const MAP_CAMERA = {
-        centerLon: 8,
-        centerLat: 50,
+        centerLon: DEFAULT_VIEW.lon,
+        centerLat: DEFAULT_VIEW.lat,
         zoom: 1.1,
         scale: 1.1,
         offsetX: 0.5,
@@ -11,9 +26,9 @@
     };
 
     const MAP_MODE_SETTINGS = {
-        globe: { zoom: 1.35, maxZoom: 2.4, globeScale: 1.45, animationSpeed: 0.0045 },
-        region: { zoom: 3.2, maxZoom: 4.8, globeScale: 2.8, animationSpeed: 0.008 },
-        country: { zoom: 4.8, maxZoom: 6.2, globeScale: 4.6, animationSpeed: 0.012 }
+        globe: { zoom: 1.35, maxZoom: 2.4, globeScale: 1.45, animationSpeed: 0.0045, focusZoom: 2.8 },
+        region: { zoom: 3.2, maxZoom: 4.8, globeScale: 2.8, animationSpeed: 0.008, focusZoom: 6.4 },
+        country: { zoom: 4.8, maxZoom: 6.2, globeScale: 4.6, animationSpeed: 0.012, focusZoom: 8.4 }
     };
 
     const MAP_COLOR_THEMES = {
@@ -22,30 +37,48 @@
             oceanStart: '#0d233a',
             oceanEnd: '#081a2a',
             land: 'rgba(157, 188, 206, 0.62)',
+            landSoft: 'rgba(202, 232, 248, 0.8)',
+            landDeep: 'rgba(100, 139, 172, 0.46)',
             landStroke: 'rgba(237, 245, 255, 0.58)',
             globe: 'rgba(19, 48, 68, 0.92)',
             glow: 'rgba(156, 214, 255, 0.22)',
-            accent: 'rgba(153, 205, 255, 0.12)'
+            accent: 'rgba(153, 205, 255, 0.12)',
+            atmosphere: 'rgba(126, 205, 255, 0.28)',
+            shadow: 'rgba(5, 16, 28, 0.38)',
+            backdropFill: 'rgba(255,255,255,0.02)',
+            terminator: 'rgba(255, 255, 255, 0.2)'
         },
         aurora: {
             background: '#071d2d',
             oceanStart: '#0d3243',
             oceanEnd: '#081f2a',
             land: 'rgba(112, 197, 176, 0.68)',
+            landSoft: 'rgba(186, 245, 227, 0.84)',
+            landDeep: 'rgba(52, 127, 105, 0.48)',
             landStroke: 'rgba(221, 255, 243, 0.6)',
             globe: 'rgba(15, 58, 69, 0.94)',
             glow: 'rgba(121, 228, 210, 0.22)',
-            accent: 'rgba(132, 244, 223, 0.14)'
+            accent: 'rgba(132, 244, 223, 0.14)',
+            atmosphere: 'rgba(130, 249, 211, 0.24)',
+            shadow: 'rgba(8, 21, 27, 0.42)',
+            backdropFill: 'rgba(255,255,255,0.02)',
+            terminator: 'rgba(255, 255, 255, 0.22)'
         },
         night: {
             background: '#090d1d',
             oceanStart: '#101a2f',
             oceanEnd: '#090c18',
             land: 'rgba(145, 160, 220, 0.64)',
+            landSoft: 'rgba(214, 223, 255, 0.8)',
+            landDeep: 'rgba(89, 101, 161, 0.46)',
             landStroke: 'rgba(228, 235, 255, 0.6)',
             globe: 'rgba(26, 28, 50, 0.94)',
             glow: 'rgba(156, 170, 255, 0.22)',
-            accent: 'rgba(169, 183, 255, 0.14)'
+            accent: 'rgba(169, 183, 255, 0.14)',
+            atmosphere: 'rgba(164, 186, 255, 0.24)',
+            shadow: 'rgba(6, 7, 17, 0.42)',
+            backdropFill: 'rgba(255,255,255,0.02)',
+            terminator: 'rgba(255, 255, 255, 0.2)'
         }
     };
 
@@ -60,6 +93,8 @@
         dragOriginLat: 0,
         zoom: 1.1
     };
+
+    const GLOBE_SOLAR_ANGLE = 0.6;
 
     const REGION_TARGETS = [
         { id: 'north-america', name: 'North America', lon: -98, lat: 38 },
@@ -86,7 +121,12 @@
         globeDrift: 0,
         orbitPhase: 0,
         switchIntervalMs: 20000,
-        regionIndex: 1
+        regionIndex: 1,
+        focusTarget: null,
+        velocityLon: 0,
+        velocityLat: 0,
+        velocityZoom: 0,
+        followInertia: 0.82
     };
 
     const GLOBE_STATE = {
@@ -213,9 +253,38 @@
         return MAP_COLOR_THEMES[MAP_UI_STATE.color] || MAP_COLOR_THEMES.ocean;
     }
 
+    function getModeSettings(mode) {
+        return MAP_MODE_SETTINGS[mode] || MAP_MODE_SETTINGS.globe;
+    }
+
     function getMaxUiZoom() {
-        const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
+        const modeSettings = getModeSettings(CAMERA_ANIMATION.mode);
         return Math.max(2.8, modeSettings.maxZoom || 2.8);
+    }
+
+    function getTargetZoomForMode(mode) {
+        const modeSettings = getModeSettings(mode);
+        return clamp(modeSettings.zoom || 1.2, 0.7, modeSettings.maxZoom || 12);
+    }
+
+    function getFocusZoomForMode(mode) {
+        const modeSettings = getModeSettings(mode);
+        return clamp(modeSettings.focusZoom || getTargetZoomForMode(mode), 0.7, modeSettings.maxZoom || 12);
+    }
+
+    function setFocusTarget(target) {
+        CAMERA_ANIMATION.focusTarget = target || null;
+    }
+
+    function clearFocusTarget() {
+        CAMERA_ANIMATION.focusTarget = null;
+    }
+
+    function getAmbientTargetZoom() {
+        if (CAMERA_ANIMATION.focusTarget && CAMERA_ANIMATION.focusTarget.zoom) {
+            return CAMERA_ANIMATION.focusTarget.zoom;
+        }
+        return getTargetZoomForMode(CAMERA_ANIMATION.mode);
     }
 
     function syncUiControls() {
@@ -357,7 +426,7 @@
                 const theme = getActiveColorTheme();
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 path.setAttribute('d', makePathFromCoordinates(coordinates, width, height, [-360, 0, 360], projectionMode));
-                path.setAttribute('fill', theme.land);
+                path.setAttribute('fill', 'url(#themisdb-land-fill)');
                 path.setAttribute('stroke', theme.landStroke);
                 path.setAttribute('stroke-width', projectionMode === 'globe' ? '1.05' : '1.2');
                 path.setAttribute('stroke-linejoin', 'round');
@@ -375,7 +444,7 @@
                     const theme = getActiveColorTheme();
                     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                     path.setAttribute('d', makePathFromCoordinates(polygon, width, height, [-360, 0, 360], projectionMode));
-                    path.setAttribute('fill', theme.land);
+                    path.setAttribute('fill', 'url(#themisdb-land-fill)');
                     path.setAttribute('stroke', theme.landStroke);
                     path.setAttribute('stroke-width', projectionMode === 'globe' ? '1.05' : '1.2');
                     path.setAttribute('stroke-linejoin', 'round');
@@ -414,7 +483,7 @@
             }).join(' ') + ' Z';
 
             path.setAttribute('d', d);
-            path.setAttribute('fill', theme.land);
+            path.setAttribute('fill', 'url(#themisdb-land-fill)');
             path.setAttribute('stroke', theme.landStroke);
             path.setAttribute('stroke-width', '1.2');
             path.setAttribute('stroke-linejoin', 'round');
@@ -440,6 +509,24 @@
         layer.setAttribute('id', 'themisdb-globe-layer');
         layer.setAttribute('filter', 'url(#themisdb-land-shadow)');
 
+        const globeBackdrop = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        globeBackdrop.setAttribute('cx', String(width / 2));
+        globeBackdrop.setAttribute('cy', String(height / 2));
+        globeBackdrop.setAttribute('r', String(globeRadius * 1.08));
+        globeBackdrop.setAttribute('fill', theme.backdropFill);
+        layer.appendChild(globeBackdrop);
+
+        const atmosphere = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        atmosphere.setAttribute('cx', String(width / 2));
+        atmosphere.setAttribute('cy', String(height / 2));
+        atmosphere.setAttribute('r', String(globeRadius * 1.1));
+        atmosphere.setAttribute('fill', 'none');
+        atmosphere.setAttribute('stroke', theme.atmosphere);
+        atmosphere.setAttribute('stroke-width', '5');
+        atmosphere.setAttribute('opacity', '0.85');
+        atmosphere.setAttribute('filter', 'url(#themisdb-atmosphere-glow)');
+        layer.appendChild(atmosphere);
+
         const globeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         globeCircle.setAttribute('cx', String(width / 2));
         globeCircle.setAttribute('cy', String(height / 2));
@@ -448,6 +535,29 @@
         globeCircle.setAttribute('stroke', 'rgba(176, 225, 255, 0.35)');
         globeCircle.setAttribute('stroke-width', '1.4');
         layer.appendChild(globeCircle);
+
+        const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        shadow.setAttribute('cx', String(width / 2 + globeRadius * 0.32));
+        shadow.setAttribute('cy', String(height / 2 + globeRadius * 0.08));
+        shadow.setAttribute('r', String(globeRadius));
+        shadow.setAttribute('fill', theme.shadow);
+        shadow.setAttribute('opacity', '0.7');
+        shadow.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+        layer.appendChild(shadow);
+
+        const terminator = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        terminator.setAttribute('cx', String(width / 2));
+        terminator.setAttribute('cy', String(height / 2));
+        terminator.setAttribute('rx', String(globeRadius));
+        terminator.setAttribute('ry', String(globeRadius * 0.72));
+        terminator.setAttribute('fill', 'none');
+        terminator.setAttribute('stroke', theme.terminator);
+        terminator.setAttribute('stroke-width', '2.2');
+        terminator.setAttribute('stroke-dasharray', '2 10');
+        terminator.setAttribute('opacity', '0.62');
+        terminator.setAttribute('clip-path', 'url(#themisdb-globe-clip)');
+        terminator.setAttribute('transform', 'rotate(' + (MAP_CAMERA.centerLon * GLOBE_SOLAR_ANGLE) + ' ' + String(width / 2) + ' ' + String(height / 2) + ')');
+        layer.appendChild(terminator);
 
         for (let lat = -60; lat <= 60; lat += 30) {
             const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -546,6 +656,44 @@
         glow.appendChild(glowStop1);
         glow.appendChild(glowStop2);
         defs.appendChild(glow);
+
+        // Recreate the gradient on every render so the active theme updates immediately for all land masses.
+        const landGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+        landGradient.setAttribute('id', 'themisdb-land-fill');
+        landGradient.setAttribute('x1', '0');
+        landGradient.setAttribute('x2', '1');
+        landGradient.setAttribute('y1', '0');
+        landGradient.setAttribute('y2', '1');
+        landGradient.setAttribute('gradientUnits', 'objectBoundingBox');
+        const landGradientStop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        landGradientStop1.setAttribute('offset', '0%');
+        landGradientStop1.setAttribute('stop-color', theme.landSoft);
+        const landGradientStop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        landGradientStop2.setAttribute('offset', '100%');
+        landGradientStop2.setAttribute('stop-color', theme.landDeep);
+        landGradient.appendChild(landGradientStop1);
+        landGradient.appendChild(landGradientStop2);
+        defs.appendChild(landGradient);
+
+        const atmosphereGlow = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+        atmosphereGlow.setAttribute('id', 'themisdb-atmosphere-glow');
+        atmosphereGlow.setAttribute('x', '-30%');
+        atmosphereGlow.setAttribute('y', '-30%');
+        atmosphereGlow.setAttribute('width', '160%');
+        atmosphereGlow.setAttribute('height', '160%');
+        const atmosphereBlur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        atmosphereBlur.setAttribute('stdDeviation', '3');
+        atmosphereBlur.setAttribute('result', 'blur');
+        atmosphereGlow.appendChild(atmosphereBlur);
+        const atmosphereMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+        const atmosphereMergeNode1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+        atmosphereMergeNode1.setAttribute('in', 'blur');
+        const atmosphereMergeNode2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+        atmosphereMergeNode2.setAttribute('in', 'SourceGraphic');
+        atmosphereMerge.appendChild(atmosphereMergeNode1);
+        atmosphereMerge.appendChild(atmosphereMergeNode2);
+        atmosphereGlow.appendChild(atmosphereMerge);
+        defs.appendChild(atmosphereGlow);
 
         const shadowFilter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
         shadowFilter.setAttribute('id', 'themisdb-land-shadow');
@@ -866,10 +1014,12 @@
         buildBaseMap(width, height);
 
         function adjustZoom(delta) {
-            const nextValue = clamp(MAP_CAMERA.zoom + delta, 0.7, getMaxUiZoom());
+            const previousZoom = MAP_CAMERA.zoom;
+            const nextValue = clamp(previousZoom + delta, 0.7, getMaxUiZoom());
             MAP_CAMERA.zoom = nextValue;
             MAP_UI_STATE.zoom = nextValue;
             CAMERA_ANIMATION.targetZoom = nextValue;
+            CAMERA_ANIMATION.velocityZoom = ((nextValue - previousZoom) * ZOOM_VELOCITY.drag) + CAMERA_ANIMATION.velocityZoom * ZOOM_VELOCITY.inertia;
             syncUiControls();
         }
 
@@ -878,10 +1028,19 @@
                 return;
             }
 
+            const previousLon = MAP_CAMERA.centerLon;
+            const previousLat = MAP_CAMERA.centerLat;
             const dx = event.clientX - MAP_UI_STATE.dragStartX;
             const dy = event.clientY - MAP_UI_STATE.dragStartY;
-            MAP_CAMERA.centerLon = MAP_UI_STATE.dragOriginLon - (dx / width) * 40;
-            MAP_CAMERA.centerLat = clamp(MAP_UI_STATE.dragOriginLat + (dy / height) * 30, -80, 80);
+            const nextLon = MAP_UI_STATE.dragOriginLon - (dx / width) * DRAG_SENSITIVITY.lon;
+            const nextLat = clamp(MAP_UI_STATE.dragOriginLat + (dy / height) * DRAG_SENSITIVITY.lat, -80, 80);
+            MAP_CAMERA.centerLon = nextLon;
+            MAP_CAMERA.centerLat = nextLat;
+            CAMERA_ANIMATION.targetLon = nextLon;
+            CAMERA_ANIMATION.targetLat = nextLat;
+            clearFocusTarget();
+            CAMERA_ANIMATION.velocityLon = (nextLon - previousLon) * ZOOM_VELOCITY.drag;
+            CAMERA_ANIMATION.velocityLat = (nextLat - previousLat) * ZOOM_VELOCITY.drag;
         }
 
         const nodes = rawNodes
@@ -918,6 +1077,21 @@
             });
 
             return hovered;
+        }
+
+        function focusOnGeo(geo, focusZoom) {
+            if (!geo) {
+                return;
+            }
+
+            const targetZoom = focusZoom || getTargetZoomForMode(CAMERA_ANIMATION.mode);
+            CAMERA_ANIMATION.targetLon = geo.lon;
+            CAMERA_ANIMATION.targetLat = geo.lat;
+            CAMERA_ANIMATION.targetZoom = clamp(targetZoom, 0.7, getMaxUiZoom());
+            CAMERA_ANIMATION.lastSwitch = performance.now();
+            CAMERA_ANIMATION.velocityLon = 0;
+            CAMERA_ANIMATION.velocityLat = 0;
+            CAMERA_ANIMATION.velocityZoom = 0;
         }
 
         function showTooltip(event, node) {
@@ -971,6 +1145,21 @@
             }
             syncInteractionState(point, true);
             showTooltip(event, point);
+                return;
+            }
+
+            const geo = getNodeGeo(point);
+            if (!geo) {
+                return;
+            }
+
+            const focusZoom = getFocusZoomForMode(CAMERA_ANIMATION.mode);
+            setFocusTarget({
+                lon: geo.lon,
+                lat: geo.lat,
+                zoom: focusZoom
+            });
+            focusOnGeo(geo, focusZoom);
         });
 
         canvas.addEventListener('mouseleave', function () {
@@ -989,6 +1178,7 @@
             MAP_UI_STATE.dragStartY = event.clientY;
             MAP_UI_STATE.dragOriginLon = MAP_CAMERA.centerLon;
             MAP_UI_STATE.dragOriginLat = MAP_CAMERA.centerLat;
+            clearFocusTarget();
             canvas.setPointerCapture && canvas.setPointerCapture(event.pointerId);
         });
 
@@ -1011,13 +1201,15 @@
 
             event.preventDefault();
             const delta = event.deltaY > 0 ? -0.08 : 0.08;
+            clearFocusTarget();
             adjustZoom(delta);
         }, { passive: false });
 
         function setMode(mode) {
             const nextMode = MAP_MODE_SETTINGS[mode] ? mode : 'globe';
             CAMERA_ANIMATION.mode = nextMode;
-            CAMERA_ANIMATION.targetZoom = MAP_MODE_SETTINGS[nextMode].zoom;
+            const focusZoom = CAMERA_ANIMATION.focusTarget && CAMERA_ANIMATION.focusTarget.zoom ? CAMERA_ANIMATION.focusTarget.zoom : getTargetZoomForMode(nextMode);
+            CAMERA_ANIMATION.targetZoom = focusZoom;
 
             const buttons = document.querySelectorAll('[data-map-mode]');
             buttons.forEach(function (button) {
@@ -1038,9 +1230,10 @@
             CAMERA_ANIMATION.targetLat = region.lat;
             CAMERA_ANIMATION.orbitPhase = Math.random() * Math.PI * 2;
 
-            const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
+            const modeSettings = getModeSettings(CAMERA_ANIMATION.mode);
             const baseZoom = CAMERA_ANIMATION.mode === 'country' ? 10.6 : CAMERA_ANIMATION.mode === 'region' ? 6.2 : 2.1;
             CAMERA_ANIMATION.targetZoom = clamp(baseZoom, modeSettings.zoom, modeSettings.maxZoom);
+            setFocusTarget({ lon: region.lon, lat: region.lat, zoom: CAMERA_ANIMATION.targetZoom });
         }
 
         function pickRandomTarget() {
@@ -1067,27 +1260,50 @@
         }
 
         function updateCamera(now) {
+            const modeSettings = getModeSettings(CAMERA_ANIMATION.mode);
+            const animationSpeed = modeSettings.animationSpeed || 0.006;
+            const targetFocus = CAMERA_ANIMATION.focusTarget;
+
             if (!MAP_UI_STATE.animationEnabled) {
                 MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, clamp(MAP_UI_STATE.zoom, 0.7, getMaxUiZoom()), 0.08);
                 return;
             }
 
-            if (now - CAMERA_ANIMATION.lastSwitch > CAMERA_ANIMATION.switchIntervalMs) {
+            if (now - CAMERA_ANIMATION.lastSwitch > CAMERA_ANIMATION.switchIntervalMs && !targetFocus) {
                 CAMERA_ANIMATION.lastSwitch = now;
                 pickRandomTarget();
             }
 
-            const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
-            const animationSpeed = modeSettings.animationSpeed || 0.006;
-            const driftScale = CAMERA_ANIMATION.mode === 'country' ? 7 : CAMERA_ANIMATION.mode === 'region' ? 10 : 13;
-            const driftLon = Math.sin(CAMERA_ANIMATION.globeDrift) * driftScale + Math.cos(CAMERA_ANIMATION.orbitPhase) * (CAMERA_ANIMATION.mode === 'country' ? 3.8 : 5.5);
-            const driftLat = Math.sin(CAMERA_ANIMATION.globeDrift * 0.7) * (CAMERA_ANIMATION.mode === 'country' ? 5 : 6) + Math.cos(CAMERA_ANIMATION.orbitPhase * 0.8) * (CAMERA_ANIMATION.mode === 'country' ? 2.7 : 3.8);
-            const easedLon = normalizeLongitude(CAMERA_ANIMATION.targetLon + driftLon);
-            const easedLat = clamp(CAMERA_ANIMATION.targetLat + driftLat, -24, 56);
+            if (targetFocus) {
+                const normalizedCenterLon = normalizeLongitude(MAP_CAMERA.centerLon);
+                const desiredLon = normalizeLongitude(targetFocus.lon);
+                const desiredLat = clamp(targetFocus.lat, -60, 68);
+                const desiredZoom = clamp(targetFocus.zoom || CAMERA_ANIMATION.targetZoom, 0.7, getMaxUiZoom());
+                const longitudeDelta = desiredLon - normalizedCenterLon;
+                const shortestLongitudeDelta = longitudeDelta > 180 ? longitudeDelta - 360 : (longitudeDelta < -180 ? longitudeDelta + 360 : longitudeDelta);
 
-            MAP_CAMERA.centerLon = lerp(MAP_CAMERA.centerLon, easedLon, animationSpeed);
-            MAP_CAMERA.centerLat = lerp(MAP_CAMERA.centerLat, easedLat, animationSpeed);
-            MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, CAMERA_ANIMATION.targetZoom, animationSpeed * 1.25);
+                CAMERA_ANIMATION.velocityLon = (CAMERA_ANIMATION.velocityLon + (shortestLongitudeDelta * 0.03)) * CAMERA_ANIMATION.followInertia;
+                CAMERA_ANIMATION.velocityLat = (CAMERA_ANIMATION.velocityLat + (desiredLat - MAP_CAMERA.centerLat) * 0.025) * CAMERA_ANIMATION.followInertia;
+                CAMERA_ANIMATION.velocityZoom = (CAMERA_ANIMATION.velocityZoom + (desiredZoom - MAP_CAMERA.zoom) * 0.08) * CAMERA_ANIMATION.followInertia;
+
+                MAP_CAMERA.centerLon = normalizeLongitude(MAP_CAMERA.centerLon + CAMERA_ANIMATION.velocityLon);
+                MAP_CAMERA.centerLat = clamp(MAP_CAMERA.centerLat + CAMERA_ANIMATION.velocityLat, -80, 80);
+                MAP_CAMERA.zoom = clamp(MAP_CAMERA.zoom + CAMERA_ANIMATION.velocityZoom, 0.7, getMaxUiZoom());
+                CAMERA_ANIMATION.targetLon = MAP_CAMERA.centerLon;
+                CAMERA_ANIMATION.targetLat = MAP_CAMERA.centerLat;
+                CAMERA_ANIMATION.targetZoom = desiredZoom;
+            } else {
+                const driftScale = CAMERA_ANIMATION.mode === 'country' ? 7 : CAMERA_ANIMATION.mode === 'region' ? 10 : 13;
+                const driftLon = Math.sin(CAMERA_ANIMATION.globeDrift) * driftScale + Math.cos(CAMERA_ANIMATION.orbitPhase) * (CAMERA_ANIMATION.mode === 'country' ? 3.8 : 5.5);
+                const driftLat = Math.sin(CAMERA_ANIMATION.globeDrift * 0.7) * (CAMERA_ANIMATION.mode === 'country' ? 5 : 6) + Math.cos(CAMERA_ANIMATION.orbitPhase * 0.8) * (CAMERA_ANIMATION.mode === 'country' ? 2.7 : 3.8);
+                const easedLon = normalizeLongitude(CAMERA_ANIMATION.targetLon + driftLon);
+                const easedLat = clamp(CAMERA_ANIMATION.targetLat + driftLat, -24, 56);
+
+                MAP_CAMERA.centerLon = lerp(MAP_CAMERA.centerLon, easedLon, animationSpeed);
+                MAP_CAMERA.centerLat = lerp(MAP_CAMERA.centerLat, easedLat, animationSpeed);
+                MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, CAMERA_ANIMATION.targetZoom, animationSpeed * 1.25);
+            }
+
             CAMERA_ANIMATION.globeDrift += animationSpeed * 1.2;
             CAMERA_ANIMATION.orbitPhase += animationSpeed * 1.2;
             renderGlobeOverlay(svg, width, height);
@@ -1160,6 +1376,24 @@
                 const targetId = event.target.value;
                 CAMERA_ANIMATION.lastSwitch = performance.now();
                 applyTargetSelection(targetId);
+            });
+        }
+
+        const resetButton = document.querySelector('[data-map-reset]');
+        if (resetButton) {
+            resetButton.addEventListener('click', function () {
+                clearFocusTarget();
+                CAMERA_ANIMATION.velocityLon = 0;
+                CAMERA_ANIMATION.velocityLat = 0;
+                CAMERA_ANIMATION.velocityZoom = 0;
+                CAMERA_ANIMATION.targetLon = DEFAULT_VIEW.lon;
+                CAMERA_ANIMATION.targetLat = DEFAULT_VIEW.lat;
+                CAMERA_ANIMATION.targetZoom = getTargetZoomForMode(CAMERA_ANIMATION.mode);
+                MAP_CAMERA.centerLon = CAMERA_ANIMATION.targetLon;
+                MAP_CAMERA.centerLat = CAMERA_ANIMATION.targetLat;
+                MAP_CAMERA.zoom = CAMERA_ANIMATION.targetZoom;
+                MAP_UI_STATE.zoom = CAMERA_ANIMATION.targetZoom;
+                syncUiControls();
             });
         }
 
