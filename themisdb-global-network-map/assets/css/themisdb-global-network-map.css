@@ -46,6 +46,27 @@
     flex-wrap: wrap;
 }
 
+.themisdb-global-network-map__toggle,
+.themisdb-global-network-map__button {
+    appearance: none;
+    border: 1px solid rgba(162, 212, 255, 0.22);
+    background: rgba(12, 27, 41, 0.58);
+    color: var(--themisdb-gnm-muted);
+    border-radius: 999px;
+    padding: 0.42rem 0.78rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.themisdb-global-network-map__toggle.is-enabled,
+.themisdb-global-network-map__button:hover {
+    border-color: rgba(166, 226, 255, 0.4);
+    box-shadow: 0 0 0 1px rgba(164, 216, 255, 0.18), 0 0 18px rgba(123, 195, 255, 0.12);
+}
+
 .themisdb-global-network-map__mode {
     appearance: none;
     border: 1px solid rgba(162, 212, 255, 0.22);
