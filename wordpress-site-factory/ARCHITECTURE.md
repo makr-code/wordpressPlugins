@@ -247,6 +247,23 @@ Der Übergang erfolgt in diesem Muster:
 6. Replikation mit Validierung prüfen
 7. Go-live nur mit dokumentierter Differenzliste
 
+### 6.6 Migrations-Checkliste für Greenfield- und Live-Delta-Übergänge
+
+Für jede neue ThemisDB-Installation oder Migration gilt die folgende Ausführungsreihenfolge als verbindlicher Ablauf:
+
+- [ ] Zielmodell und Scope prüfen: Theme, Plugins, Site-Config und Seitenmodell festlegen
+- [ ] Source-Bridge und Canonical-Inputs prüfen: `source-links/`, Markdown-/Dokumentquellen und Medienordner validieren
+- [ ] Delta-Liste der Live-Instanz erfassen: Theme, Plugins, Seiten, Slugs, Tags, Domain, Redirects, Medien und Legacy-HTML dokumentieren
+- [ ] Greenfield-Target aufbauen: WordPress-Connection, Theme, Plugins und reservierte Taxonomie aus `config/*` anwenden
+- [ ] Public-Page-Model erzeugen: Home, Features, Documentation, Blog, Downloads, Pricing, Support und Referenzseiten sichern
+- [ ] Redirect- und URL-Plan definieren: Canonical-URL, Slugs, 301/302-Regeln und Übergang von Legacy-URLs kennzeichnen
+- [ ] Inhalte importieren: Markdown-/Block-Format normalisieren, Metadaten validieren und semantische Tags zuordnen
+- [ ] Medien importieren: Dateien, Attachments und Bild-Links mit stabilen Namen und zugeordneten Slugs migrieren
+- [ ] Replikations-Check durchführen: Seiten, Tags, Links, Redirects und Frontend-Auswahl gegen das Zielmodell validieren
+- [ ] Go-live Freigabe: nur mit dokumentierter Differenzliste und erfolgreicher Validierung freigeben
+
+Der Checklisten-Block ist die verbindliche Execute-Liste für neue Instanzen und für den Wechsel von einer laufenden Installation auf das Greenfield-Zielmodell.
+
 ## 7. Abgrenzung Greenfield-Setup vs. Live-Differenz
 
 ### Greenfield-Setup
