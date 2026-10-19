@@ -11,41 +11,41 @@
     };
 
     const MAP_MODE_SETTINGS = {
-        globe: { zoom: 1.35, maxZoom: 2.4, globeScale: 1.45, animationSpeed: 0.0045 },
-        region: { zoom: 3.2, maxZoom: 4.8, globeScale: 2.8, animationSpeed: 0.008 },
-        country: { zoom: 4.8, maxZoom: 6.2, globeScale: 4.6, animationSpeed: 0.012 }
+        globe: { zoom: 1.3, maxZoom: 3.2, globeScale: 1.45, animationSpeed: 0.005 },
+        region: { zoom: 2.1, maxZoom: 5.4, globeScale: 2.9, animationSpeed: 0.009 },
+        country: { zoom: 3.2, maxZoom: 6.6, globeScale: 4.2, animationSpeed: 0.013 }
     };
 
     const MAP_COLOR_THEMES = {
         ocean: {
             background: '#071a2b',
-            oceanStart: '#0d233a',
-            oceanEnd: '#081a2a',
-            land: 'rgba(157, 188, 206, 0.62)',
-            landStroke: 'rgba(237, 245, 255, 0.58)',
-            globe: 'rgba(19, 48, 68, 0.92)',
-            glow: 'rgba(156, 214, 255, 0.22)',
-            accent: 'rgba(153, 205, 255, 0.12)'
+            oceanStart: '#113a58',
+            oceanEnd: '#071a2b',
+            land: 'rgba(196, 232, 248, 0.98)',
+            landStroke: 'rgba(246, 250, 255, 1)',
+            globe: 'rgba(18, 46, 64, 0.98)',
+            glow: 'rgba(126, 196, 255, 0.46)',
+            accent: 'rgba(153, 205, 255, 0.22)'
         },
         aurora: {
             background: '#071d2d',
-            oceanStart: '#0d3243',
+            oceanStart: '#144d63',
             oceanEnd: '#081f2a',
-            land: 'rgba(112, 197, 176, 0.68)',
-            landStroke: 'rgba(221, 255, 243, 0.6)',
-            globe: 'rgba(15, 58, 69, 0.94)',
-            glow: 'rgba(121, 228, 210, 0.22)',
-            accent: 'rgba(132, 244, 223, 0.14)'
+            land: 'rgba(135, 225, 211, 0.98)',
+            landStroke: 'rgba(236, 255, 250, 1)',
+            globe: 'rgba(15, 58, 69, 0.98)',
+            glow: 'rgba(121, 228, 210, 0.46)',
+            accent: 'rgba(132, 244, 223, 0.22)'
         },
         night: {
             background: '#090d1d',
-            oceanStart: '#101a2f',
+            oceanStart: '#1d2646',
             oceanEnd: '#090c18',
-            land: 'rgba(145, 160, 220, 0.64)',
-            landStroke: 'rgba(228, 235, 255, 0.6)',
-            globe: 'rgba(26, 28, 50, 0.94)',
-            glow: 'rgba(156, 170, 255, 0.22)',
-            accent: 'rgba(169, 183, 255, 0.14)'
+            land: 'rgba(179, 191, 246, 0.98)',
+            landStroke: 'rgba(239, 244, 255, 1)',
+            globe: 'rgba(26, 29, 52, 0.98)',
+            glow: 'rgba(156, 170, 255, 0.46)',
+            accent: 'rgba(169, 183, 255, 0.22)'
         }
     };
 
@@ -127,10 +127,24 @@
         return ((longitude + 540) % 360) - 180;
     }
 
-    function projectOrthographicPoint(lon, lat, width, height, centerLon, centerLat) {
+    function getVisualGlobeScale() {
         const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
-        const focusScale = (modeSettings.globeScale || 1) * (MAP_CAMERA.zoom || 1);
-        const radius = Math.min(width, height) * 0.36 * focusScale;
+        const zoomFactor = clamp(MAP_CAMERA.zoom || 1, 0.7, 22);
+        const focusBoost = clamp((modeSettings.globeScale || 1) - 1, 0, 4.5);
+        const rawScale = 0.9 + (zoomFactor - 1) * 0.32 + focusBoost * 0.42;
+        return clamp(rawScale, 0.9, 4.6);
+    }
+
+    function getGlobeRenderRadius(width, height) {
+        const baseRadius = Math.max(1, Math.min(width || 1, height || 1)) * 0.36;
+        const visualScale = getVisualGlobeScale();
+        const maxRadius = baseRadius * 2.2;
+        const targetRadius = baseRadius * visualScale;
+        return clamp(targetRadius, baseRadius * 0.78, maxRadius);
+    }
+
+    function projectOrthographicPoint(lon, lat, width, height, centerLon, centerLat) {
+        const radius = getGlobeRenderRadius(width, height);
         const lonDelta = normalizeLongitude(lon - centerLon) * Math.PI / 180;
         const latRad = lat * Math.PI / 180;
         const centerLatRad = centerLat * Math.PI / 180;
@@ -375,8 +389,7 @@
         }
 
         const theme = getActiveColorTheme();
-        const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
-        const globeRadius = Math.min(width, height) * 0.36 * (modeSettings.globeScale || 1) * (MAP_CAMERA.zoom || 1);
+        const globeRadius = getGlobeRenderRadius(width, height);
         const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         layer.setAttribute('id', 'themisdb-globe-layer');
         layer.setAttribute('filter', 'url(#themisdb-land-shadow)');
@@ -501,8 +514,7 @@
         const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
         clipPath.setAttribute('id', 'themisdb-globe-clip');
         const globeClipCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
-        const globeRadius = Math.min(width, height) * 0.36 * (modeSettings.globeScale || 1) * (MAP_CAMERA.zoom || 1);
+        const globeRadius = getGlobeRenderRadius(width, height);
         globeClipCircle.setAttribute('cx', String(width / 2));
         globeClipCircle.setAttribute('cy', String(height / 2));
         globeClipCircle.setAttribute('r', String(globeRadius));
@@ -877,6 +889,7 @@
             const nextMode = MAP_MODE_SETTINGS[mode] ? mode : 'globe';
             CAMERA_ANIMATION.mode = nextMode;
             CAMERA_ANIMATION.targetZoom = MAP_MODE_SETTINGS[nextMode].zoom;
+            MAP_UI_STATE.zoom = clamp(CAMERA_ANIMATION.targetZoom, 0.7, getMaxUiZoom());
 
             const buttons = document.querySelectorAll('[data-map-mode]');
             buttons.forEach(function (button) {
@@ -884,6 +897,7 @@
                 button.classList.toggle('is-active', active);
             });
 
+            syncUiControls();
             buildBaseMap(width, height);
         }
 
@@ -898,8 +912,11 @@
             CAMERA_ANIMATION.orbitPhase = Math.random() * Math.PI * 2;
 
             const modeSettings = MAP_MODE_SETTINGS[CAMERA_ANIMATION.mode] || MAP_MODE_SETTINGS.globe;
-            const baseZoom = CAMERA_ANIMATION.mode === 'country' ? 10.6 : CAMERA_ANIMATION.mode === 'region' ? 6.2 : 2.1;
-            CAMERA_ANIMATION.targetZoom = clamp(baseZoom, modeSettings.zoom, modeSettings.maxZoom);
+            const baseZoom = CAMERA_ANIMATION.mode === 'country' ? 5.8 : CAMERA_ANIMATION.mode === 'region' ? 4.2 : 2.3;
+            const nextZoom = clamp(baseZoom, modeSettings.zoom, modeSettings.maxZoom);
+            CAMERA_ANIMATION.targetZoom = nextZoom;
+            MAP_UI_STATE.zoom = clamp(nextZoom, 0.7, getMaxUiZoom());
+            syncUiControls();
         }
 
         function pickRandomTarget() {
@@ -928,6 +945,8 @@
         function updateCamera(now) {
             if (!MAP_UI_STATE.animationEnabled) {
                 MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, clamp(MAP_UI_STATE.zoom, 0.7, getMaxUiZoom()), 0.08);
+                MAP_UI_STATE.zoom = clamp(MAP_CAMERA.zoom, 0.7, getMaxUiZoom());
+                syncUiControls();
                 return;
             }
 
@@ -947,6 +966,7 @@
             MAP_CAMERA.centerLon = lerp(MAP_CAMERA.centerLon, easedLon, animationSpeed);
             MAP_CAMERA.centerLat = lerp(MAP_CAMERA.centerLat, easedLat, animationSpeed);
             MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom, CAMERA_ANIMATION.targetZoom, animationSpeed * 1.25);
+            MAP_UI_STATE.zoom = clamp(MAP_CAMERA.zoom, 0.7, getMaxUiZoom());
             CAMERA_ANIMATION.globeDrift += animationSpeed * 1.2;
             CAMERA_ANIMATION.orbitPhase += animationSpeed * 1.2;
             renderGlobeOverlay(svg, width, height);

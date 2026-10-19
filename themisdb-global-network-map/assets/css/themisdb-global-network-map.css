@@ -161,7 +161,7 @@
 .themisdb-global-network-map__canvas-wrap {
     position: relative;
     padding: 0;
-    background: linear-gradient(180deg, rgba(10, 26, 40, 0.9), rgba(7, 18, 29, 0.96));
+    background: radial-gradient(circle at 50% 40%, rgba(31, 67, 95, 0.78), rgba(9, 24, 40, 0.96) 52%, rgba(5, 14, 22, 1) 100%);
 }
 
 .themisdb-global-network-map__svg,

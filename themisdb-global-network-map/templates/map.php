@@ -47,7 +47,7 @@ if (!defined('ABSPATH')) {
 
             <label class="themisdb-global-network-map__control" aria-label="Map zoom">
                 <span>Zoom</span>
-                <input id="themisdb-global-network-map-zoom" type="range" min="0.7" max="14" step="0.05" value="1.1" />
+                <input id="themisdb-global-network-map-zoom" type="range" min="0.7" max="22" step="0.05" value="1.8" />
             </label>
 
             <label class="themisdb-global-network-map__control themisdb-global-network-map__control--select" aria-label="Map color palette">

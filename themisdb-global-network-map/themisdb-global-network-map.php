@@ -3,7 +3,7 @@
  * Plugin Name: ThemisDB Global Network Map
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Description: Canvas-based world heatmap showing live ThemisDB runtime locations derived from network IP ranges.
- * Version: 0.1.2
+ * Version: 0.1.3
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('THEMISDB_GNM_VERSION', '0.1.2');
+define('THEMISDB_GNM_VERSION', '0.1.3');
 define('THEMISDB_GNM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_GNM_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -43,18 +43,21 @@ class ThemisDB_Global_Network_Map {
                 return;
             }
 
+            $css_version = THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/css/themisdb-global-network-map.css');
+            $js_version = THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/js/themisdb-global-network-map.js');
+
             wp_enqueue_style(
                 'themisdb-global-network-map-style',
                 THEMISDB_GNM_PLUGIN_URL . 'assets/css/themisdb-global-network-map.css',
                 array(),
-                THEMISDB_GNM_VERSION
+                $css_version
             );
 
             wp_enqueue_script(
                 'themisdb-global-network-map-script',
                 THEMISDB_GNM_PLUGIN_URL . 'assets/js/themisdb-global-network-map.js',
                 array(),
-                THEMISDB_GNM_VERSION,
+                $js_version,
                 true
             );
 
