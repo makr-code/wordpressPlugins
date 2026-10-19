@@ -34,6 +34,19 @@ Apply the full setup:
 python build_site.py --profile local-test
 ```
 
+## Architecture and migration contract
+
+The authoritative reference for the WordPress site factory is the architecture and migration contract in [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+It defines:
+
+- the greenfield target model for new ThemisDB installations
+- theme, plugin, and page structure
+- reserved tag model and taxonomy boundaries
+- URL/domain strategy and slug conventions
+- import and migration contract for content, media, and redirects
+- the explicit delta between greenfield setup and live-instance differences
+
 ## Current scope
 
 This factory is intentionally aligned with the existing ThemisDB repo setup:
