@@ -64,8 +64,9 @@ Details und konkrete Umsetzung:
 
 ## Betriebsrelevante Dokumente
 
-- [docs/plugins/WORDPRESS_PLUGIN_AUTOMATIC_UPDATES.md](../docs/plugins/WORDPRESS_PLUGIN_AUTOMATIC_UPDATES.md)
-- [docs/ci-cd/WORDPRESS_PLUGIN_OPERATIONS.md](../docs/ci-cd/WORDPRESS_PLUGIN_OPERATIONS.md)
+- [docs/WORDPRESS_CICD_AI_GUIDELINES.md](docs/WORDPRESS_CICD_AI_GUIDELINES.md)
+- [docs/RELEASE_STRATEGY.md](docs/RELEASE_STRATEGY.md)
+- [docs/VERSIONING_STRATEGY.md](docs/VERSIONING_STRATEGY.md)
 
 ## Naechste Umsetzungsschritte (Kurzfristig)
 
