@@ -50,14 +50,7 @@ def resolve_parent_page_id(base_url: str, user: str, password: str, parent_value
 def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, Any]) -> Dict[str, Any]:
     slug = page_data["slug"]
     existing = find_page_by_slug(base_url, user, password, slug)
-    parent_slug = page_data.get("parent")
-    parent_id = None
-    if parent_slug:
-        parent_page = find_page_by_slug(base_url, user, password, parent_slug)
-        if isinstance(parent_page, dict):
-            parent_id_candidate = parent_page.get("id")
-            if isinstance(parent_id_candidate, int):
-                parent_id = parent_id_candidate
+    parent_id = resolve_parent_page_id(base_url, user, password, page_data.get("parent"))
 
     payload = {
         "title": page_data["title"],
@@ -68,10 +61,13 @@ def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, An
     }
 
     template = page_data.get("template")
-    if template:
-        payload["template"] = template
+    if template and str(template).strip():
+        candidate = str(template).strip()
+        if candidate.lower() in {"default"}:
+            payload["template"] = candidate
+    # Template values are theme-specific and may be rejected by WordPress when the active
+    # theme does not declare them. Omitting them is the safe default for production runs.
 
-    parent_id = resolve_parent_page_id(base_url, user, password, page_data.get("parent"))
     if parent_id is not None:
         payload["parent"] = parent_id
 

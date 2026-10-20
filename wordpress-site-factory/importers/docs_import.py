@@ -22,16 +22,16 @@ import requests
 ROOT = Path(__file__).resolve().parents[1]
 DOCS_CACHE_PATH = ROOT / "output" / "docs_cache.json"
 TAXONOMY_PATH = ROOT / "config" / "taxonomy.json"
-SITE_CONFIG_PATH = ROOT / "config" / "site.json"
+SITE_CONFIG_PATH = ROOT.parent / ".secure" / "site.json"
 
 
 def load_site_config() -> Dict[str, Any]:
     if not SITE_CONFIG_PATH.exists():
-        return {}
+        raise FileNotFoundError(f"Missing secure config at {SITE_CONFIG_PATH}. Place WordPress credentials in .secure/site.json.")
     try:
         return json.loads(SITE_CONFIG_PATH.read_text(encoding="utf-8"))
     except Exception:
-        return {}
+        raise RuntimeError(f"Failed to parse secure config at {SITE_CONFIG_PATH}.")
 
 
 DEFAULT_BASE_URL = os.environ.get("WP_BASE_URL") or load_site_config().get("wordpress", {}).get("base_url", "http://localhost/wordpress")
@@ -186,19 +186,28 @@ def primary_category_for_tags(tags: Iterable[str]) -> str:
     return "documentation"
 
 
-def ensure_term_id(base_url: str, user: str, password: str, taxonomy: str, term_name: str) -> int:
+def ensure_term_id(base_url: str, user: str, password: str, taxonomy: str, term_name: str) -> Optional[int]:
     slug = term_name.strip().lower().replace("_", "-")
     search_path = f"wp-json/wp/v2/{taxonomy}?search={slug}&per_page=20"
-    results = rest_request(base_url, user, password, search_path)
+    try:
+        results = rest_request(base_url, user, password, search_path)
+    except Exception:
+        results = []
     if isinstance(results, list):
         for item in results:
             if isinstance(item, dict) and item.get("slug") == slug:
                 return int(item["id"])
     create_payload = {"name": term_name, "slug": slug}
-    created = rest_request(base_url, user, password, f"wp-json/wp/v2/{taxonomy}", method="POST", payload=create_payload)
+    try:
+        created = rest_request(base_url, user, password, f"wp-json/wp/v2/{taxonomy}", method="POST", payload=create_payload)
+    except RuntimeError as exc:
+        message = str(exc).lower()
+        if "401" in message or "403" in message or "rest_cannot_create" in message or "cannot_create" in message:
+            return None
+        raise
     if isinstance(created, dict) and "id" in created:
         return int(created["id"])
-    raise RuntimeError(f"Unable to resolve taxonomy term '{term_name}' for {taxonomy}")
+    return None
 
 
 def resolve_term_ids(base_url: str, user: str, password: str, taxonomy: str, term_names: Iterable[str]) -> List[int]:
@@ -209,7 +218,9 @@ def resolve_term_ids(base_url: str, user: str, password: str, taxonomy: str, ter
         if not slug or slug in seen:
             continue
         seen.add(slug)
-        ids.append(ensure_term_id(base_url, user, password, taxonomy, name))
+        term_id = ensure_term_id(base_url, user, password, taxonomy, name)
+        if term_id is not None:
+            ids.append(term_id)
     return ids
 
 

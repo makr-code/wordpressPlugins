@@ -307,3 +307,22 @@ def test_research_tag_requires_doi_when_reviewed_and_published():
     invalid_frontmatter = "--- title: \"Research paper\"; slug: \"research-paper\"; tag: research; status: publish; reviewed: true; review_status: peer-reviewed; category: documentation; hash: \"abc123\" ---\n"
     invalid_result = docs_manifest.validate_frontmatter_metadata(invalid_frontmatter)
     assert "missing_research_doi" in invalid_result["issues"]
+
+
+def test_resolve_term_ids_skips_terms_the_user_cannot_create():
+    original = docs_import.rest_request
+
+    def fake_rest_request(base_url, user, password, path, method="GET", payload=None):
+        if path == "wp-json/wp/v2/categories?search=architecture&per_page=20":
+            return []
+        if path == "wp-json/wp/v2/categories":
+            raise RuntimeError("REST call failed: POST https://example.com/wp-json/wp/v2/categories -> 401: {\"code\":\"rest_cannot_create\"}")
+        if path == "wp-json/wp/v2/categories?search=documentation&per_page=20":
+            return [{"id": 42, "slug": "documentation"}]
+        return []
+
+    docs_import.rest_request = fake_rest_request
+    try:
+        assert docs_import.resolve_term_ids("https://example.com", "admin", "pw", "categories", ["documentation", "architecture"]) == [42]
+    finally:
+        docs_import.rest_request = original

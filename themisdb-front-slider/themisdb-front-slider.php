@@ -816,57 +816,19 @@ function themisdb_fs_save_hero_focus_metabox( $post_id ) {
  *   img_size      – WP image size                   (default: large)
  * ---------------------------------------------------------------------- */
 
+function themisdb_fs_allow_demo_fallback() {
+    $option_value = get_option( 'themisdb_fs_allow_demo_fallback', false );
+    $allowed = filter_var( $option_value, FILTER_VALIDATE_BOOLEAN );
+
+    return (bool) apply_filters( 'themisdb_front_slider_allow_demo_fallback', $allowed );
+}
+
+add_filter( 'themisdb_front_slider_allow_demo_fallback', '__return_false', 999 );
+
 function themisdb_fs_get_demo_slides( $posts_count, $variant ) {
-    $slides = array(
-        array(
-            'title' => 'ThemisDB Search Studio',
-            'url' => '#demo-search-studio',
-            'date' => '2024-10-18',
-            'excerpt' => 'Semantic search, hybrid ranking and context-rich retrieval workflows for AI-friendly data access.',
-            'thumbnail' => '',
-        ),
-        array(
-            'title' => 'Graph Collaboration Layer',
-            'url' => '#demo-graph-layer',
-            'date' => '2024-10-16',
-            'excerpt' => 'Model relationships across documents, entities and processes to reveal hidden patterns in your data.',
-            'thumbnail' => '',
-        ),
-        array(
-            'title' => 'Operational Guardrails',
-            'url' => '#demo-guardrails',
-            'date' => '2024-10-14',
-            'excerpt' => 'Monitoring, safety checks and governance guardrails that keep production workloads stable and explainable.',
-            'thumbnail' => '',
-        ),
-        array(
-            'title' => 'Release Timeline',
-            'url' => '#demo-release-timeline',
-            'date' => '2024-10-12',
-            'excerpt' => 'Your product roadmap, feature signals and milestone visibility in one clear timeline.',
-            'thumbnail' => '',
-        ),
-        array(
-            'title' => 'AI-ready Deployment Paths',
-            'url' => '#demo-deployment',
-            'date' => '2024-10-09',
-            'excerpt' => 'Ship modern AI workflows with resilient deployment patterns and maintainable operational defaults.',
-            'thumbnail' => '',
-        ),
-    );
+    $posts_count = max( 1, absint( $posts_count ) );
 
-    $items = array_slice( $slides, 0, max( 1, min( (int) $posts_count, 5 ) ) );
-    foreach ( $items as $index => $slide ) {
-        $items[ $index ] = array_merge(
-            $slide,
-            array(
-                'id' => 0 - ( $index + 1 ),
-                'variant' => $variant,
-            )
-        );
-    }
-
-    return $items;
+    return array();
 }
 
 add_filter( 'the_content', 'shortcode_unautop', 9 );
@@ -996,47 +958,9 @@ function themisdb_fs_shortcode( $atts ) {
     $slides = array();
     $demo_fallback_items = array();
     if ( ! $query->have_posts() ) {
-        $demo_fallback_items = themisdb_fs_get_demo_slides( $posts_count, $variant );
-        $demo_posts = array();
-        foreach ( $demo_fallback_items as $index => $slide ) {
-            $post_id = (int) ( 0 - ( $index + 1 ) );
-            $demo_posts[] = new WP_Post(
-                (object) array(
-                    'ID'                    => $post_id,
-                    'post_author'           => 0,
-                    'post_date'             => current_time( 'mysql' ),
-                    'post_date_gmt'         => current_time( 'mysql', 1 ),
-                    'post_content'          => $slide['excerpt'],
-                    'post_title'            => $slide['title'],
-                    'post_excerpt'          => $slide['excerpt'],
-                    'post_status'           => 'publish',
-                    'comment_status'        => 'closed',
-                    'ping_status'           => 'closed',
-                    'post_password'         => '',
-                    'post_name'             => sanitize_title( $slide['title'] ),
-                    'to_ping'               => '',
-                    'pinged'                => '',
-                    'post_modified'         => current_time( 'mysql' ),
-                    'post_modified_gmt'     => current_time( 'mysql', 1 ),
-                    'post_content_filtered' => '',
-                    'post_parent'           => 0,
-                    'guid'                  => home_url( '/' ) . '?p=' . $post_id,
-                    'menu_order'            => 0,
-                    'post_type'             => 'post',
-                    'post_mime_type'        => '',
-                    'comment_count'         => 0,
-                    'filter'                => 'raw',
-                    'post_category'         => array(),
-                )
-            );
-        }
-
-        $query->posts = $demo_posts;
-        $query->post_count = count( $demo_posts );
-        $query->found_posts = $query->post_count;
-        $query->max_num_pages = 1;
-        $query->current_post = -1;
-        $query->rewind_posts();
+        // Keep the slider container visible even in an empty state, but never
+        // inject placeholder content or an empty paragraph message.
+        $slides = array();
     }
 
     foreach ( $query->posts as $index => $post_obj ) {
@@ -1060,10 +984,6 @@ function themisdb_fs_shortcode( $atts ) {
             'thumbnail' => $is_demo && ! empty( $demo_data ) ? (string) $demo_data['thumbnail'] : (string) get_the_post_thumbnail_url( $post_obj->ID, 'full' ),
             'variant' => $variant,
         );
-    }
-
-    if ( empty( $slides ) ) {
-        return '<p class="themisdb-fs-no-posts">' . esc_html( $labels['empty'] ) . '</p>';
     }
 
     $initial_active_id = 0;

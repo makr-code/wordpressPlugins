@@ -16,7 +16,7 @@ entry point instead of spreading the logic across unrelated scripts.
 - `taxonomy.py` — creates the reserved public/restricted/descriptive tags
 - `pages.py` — creates the public site hierarchy and key pages
 - `validation.py` — validates the public content model and homepage behavior
-- `config/site.json` — WordPress connection + site config
+- `.secure/site.json` — WordPress connection + site config (kept outside the tracked repo tree)
 - `config/taxonomy.json` — semantic tag definitions
 - `config/pages.json` — site hierarchy and page metadata
 

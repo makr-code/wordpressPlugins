@@ -131,11 +131,17 @@ class ThemisDB_Global_Network_Map {
                 $css_version
             );
 
+            $three_file = THEMISDB_GNM_PLUGIN_DIR . 'assets/vendor/three.min.js';
+            $three_url = file_exists($three_file)
+                ? THEMISDB_GNM_PLUGIN_URL . 'assets/vendor/three.min.js'
+                : 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+            $three_version = file_exists($three_file) ? filemtime($three_file) : 'r128';
+
             wp_enqueue_script(
                 'themisdb-global-network-map-three',
-                'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+                $three_url,
                 array(),
-                'r128',
+                $three_version,
                 true
             );
 
@@ -154,15 +160,34 @@ class ThemisDB_Global_Network_Map {
                 'show_controls' => true,
             );
 
+            $geojson_path = THEMISDB_GNM_PLUGIN_DIR . 'assets/data/world.geojson';
+            $geojson_url = THEMISDB_GNM_PLUGIN_URL . 'assets/data/world.geojson';
+            $geojson = null;
+            if (file_exists($geojson_path)) {
+                $geojson_size = filesize($geojson_path);
+                if ($geojson_size !== false && $geojson_size <= 25 * 1024 * 1024) {
+                    $geojson_raw = file_get_contents($geojson_path);
+                    if ($geojson_raw !== false) {
+                        $decoded_geojson = json_decode($geojson_raw, true);
+                        if (is_array($decoded_geojson)) {
+                            $geojson = $decoded_geojson;
+                        }
+                    }
+                }
+            }
+
             wp_localize_script('themisdb-global-network-map-script', 'themisdbGnmData', array(
                 'nodes' => $this->get_network_nodes($atts['mode'], $atts['max_nodes']),
                 'title' => '',
                 'mode' => $this->normalize_mode($atts['mode']),
                 'theme' => sanitize_key($atts['theme']),
-                'showControls' => !empty($atts['show_controls']),
-                'geojsonUrl' => THEMISDB_GNM_PLUGIN_URL . 'assets/data/world.geojson',
-                'hasLocalGeojson' => file_exists(THEMISDB_GNM_PLUGIN_DIR . 'assets/data/world.geojson'),
-                'allowDemoFallback' => (bool) get_option('themisdb_gnm_allow_demo_fallback', true),
+                'showControls' => !empty($atts['show_controls']) ? 1 : 0,
+                'threeUrl' => $three_url,
+                'geojson' => $geojson,
+                'geojsonUrl' => $geojson_url,
+                'hasLocalGeojson' => $geojson !== null ? 1 : 0,
+                'allowDemoFallback' => (bool) get_option('themisdb_gnm_allow_demo_fallback', true) ? 1 : 0,
+                'debugProjection' => 0,
             ));
         }
     }
@@ -203,12 +228,18 @@ class ThemisDB_Global_Network_Map {
             return;
         }
 
+        $three_file = THEMISDB_GNM_PLUGIN_DIR . 'assets/vendor/three.min.js';
+        $three_url = file_exists($three_file)
+            ? THEMISDB_GNM_PLUGIN_URL . 'assets/vendor/three.min.js'
+            : 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+
         $data = array(
             'nodes' => $nodes,
             'title' => sanitize_text_field($atts['title']),
             'mode' => $this->normalize_mode($atts['mode']),
             'theme' => sanitize_key($atts['theme']),
             'showControls' => !empty($atts['show_controls']),
+            'threeUrl' => $three_url,
             'geojsonUrl' => THEMISDB_GNM_PLUGIN_URL . 'assets/data/world.geojson',
             'hasLocalGeojson' => file_exists(THEMISDB_GNM_PLUGIN_DIR . 'assets/data/world.geojson'),
             'allowDemoFallback' => (bool) get_option('themisdb_gnm_allow_demo_fallback', true),

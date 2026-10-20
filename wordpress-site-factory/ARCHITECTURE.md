@@ -47,7 +47,7 @@ Das ist der Mindest-Contract für eine betriebene ThemisDB-WordPress-Site. Abwei
 - `taxonomy.py` – erstellt die reservierten Tags und trennt Auswahl-, Sichtbarkeits- und Descriptive-Tags
 - `pages.py` – erzeugt die öffentliche Seitenstruktur und setzt die Startseite
 - `validation.py` – prüft die installierten Strukturen und erwartet Public-Model-Validität
-- `config/site.json` – System- und Site-Config pro Profil
+- `.secure/site.json` – System- und Site-Config pro Profil, getrennt vom Git-tracked Repo
 - `config/taxonomy.json` – verbindliche Tag-Spezifikation
 - `config/pages.json` – definierte Seitenstruktur mit Slugs, Menu-Order und Tags
 

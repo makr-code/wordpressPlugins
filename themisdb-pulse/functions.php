@@ -4383,16 +4383,67 @@ function themisdb_v3_enqueue_assets() {
 }
 
 /**
+ * Return whether the current page is in a support-related frontend context.
+ *
+ * The support portal and login UI must be scoped to support pages or pages that
+ * actually render the plugin shortcodes. They must not appear on the general
+ * homepage, blog listings, or other unrelated pages just because the plugin is
+ * registered.
+ *
+ * @return bool
+ */
+function themisdb_v3_is_support_ui_context() {
+    if ( is_admin() ) {
+        return false;
+    }
+
+    if ( themisdb_v3_is_support_page_bridge() ) {
+        return true;
+    }
+
+    if ( ! is_singular() ) {
+        return false;
+    }
+
+    global $post;
+    if ( ! ( $post instanceof WP_Post ) ) {
+        return false;
+    }
+
+    $slug = sanitize_title( (string) $post->post_name );
+    if ( in_array( $slug, array( 'support', 'kundenportal', 'support-portal' ), true ) ) {
+        return true;
+    }
+
+    $content = (string) $post->post_content;
+    if ( '' === $content ) {
+        return false;
+    }
+
+    foreach ( array( 'themisdb_support_portal', 'themisdb_support_login', 'themisdb_support_hub', 'themisdb_lifecycle_portal', 'themisdb_cockpit', 'themisdb_login' ) as $tag ) {
+        if ( shortcode_exists( $tag ) && has_shortcode( $content, $tag ) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * Determine whether plugin-driven login overlay should be rendered.
  *
  * @return bool
  */
 function themisdb_v3_has_plugin_login_overlay() {
-    if ( themisdb_v3_is_support_page_bridge() || themisdb_v3_current_page_uses_plugin_login_ui() ) {
+    if ( ! themisdb_v3_is_support_ui_context() ) {
         return false;
     }
 
-    return shortcode_exists( 'themisdb_support_portal' ) || shortcode_exists( 'themisdb_login' );
+    if ( themisdb_v3_current_page_uses_plugin_login_ui() ) {
+        return true;
+    }
+
+    return themisdb_v3_is_support_page_bridge();
 }
 
 /**

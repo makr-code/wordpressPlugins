@@ -16,6 +16,10 @@
     --tfs-overlay: linear-gradient(110deg, rgba(13, 42, 71, 0.84) 0%, rgba(10, 32, 58, 0.82) 52%, rgba(8, 25, 48, 0.78) 100%);
     --tfs-overlay-strong: linear-gradient(125deg, rgba(13, 20, 31, 0.78) 0%, rgba(13, 20, 31, 0.52) 40%, rgba(13, 20, 31, 0.25) 100%);
 
+    /* Empty-shell state: keep the hero visible even when there are no posts. */
+    --tfs-empty-bg: linear-gradient(135deg, rgba(8, 23, 40, 0.82) 0%, rgba(19, 46, 75, 0.9) 52%, rgba(24, 63, 95, 0.9) 100%);
+    --tfs-empty-accent: rgba(130, 176, 212, 0.18);
+
     position: relative;
     width: 100%;
     max-width: none;
@@ -275,6 +279,35 @@
     opacity: 1;
 }
 
+.themisdb-fs-wrapper.themisdb-fs-empty {
+    background: var(--tfs-empty-bg);
+    border-color: var(--tfs-empty-accent);
+}
+
+.themisdb-fs-wrapper.themisdb-fs-empty .themisdb-fs-slide,
+.themisdb-fs-wrapper.themisdb-fs-empty .themisdb-fs-track,
+.themisdb-fs-wrapper.themisdb-fs-empty .themisdb-fs-track-outer {
+    height: 100%;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-empty .themisdb-fs-slide {
+    opacity: 1;
+    pointer-events: none;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-empty .themisdb-fs-slide::before {
+    background: linear-gradient(140deg, rgba(13, 42, 71, 0.72), rgba(16, 51, 82, 0.76));
+    opacity: 1;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-empty .themisdb-fs-slide-inner {
+    min-height: inherit;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-empty .themisdb-fs-slide-content {
+    opacity: 0;
+}
+
 .themisdb-fs-wrapper.themisdb-fs-variant-announcement {
     border-top: 0;
     border-bottom: 0;
@@ -283,6 +316,23 @@
     aspect-ratio: auto;
     min-height: 30px;
     height: auto;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-variant-announcement.themisdb-fs-empty {
+    min-height: 30px;
+    background: linear-gradient(135deg, rgba(13, 31, 52, 0.72) 0%, rgba(19, 42, 69, 0.75) 100%);
+}
+
+.themisdb-fs-wrapper.themisdb-fs-variant-announcement.themisdb-fs-empty .themisdb-fs-slide {
+    min-height: 30px;
+}
+
+.themisdb-fs-wrapper.themisdb-fs-variant-announcement.themisdb-fs-empty .themisdb-fs-slide-content,
+.themisdb-fs-wrapper.themisdb-fs-variant-announcement.themisdb-fs-empty .themisdb-fs-ribbons,
+.themisdb-fs-wrapper.themisdb-fs-variant-announcement.themisdb-fs-empty .themisdb-fs-title,
+.themisdb-fs-wrapper.themisdb-fs-variant-announcement.themisdb-fs-empty .themisdb-fs-readmore,
+.themisdb-fs-wrapper.themisdb-fs-variant-announcement.themisdb-fs-empty .themisdb-fs-excerpt {
+    display: none !important;
 }
 
 .themisdb-fs-wrapper.themisdb-fs-variant-announcement .themisdb-fs-slide {

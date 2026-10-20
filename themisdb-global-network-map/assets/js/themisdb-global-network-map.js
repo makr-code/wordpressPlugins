@@ -2,7 +2,7 @@
     'use strict';
 
     const DEFAULT_VIEW = {
-        lon: 8,
+        lon: 12,
         lat: 50
     };
 
@@ -94,7 +94,7 @@
         dragOriginLon: 0,
         dragOriginLat: 0,
         zoom: 1.1,
-        rotationSpeed: 0.35
+        rotationSpeed: 0.1
     };
 
     const EDGE_RENDER_LIMITS = {
@@ -146,7 +146,7 @@
 
     const CAMERA_ANIMATION = {
         mode: 'globe',
-        targetLon: 8,
+        targetLon: 12,
         targetLat: 50,
         targetZoom: 1.15,
         lastSwitch: 0,
@@ -170,17 +170,352 @@
         renderer: null,
         scene: null,
         camera: null,
+        cameraRig: null,
+        earthRoot: null,
+        earthPivot: null,
         globe: null,
         grid: null,
         rafId: null,
         pointer: null,
-        lastTime: 0
+        lastTime: 0,
+        earthSpin: 0,
+        earthPitch: 0
     };
+
+    function ensureThreeLoaded(callback) {
+        if (window.THREE) {
+            if (callback) {
+                callback();
+            }
+            return;
+        }
+
+        const configuredThreeUrl = window.themisdbGnmData && window.themisdbGnmData.threeUrl ? window.themisdbGnmData.threeUrl : null;
+        const fallbackThreeUrl = 'http://localhost/wordpress/wp-content/plugins/themisdb-global-network-map/assets/vendor/three.min.js';
+        const candidateUrl = configuredThreeUrl || fallbackThreeUrl;
+
+        if (document.querySelector('script[data-themisdb-three-loader="true"]')) {
+            window.setTimeout(function () {
+                if (callback) {
+                    callback();
+                }
+            }, 150);
+            return;
+        }
+
+        const loader = document.createElement('script');
+        loader.src = candidateUrl;
+        loader.async = false;
+        loader.setAttribute('data-themisdb-three-loader', 'true');
+        loader.onload = function () {
+            if (callback) {
+                callback();
+            }
+        };
+        loader.onerror = function () {
+            const fallbackUrl = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+            if (fallbackUrl !== candidateUrl && !document.querySelector('script[data-themisdb-three-fallback-loader="true"]')) {
+                const fallbackLoader = document.createElement('script');
+                fallbackLoader.src = fallbackUrl;
+                fallbackLoader.async = false;
+                fallbackLoader.setAttribute('data-themisdb-three-fallback-loader', 'true');
+                fallbackLoader.onload = function () {
+                    if (callback) {
+                        callback();
+                    }
+                };
+                fallbackLoader.onerror = function () {
+                    if (callback) {
+                        callback();
+                    }
+                };
+                document.head.appendChild(fallbackLoader);
+                return;
+            }
+            if (callback) {
+                callback();
+            }
+        };
+        document.head.appendChild(loader);
+    }
 
     let animationFrameHandle = null;
     let lastSvgRenderStamp = 0;
     let svgSceneDirty = true;
     let lastSvgSignature = '';
+
+    window.themisdbGnmData = Object.assign({}, window.themisdbGnmData || {});
+    const debugProjectionParam = window.location && window.location.search ? window.location.search : '';
+
+    function readQueryFlag(name, query) {
+        const source = query === undefined ? debugProjectionParam : query;
+        const match = new RegExp('(?:[?&])' + name + '(?:=([^&]*))?(?:&|$)').exec(source);
+        if (!match) {
+            return false;
+        }
+
+        const rawValue = match[1] === undefined ? '1' : decodeURIComponent(match[1]).replace(/\+/g, ' ');
+        const normalized = String(rawValue).trim().toLowerCase();
+        if (!normalized || normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') {
+            return true;
+        }
+        return !['0', 'false', 'no', 'off', 'disabled'].includes(normalized);
+    }
+
+    function readQueryValue(name, query) {
+        const source = query === undefined ? debugProjectionParam : query;
+        const match = new RegExp('(?:[?&])' + name + '=([^&]+)').exec(source);
+        if (!match) {
+            return null;
+        }
+        return decodeURIComponent(match[1]).replace(/\+/g, ' ');
+    }
+
+    function sanitizeDebugProjectionState() {
+        const currentState = window.themisdbGnmData || {};
+        const debugProjectionFromUrl = readQueryFlag('debugProjection') || readQueryFlag('checkerboard') || readQueryFlag('feature') || readQueryFlag('geojson');
+        const nextState = debugProjectionFromUrl ? true : false;
+        window.themisdbGnmData = Object.assign({}, currentState, {
+            debugProjection: nextState
+        });
+        return nextState;
+    }
+
+    window.__themisdbGlobeDebug = window.__themisdbGlobeDebug || {
+        disableLod: false,
+        disableAntimeridian: false,
+        featureFilter: null,
+        rebuiltAt: 0
+    };
+    window.__themisdbGlobeDebug.disableLod = !!window.__themisdbGlobeDebug.disableLod || readQueryFlag('disableLod') || readQueryFlag('lodOff');
+    window.__themisdbGlobeDebug.disableAntimeridian = !!window.__themisdbGlobeDebug.disableAntimeridian || readQueryFlag('disableAntimeridian') || readQueryFlag('antiOff');
+    const featureFilterValue = readQueryValue('featureFilter');
+    if (featureFilterValue) {
+        window.__themisdbGlobeDebug.featureFilter = featureFilterValue;
+    }
+    const debugProjectionFromUrl = readQueryFlag('debugProjection') || readQueryFlag('checkerboard') || readQueryFlag('feature') || readQueryFlag('geojson');
+    const requestedFeatureFilter = featureFilterValue;
+    if (requestedFeatureFilter) {
+        window.__themisdbGlobeDebug.featureFilter = requestedFeatureFilter;
+    }
+    window.themisdbGnmData.debugProjection = sanitizeDebugProjectionState();
+
+    function getLandmassDebugState() {
+        const debugState = window.__themisdbGlobeDebug || {};
+        return {
+            disableLod: !!debugState.disableLod,
+            disableAntimeridian: !!debugState.disableAntimeridian,
+            featureFilter: debugState.featureFilter || null,
+            rebuildKey: debugState.rebuildKey || null
+        };
+    }
+
+    function getFeatureBounds(feature) {
+        if (!feature || !feature.geometry) {
+            return null;
+        }
+
+        const polygonSet = feature.geometry.type === 'MultiPolygon' ? feature.geometry.coordinates : [feature.geometry.coordinates];
+        let minLon = Infinity;
+        let maxLon = -Infinity;
+        let minLat = Infinity;
+        let maxLat = -Infinity;
+        let hasPoint = false;
+
+        polygonSet.forEach(function (polygon) {
+            if (!Array.isArray(polygon)) {
+                return;
+            }
+
+            polygon.forEach(function (ring) {
+                if (!Array.isArray(ring)) {
+                    return;
+                }
+
+                ring.forEach(function (vertex) {
+                    if (!Array.isArray(vertex) || vertex.length < 2) {
+                        return;
+                    }
+                    const lon = Number(vertex[0]);
+                    const lat = Number(vertex[1]);
+                    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+                        return;
+                    }
+                    hasPoint = true;
+                    minLon = Math.min(minLon, lon);
+                    maxLon = Math.max(maxLon, lon);
+                    minLat = Math.min(minLat, lat);
+                    maxLat = Math.max(maxLat, lat);
+                });
+            });
+        });
+
+        if (!hasPoint) {
+            return null;
+        }
+
+        return { lonMin: minLon, lonMax: maxLon, latMin: minLat, latMax: maxLat };
+    }
+
+    function getRingArea(ring) {
+        if (!Array.isArray(ring) || ring.length < 3) {
+            return 0;
+        }
+
+        let area = 0;
+        for (let index = 0; index < ring.length; index += 1) {
+            const current = ring[index];
+            const next = ring[(index + 1) % ring.length];
+            if (!Array.isArray(current) || !Array.isArray(next) || current.length < 2 || next.length < 2) {
+                continue;
+            }
+            const x1 = Number(current[0]);
+            const y1 = Number(current[1]);
+            const x2 = Number(next[0]);
+            const y2 = Number(next[1]);
+            if (!Number.isFinite(x1) || !Number.isFinite(y1) || !Number.isFinite(x2) || !Number.isFinite(y2)) {
+                continue;
+            }
+            area += x1 * y2 - x2 * y1;
+        }
+        return Math.abs(area) * 0.5;
+    }
+
+    function getPolygonArea(polygon) {
+        if (!Array.isArray(polygon) || !polygon.length) {
+            return 0;
+        }
+
+        const rings = Array.isArray(polygon[0]) && Array.isArray(polygon[0][0]) ? polygon : [polygon];
+        let total = 0;
+        rings.forEach(function (ring) {
+            if (!Array.isArray(ring)) {
+                return;
+            }
+            total += getRingArea(ring);
+        });
+        return total;
+    }
+
+    function getDominantPolygon(feature) {
+        if (!feature || !feature.geometry) {
+            return null;
+        }
+
+        const polygonSet = feature.geometry.type === 'MultiPolygon' ? feature.geometry.coordinates : [feature.geometry.coordinates];
+        let bestPolygon = null;
+        let bestArea = -Infinity;
+
+        polygonSet.forEach(function (polygon) {
+            if (!Array.isArray(polygon)) {
+                return;
+            }
+            const area = getPolygonArea(polygon);
+            if (area > bestArea) {
+                bestArea = area;
+                bestPolygon = polygon;
+            }
+        });
+
+        return bestPolygon;
+    }
+
+    function getFeatureMatchScore(feature, requested) {
+        if (!feature || !feature.properties) {
+            return -Infinity;
+        }
+
+        const request = String(requested || '').trim().toLowerCase();
+        const names = [];
+        if (feature.properties.name) {
+            names.push(String(feature.properties.name));
+        }
+        if (feature.properties['ISO3166-1-Alpha-3']) {
+            names.push(String(feature.properties['ISO3166-1-Alpha-3']));
+        }
+        if (feature.properties['ISO3166-1-Alpha-2']) {
+            names.push(String(feature.properties['ISO3166-1-Alpha-2']));
+        }
+
+        let score = 0;
+        names.forEach(function (name) {
+            const normalized = String(name).trim().toLowerCase();
+            if (!normalized) {
+                return;
+            }
+            if (normalized === request) {
+                score += 10000;
+            } else if (normalized.indexOf(request) >= 0 || request.indexOf(normalized) >= 0) {
+                score += 1000;
+            }
+        });
+
+        score += getPolygonArea(getDominantPolygon(feature)) * 10;
+        return score;
+    }
+
+    function getDebugProjectionMode() {
+        const url = window.location && window.location.search ? window.location.search : '';
+        if (readQueryFlag('checkerboard', url)) {
+            return 'checkerboard';
+        }
+        if (readQueryFlag('feature', url)) {
+            return 'feature';
+        }
+        if (readQueryFlag('geojson', url)) {
+            return 'geojson';
+        }
+        return 'all';
+    }
+
+    function getDebugProjectionLabel(mode) {
+        switch (mode) {
+            case 'checkerboard':
+                return 'Checkerboard grid';
+            case 'feature':
+                return 'Feature surface mesh';
+            case 'geojson':
+                return 'GeoJSON outlines';
+            case 'all':
+                return 'All debug overlays';
+            default:
+                return 'Debug view';
+        }
+    }
+
+    function syncDebugProjectionLabel() {
+        const debugPanel = document.getElementById('themisdb-global-network-map-debug');
+        if (!debugPanel) {
+            return;
+        }
+
+        const overlayNode = debugPanel.querySelector('[data-debug="overlay"]');
+        if (!overlayNode) {
+            return;
+        }
+
+        overlayNode.textContent = getDebugProjectionLabel(getDebugProjectionMode());
+    }
+
+    function isDebugProjectionEnabled() {
+        const url = window.location && window.location.search ? window.location.search : '';
+        const queryDebug = readQueryFlag('debugProjection', url) || readQueryFlag('checkerboard', url) || readQueryFlag('feature', url) || readQueryFlag('geojson', url);
+        if (queryDebug) {
+            window.themisdbGnmData = Object.assign({}, window.themisdbGnmData || {}, {
+                debugProjection: true
+            });
+            return true;
+        }
+        const data = window.themisdbGnmData || {};
+        const explicitState = data.debugProjection === true || data.debugProjection === '1' || data.debugProjection === 1;
+        if (explicitState) {
+            return true;
+        }
+        window.themisdbGnmData = Object.assign({}, data, {
+            debugProjection: false
+        });
+        return false;
+    }
 
     function lonLatToSpherePoint(lon, lat, radius) {
         if (!window.THREE) {
@@ -189,25 +524,900 @@
 
         const THREE = window.THREE;
         const latRad = lat * Math.PI / 180;
-        const lonRad = lon * Math.PI / 180;
+        const lonRad = normalizeLongitude(lon) * Math.PI / 180;
         const x = radius * Math.cos(latRad) * Math.sin(lonRad);
         const y = radius * Math.sin(latRad);
         const z = radius * Math.cos(latRad) * Math.cos(lonRad);
         return new THREE.Vector3(x, y, z);
     }
 
-    function buildGeoJsonLandmass(geojson, radius) {
+    function createCheckerboardTexture(size) {
+        const THREE = window.THREE;
+        if (!THREE) {
+            return null;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = size || 1024;
+        canvas.height = size || 1024;
+        const context = canvas.getContext('2d');
+        const tileSize = 64;
+
+        for (let y = 0; y < canvas.height; y += tileSize) {
+            for (let x = 0; x < canvas.width; x += tileSize) {
+                context.fillStyle = ((x / tileSize + y / tileSize) % 2 === 0) ? '#f3f9ff' : '#a8c8ff';
+                context.fillRect(x, y, tileSize, tileSize);
+            }
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.needsUpdate = true;
+        texture.colorSpace = THREE.SRGBColorSpace;
+        return texture;
+    }
+
+    function buildCheckerboardProjectionDebugMesh(radius, options) {
+        const THREE = window.THREE;
+        if (!THREE) {
+            return null;
+        }
+
+        const config = Object.assign({ cellsLon: 24, cellsLat: 12 }, options || {});
+        const lonCells = Math.max(2, Number(config.cellsLon) || 24);
+        const latCells = Math.max(2, Number(config.cellsLat) || 12);
+
+        const positions = [];
+        const colors = [];
+        const indices = [];
+        const latMin = -88.5;
+        const latMax = 88.5;
+        const colorA = new THREE.Color('#dff7ff');
+        const colorB = new THREE.Color('#6ab5ff');
+
+        for (let lonIndex = 0; lonIndex < lonCells; lonIndex += 1) {
+            const lon0 = -180 + (lonIndex / lonCells) * 360;
+            const lon1 = -180 + ((lonIndex + 1) / lonCells) * 360;
+            for (let latIndex = 0; latIndex < latCells; latIndex += 1) {
+                const lat0 = latMin + (latIndex / latCells) * (latMax - latMin);
+                const lat1 = latMin + ((latIndex + 1) / latCells) * (latMax - latMin);
+                const cellColor = ((lonIndex + latIndex) % 2 === 0) ? colorA : colorB;
+
+                const p00 = lonLatToSpherePoint(lon0, lat0, radius);
+                const p10 = lonLatToSpherePoint(lon1, lat0, radius);
+                const p11 = lonLatToSpherePoint(lon1, lat1, radius);
+                const p01 = lonLatToSpherePoint(lon0, lat1, radius);
+
+                const startIndex = positions.length / 3;
+                [p00, p10, p11, p01].forEach(function (point) {
+                    positions.push(point.x, point.y, point.z);
+                    colors.push(cellColor.r, cellColor.g, cellColor.b);
+                });
+
+                indices.push(startIndex, startIndex + 1, startIndex + 2, startIndex, startIndex + 2, startIndex + 3);
+            }
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+
+        const material = new THREE.MeshBasicMaterial({
+            vertexColors: true,
+            transparent: false,
+            opacity: 1,
+            side: THREE.FrontSide,
+            depthWrite: true,
+            depthTest: true,
+            polygonOffset: false
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.name = 'debug-checkerboard-projection';
+        mesh.userData = mesh.userData || {};
+        mesh.userData.debugProjectionMesh = true;
+        mesh.renderOrder = 3;
+        mesh.position.set(0, 0, 0);
+        return mesh;
+    }
+
+    function projectRingToSphericalSurface(ring, radius) {
+        const THREE = window.THREE;
+        if (!THREE || !Array.isArray(ring) || ring.length < 3) {
+            return null;
+        }
+
+        const normalizedRing = normalizeRingForReference(ring).filter(function (vertex) {
+            return Array.isArray(vertex) && vertex.length >= 2 && Number.isFinite(Number(vertex[0])) && Number.isFinite(Number(vertex[1]));
+        });
+        if (normalizedRing.length < 3) {
+            return null;
+        }
+
+        const sphericalPoints = normalizedRing.map(function (vertex) {
+            const lon = Number(vertex[0]);
+            const lat = Number(vertex[1]);
+            return lonLatToSpherePoint(lon, lat, 1).normalize();
+        });
+        if (sphericalPoints.length < 3) {
+            return null;
+        }
+
+        const centroid = new THREE.Vector3();
+        sphericalPoints.forEach(function (point) {
+            centroid.add(point);
+        });
+        if (centroid.lengthSq() < 1e-8) {
+            return null;
+        }
+        centroid.normalize();
+
+        let tangentU = new THREE.Vector3(0, 1, 0).cross(centroid);
+        if (tangentU.lengthSq() < 1e-8) {
+            tangentU = new THREE.Vector3(1, 0, 0).cross(centroid);
+        }
+        tangentU.normalize();
+
+        const tangentV = new THREE.Vector3().crossVectors(centroid, tangentU).normalize();
+        const planarPoints = sphericalPoints.map(function (point) {
+            return {
+                x: point.dot(tangentU),
+                y: point.dot(tangentV)
+            };
+        });
+
+        const shape = new THREE.Shape();
+        planarPoints.forEach(function (point, index) {
+            if (index === 0) {
+                shape.moveTo(point.x, point.y);
+                return;
+            }
+            shape.lineTo(point.x, point.y);
+        });
+        shape.closePath();
+
+        const planarGeometry = new THREE.ShapeGeometry(shape);
+        const positions = planarGeometry.attributes.position.array;
+        const projected = new Float32Array(positions.length);
+
+        for (let index = 0; index < positions.length; index += 3) {
+            const x = positions[index];
+            const y = positions[index + 1];
+            const direction = centroid.clone()
+                .add(tangentU.clone().multiplyScalar(x))
+                .add(tangentV.clone().multiplyScalar(y))
+                .normalize()
+                .multiplyScalar(radius);
+            projected[index] = direction.x;
+            projected[index + 1] = direction.y;
+            projected[index + 2] = direction.z;
+        }
+
+        const geometry = planarGeometry.clone();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(projected, 3));
+        geometry.computeVertexNormals();
+        geometry.computeBoundingSphere();
+        return geometry;
+    }
+
+    function buildFeatureProjectionDebugMesh(geojson, radius, options) {
         const THREE = window.THREE;
         if (!THREE || !geojson || !Array.isArray(geojson.features)) {
             return null;
         }
 
+        const debugState = getLandmassDebugState();
+        const config = Object.assign({ featureName: null }, options || {});
+
+        function normalizeFeatureName(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+            let normalized = String(value).trim();
+            if (typeof normalized.normalize === 'function') {
+                normalized = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            }
+            return normalized.toLowerCase();
+        }
+
+        function matchesFeature(feature) {
+            if (!feature || !feature.properties) {
+                return false;
+            }
+            const filterValue = normalizeFeatureName(debugState.featureFilter || config.featureName);
+            if (!filterValue) {
+                return true;
+            }
+
+            const candidates = [];
+            if (feature.properties.name) {
+                candidates.push(feature.properties.name);
+            }
+            if (feature.properties['ISO3166-1-Alpha-3']) {
+                candidates.push(feature.properties['ISO3166-1-Alpha-3']);
+            }
+            if (feature.properties['ISO3166-1-Alpha-2']) {
+                candidates.push(feature.properties['ISO3166-1-Alpha-2']);
+            }
+            return candidates.some(function (candidate) {
+                const value = normalizeFeatureName(candidate);
+                return value.indexOf(filterValue) >= 0 || filterValue.indexOf(value) >= 0;
+            });
+        }
+
+        function getCandidateFeature() {
+            const requested = debugState.featureFilter || config.featureName || null;
+            if (!requested) {
+                return geojson.features.find(function (feature) {
+                    return feature && feature.properties && feature.properties.name;
+                }) || null;
+            }
+
+            const names = normalizeFeatureName(requested);
+            const matches = geojson.features.filter(function (feature) {
+                return matchesFeature(feature) && feature && feature.properties && feature.properties.name;
+            }).sort(function (left, right) {
+                return getFeatureMatchScore(right, requested) - getFeatureMatchScore(left, requested);
+            });
+            if (matches.length) {
+                return matches[0];
+            }
+
+            return geojson.features.find(function (feature) {
+                if (!feature || !feature.properties || !feature.properties.name) {
+                    return false;
+                }
+                const candidate = normalizeFeatureName(feature.properties.name);
+                return candidate.indexOf(names) >= 0 || names.indexOf(candidate) >= 0;
+            }) || null;
+        }
+
+        function getOuterRingForFeature(feature) {
+            if (!feature || !feature.geometry) {
+                return null;
+            }
+
+            const polygonSet = feature.geometry.type === 'MultiPolygon' ? feature.geometry.coordinates : [feature.geometry.coordinates];
+            let bestRing = null;
+            let bestScore = -Infinity;
+
+            polygonSet.forEach(function (polygon) {
+                if (!Array.isArray(polygon)) {
+                    return;
+                }
+
+                const rings = Array.isArray(polygon[0]) && Array.isArray(polygon[0][0]) ? polygon : [polygon];
+                rings.forEach(function (ring) {
+                    if (!Array.isArray(ring) || ring.length < 3) {
+                        return;
+                    }
+
+                    const ringArea = getRingArea(ring);
+                    const bounds = getFeatureBounds({ geometry: { type: 'MultiPolygon', coordinates: [polygon] } });
+                    const boxScore = bounds ? (bounds.lonMax - bounds.lonMin) * (bounds.latMax - bounds.latMin) : 0;
+                    const score = ringArea + boxScore;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestRing = ring;
+                    }
+                });
+            });
+
+            return bestRing;
+        }
+
+        const targetFeature = getCandidateFeature();
+        const targetRing = targetFeature ? getOuterRingForFeature(targetFeature) : null;
+        if (!targetRing) {
+            return null;
+        }
+
+        const geometry = projectRingToSphericalSurface(targetRing, radius);
+        if (!geometry) {
+            return null;
+        }
+
+        const mesh = new THREE.Mesh(
+            geometry,
+            new THREE.MeshBasicMaterial({
+                color: 0x8dd2ff,
+                transparent: false,
+                opacity: 0.96,
+                side: THREE.FrontSide,
+                depthWrite: true,
+                depthTest: true
+            })
+        );
+        mesh.name = 'debug-feature-surface-mesh';
+        mesh.userData = mesh.userData || {};
+        mesh.userData.debugProjectionMesh = true;
+        mesh.renderOrder = 3;
+        return mesh;
+    }
+
+    function buildGeoJsonProjectionDebugMesh(geojson, radius, options) {
+        const THREE = window.THREE;
+        if (!THREE || !geojson || !Array.isArray(geojson.features)) {
+            return null;
+        }
+
+        const debugOptions = Object.assign({ lodFactor: getLandmassLodFactor(), offset: 0.02 }, options || {});
+        const debugGroup = buildGeoJsonLandmass(geojson, radius, debugOptions);
+        if (!debugGroup) {
+            return null;
+        }
+
+        debugGroup.name = 'debug-geojson-projection-group';
+        debugGroup.scale.setScalar(1.015);
+        debugGroup.traverse(function (child) {
+            if (!child.material) {
+                return;
+            }
+
+            if (child.isMesh) {
+                child.material.transparent = false;
+                child.material.opacity = 0.96;
+                child.material.depthWrite = true;
+                child.material.depthTest = true;
+                child.material.side = THREE.FrontSide;
+                if (child.material.color) {
+                    child.material.color.set('#fbbf24');
+                }
+            }
+
+            if (child.isLine && child.material) {
+                child.material.transparent = false;
+                child.material.opacity = 1;
+                child.material.depthWrite = true;
+                child.material.depthTest = true;
+                child.material.color = new THREE.Color('#f97316');
+            }
+        });
+
+        return debugGroup;
+    }
+
+    function shouldUseTextureLandmass() {
+        return isDebugProjectionEnabled();
+    }
+
+    function normalizeLongitudeForTexture(lon) {
+        let value = Number(lon) || 0;
+        while (value > 180) {
+            value -= 360;
+        }
+        while (value < -180) {
+            value += 360;
+        }
+        return value;
+    }
+
+    function getSunDirection(timestamp) {
+        const THREE = window.THREE;
+        if (!THREE) {
+            return { x: 0.32, y: 0.7, z: 0.62 };
+        }
+
+        const t = (timestamp || 0) * 0.00008;
+        const x = Math.sin(t * 1.2);
+        const y = 0.7;
+        const z = Math.cos(t * 1.2);
+        const direction = new THREE.Vector3(x, y, z);
+        direction.normalize();
+        return direction;
+    }
+
+    function applyEarthLighting(timestamp) {
+        const THREE = window.THREE;
+        if (!THREE || !WEBGL_GLOBE.globe) {
+            return;
+        }
+
+        const sunDirection = getSunDirection(timestamp);
+        const daylight = clamp(0.5 + (sunDirection.y * 0.5), 0, 1);
+        const nightTint = new THREE.Color(0x071a2c);
+        const dayWater = new THREE.Color(0x245b85);
+        const nightWater = new THREE.Color(0x071a2c);
+        const dayLand = new THREE.Color(0xdfeefe);
+        const nightLand = new THREE.Color(0x203f54);
+
+        WEBGL_GLOBE.globe.traverse(function (child) {
+            if (!child.material) {
+                return;
+            }
+
+            if (child.name === 'globe-ocean-shell' || child.userData && child.userData.earthWater) {
+                if (child.material && child.material.color) {
+                    child.material.color.copy(nightWater.clone().lerp(dayWater, daylight));
+                    child.material.opacity = 0.82 + daylight * 0.22;
+                }
+                return;
+            }
+
+            if (child.userData && child.userData.globeLandmass) {
+                if (child.material && child.material.color) {
+                    child.material.color.copy(nightLand.clone().lerp(dayLand, daylight));
+                    child.material.opacity = 0.52 + daylight * 0.34;
+                    if (child.material.emissive && child.material.emissive instanceof THREE.Color) {
+                        child.material.emissive.copy(dayLand.clone().multiplyScalar(0.12 + daylight * 0.16));
+                    }
+                }
+                return;
+            }
+
+            if (child.material && child.material.color && child.material.type === 'LineBasicMaterial') {
+                const lineBlend = clamp(0.18 + daylight * 0.7, 0.18, 0.8);
+                child.material.opacity = lineBlend;
+            }
+        });
+
+        if (WEBGL_GLOBE.atmosphereLayer) {
+            WEBGL_GLOBE.atmosphereLayer.traverse(function (child) {
+                if (child.material && child.material.opacity !== undefined) {
+                    child.material.opacity = 0.08 + daylight * 0.12;
+                }
+            });
+        }
+    }
+
+    function lonLatToEquirectUV(lon, lat) {
+        const normalizedLon = normalizeLongitudeForTexture(lon);
+        const normalizedLat = clamp(Number(lat) || 0, -90, 90);
+        return {
+            u: clamp((normalizedLon + 180) / 360, 0, 1),
+            v: clamp((90 - normalizedLat) / 180, 0, 1)
+        };
+    }
+
+    function createGeoJsonGlobeTextures(geojson) {
+        const THREE = window.THREE;
+        if (!THREE) {
+            return null;
+        }
+
+        if (isDebugProjectionEnabled()) {
+            const debugTexture = createCheckerboardTexture(2048);
+            if (debugTexture) {
+                return {
+                    texture: debugTexture,
+                    alphaTexture: null
+                };
+            }
+        }
+
+        const textureCanvas = document.createElement('canvas');
+        textureCanvas.width = 4096;
+        textureCanvas.height = 2048;
+        const textureCtx = textureCanvas.getContext('2d');
+
+        const alphaCanvas = document.createElement('canvas');
+        alphaCanvas.width = 4096;
+        alphaCanvas.height = 2048;
+        const alphaCtx = alphaCanvas.getContext('2d');
+
+        textureCtx.clearRect(0, 0, textureCanvas.width, textureCanvas.height);
+        const oceanGradient = textureCtx.createRadialGradient(
+            textureCanvas.width * 0.5,
+            textureCanvas.height * 0.45,
+            150,
+            textureCanvas.width * 0.5,
+            textureCanvas.height * 0.5,
+            textureCanvas.width * 0.72
+        );
+        oceanGradient.addColorStop(0, '#1d496b');
+        oceanGradient.addColorStop(0.5, '#0c223a');
+        oceanGradient.addColorStop(1, '#061826');
+        textureCtx.fillStyle = oceanGradient;
+        textureCtx.fillRect(0, 0, textureCanvas.width, textureCanvas.height);
+
+        for (let i = 0; i <= 20; i += 1) {
+            const x = (i / 20) * textureCanvas.width;
+            textureCtx.strokeStyle = 'rgba(166, 219, 255, 0.08)';
+            textureCtx.lineWidth = 1;
+            textureCtx.beginPath();
+            textureCtx.moveTo(x, 0);
+            textureCtx.lineTo(x, textureCanvas.height);
+            textureCtx.stroke();
+        }
+        for (let j = 0; j <= 12; j += 1) {
+            const y = (j / 12) * textureCanvas.height;
+            textureCtx.beginPath();
+            textureCtx.moveTo(0, y);
+            textureCtx.lineTo(textureCanvas.width, y);
+            textureCtx.stroke();
+        }
+
+        alphaCtx.clearRect(0, 0, alphaCanvas.width, alphaCanvas.height);
+        alphaCtx.fillStyle = '#000000';
+        alphaCtx.fillRect(0, 0, alphaCanvas.width, alphaCanvas.height);
+
+        function drawPolygonRing(points, textureFillStyle, alphaFillStyle, useEvenOdd) {
+            if (!Array.isArray(points) || !points.length) {
+                return;
+            }
+
+            const drawRing = function (context, fillStyle) {
+                context.beginPath();
+                let started = false;
+                points.forEach(function (vertex) {
+                    if (!Array.isArray(vertex) || vertex.length < 2) {
+                        return;
+                    }
+
+                    const lon = Number(vertex[0]);
+                    const lat = Number(vertex[1]);
+                    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+                        return;
+                    }
+
+                    const uv = lonLatToEquirectUV(lon, lat);
+                    const x = uv.u * context.canvas.width;
+                    const y = uv.v * context.canvas.height;
+
+                    if (!started) {
+                        context.moveTo(x, y);
+                        started = true;
+                        return;
+                    }
+
+                    context.lineTo(x, y);
+                });
+
+                if (!started) {
+                    return;
+                }
+
+                context.closePath();
+                context.fillStyle = fillStyle;
+                if (useEvenOdd) {
+                    context.fill('evenodd');
+                    return;
+                }
+                context.fill();
+            };
+
+            if (textureFillStyle) {
+                drawRing(textureCtx, textureFillStyle);
+            }
+            if (alphaFillStyle) {
+                drawRing(alphaCtx, alphaFillStyle);
+            }
+        }
+
+        const sourceGeojson = geojson && Array.isArray(geojson.features) ? geojson : createFallbackGeoJson();
+        sourceGeojson.features.forEach(function (feature) {
+            if (!feature || !feature.geometry) {
+                return;
+            }
+
+            const geometry = feature.geometry;
+            const polygons = geometry.type === 'MultiPolygon' ? geometry.coordinates : [geometry.coordinates];
+            polygons.forEach(function (polygon) {
+                if (!Array.isArray(polygon) || !polygon.length) {
+                    return;
+                }
+
+                const rings = Array.isArray(polygon[0]) && Array.isArray(polygon[0][0]) ? polygon : [polygon];
+                rings.forEach(function (ring, ringIndex) {
+                    if (!Array.isArray(ring) || !ring.length) {
+                        return;
+                    }
+
+                    const textureFillStyle = ringIndex === 0 ? 'rgba(153, 214, 175, 0.94)' : 'rgba(118, 176, 140, 0.8)';
+                    const alphaFillStyle = '#ffffff';
+                    drawPolygonRing(ring, textureFillStyle, alphaFillStyle, rings.length > 1);
+                });
+            });
+        });
+
+        const globeTexture = new THREE.CanvasTexture(textureCanvas);
+        globeTexture.wrapS = THREE.ClampToEdgeWrapping;
+        globeTexture.wrapT = THREE.ClampToEdgeWrapping;
+        globeTexture.repeat.set(1, 1);
+        globeTexture.center.set(0, 0);
+        globeTexture.rotation = 0;
+        globeTexture.flipY = true;
+        globeTexture.anisotropy = 8;
+        globeTexture.needsUpdate = true;
+        globeTexture.colorSpace = THREE.SRGBColorSpace;
+
+        const globeAlphaTexture = new THREE.CanvasTexture(alphaCanvas);
+        globeAlphaTexture.wrapS = THREE.ClampToEdgeWrapping;
+        globeAlphaTexture.wrapT = THREE.ClampToEdgeWrapping;
+        globeAlphaTexture.repeat.set(1, 1);
+        globeAlphaTexture.center.set(0, 0);
+        globeAlphaTexture.rotation = 0;
+        globeAlphaTexture.flipY = true;
+        globeAlphaTexture.needsUpdate = true;
+
+        textureCtx.globalAlpha = 0.12;
+        textureCtx.beginPath();
+        textureCtx.rect(0, 0, textureCanvas.width, textureCanvas.height);
+        textureCtx.fillStyle = '#ffffff';
+        textureCtx.fill();
+        textureCtx.globalAlpha = 1;
+
+        return {
+            texture: globeTexture,
+            alphaTexture: globeAlphaTexture
+        };
+    }
+
+    function resampleRingForDetail(ring, detailFactor) {
+        if (!Array.isArray(ring) || !ring.length) {
+            return [];
+        }
+
+        const resampled = [];
+        const factor = Math.max(1, Number(detailFactor) || 1);
+
+        for (let index = 0; index < ring.length; index += 1) {
+            const current = ring[index];
+            const next = ring[(index + 1) % ring.length];
+
+            if (!Array.isArray(current) || !Array.isArray(next) || current.length < 2 || next.length < 2) {
+                continue;
+            }
+
+            const currentLon = Number(current[0]);
+            const currentLat = Number(current[1]);
+            const nextLon = Number(next[0]);
+            const nextLat = Number(next[1]);
+
+            if (!Number.isFinite(currentLon) || !Number.isFinite(currentLat) || !Number.isFinite(nextLon) || !Number.isFinite(nextLat)) {
+                continue;
+            }
+
+            resampled.push([currentLon, currentLat]);
+
+            const lonDelta = Math.abs(nextLon - currentLon);
+            const latDelta = Math.abs(nextLat - currentLat);
+            const steps = Math.max(1, Math.ceil((lonDelta + latDelta * 1.5) * factor));
+
+            for (let step = 1; step <= steps; step += 1) {
+                const ratio = step / (steps + 1);
+                resampled.push([
+                    currentLon + (nextLon - currentLon) * ratio,
+                    currentLat + (nextLat - currentLat) * ratio
+                ]);
+            }
+        }
+
+        return resampled.length ? resampled : ring.slice();
+    }
+
+    function getLandmassLodFactor() {
+        const debugState = getLandmassDebugState();
+        if (debugState.disableLod) {
+            return 1;
+        }
+        const zoom = clamp(Number(CAMERA_ANIMATION.targetZoom || MAP_CAMERA.zoom || 1.1), 0.7, 64);
+        return clamp(2.5 + (zoom - 1) * 0.9, 2.5, 18);
+    }
+
+    function normalizeLongitudeForRing(lon, referenceLon) {
+        let value = Number(lon) || 0;
+        while (value - referenceLon > 180) {
+            value -= 360;
+        }
+        while (value - referenceLon < -180) {
+            value += 360;
+        }
+        return value;
+    }
+
+    function normalizeRingForReference(ring) {
+        if (!Array.isArray(ring) || ring.length < 3) {
+            return [];
+        }
+
+        let sum = 0;
+        let count = 0;
+        ring.forEach(function (vertex) {
+            if (!Array.isArray(vertex) || vertex.length < 2) {
+                return;
+            }
+            const lon = Number(vertex[0]);
+            if (Number.isFinite(lon)) {
+                sum += lon;
+                count += 1;
+            }
+        });
+
+        const referenceLon = count ? (sum / count) : 0;
+        return ring.map(function (vertex) {
+            if (!Array.isArray(vertex) || vertex.length < 2) {
+                return null;
+            }
+            const lon = Number(vertex[0]);
+            const lat = Number(vertex[1]);
+            if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+                return null;
+            }
+            return [normalizeLongitudeForRing(lon, referenceLon), lat];
+        }).filter(Boolean);
+    }
+
+    function splitRingAcrossAntimeridian(ring) {
+        const debugState = getLandmassDebugState();
+        if (debugState.disableAntimeridian) {
+            return [normalizeRingForReference(ring).filter(function (vertex) {
+                return Array.isArray(vertex) && vertex.length >= 2 && Number.isFinite(Number(vertex[0])) && Number.isFinite(Number(vertex[1]));
+            })];
+        }
+
+        if (!Array.isArray(ring) || ring.length < 3) {
+            return [];
+        }
+
+        const points = normalizeRingForReference(ring).filter(function (vertex) {
+            return Array.isArray(vertex) && vertex.length >= 2 && Number.isFinite(Number(vertex[0])) && Number.isFinite(Number(vertex[1]));
+        });
+
+        if (points.length < 3) {
+            return [];
+        }
+
+        let splitIndex = -1;
+        let maxDelta = 0;
+        for (let index = 1; index < points.length; index += 1) {
+            const previousLon = Number(points[index - 1][0]);
+            const currentLon = Number(points[index][0]);
+            const delta = Math.abs(currentLon - previousLon);
+            if (delta > maxDelta && delta > 150) {
+                maxDelta = delta;
+                splitIndex = index;
+            }
+        }
+
+        if (splitIndex < 0) {
+            return [points];
+        }
+
+        const groups = [];
+        let currentGroup = [];
+        points.forEach(function (vertex, index) {
+            if (index > 0) {
+                const previousLon = Number(points[index - 1][0]);
+                const currentLon = Number(vertex[0]);
+                if (Math.abs(currentLon - previousLon) > 150 && currentGroup.length > 0) {
+                    if (currentGroup.length >= 3) {
+                        groups.push(currentGroup);
+                    }
+                    currentGroup = [];
+                }
+            }
+            currentGroup.push(vertex);
+        });
+
+        if (currentGroup.length >= 3) {
+            groups.push(currentGroup);
+        }
+
+        if (!groups.length) {
+            return [points];
+        }
+
+        return groups.map(function (group) {
+            return group.map(function (vertex) {
+                const lon = Number(vertex[0]);
+                const lat = Number(vertex[1]);
+                return [lon, lat];
+            });
+        }).filter(function (group) {
+            return group.length >= 3;
+        });
+    }
+
+    function pointInRing(point, ring) {
+        let inside = false;
+        if (!Array.isArray(ring) || ring.length < 3) {
+            return false;
+        }
+
+        const normalizedRing = normalizeRingForReference(ring);
+        if (!normalizedRing.length) {
+            return false;
+        }
+
+        const referenceLon = normalizedRing.reduce(function (sum, vertex) {
+            return sum + Number(vertex[0]);
+        }, 0) / normalizedRing.length;
+        const normalizedPointX = normalizeLongitudeForRing(point.x, referenceLon);
+
+        for (let index = 0, j = normalizedRing.length - 1; index < normalizedRing.length; j = index, index += 1) {
+            const xi = Number(normalizedRing[index][0]);
+            const yi = Number(normalizedRing[index][1]);
+            const xj = Number(normalizedRing[j][0]);
+            const yj = Number(normalizedRing[j][1]);
+
+            if (!Number.isFinite(xi) || !Number.isFinite(yi) || !Number.isFinite(xj) || !Number.isFinite(yj)) {
+                continue;
+            }
+
+            const intersects = ((yi > point.y) !== (yj > point.y)) &&
+                (normalizedPointX < (xj - xi) * (point.y - yi) / (yj - yi + 1e-9) + xi);
+            if (intersects) {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    function polygonContainsPoint(polygonCoords, lon, lat) {
+        if (!Array.isArray(polygonCoords) || !polygonCoords.length) {
+            return false;
+        }
+
+        let inside = false;
+        polygonCoords.forEach(function (ring) {
+            if (!Array.isArray(ring) || ring.length < 3) {
+                return;
+            }
+
+            if (pointInRing({ x: lon, y: lat }, ring)) {
+                inside = !inside;
+            }
+        });
+
+        return inside;
+    }
+
+    function buildGeoJsonLandmass(geojson, radius, options) {
+        const THREE = window.THREE;
+        if (!THREE || !geojson || !Array.isArray(geojson.features)) {
+            return null;
+        }
+
+        const lodFactor = options && Number.isFinite(options.lodFactor) ? Number(options.lodFactor) : getLandmassLodFactor();
+        const offsetAmount = options && Number.isFinite(options.offset) ? Number(options.offset) : 0.016;
+        const landRadius = radius + offsetAmount;
         const landGroup = new THREE.Group();
-        const features = geojson.features.slice(0, 48);
+        landGroup.name = 'geojson-land-group';
+        landGroup.renderOrder = 2;
+        landGroup.userData = landGroup.userData || {};
+        landGroup.userData.globeLandmass = true;
+
+        const debugState = getLandmassDebugState();
+        const features = geojson.features.filter(function (feature) {
+            if (!feature || !feature.properties || !feature.properties.name) {
+                return true;
+            }
+            if (!debugState.featureFilter) {
+                return true;
+            }
+            return String(feature.properties.name).toLowerCase().indexOf(String(debugState.featureFilter).toLowerCase()) >= 0;
+        });
         let added = 0;
+        const maxLandPatches = lodFactor >= 6 ? 1700 : 1200;
+
+        function buildSphericalRingCenter(ringPoints) {
+            const center = new THREE.Vector3();
+            if (!Array.isArray(ringPoints) || !ringPoints.length) {
+                return null;
+            }
+
+            ringPoints.forEach(function (point) {
+                if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+                    return;
+                }
+                const spherePoint = lonLatToSpherePoint(point.x, point.y, 1).normalize();
+                center.add(spherePoint);
+            });
+
+            if (center.lengthSq() < 1e-6) {
+                return null;
+            }
+
+            return center.normalize();
+        }
 
         features.forEach(function (feature) {
-            if (!feature || !feature.geometry || added >= 32) {
+            if (!feature || !feature.geometry || added >= maxLandPatches) {
                 return;
             }
 
@@ -215,91 +1425,105 @@
             const polygonSet = geometry.type === 'MultiPolygon' ? geometry.coordinates : [geometry.coordinates];
 
             polygonSet.forEach(function (polygon) {
-                if (!Array.isArray(polygon) || !polygon.length || added >= 32) {
+                if (!Array.isArray(polygon) || !polygon.length || added >= maxLandPatches) {
+                    return;
+                }
+
+                if (debugState.featureFilter && feature && feature.properties && feature.properties.name && String(feature.properties.name).toLowerCase().indexOf(String(debugState.featureFilter).toLowerCase()) < 0) {
                     return;
                 }
 
                 const rings = Array.isArray(polygon[0]) && Array.isArray(polygon[0][0]) ? polygon : [polygon];
-                rings.forEach(function (ring) {
-                    if (!Array.isArray(ring) || ring.length < 3 || added >= 32) {
+                const outerRing = rings[0];
+                if (!Array.isArray(outerRing) || outerRing.length < 3 || added >= maxLandPatches) {
+                    return;
+                }
+
+                const buildShapeForRingPair = function (outerVariant) {
+                    const detailedOuterRing = resampleRingForDetail(normalizeRingForReference(outerVariant), lodFactor * 1.8);
+                    return projectRingToSphericalSurface(detailedOuterRing, landRadius);
+                };
+
+                const outerVariants = splitRingAcrossAntimeridian(outerRing);
+                const holeVariants = rings.slice(1).reduce(function (allHoles, holeRing) {
+                    return allHoles.concat(splitRingAcrossAntimeridian(holeRing));
+                }, []);
+
+                if (!outerVariants.length) {
+                    return;
+                }
+
+                outerVariants.forEach(function (outerVariant) {
+                    const geometry = buildShapeForRingPair(outerVariant, holeVariants);
+                    if (!geometry) {
                         return;
                     }
 
-                    const points = [];
-                    let centerLon = 0;
-                    let centerLat = 0;
-                    let validVertices = 0;
-
-                    ring.forEach(function (vertex) {
-                        if (!Array.isArray(vertex) || vertex.length < 2) {
-                            return;
-                        }
-
-                        const lon = Number(vertex[0]);
-                        const lat = Number(vertex[1]);
-                        if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
-                            return;
-                        }
-
-                        centerLon += lon;
-                        centerLat += lat;
-                        validVertices += 1;
-                        points.push(new THREE.Vector2(lon, lat));
+                    const material = new THREE.MeshBasicMaterial({
+                        color: 0xdff7ff,
+                        transparent: true,
+                        opacity: 0.82,
+                        side: THREE.DoubleSide,
+                        depthWrite: false
                     });
 
-                    if (points.length < 3 || validVertices < 3) {
-                        return;
-                    }
-
-                    const shape = new THREE.Shape();
-                    points.forEach(function (point, pointIndex) {
-                        if (pointIndex === 0) {
-                            shape.moveTo(point.x, point.y);
-                            return;
-                        }
-                        shape.lineTo(point.x, point.y);
-                    });
-                    shape.closePath();
-
-                    const geometryOut = new THREE.ShapeGeometry(shape);
-                    const positions = [];
-                    const attr = geometryOut.attributes.position;
-                    for (let index = 0; index < attr.count; index += 1) {
-                        const lon = attr.getX(index);
-                        const lat = attr.getY(index);
-                        const point = lonLatToSpherePoint(lon, lat, radius);
-                        positions.push(point.x, point.y, point.z);
-                    }
-
-                    const sphereGeometry = new THREE.BufferGeometry();
-                    sphereGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-                    if (geometryOut.index && geometryOut.index.count) {
-                        sphereGeometry.setIndex(geometryOut.index.array);
-                    }
-                    sphereGeometry.computeVertexNormals();
-
-                    const mesh = new THREE.Mesh(
-                        sphereGeometry,
-                        new THREE.MeshStandardMaterial({
-                            color: 0xe8f7ff,
-                            emissive: 0x99d9ff,
-                            emissiveIntensity: 0.4,
-                            transparent: true,
-                            opacity: 0.96,
-                            side: THREE.DoubleSide,
-                            roughness: 0.7,
-                            metalness: 0.05
-                        })
-                    );
+                    const mesh = new THREE.Mesh(geometry, material);
                     mesh.name = 'geojson-land-patch';
                     mesh.position.set(0, 0, 0);
+                    mesh.renderOrder = 2;
                     landGroup.add(mesh);
+
+                    const outlinePoints = outerVariant.map(function (point) {
+                        const lon = Number(point[0]);
+                        const lat = Number(point[1]);
+                        return lonLatToSpherePoint(lon, lat, landRadius);
+                    });
+                    if (outlinePoints.length > 1) {
+                        const outline = new THREE.Line(
+                            new THREE.BufferGeometry().setFromPoints(outlinePoints),
+                            new THREE.LineBasicMaterial({
+                                color: 0xf2fbff,
+                                transparent: true,
+                                opacity: 0.9,
+                                depthWrite: false
+                            })
+                        );
+                        outline.name = 'geojson-land-outline';
+                        outline.renderOrder = 3;
+                        landGroup.add(outline);
+                    }
+
                     added += 1;
                 });
+
             });
         });
 
         return landGroup.children.length ? landGroup : null;
+    }
+
+    function rebuildGeoJsonLandmassAtCurrentLod() {
+        if (!WEBGL_GLOBE.globe || !GLOBE_STATE.geojson || !WEBGL_GLOBE.landLayer) {
+            return;
+        }
+
+        const existing = [];
+        WEBGL_GLOBE.landLayer.children.forEach(function (child) {
+            if (child && child.name === 'geojson-land-group') {
+                existing.push(child);
+            }
+        });
+        existing.forEach(function (child) {
+            WEBGL_GLOBE.landLayer.remove(child);
+        });
+
+        const lodFactor = getLandmassLodFactor();
+        const nextLandmass = buildGeoJsonLandmass(GLOBE_STATE.geojson, 1.66, { lodFactor: lodFactor });
+        if (nextLandmass) {
+            nextLandmass.userData = nextLandmass.userData || {};
+            nextLandmass.userData.globeLandmass = true;
+            WEBGL_GLOBE.landLayer.add(nextLandmass);
+        }
     }
 
     function initWebGLGlobe() {
@@ -308,17 +1532,14 @@
         }
 
         const canvas = document.getElementById('themisdb-global-network-map-canvas');
-        const svg = document.getElementById('themisdb-global-network-map-svg');
         if (!canvas) {
             return;
         }
 
         const glContext = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
         if (!glContext) {
-            if (svg) {
-                svg.style.display = 'block';
-            }
-            canvas.style.display = 'none';
+            canvas.style.display = 'block';
+            renderFallbackGlobe();
             return;
         }
 
@@ -333,8 +1554,15 @@
         renderer.setSize(canvas.clientWidth || canvas.width || 1200, canvas.clientHeight || canvas.height || 540, false);
 
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(32, (canvas.clientWidth || canvas.width || 1200) / Math.max(canvas.clientHeight || canvas.height || 1, 1), 0.1, 1000);
-        camera.position.z = 4.2;
+        const cameraRig = new THREE.Group();
+        const earthRoot = new THREE.Group();
+        const earthPivot = new THREE.Group();
+        const camera = new THREE.PerspectiveCamera(28, (canvas.clientWidth || canvas.width || 1200) / Math.max(canvas.clientHeight || canvas.height || 1, 1), 0.1, 1000);
+        camera.position.z = 4.5;
+        cameraRig.add(camera);
+        scene.add(cameraRig);
+        scene.add(earthRoot);
+        earthRoot.add(earthPivot);
 
         const ambientLight = new THREE.AmbientLight(0xbfe8ff, 1.6);
         scene.add(ambientLight);
@@ -343,37 +1571,158 @@
         keyLight.position.set(3.8, 2.9, 4.5);
         scene.add(keyLight);
 
-        const glowLight = new THREE.PointLight(0x66ccff, 1.35, 20);
+        const glowLight = new THREE.PointLight(0x66ccff, 1.4, 20);
         glowLight.position.set(-3.2, 2.2, 4.2);
         scene.add(glowLight);
 
+        syncDebugProjectionLabel();
+
         const globeGroup = new THREE.Group();
-        scene.add(globeGroup);
+        const waterLayer = new THREE.Group();
+        const wireframeLayer = new THREE.Group();
+        const landLayer = new THREE.Group();
+        const atmosphereLayer = new THREE.Group();
+        const debugProjectionEnabled = isDebugProjectionEnabled();
+        waterLayer.name = 'globe-water-layer';
+        wireframeLayer.name = 'globe-wireframe-layer';
+        landLayer.name = 'globe-land-layer';
+        atmosphereLayer.name = 'globe-atmosphere-layer';
+        waterLayer.renderOrder = 0;
+        wireframeLayer.renderOrder = 1;
+        landLayer.renderOrder = 2;
+        atmosphereLayer.renderOrder = 10;
+        globeGroup.add(waterLayer);
+        globeGroup.add(wireframeLayer);
+        globeGroup.add(landLayer);
+        globeGroup.add(atmosphereLayer);
+        earthPivot.add(globeGroup);
 
-        const globeGeometry = new THREE.SphereGeometry(1.6, 72, 72);
-        const globeMaterial = new THREE.MeshStandardMaterial({
-            color: 0x73c9ff,
-            emissive: 0x153d5b,
-            metalness: 0.08,
-            roughness: 0.9,
-            transparent: true,
-            opacity: 0.68
+        const textureInfo = !shouldUseTextureLandmass() ? { texture: null, alphaTexture: null } : (createGeoJsonGlobeTextures(GLOBE_STATE.geojson || null) || {
+            texture: null,
+            alphaTexture: null
         });
-        const globe = new THREE.Mesh(globeGeometry, globeMaterial);
-        globeGroup.add(globe);
 
-        const atmosphere = new THREE.Mesh(
-            new THREE.SphereGeometry(1.78, 32, 32),
+        if (shouldUseTextureLandmass() && !textureInfo.texture) {
+            const debugTexture = createCheckerboardTexture(2048);
+            if (debugTexture) {
+                textureInfo.texture = debugTexture;
+            }
+        }
+
+        const globeGeometry = new THREE.SphereGeometry(1.65, 128, 128);
+        const globeMaterial = new THREE.MeshStandardMaterial({
+            color: 0x7bb7e3,
+            transparent: true,
+            opacity: 0.44,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            roughness: 0.72,
+            metalness: 0.08
+        });
+        if (textureInfo && textureInfo.texture) {
+            globeMaterial.map = textureInfo.texture;
+        }
+        globeMaterial.alphaMap = null;
+
+        if (textureInfo.texture) {
+            textureInfo.texture.needsUpdate = true;
+        }
+        if (textureInfo.alphaTexture) {
+            textureInfo.alphaTexture.needsUpdate = true;
+        }
+
+        const oceanShell = new THREE.Mesh(
+            new THREE.SphereGeometry(1.69, 96, 96),
             new THREE.MeshBasicMaterial({
-                color: 0xcfeaff,
+                color: 0x74caff,
                 transparent: true,
-                opacity: 0.28,
-                side: THREE.BackSide
+                opacity: 0.38,
+                depthWrite: false,
+                side: THREE.DoubleSide
             })
         );
-        globeGroup.add(atmosphere);
+        oceanShell.name = 'globe-ocean-shell';
+        oceanShell.renderOrder = 0;
+        waterLayer.add(oceanShell);
+
+        const globe = new THREE.Mesh(globeGeometry, globeMaterial);
+        globe.visible = true;
+        globe.renderOrder = 0;
+        waterLayer.add(globe);
+
+        if (!GLOBE_STATE.geojson) {
+            GLOBE_STATE.geojson = createFallbackGeoJson();
+        }
+
+        if (debugProjectionEnabled) {
+            waterLayer.visible = false;
+            wireframeLayer.visible = false;
+            landLayer.visible = false;
+            atmosphereLayer.visible = false;
+            const debugGroup = new THREE.Group();
+            debugGroup.name = 'debug-projection-group';
+            const debugMode = getDebugProjectionMode();
+
+            if (debugMode === 'checkerboard' || debugMode === 'all') {
+                const checkerMesh = buildCheckerboardProjectionDebugMesh(1.67, { cellsLon: 36, cellsLat: 18 });
+                if (checkerMesh) {
+                    checkerMesh.userData = checkerMesh.userData || {};
+                    checkerMesh.userData.debugOverlay = 'checkerboard';
+                    debugGroup.add(checkerMesh);
+                }
+            }
+
+            if (debugMode === 'feature' || debugMode === 'all') {
+                const featureMesh = buildFeatureProjectionDebugMesh(GLOBE_STATE.geojson, 1.67, {
+                    featureName: window.__themisdbGlobeDebug && window.__themisdbGlobeDebug.featureFilter ? window.__themisdbGlobeDebug.featureFilter : null
+                });
+                if (featureMesh) {
+                    featureMesh.userData = featureMesh.userData || {};
+                    featureMesh.userData.debugOverlay = 'feature';
+                    debugGroup.add(featureMesh);
+                }
+            }
+
+            if (debugMode === 'geojson' || debugMode === 'all') {
+                const geoJsonMesh = buildGeoJsonProjectionDebugMesh(GLOBE_STATE.geojson, 1.67, { lodFactor: getLandmassLodFactor() });
+                if (geoJsonMesh) {
+                    geoJsonMesh.userData = geoJsonMesh.userData || {};
+                    geoJsonMesh.userData.debugOverlay = 'geojson';
+                    debugGroup.add(geoJsonMesh);
+                }
+            }
+
+            if (debugGroup.children.length) {
+                globeGroup.add(debugGroup);
+            }
+        }
+
+        const shouldUseTextureLandmassForScene = shouldUseTextureLandmass() && !!(textureInfo && textureInfo.texture && GLOBE_STATE.geojson && Array.isArray(GLOBE_STATE.geojson.features));
+        if (!shouldUseTextureLandmassForScene) {
+            const landmass = buildGeoJsonLandmass(GLOBE_STATE.geojson || null, 1.66, { lodFactor: getLandmassLodFactor() });
+            if (landmass) {
+                landmass.userData.globeLandmass = true;
+                landmass.renderOrder = 2;
+                landLayer.add(landmass);
+            }
+        }
+
+        const atmosphere = new THREE.Mesh(
+            new THREE.SphereGeometry(1.86, 48, 48),
+            new THREE.MeshBasicMaterial({
+                color: 0xdff5ff,
+                transparent: true,
+                opacity: 0.12,
+                side: THREE.BackSide,
+                depthWrite: false,
+                depthTest: false
+            })
+        );
+        atmosphere.renderOrder = 10;
+        atmosphereLayer.add(atmosphere);
 
         const grid = new THREE.Group();
+        grid.renderOrder = 1;
         const latBands = [-75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75];
         const lonBands = [-150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150];
         latBands.forEach(function (lat) {
@@ -388,7 +1737,7 @@
             }
             const line = new THREE.Line(
                 new THREE.BufferGeometry().setFromPoints(points),
-                new THREE.LineBasicMaterial({ color: 0xa9d8ff, transparent: true, opacity: 0.42 })
+                new THREE.LineBasicMaterial({ color: 0xa9d8ff, transparent: true, opacity: 0.3, depthWrite: false })
             );
             grid.add(line);
         });
@@ -404,103 +1753,191 @@
             }
             const line = new THREE.Line(
                 new THREE.BufferGeometry().setFromPoints(points),
-                new THREE.LineBasicMaterial({ color: 0x8fc8ff, transparent: true, opacity: 0.28 })
+                new THREE.LineBasicMaterial({ color: 0x8fc8ff, transparent: true, opacity: 0.22, depthWrite: false })
             );
             grid.add(line);
         });
-        const geojson = GLOBE_STATE.geojson || null;
-        const landGroup = geojson ? buildGeoJsonLandmass(geojson, 1.62) : null;
-        if (landGroup) {
-            globeGroup.add(landGroup);
+        wireframeLayer.add(grid);
+
+        const cityLayer = buildCityMarkerGroup();
+        if (cityLayer) {
+            cityLayer.renderOrder = 3;
+            landLayer.add(cityLayer);
         }
-        globeGroup.add(grid);
+
+        window.__themisdbGlobeDebug = {
+            cityCount: cityLayer ? cityLayer.children.length : 0,
+            visibleCities: cityLayer ? getVisibleImportantCities().length : 0,
+            mode: CAMERA_ANIMATION.mode,
+            centerLon: MAP_CAMERA.centerLon,
+            centerLat: MAP_CAMERA.centerLat,
+            animationEnabled: MAP_UI_STATE.animationEnabled,
+            renderCount: 0,
+            hasScene: !!scene,
+            hasCamera: !!camera,
+            hasRenderer: !!renderer,
+            cameraZ: camera ? camera.position.z : null,
+            globeChildren: globeGroup ? globeGroup.children.length : 0,
+            globeChildrenState: globeGroup ? globeGroup.children.map(function (child) {
+                return {
+                    name: child && child.name ? child.name : child && child.type ? child.type : 'unknown',
+                    visible: !!(child && child.visible !== false),
+                    scale: child && child.scale ? { x: child.scale.x, y: child.scale.y, z: child.scale.z } : null,
+                    position: child && child.position ? { x: child.position.x, y: child.position.y, z: child.position.z } : null
+                };
+            }) : []
+        };
 
         WEBGL_GLOBE.enabled = true;
         WEBGL_GLOBE.renderer = renderer;
         WEBGL_GLOBE.scene = scene;
         WEBGL_GLOBE.camera = camera;
+        WEBGL_GLOBE.cameraRig = cameraRig;
+        WEBGL_GLOBE.earthRoot = earthRoot;
+        WEBGL_GLOBE.earthPivot = earthPivot;
         WEBGL_GLOBE.globe = globeGroup;
+        WEBGL_GLOBE.waterLayer = waterLayer;
+        WEBGL_GLOBE.wireframeLayer = wireframeLayer;
+        WEBGL_GLOBE.landLayer = landLayer;
+        WEBGL_GLOBE.atmosphereLayer = atmosphereLayer;
         WEBGL_GLOBE.grid = grid;
-        WEBGL_GLOBE.land = landGroup;
+        WEBGL_GLOBE.cityLayer = cityLayer;
         WEBGL_GLOBE.pointer = new THREE.Vector2();
+        window.__themisdbGlobe = WEBGL_GLOBE;
+        if (!WEBGL_GLOBE.cityLayer || !WEBGL_GLOBE.cityLayer.children.length) {
+            renderFallbackGlobe();
+        }
 
         if (!GLOBE_STATE.geojson) {
             const geojsonUrl = getLocalGeoJsonUrl();
             if (geojsonUrl) {
-                fetch(geojsonUrl)
-                    .then(function (response) {
-                        if (!response.ok) {
-                            return null;
-                        }
-                        return response.json();
-                    })
-                    .then(function (geojson) {
-                        if (!geojson || !WEBGL_GLOBE.globe) {
-                            return;
-                        }
-                        GLOBE_STATE.geojson = geojson;
-                        const worldLand = buildGeoJsonLandmass(geojson, 1.62);
-                        if (worldLand) {
-                            WEBGL_GLOBE.globe.add(worldLand);
-                            WEBGL_GLOBE.land = worldLand;
-                        }
-                    })
-                    .catch(function () {
-                        return null;
+                loadGeoJson(geojsonUrl, function (geojson) {
+                    if (!geojson || !WEBGL_GLOBE.globe) {
+                        return;
+                    }
+                    GLOBE_STATE.geojson = geojson;
+                    const globeMesh = WEBGL_GLOBE.globe.children.find(function (child) {
+                        return child && child.isMesh && child.geometry && child.geometry.type === 'SphereGeometry';
                     });
+                    if (globeMesh && globeMesh.material) {
+                        const updatedTextures = createGeoJsonGlobeTextures(geojson);
+                        if (updatedTextures) {
+                            globeMesh.material.map = updatedTextures.texture;
+                            globeMesh.material.alphaMap = null;
+                            globeMesh.material.transparent = false;
+                            globeMesh.material.map.needsUpdate = true;
+                            globeMesh.material.needsUpdate = true;
+                        }
+                    }
+
+                    const hasTextureLandmass = shouldUseTextureLandmass() && !!(updatedTextures && updatedTextures.texture);
+                    if (!hasTextureLandmass) {
+                        const existingLandmass = WEBGL_GLOBE.globe && WEBGL_GLOBE.globe.children.find(function (child) {
+                            return child && child.userData && child.userData.globeLandmass;
+                        });
+                        if (existingLandmass) {
+                            WEBGL_GLOBE.globe.remove(existingLandmass);
+                        }
+
+                        const newLandmass = buildGeoJsonLandmass(geojson, 1.66, { lodFactor: getLandmassLodFactor() });
+                        if (newLandmass) {
+                            newLandmass.userData.globeLandmass = true;
+                            newLandmass.renderOrder = 2;
+                            if (WEBGL_GLOBE.landLayer) {
+                                WEBGL_GLOBE.landLayer.add(newLandmass);
+                            } else {
+                                WEBGL_GLOBE.globe.add(newLandmass);
+                            }
+                        }
+                    }
+                });
             }
         }
 
-        const worldTarget = new THREE.Vector3(0, 0, 0);
-        globeGroup.lookAt(worldTarget);
-
-        if (svg) {
-            svg.style.display = 'none';
-        }
+        globeGroup.lookAt(new THREE.Vector3(0, 0, 0));
         canvas.style.display = 'block';
+        renderer.render(scene, camera);
     }
 
     function updateWebGLGlobe(timestamp) {
+        syncDebugProjectionLabel();
+
         if (!WEBGL_GLOBE.enabled || !WEBGL_GLOBE.renderer || !WEBGL_GLOBE.scene || !WEBGL_GLOBE.camera) {
-            return;
-        }
-
-        const THREE = window.THREE;
-        if (!THREE) {
-            return;
-        }
-
-        const globe = WEBGL_GLOBE.globe;
-        if (!globe) {
+            renderFallbackGlobe();
             return;
         }
 
         const canvas = document.getElementById('themisdb-global-network-map-canvas');
-        if (canvas) {
-            const width = canvas.clientWidth || canvas.width || 1200;
-            const height = canvas.clientHeight || canvas.height || 540;
-            WEBGL_GLOBE.camera.aspect = width / Math.max(height, 1);
-            WEBGL_GLOBE.camera.updateProjectionMatrix();
-            WEBGL_GLOBE.renderer.setSize(width, height, false);
+        if (!canvas) {
+            return;
+        }
+
+        const width = canvas.clientWidth || canvas.width || 1200;
+        const height = canvas.clientHeight || canvas.height || 540;
+        WEBGL_GLOBE.camera.aspect = width / Math.max(height, 1);
+        WEBGL_GLOBE.camera.updateProjectionMatrix();
+        WEBGL_GLOBE.renderer.setSize(width, height, false);
+
+        const earthObject = WEBGL_GLOBE.earthPivot || WEBGL_GLOBE.globe;
+        if (!earthObject) {
+            return;
+        }
+
+        const focusTarget = CAMERA_ANIMATION.focusTarget;
+        const targetLon = CAMERA_ANIMATION.targetLon || MAP_CAMERA.centerLon || DEFAULT_VIEW.lon;
+        const targetLat = CAMERA_ANIMATION.targetLat || MAP_CAMERA.centerLat || DEFAULT_VIEW.lat;
+
+        if (focusTarget) {
+            const desiredLon = normalizeLongitude(focusTarget.lon);
+            const desiredLat = clamp(focusTarget.lat, -80, 80);
+            const desiredZoom = clamp(focusTarget.zoom || CAMERA_ANIMATION.targetZoom || MAP_CAMERA.zoom || getTargetZoomForMode(CAMERA_ANIMATION.mode), 0.7, getMaxUiZoom());
+            MAP_CAMERA.centerLon = lerp(MAP_CAMERA.centerLon || desiredLon, desiredLon, 0.12);
+            MAP_CAMERA.centerLat = lerp(MAP_CAMERA.centerLat || desiredLat, desiredLat, 0.12);
+            MAP_CAMERA.zoom = lerp(MAP_CAMERA.zoom || desiredZoom, desiredZoom, 0.12);
+            CAMERA_ANIMATION.targetLon = MAP_CAMERA.centerLon;
+            CAMERA_ANIMATION.targetLat = MAP_CAMERA.centerLat;
+            CAMERA_ANIMATION.targetZoom = desiredZoom;
+            MAP_UI_STATE.zoom = MAP_CAMERA.zoom;
+        } else {
+            MAP_CAMERA.centerLon = lerp(MAP_CAMERA.centerLon || targetLon, targetLon, 0.04);
+            MAP_CAMERA.centerLat = lerp(MAP_CAMERA.centerLat || targetLat, targetLat, 0.04);
         }
 
         const rotationSpeed = Number(MAP_UI_STATE.rotationSpeed) || 0.35;
         const spinTime = (timestamp || 0) * 0.00012 * rotationSpeed;
         const lon = (MAP_CAMERA.centerLon || 0) * Math.PI / 180;
         const lat = (MAP_CAMERA.centerLat || 0) * Math.PI / 180;
+        const earthAutoSpin = MAP_UI_STATE.animationEnabled && !focusTarget ? spinTime * 18 : 0;
+        WEBGL_GLOBE.earthSpin = earthAutoSpin;
+        const earthTilt = focusTarget ? 0 : Math.sin((timestamp || 0) * 0.00035) * 0.18;
+        const earthRoll = MAP_UI_STATE.animationEnabled && !focusTarget ? Math.sin((timestamp || 0) * 0.00018) * 0.12 : 0;
 
-        globe.rotation.y = -lon + spinTime * 10;
-        globe.rotation.x = -lat * 0.35;
-        globe.scale.setScalar(1 + (MAP_CAMERA.zoom - 1) * 0.14);
+        earthObject.rotation.set(earthTilt, earthAutoSpin, earthRoll, 'YXZ');
 
         const radius = 4.2 + ((MAP_CAMERA.zoom || 1) - 1) * 0.08;
-        WEBGL_GLOBE.camera.position.x = Math.sin(lon) * radius;
-        WEBGL_GLOBE.camera.position.y = -Math.sin(lat) * radius * 0.8;
-        WEBGL_GLOBE.camera.position.z = Math.cos(lat) * radius + 1.2;
+        const focusVector = lonLatToSpherePoint(MAP_CAMERA.centerLon || targetLon, MAP_CAMERA.centerLat || targetLat, radius);
+
+        if (WEBGL_GLOBE.cameraRig) {
+            WEBGL_GLOBE.cameraRig.position.set(0, 0, 0);
+            WEBGL_GLOBE.cameraRig.rotation.set(0, 0, 0);
+        }
+
+        WEBGL_GLOBE.camera.position.copy(focusVector);
         WEBGL_GLOBE.camera.lookAt(0, 0, 0);
-        globe.rotation.z = Math.sin((timestamp || 0) * 0.00018) * 0.12;
+
+        const currentLod = getLandmassLodFactor();
+        if (WEBGL_GLOBE.landLod === undefined || Math.abs(WEBGL_GLOBE.landLod - currentLod) > 1.3) {
+            rebuildGeoJsonLandmassAtCurrentLod();
+            WEBGL_GLOBE.landLod = currentLod;
+        }
+
+        applyEarthLighting(timestamp);
 
         WEBGL_GLOBE.renderer.render(WEBGL_GLOBE.scene, WEBGL_GLOBE.camera);
+        if (window.__themisdbGlobeDebug) {
+            window.__themisdbGlobeDebug.renderCount = (window.__themisdbGlobeDebug.renderCount || 0) + 1;
+        }
+        syncCityMarkers();
     }
 
     function getRuntimeMode() {
@@ -631,6 +2068,295 @@
         };
     }
 
+    const IMPORTANT_CITY_CATALOG = {
+        version: 1,
+        updatedAt: null,
+        cities: [
+            { id: 'los-angeles', name: 'Los Angeles', lat: 34.0522, lon: -118.2437, priority: 2, tz: 'UTC-8' },
+            { id: 'new-york', name: 'New York', lat: 40.7128, lon: -74.0060, priority: 2, tz: 'UTC-5' },
+            { id: 'mexico-city', name: 'Mexico City', lat: 19.4326, lon: -99.1332, priority: 1, tz: 'UTC-6' },
+            { id: 'sao-paulo', name: 'São Paulo', lat: -23.5505, lon: -46.6333, priority: 2, tz: 'UTC-3' },
+            { id: 'london', name: 'London', lat: 51.5074, lon: -0.1278, priority: 3, tz: 'UTC+0' },
+            { id: 'paris', name: 'Paris', lat: 48.8566, lon: 2.3522, priority: 3, tz: 'UTC+1' },
+            { id: 'frankfurt', name: 'Frankfurt', lat: 50.1109, lon: 8.6821, priority: 3, tz: 'UTC+1' },
+            { id: 'cairo', name: 'Cairo', lat: 30.0444, lon: 31.2357, priority: 2, tz: 'UTC+2' },
+            { id: 'johannesburg', name: 'Johannesburg', lat: -26.2041, lon: 28.0473, priority: 2, tz: 'UTC+2' },
+            { id: 'dubai', name: 'Dubai', lat: 25.2048, lon: 55.2708, priority: 2, tz: 'UTC+4' },
+            { id: 'mumbai', name: 'Mumbai', lat: 19.0760, lon: 72.8777, priority: 3, tz: 'UTC+5:30' },
+            { id: 'singapore', name: 'Singapore', lat: 1.3521, lon: 103.8198, priority: 3, tz: 'UTC+8' },
+            { id: 'hong-kong', name: 'Hong Kong', lat: 22.3193, lon: 114.1694, priority: 2, tz: 'UTC+8' },
+            { id: 'tokyo', name: 'Tokyo', lat: 35.6762, lon: 139.6503, priority: 3, tz: 'UTC+9' },
+            { id: 'seoul', name: 'Seoul', lat: 37.5665, lon: 126.9780, priority: 2, tz: 'UTC+9' },
+            { id: 'sydney', name: 'Sydney', lat: -33.8688, lon: 151.2093, priority: 3, tz: 'UTC+10' },
+            { id: 'auckland', name: 'Auckland', lat: -36.8485, lon: 174.7633, priority: 2, tz: 'UTC+12' }
+        ]
+    };
+
+    const CITY_CATALOG_STORE = {
+        data: IMPORTANT_CITY_CATALOG,
+        getCities: function () {
+            return Array.isArray(this.data && this.data.cities) ? this.data.cities : [];
+        },
+        replaceFromPayload: function (payload) {
+            const cities = Array.isArray(payload && payload.cities) ? payload.cities : (Array.isArray(payload) ? payload : []);
+            this.data = {
+                version: 1,
+                updatedAt: new Date().toISOString(),
+                cities: cities.filter(function (city) {
+                    return city && city.name && Number.isFinite(Number(city.lat)) && Number.isFinite(Number(city.lon));
+                })
+            };
+            return this.data;
+        },
+        createCity: function (city) {
+            const list = this.getCities();
+            const item = Object.assign({ id: String(city && city.id ? city.id : city.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), priority: 1 }, city);
+            list.push(item);
+            this.data.cities = list;
+            return item;
+        },
+        updateCity: function (id, patch) {
+            const list = this.getCities();
+            const index = list.findIndex(function (city) {
+                return city && (city.id === id || city.name === id);
+            });
+            if (index === -1) {
+                return null;
+            }
+            list[index] = Object.assign({}, list[index], patch);
+            this.data.cities = list;
+            return list[index];
+        },
+        deleteCity: function (id) {
+            const list = this.getCities().filter(function (city) {
+                return !(city && (city.id === id || city.name === id));
+            });
+            this.data.cities = list;
+            return list;
+        },
+        fetchAjax: function (options) {
+            const config = Object.assign({
+                url: window.themisdbGnmData && window.themisdbGnmData.cityApiEndpoint ? window.themisdbGnmData.cityApiEndpoint : null,
+                method: 'GET',
+                headers: { Accept: 'application/json' }
+            }, options || {});
+
+            if (!config.url) {
+                return Promise.resolve(this.getCities());
+            }
+
+            return fetch(config.url, {
+                method: config.method || 'GET',
+                headers: config.headers || { Accept: 'application/json' },
+                body: config.method && config.method.toUpperCase() !== 'GET' && config.body ? JSON.stringify(config.body) : undefined
+            }).then(function (response) {
+                if (!response.ok) {
+                    throw new Error('City catalog request failed');
+                }
+                return response.json();
+            }).then(function (payload) {
+                return CITY_CATALOG_STORE.replaceFromPayload(payload);
+            }).then(function () {
+                return CITY_CATALOG_STORE.getCities();
+            });
+        },
+        saveAjax: function (options) {
+            const config = Object.assign({
+                url: window.themisdbGnmData && window.themisdbGnmData.cityApiEndpoint ? window.themisdbGnmData.cityApiEndpoint : null,
+                method: 'POST',
+                body: { cities: this.getCities() }
+            }, options || {});
+
+            if (!config.url) {
+                return Promise.resolve(this.getCities());
+            }
+
+            return fetch(config.url, {
+                method: config.method || 'POST',
+                headers: Object.assign({ Accept: 'application/json', 'Content-Type': 'application/json' }, config.headers || {}),
+                body: JSON.stringify(config.body || { cities: this.getCities() })
+            }).then(function (response) {
+                if (!response.ok) {
+                    throw new Error('City catalog save failed');
+                }
+                return response.json();
+            }).then(function (payload) {
+                return CITY_CATALOG_STORE.replaceFromPayload(payload);
+            }).then(function () {
+                return CITY_CATALOG_STORE.getCities();
+            });
+        }
+    };
+
+    function getVisibleImportantCities() {
+        const cityPool = CITY_CATALOG_STORE.getCities();
+        if (!cityPool.length) {
+            return [];
+        }
+
+        const focusLon = normalizeLongitude(MAP_CAMERA.centerLon || 8);
+        const focusLat = clamp(MAP_CAMERA.centerLat || 50, -90, 90);
+        const inEuropeView = focusLon >= -30 && focusLon <= 40 && focusLat >= 30 && focusLat <= 72;
+
+        if (inEuropeView) {
+            return cityPool.filter(function (city) {
+                return city.lon >= -30 && city.lon <= 40 && city.lat >= 35 && city.lat <= 72;
+            });
+        }
+
+        const frontFacing = cityPool.filter(function (city) {
+            const normal = lonLatToSpherePoint(city.lon, city.lat, 1.0).normalize();
+            return normal.z >= -0.1;
+        });
+
+        return frontFacing.length ? frontFacing : cityPool;
+    }
+
+    function createCityDotTexture() {
+        if (!window.THREE || !document) {
+            return null;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const context = canvas.getContext('2d');
+        if (!context) {
+            return null;
+        }
+
+        const gradient = context.createRadialGradient(32, 32, 2, 32, 32, 30);
+        gradient.addColorStop(0, '#f0fdff');
+        gradient.addColorStop(0.2, '#9fe8ff');
+        gradient.addColorStop(0.55, '#5db9ff');
+        gradient.addColorStop(1, 'rgba(93, 185, 255, 0)');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, 64, 64);
+
+        return new window.THREE.CanvasTexture(canvas);
+    }
+
+    function createCityLabelTexture(cityName) {
+        if (!window.THREE || !document) {
+            return null;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 220;
+        canvas.height = 52;
+        const context = canvas.getContext('2d');
+        if (!context) {
+            return null;
+        }
+
+        const labelWidth = 190;
+        const radius = 14;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = 'rgba(6, 18, 28, 0.68)';
+        context.strokeStyle = 'rgba(145, 212, 255, 0.42)';
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.moveTo(radius, 0);
+        context.lineTo(labelWidth - radius, 0);
+        context.quadraticCurveTo(labelWidth, 0, labelWidth, radius);
+        context.lineTo(labelWidth, 52 - radius);
+        context.quadraticCurveTo(labelWidth, 52, labelWidth - radius, 52);
+        context.lineTo(radius, 52);
+        context.quadraticCurveTo(0, 52, 0, 52 - radius);
+        context.lineTo(0, radius);
+        context.quadraticCurveTo(0, 0, radius, 0);
+        context.closePath();
+        context.fill();
+        context.stroke();
+
+        context.font = '600 18px Arial';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillStyle = '#eff9ff';
+        context.fillText(cityName, 110, 26);
+
+        return new window.THREE.CanvasTexture(canvas);
+    }
+
+    function buildCityMarkerGroup() {
+        if (!window.THREE) {
+            return null;
+        }
+
+        const THREE = window.THREE;
+        const dotTexture = createCityDotTexture();
+        const group = new THREE.Group();
+        const visibleCities = getVisibleImportantCities();
+
+        visibleCities.forEach(function (city) {
+            const anchor = lonLatToSpherePoint(city.lon, city.lat, 1.74);
+            const normal = anchor.clone().normalize();
+            const offset = 1.77 + (city.priority === 2 ? 0.02 : 0);
+
+            const dotMaterial = new THREE.MeshBasicMaterial({
+                color: 0x9fe8ff,
+                transparent: true,
+                opacity: 0.98,
+                depthWrite: false,
+                side: THREE.FrontSide
+            });
+            const dot = new THREE.Mesh(new THREE.SphereGeometry(city.priority === 2 ? 0.045 : 0.032, 12, 12), dotMaterial);
+            dot.position.copy(normal.multiplyScalar(offset));
+            dot.userData.cityVector = normal.clone();
+            dot.userData.type = 'dot';
+            group.add(dot);
+
+            const labelTexture = createCityLabelTexture(city.name);
+            if (labelTexture) {
+                const labelMaterial = new THREE.SpriteMaterial({
+                    map: labelTexture,
+                    transparent: true,
+                    opacity: 0.98,
+                    depthTest: false,
+                    depthWrite: false,
+                    alphaTest: 0.1,
+                    side: THREE.DoubleSide
+                });
+                const label = new THREE.Sprite(labelMaterial);
+                label.position.copy(normal.multiplyScalar(1.96));
+                label.scale.set(city.priority === 2 ? 1.1 : 0.9, city.priority === 2 ? 0.24 : 0.2, 1);
+                label.userData.cityVector = normal.clone();
+                label.userData.type = 'label';
+                group.add(label);
+            }
+        });
+
+        return group;
+    }
+
+    function syncCityMarkers() {
+        const cityLayer = WEBGL_GLOBE.cityLayer;
+        if (!cityLayer || !cityLayer.children.length) {
+            return;
+        }
+
+        const europeStaticView = !MAP_UI_STATE.animationEnabled && CAMERA_ANIMATION.mode === 'region' && Math.abs(normalizeLongitude(MAP_CAMERA.centerLon - 12)) < 18 && Math.abs(MAP_CAMERA.centerLat - 50) < 20;
+
+        cityLayer.children.forEach(function (marker) {
+            const cityVector = marker && marker.userData && marker.userData.cityVector ? marker.userData.cityVector : null;
+            if (!cityVector) {
+                marker.visible = false;
+                return;
+            }
+
+            if (europeStaticView) {
+                marker.visible = true;
+                return;
+            }
+
+            const onFront = cityVector.z >= -0.08;
+            marker.visible = onFront;
+            if (marker.userData && marker.userData.type === 'label') {
+                marker.visible = onFront && cityVector.z > 0.06;
+            }
+        });
+    }
+
     function clamp(value, min, max) {
         return Math.min(Math.max(value, min), max);
     }
@@ -660,10 +2386,59 @@
 
     function setFocusTarget(target) {
         CAMERA_ANIMATION.focusTarget = target || null;
+
+        if (!target) {
+            return;
+        }
+
+        const nextLon = normalizeLongitude(target.lon);
+        const nextLat = clamp(target.lat, -80, 80);
+        const nextZoom = clamp(target.zoom || getTargetZoomForMode(CAMERA_ANIMATION.mode), 0.7, getMaxUiZoom());
+
+        MAP_CAMERA.centerLon = nextLon;
+        MAP_CAMERA.centerLat = nextLat;
+        MAP_CAMERA.zoom = nextZoom;
+        MAP_UI_STATE.zoom = nextZoom;
+        CAMERA_ANIMATION.targetLon = nextLon;
+        CAMERA_ANIMATION.targetLat = nextLat;
+        CAMERA_ANIMATION.targetZoom = nextZoom;
+        CAMERA_ANIMATION.velocityLon = 0;
+        CAMERA_ANIMATION.velocityLat = 0;
+        CAMERA_ANIMATION.velocityZoom = 0;
+
+        MAP_UI_STATE.animationEnabled = false;
+        syncUiControls();
+        if (window.__themisdbGlobeDebug) {
+            window.__themisdbGlobeDebug.focusTarget = { lon: nextLon, lat: nextLat, zoom: nextZoom };
+            window.__themisdbGlobeDebug.animationEnabled = false;
+        }
+    }
+
+    function focusRegionByName(regionName, zoomOverride) {
+        const normalized = String(regionName || '').trim().toLowerCase();
+        const match = REGION_TARGETS.find(function (region) {
+            return region && (region.id === normalized || region.name.toLowerCase() === normalized || region.name.toLowerCase().indexOf(normalized) >= 0);
+        });
+        if (!match) {
+            return false;
+        }
+
+        setFocusTarget({
+            lon: match.lon,
+            lat: match.lat,
+            zoom: clamp(Number(zoomOverride) || getFocusZoomForMode('region'), 0.7, getMaxUiZoom())
+        });
+        return true;
     }
 
     function clearFocusTarget() {
         CAMERA_ANIMATION.focusTarget = null;
+        MAP_UI_STATE.animationEnabled = true;
+        syncUiControls();
+        if (window.__themisdbGlobeDebug) {
+            window.__themisdbGlobeDebug.focusTarget = null;
+            window.__themisdbGlobeDebug.animationEnabled = true;
+        }
     }
 
     function getAmbientTargetZoom() {
@@ -693,14 +2468,24 @@
 
         const animationButton = document.querySelector('[data-map-animation-toggle]');
         if (animationButton) {
-            animationButton.classList.toggle('is-enabled', MAP_UI_STATE.animationEnabled);
-            animationButton.textContent = 'Animation: ' + (MAP_UI_STATE.animationEnabled ? 'On' : 'Off');
+            const isCheckbox = animationButton.matches && animationButton.matches('input[type="checkbox"]');
+            if (isCheckbox) {
+                animationButton.checked = MAP_UI_STATE.animationEnabled;
+            } else {
+                animationButton.classList.toggle('is-enabled', MAP_UI_STATE.animationEnabled);
+                animationButton.textContent = 'Animation: ' + (MAP_UI_STATE.animationEnabled ? 'On' : 'Off');
+            }
         }
 
         const mouseButton = document.querySelector('[data-map-mouse-toggle]');
         if (mouseButton) {
-            mouseButton.classList.toggle('is-enabled', MAP_UI_STATE.mouseControlEnabled);
-            mouseButton.textContent = 'Mouse: ' + (MAP_UI_STATE.mouseControlEnabled ? 'On' : 'Off');
+            const isCheckbox = mouseButton.matches && mouseButton.matches('input[type="checkbox"]');
+            if (isCheckbox) {
+                mouseButton.checked = MAP_UI_STATE.mouseControlEnabled;
+            } else {
+                mouseButton.classList.toggle('is-enabled', MAP_UI_STATE.mouseControlEnabled);
+                mouseButton.textContent = 'Mouse: ' + (MAP_UI_STATE.mouseControlEnabled ? 'On' : 'Off');
+            }
         }
     }
 
@@ -713,17 +2498,18 @@
         const nodeValue = debugPanel.querySelector('[data-debug="nodes"]');
         const edgeValue = debugPanel.querySelector('[data-debug="edges"]');
         const fpsValue = debugPanel.querySelector('[data-debug="fps"]');
-
+        const overlayValue = debugPanel.querySelector('[data-debug="overlay"]');
         if (nodeValue) {
             nodeValue.textContent = String(Math.max(0, Number(nodes) || 0));
         }
-
         if (edgeValue) {
             edgeValue.textContent = String(Math.max(0, Number(edges) || 0));
         }
-
         if (fpsValue) {
             fpsValue.textContent = String(Math.max(0, Number(fps) || 0));
+        }
+        if (overlayValue) {
+            overlayValue.textContent = getDebugProjectionLabel(getDebugProjectionMode());
         }
     }
 
@@ -799,6 +2585,33 @@
                 ]
             }
         ];
+    }
+
+    function createFallbackGeoJson() {
+        const contours = createFallbackContours();
+        return {
+            type: 'FeatureCollection',
+            features: contours.map(function (continent, index) {
+                return {
+                    type: 'Feature',
+                    properties: {
+                        name: continent && continent.name ? continent.name : ('fallback-land-' + index)
+                    },
+                    geometry: {
+                        type: 'Polygon',
+                        coordinates: [
+                            (continent && Array.isArray(continent.points) ? continent.points : []).map(function (point) {
+                                return [Number(point[0]), Number(point[1])];
+                            }).filter(function (point) {
+                                return Number.isFinite(point[0]) && Number.isFinite(point[1]);
+                            })
+                        ]
+                    }
+                };
+            }).filter(function (feature) {
+                return !!feature && Array.isArray(feature.geometry.coordinates) && feature.geometry.coordinates.length;
+            })
+        };
     }
 
     function makePathFromCoordinates(coords, width, height, offsets, projectionMode) {
@@ -1089,16 +2902,92 @@
         }
     }
 
+    function getLocalGeoJsonPayload() {
+        const data = window.themisdbGnmData || {};
+        if (data.geojson && data.geojson.type === 'FeatureCollection' && Array.isArray(data.geojson.features)) {
+            return data.geojson;
+        }
+        return null;
+    }
+
     function getLocalGeoJsonUrl() {
         const data = window.themisdbGnmData || {};
         return data.geojsonUrl || '';
     }
 
-    function buildBaseMap(width, height) {
-        if (WEBGL_GLOBE.enabled) {
-            return Promise.resolve();
+    function loadGeoJson(url, callback) {
+        const payload = getLocalGeoJsonPayload();
+        if (payload) {
+            GLOBE_STATE.geojson = payload;
+            if (callback) {
+                callback(payload);
+            }
+            return;
         }
 
+        if (!url) {
+            GLOBE_STATE.geojson = GLOBE_STATE.geojson || createFallbackGeoJson();
+            if (callback) {
+                callback(GLOBE_STATE.geojson);
+            }
+            return;
+        }
+
+        if (typeof window.fetch === 'function') {
+            window.fetch(url, { credentials: 'same-origin' })
+                .then(function (response) {
+                    if (!response || !response.ok) {
+                        throw new Error('GeoJSON request failed');
+                    }
+                    return response.json();
+                })
+                .then(function (geojson) {
+                    const finalGeojson = geojson && Array.isArray(geojson.features) ? geojson : createFallbackGeoJson();
+                    GLOBE_STATE.geojson = finalGeojson;
+                    if (callback) {
+                        callback(finalGeojson);
+                    }
+                })
+                .catch(function () {
+                    GLOBE_STATE.geojson = GLOBE_STATE.geojson || createFallbackGeoJson();
+                    if (callback) {
+                        callback(GLOBE_STATE.geojson);
+                    }
+                });
+            return;
+        }
+
+        const request = new XMLHttpRequest();
+        request.open('GET', url, true);
+        request.onreadystatechange = function () {
+            if (request.readyState !== 4) {
+                return;
+            }
+            if (request.status >= 200 && request.status < 300) {
+                try {
+                    const parsedGeojson = JSON.parse(request.responseText);
+                    const validGeojson = parsedGeojson && Array.isArray(parsedGeojson.features) ? parsedGeojson : createFallbackGeoJson();
+                    GLOBE_STATE.geojson = validGeojson;
+                    if (callback) {
+                        callback(validGeojson);
+                    }
+                } catch (error) {
+                    GLOBE_STATE.geojson = GLOBE_STATE.geojson || createFallbackGeoJson();
+                    if (callback) {
+                        callback(GLOBE_STATE.geojson);
+                    }
+                }
+                return;
+            }
+            GLOBE_STATE.geojson = GLOBE_STATE.geojson || createFallbackGeoJson();
+            if (callback) {
+                callback(GLOBE_STATE.geojson);
+            }
+        };
+        request.send();
+    }
+
+    function buildBaseMap(width, height) {
         const svg = document.getElementById('themisdb-global-network-map-svg');
         if (!svg) {
             return Promise.resolve();
@@ -1361,15 +3250,121 @@
         return;
     }
 
+    function projectFallbackGlobePoint(lon, lat, cx, cy, radius) {
+        const lonRad = normalizeLongitude(lon) * Math.PI / 180;
+        const latRad = clamp(Number(lat) || 0, -90, 90) * Math.PI / 180;
+        return {
+            x: cx + Math.cos(latRad) * Math.sin(lonRad) * radius,
+            y: cy - Math.sin(latRad) * radius
+        };
+    }
+
+    function renderFallbackGlobe() {
+        const canvas = document.getElementById('themisdb-global-network-map-canvas');
+        if (!canvas) {
+            return;
+        }
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+            return;
+        }
+
+        const width = canvas.width || canvas.clientWidth || 1200;
+        const height = canvas.height || canvas.clientHeight || 540;
+        const cx = width * 0.5;
+        const cy = height * 0.52;
+        const radius = Math.min(width, height) * 0.28;
+
+        context.clearRect(0, 0, width, height);
+        const ocean = context.createRadialGradient(cx, cy - 20, 40, cx, cy, radius * 1.65);
+        ocean.addColorStop(0, '#183d5e');
+        ocean.addColorStop(0.5, '#0d2940');
+        ocean.addColorStop(1, '#061722');
+        context.fillStyle = ocean;
+        context.fillRect(0, 0, width, height);
+
+        context.beginPath();
+        context.fillStyle = '#0c2233';
+        context.arc(cx, cy, radius, 0, Math.PI * 2);
+        context.fill();
+
+        context.beginPath();
+        context.fillStyle = 'rgba(142, 201, 247, 0.82)';
+        context.arc(cx, cy, radius, 0, Math.PI * 2);
+        context.fill();
+
+        context.strokeStyle = 'rgba(169, 218, 255, 0.22)';
+        context.lineWidth = 1;
+        for (let i = 0; i <= 11; i += 1) {
+            const lat = -75 + i * 15;
+            const y = cy - Math.sin(lat * Math.PI / 180) * radius;
+            const pathRadius = Math.cos(lat * Math.PI / 180) * radius;
+            context.beginPath();
+            context.ellipse(cx, cy, pathRadius, radius, 0, 0, Math.PI * 2);
+            context.stroke();
+        }
+
+        for (let lon = -165; lon <= 180; lon += 30) {
+            context.beginPath();
+            for (let lat = -90; lat <= 90; lat += 5) {
+                const point = projectFallbackGlobePoint(lon, lat, cx, cy, radius);
+                if (lat === -90) {
+                    context.moveTo(point.x, point.y);
+                } else {
+                    context.lineTo(point.x, point.y);
+                }
+            }
+            context.stroke();
+        }
+
+        const nodes = (window.themisdbGnmData && Array.isArray(window.themisdbGnmData.nodes) ? window.themisdbGnmData.nodes : []);
+        nodes.forEach(function (node) {
+            const lat = Number(node && node.lat);
+            const lon = Number(node && node.lon);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+                return;
+            }
+            const point = projectFallbackGlobePoint(lon, lat, cx, cy, radius);
+            const distanceFromCenter = Math.hypot(point.x - cx, point.y - cy);
+            if (distanceFromCenter > radius + 2) {
+                return;
+            }
+
+            const intensity = clamp(node.load || 0, 0, 100) / 100;
+            context.beginPath();
+            context.fillStyle = 'rgba(' + Math.round(120 + intensity * 95) + ', ' + Math.round(200 + intensity * 45) + ', 255, 0.95)';
+            context.arc(point.x, point.y, 2.5 + intensity * 4, 0, Math.PI * 2);
+            context.fill();
+
+            if (node.city && ['New York', 'London', 'Frankfurt', 'Tokyo', 'Singapore', 'Dubai', 'São Paulo', 'Sydney'].indexOf(node.city) !== -1) {
+                context.font = '600 12px Arial';
+                context.fillStyle = 'rgba(235, 245, 255, 0.9)';
+                context.fillText(node.city, point.x + 7, point.y - 7);
+            }
+        });
+
+        context.beginPath();
+        context.strokeStyle = 'rgba(167, 229, 255, 0.4)';
+        context.lineWidth = 2;
+        context.arc(cx, cy, radius + 4, 0, Math.PI * 2);
+        context.stroke();
+    }
+
     function renderMap() {
         const canvas = document.getElementById('themisdb-global-network-map-canvas');
-        const svg = document.getElementById('themisdb-global-network-map-svg');
         const tooltip = document.getElementById('themisdb-global-network-map-tooltip');
         if (window.THREE) {
             initWebGLGlobe();
+        } else {
+            renderFallbackGlobe();
         }
-        if (!canvas || !svg) {
+        if (!canvas) {
             return;
+        }
+
+        if (!window.__themisdbGlobe || !window.__themisdbGlobe.enabled) {
+            renderFallbackGlobe();
         }
 
         const width = canvas.width;
@@ -1381,20 +3376,13 @@
         };
 
         const refreshViewport = function () {
-            if (!canvas || !svg) {
+            if (!canvas) {
                 return;
-            }
-
-            const nextWidth = canvas.width;
-            const nextHeight = canvas.height;
-            if (nextWidth && nextHeight) {
-                buildBaseMap(nextWidth, nextHeight);
             }
         };
 
         MAP_UI_STATE.zoom = clamp(MAP_CAMERA.zoom, 0.7, getMaxUiZoom());
         syncUiControls();
-        buildBaseMap(width, height);
         window.addEventListener('resize', refreshViewport);
 
         function adjustZoom(delta) {
@@ -1804,8 +3792,10 @@
 
         const animationToggle = document.querySelector('[data-map-animation-toggle]');
         if (animationToggle) {
-            animationToggle.addEventListener('click', function () {
-                MAP_UI_STATE.animationEnabled = !MAP_UI_STATE.animationEnabled;
+            const toggleEvent = animationToggle.matches && animationToggle.matches('input[type="checkbox"]') ? 'change' : 'click';
+            animationToggle.addEventListener(toggleEvent, function () {
+                const nextValue = animationToggle.matches && animationToggle.matches('input[type="checkbox"]') ? animationToggle.checked : !MAP_UI_STATE.animationEnabled;
+                MAP_UI_STATE.animationEnabled = nextValue;
                 syncUiControls();
 
                 if (MAP_UI_STATE.animationEnabled) {
@@ -1823,8 +3813,10 @@
 
         const mouseToggle = document.querySelector('[data-map-mouse-toggle]');
         if (mouseToggle) {
-            mouseToggle.addEventListener('click', function () {
-                MAP_UI_STATE.mouseControlEnabled = !MAP_UI_STATE.mouseControlEnabled;
+            const toggleEvent = mouseToggle.matches && mouseToggle.matches('input[type="checkbox"]') ? 'change' : 'click';
+            mouseToggle.addEventListener(toggleEvent, function () {
+                const nextValue = mouseToggle.matches && mouseToggle.matches('input[type="checkbox"]') ? mouseToggle.checked : !MAP_UI_STATE.mouseControlEnabled;
+                MAP_UI_STATE.mouseControlEnabled = nextValue;
                 syncUiControls();
             });
         }
@@ -1893,17 +3885,36 @@
         }
         lastSvgRenderStamp = 0;
         CAMERA_ANIMATION.lastSwitch = performance.now();
-        setMode('globe');
-        pickRandomTarget();
+        syncUiControls();
         if (animationFrameHandle) {
             cancelAnimationFrame(animationFrameHandle);
         }
         animationFrameHandle = requestAnimationFrame(tickFrame);
     }
 
+    function initializeMap() {
+        ensureThreeLoaded(function () {
+            renderMap();
+        });
+    }
+
+    window.CAMERA_ANIMATION = CAMERA_ANIMATION;
+    window.setFocusTarget = setFocusTarget;
+    window.clearFocusTarget = clearFocusTarget;
+    window.focusRegionByName = focusRegionByName;
+    window.focusEurope = function () {
+        return focusRegionByName('europe', 18);
+    };
+    window.focusNorthAmerica = function () {
+        return focusRegionByName('north-america', 18);
+    };
+    window.focusAsiaPacific = function () {
+        return focusRegionByName('asia-pacific', 18);
+    };
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', renderMap);
+        document.addEventListener('DOMContentLoaded', initializeMap);
     } else {
-        renderMap();
+        initializeMap();
     }
 })();

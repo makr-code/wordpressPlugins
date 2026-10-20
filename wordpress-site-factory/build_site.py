@@ -12,7 +12,7 @@ from taxonomy import apply_taxonomy
 from validation import smoke_test
 
 ROOT = Path(__file__).resolve().parent
-CONFIG_PATH = ROOT / "config" / "site.json"
+CONFIG_PATH = ROOT.parent / ".secure" / "site.json"
 
 
 def coerce_env_value(raw: str, target_key: str) -> Any:
@@ -26,6 +26,8 @@ def coerce_env_value(raw: str, target_key: str) -> Any:
 
 
 def load_config(profile: str | None = None) -> Dict[str, Any]:
+    if not CONFIG_PATH.exists():
+        raise FileNotFoundError(f"Missing secure config at {CONFIG_PATH}. Place WordPress credentials in .secure/site.json.")
     config = load_json(CONFIG_PATH)
     env_overrides = {
         "wordpress.base_url": ("WP_BASE_URL", "base_url"),
@@ -50,10 +52,31 @@ def load_config(profile: str | None = None) -> Dict[str, Any]:
     return config
 
 
+def validate_runtime_guard(config: Dict[str, Any], dry_run: bool = False, allow_live: bool = False) -> None:
+    if dry_run:
+        return
+
+    wordpress_cfg = config.get("wordpress", {})
+    base_url = str(wordpress_cfg.get("base_url", "")).strip()
+    use_auth = bool(wordpress_cfg.get("use_auth", False))
+    app_password = str(wordpress_cfg.get("app_password") or "").strip()
+
+    if ("localhost" in base_url.lower() or "127.0.0.1" in base_url.lower()) and not allow_live:
+        raise RuntimeError(
+            "Refusing to run a live factory against localhost. Pass --allow-live only for explicit local testing."
+        )
+
+    if not use_auth or not app_password:
+        raise RuntimeError(
+            "Live factory runs require wordpress.use_auth=true and a non-empty wordpress.app_password."
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build the ThemisDB public WordPress site from a central factory")
     parser.add_argument("--dry-run", action="store_true", help="Preview the setup without making API calls")
     parser.add_argument("--profile", default="local-test", help="Configuration profile to use")
+    parser.add_argument("--allow-live", action="store_true", help="Allow non-dry-run writes against localhost or explicitly approved local targets")
     parser.add_argument("--scan-sources", action="store_true", help="Scan the source-links bridge and print the import manifest")
     parser.add_argument("--scan-docs", action="store_true", help="Scan the documentation cache and print the document-level manifest with hashes")
     args = parser.parse_args()
@@ -84,6 +107,7 @@ def main() -> None:
         print(json.dumps(manifest, ensure_ascii=False, indent=2))
         return
 
+    validate_runtime_guard(config, dry_run=args.dry_run, allow_live=args.allow_live)
     ensure_site_ready(config, dry_run=args.dry_run)
     ensure_ai_coauthors(config, dry_run=args.dry_run)
     apply_taxonomy(config, dry_run=args.dry_run)

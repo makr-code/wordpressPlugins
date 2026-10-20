@@ -5,20 +5,12 @@ if (!defined('ABSPATH')) {
 ?>
 <div class="themisdb-global-network-map">
     <div class="themisdb-global-network-map__canvas-wrap">
-        <svg
-            id="themisdb-global-network-map-svg"
-            class="themisdb-global-network-map__svg"
-            viewBox="0 0 1200 <?php echo esc_attr((int) $height); ?>"
-            preserveAspectRatio="xMidYMid meet"
-            aria-label="ThemisDB global network map"
-            role="img"
-        ></svg>
         <canvas
             id="themisdb-global-network-map-canvas"
             class="themisdb-global-network-map__canvas"
             width="1200"
             height="<?php echo esc_attr((int) $height); ?>"
-            aria-label="ThemisDB network heatmap overlay"
+            aria-label="ThemisDB global network map"
         ></canvas>
 
         <div class="themisdb-global-network-map__controls" aria-label="Map controls">
@@ -59,7 +51,17 @@ if (!defined('ABSPATH')) {
 
             <label class="themisdb-global-network-map__control" aria-label="Rotation speed">
                 <span>Spin</span>
-                <input id="themisdb-global-network-map-rotation-speed" type="range" min="0.1" max="1.5" step="0.05" value="0.35" />
+                <input id="themisdb-global-network-map-rotation-speed" type="range" min="0.1" max="1.5" step="0.05" value="0.1" />
+            </label>
+
+            <label class="themisdb-global-network-map__toggle" aria-label="Toggle automatic animation">
+                <input type="checkbox" data-map-animation-toggle checked />
+                <span>Auto rotate</span>
+            </label>
+
+            <label class="themisdb-global-network-map__toggle" aria-label="Toggle mouse drag control">
+                <input type="checkbox" data-map-mouse-toggle checked />
+                <span>Mouse</span>
             </label>
 
             <button type="button" class="themisdb-global-network-map__button" data-map-reset aria-label="Reset view">
@@ -68,6 +70,7 @@ if (!defined('ABSPATH')) {
         </div>
 
         <div id="themisdb-global-network-map-debug" class="themisdb-global-network-map__debug" aria-live="polite">
+            <span>Overlay: <strong data-debug="overlay">global</strong></span>
             <span>Nodes: <strong data-debug="nodes">0</strong></span>
             <span>Edges: <strong data-debug="edges">0</strong></span>
             <span>FPS: <strong data-debug="fps">0</strong></span>

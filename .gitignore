@@ -1,3 +1,5 @@
+.secure/
+
 # Local WordPress runtime artifacts
 wp-local-env/node_modules/
 wp-local-env/galaxy-smoke.png

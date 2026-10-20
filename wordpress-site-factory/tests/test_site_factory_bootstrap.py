@@ -43,7 +43,7 @@ class SiteFactoryBootstrapTests(unittest.TestCase):
                 else:
                     os.environ[key] = value
 
-    def test_ensure_page_includes_template_and_parent_when_present(self):
+    def test_ensure_page_includes_parent_when_present_and_omits_unknown_template(self):
         page_data = {
             "title": "Getting Started",
             "slug": "getting-started",
@@ -58,7 +58,7 @@ class SiteFactoryBootstrapTests(unittest.TestCase):
             pages.ensure_page("https://example.test", "user", "secret", page_data)
 
         payload = mock_rest.call_args.kwargs["payload"]
-        self.assertEqual(payload["template"], "page")
+        self.assertNotIn("template", payload)
         self.assertEqual(payload["parent"], 7)
 
 

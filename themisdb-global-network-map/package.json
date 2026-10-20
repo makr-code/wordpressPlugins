@@ -11,6 +11,6 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "three": "0.165.0"
+    "three": "0.128.0"
   }
 }

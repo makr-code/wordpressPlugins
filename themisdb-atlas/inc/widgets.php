@@ -20,37 +20,21 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string $variant Widget layout: grid or list.
  * @param int    $columns Columns for grid variants.
  */
+function themisdb_should_show_demo_posts_fallback() {
+    $option_value = get_option( 'themisdb_allow_demo_posts_fallback', false );
+    $allowed = filter_var( $option_value, FILTER_VALIDATE_BOOLEAN );
+
+    return (bool) apply_filters( 'themisdb_allow_demo_posts_fallback', $allowed );
+}
+
+add_filter( 'themisdb_allow_demo_posts_fallback', '__return_false', 999 );
+
 function themisdb_demo_posts_fallback( $count = 4, $variant = 'grid', $columns = 2 ) {
-    $items = array(
-        array(
-            'title' => 'ThemisDB Search Studio',
-            'category' => 'Search',
-            'date' => '2024-10-18',
-            'excerpt' => 'Semantic search, hybrid ranking and context-rich retrieval workflows for AI-friendly data access.',
-            'permalink' => '#demo-search-studio',
-        ),
-        array(
-            'title' => 'Graph Collaboration Layer',
-            'category' => 'Relationships',
-            'date' => '2024-10-16',
-            'excerpt' => 'Model relationships across documents, entities and processes to reveal the hidden patterns in your data.',
-            'permalink' => '#demo-graph-layer',
-        ),
-        array(
-            'title' => 'Operational Guardrails',
-            'category' => 'Operations',
-            'date' => '2024-10-14',
-            'excerpt' => 'Monitoring, safety checks and governance guardrails that keep production workloads stable and explainable.',
-            'permalink' => '#demo-guardrails',
-        ),
-        array(
-            'title' => 'Release Timeline',
-            'category' => 'Product',
-            'date' => '2024-10-12',
-            'excerpt' => 'A live release overview for milestones, feature experiments and rollout-ready product signals.',
-            'permalink' => '#demo-release-timeline',
-        ),
-    );
+    if ( ! themisdb_should_show_demo_posts_fallback() ) {
+        return;
+    }
+
+    $items = array();
 
     $items = array_slice( $items, 0, max( 1, absint( $count ) ) );
 

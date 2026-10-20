@@ -33,9 +33,10 @@ $is_hero_context = isset( $hero_label ) && '' !== (string) $hero_label;
 $variant = isset( $variant ) ? sanitize_key( (string) $variant ) : 'hero';
 $respect_reduced_motion = isset( $respect_reduced_motion ) ? (bool) $respect_reduced_motion : true;
 $announcement_mode = 'announcement' === $variant;
+$empty_shell_class = empty( $slides ) ? ' themisdb-fs-empty' : '';
 ?>
 <div
-    class="themisdb-fs-wrapper la-hero-slider themisdb-fs-preset-<?php echo esc_attr( $layout_preset ); ?><?php echo $is_hero_context ? ' themisdb-fs-context-hero' : ''; ?><?php echo $announcement_mode ? ' themisdb-fs-variant-announcement' : ''; ?><?php echo $respect_reduced_motion ? '' : ' themisdb-fs-force-motion'; ?>"
+    class="themisdb-fs-wrapper la-hero-slider themisdb-fs-preset-<?php echo esc_attr( $layout_preset ); ?><?php echo $is_hero_context ? ' themisdb-fs-context-hero' : ''; ?><?php echo $announcement_mode ? ' themisdb-fs-variant-announcement' : ''; ?><?php echo $respect_reduced_motion ? '' : ' themisdb-fs-force-motion'; ?><?php echo esc_attr( $empty_shell_class ); ?>"
     id="<?php echo esc_attr( $slider_id ); ?>"
     data-interval="<?php echo esc_attr( $interval ); ?>"
     data-autoplay="<?php echo $autoplay ? '1' : '0'; ?>"
@@ -51,6 +52,13 @@ $announcement_mode = 'announcement' === $variant;
             class="themisdb-fs-track la-hero-track"
             aria-live="<?php echo $autoplay ? 'off' : 'polite'; ?>"
         >
+            <?php if ( empty( $slides ) ) : ?>
+                <div class="themisdb-fs-slide is-active themisdb-fs-slide--no-image themisdb-fs-slide--empty" role="group" aria-roledescription="slide" aria-label="<?php echo esc_attr( $announcement_mode ? __( 'Leere Ankündigung', 'themisdb-front-slider' ) : __( 'Leerer Hero-Slide', 'themisdb-front-slider' ) ); ?>" aria-hidden="false">
+                    <div class="themisdb-fs-slide-inner">
+                        <div class="themisdb-fs-slide-content"></div>
+                    </div>
+                </div>
+            <?php else : ?>
             <?php
             $slide_index = 0;
             while ( $query->have_posts() ) :
@@ -265,6 +273,7 @@ $announcement_mode = 'announcement' === $variant;
                 $slide_index++;
             endwhile;
             ?>
+            <?php endif; ?>
         </div><!-- .themisdb-fs-track -->
     </div><!-- .themisdb-fs-track-outer -->
 
