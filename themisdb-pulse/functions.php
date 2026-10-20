@@ -4157,6 +4157,17 @@ function themisdb_v3_enqueue_live_search_overlay_styles() {
 }
 
 function themisdb_v3_enqueue_assets() {
+    $theme_style_file = get_stylesheet_directory() . '/style.css';
+    if ( file_exists( $theme_style_file ) ) {
+        wp_enqueue_style(
+            'themisdb-pulse-style',
+            get_stylesheet_uri(),
+            array(),
+            (string) filemtime( $theme_style_file ),
+            'all'
+        );
+    }
+
     $color_scheme_file     = get_template_directory() . '/assets/css/color-schemes.css';
     $color_scheme_version  = file_exists( $color_scheme_file ) ? (string) filemtime( $color_scheme_file ) : THEMISDB_V3_VERSION;
     $compact_meta_js_file  = get_template_directory() . '/assets/js/compact-meta-layout.js';

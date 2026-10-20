@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 from PIL import Image
 from datetime import datetime, timezone
@@ -23,6 +24,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS_CACHE_PATH = ROOT / "output" / "docs_cache.json"
 TAXONOMY_PATH = ROOT / "config" / "taxonomy.json"
 SITE_CONFIG_PATH = ROOT.parent / ".secure" / "site.json"
+REST_TIMEOUT_SECONDS = int(os.environ.get("WP_REST_TIMEOUT", "30"))
+REST_MAX_RETRIES = int(os.environ.get("WP_REST_RETRIES", "4"))
+REST_RETRY_BACKOFF = float(os.environ.get("WP_REST_RETRY_BACKOFF", "2.0"))
 
 
 def load_site_config() -> Dict[str, Any]:
@@ -69,7 +73,34 @@ def build_wp_url(base_url: str, path: str) -> str:
 def rest_request(base_url: str, user: str, password: str, path: str, method: str = "GET", payload: Optional[Dict[str, Any]] = None) -> Any:
     url = build_wp_url(base_url, path)
     auth = (user, password) if user and password else None
-    response = requests.request(method=method, url=url, auth=auth, json=payload, timeout=30)
+    response = None
+
+    for attempt in range(1, REST_MAX_RETRIES + 1):
+        try:
+            response = requests.request(
+                method=method,
+                url=url,
+                auth=auth,
+                json=payload,
+                timeout=REST_TIMEOUT_SECONDS,
+            )
+        except requests.exceptions.RequestException as exc:
+            if attempt >= REST_MAX_RETRIES:
+                raise RuntimeError(
+                    f"REST call failed after {REST_MAX_RETRIES} attempts: {method} {url} -> {exc}"
+                ) from exc
+            sleep_seconds = min(REST_RETRY_BACKOFF ** (attempt - 1), 12.0)
+            time.sleep(sleep_seconds)
+            continue
+
+        if response.status_code >= 500 and attempt < REST_MAX_RETRIES:
+            sleep_seconds = min(REST_RETRY_BACKOFF ** (attempt - 1), 12.0)
+            time.sleep(sleep_seconds)
+            continue
+        break
+
+    if response is None:
+        raise RuntimeError(f"REST call failed without response: {method} {url}")
     if response.status_code >= 400:
         raise RuntimeError(f"REST call failed: {method} {url} -> {response.status_code}: {response.text[:500]}")
     if not response.content:
@@ -1677,10 +1708,27 @@ def run_import(manifest_path: Path = DOCS_CACHE_PATH, dry_run: bool = False, bas
     docs = filtered_docs if limit is None else filtered_docs[:limit]
     link_lookup = build_document_link_lookup(all_docs)
     results = []
+    failed = []
     for doc in docs:
-        results.append(create_or_update_document(base_url, user, password, doc, dry_run=dry_run, link_lookup=link_lookup))
+        try:
+            results.append(create_or_update_document(base_url, user, password, doc, dry_run=dry_run, link_lookup=link_lookup))
+        except Exception as exc:
+            failed.append(
+                {
+                    "title": doc.get("title"),
+                    "slug": doc.get("slug"),
+                    "error": str(exc),
+                }
+            )
 
-    return {"source": str(manifest_path), "count": len(docs), "dry_run": dry_run, "skipped": skipped, "results": results}
+    return {
+        "source": str(manifest_path),
+        "count": len(docs),
+        "dry_run": dry_run,
+        "skipped": skipped,
+        "results": results,
+        "failed": failed,
+    }
 
 
 
@@ -1711,15 +1759,34 @@ def main() -> None:
     parser.add_argument("--json", action="store_true", help="Print JSON result")
     args = parser.parse_args()
 
-    result = run_import(Path(args.manifest), dry_run=args.dry_run, base_url=args.base_url, user=args.user, password=args.password, limit=args.limit, include_low_quality=args.include_low_quality)
+    result = run_import(
+        Path(args.manifest),
+        dry_run=args.dry_run,
+        base_url=args.base_url,
+        user=args.user,
+        password=args.password,
+        limit=args.limit,
+        include_low_quality=args.include_low_quality,
+    )
     if args.json:
-        payload = {"source": result["source"], "count": result["count"], "dry_run": result["dry_run"], "results": result["results"][:10]}
+        payload = {
+            "source": result["source"],
+            "count": result["count"],
+            "dry_run": result["dry_run"],
+            "results": result["results"][:10],
+            "failed": result.get("failed", [])[:10],
+        }
         write_utf8(json.dumps(payload, ensure_ascii=False, indent=2))
         return
 
-    write_utf8(f"[docs-import] total={result['count']} dry_run={result['dry_run']}")
+    write_utf8(
+        f"[docs-import] total={result['count']} dry_run={result['dry_run']} "
+        f"succeeded={len(result['results'])} failed={len(result.get('failed', []))}"
+    )
     for entry in result["results"][:10]:
         write_utf8(f"  - {entry['action']}: {entry['title']} ({entry['slug']})")
+    for entry in result.get("failed", [])[:10]:
+        write_utf8(f"  - failed: {entry.get('title')} ({entry.get('slug')}) -> {entry.get('error')}")
 
 
 if __name__ == "__main__":

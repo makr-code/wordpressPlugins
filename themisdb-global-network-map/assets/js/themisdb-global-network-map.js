@@ -271,34 +271,53 @@
         return decodeURIComponent(match[1]).replace(/\+/g, ' ');
     }
 
+    function hasCleanResetQuery(query) {
+        const source = query === undefined ? debugProjectionParam : query;
+        return !!readQueryFlag('clean', source);
+    }
+
+    function getExplicitDebugProjectionState(query) {
+        const source = query === undefined ? (window.location && window.location.search ? window.location.search : '') : query;
+        return !!(
+            readQueryFlag('debugProjection', source) ||
+            readQueryFlag('debug', source) ||
+            readQueryFlag('checkerboard', source) ||
+            readQueryFlag('feature', source) ||
+            readQueryFlag('featureFilter', source) ||
+            readQueryFlag('geojson', source)
+        );
+    }
+
     function sanitizeDebugProjectionState() {
         const currentState = window.themisdbGnmData || {};
-        const debugProjectionFromUrl = readQueryFlag('debugProjection') || readQueryFlag('checkerboard') || readQueryFlag('feature') || readQueryFlag('geojson');
-        const nextState = debugProjectionFromUrl ? true : false;
+        if (hasCleanResetQuery()) {
+            window.__themisdbGlobeDebug = Object.assign({}, window.__themisdbGlobeDebug || {}, {
+                featureFilter: null,
+                rebuiltAt: 0
+            });
+            window.themisdbGnmData = Object.assign({}, currentState, {
+                debugProjection: false
+            });
+            return false;
+        }
+
+        const nextState = getExplicitDebugProjectionState();
         window.themisdbGnmData = Object.assign({}, currentState, {
             debugProjection: nextState
         });
         return nextState;
     }
 
-    window.__themisdbGlobeDebug = window.__themisdbGlobeDebug || {
-        disableLod: false,
-        disableAntimeridian: false,
-        featureFilter: null,
+    const featureFilterValue = hasCleanResetQuery() ? null : (getExplicitDebugProjectionState() ? (readQueryValue('featureFilter') || readQueryValue('feature')) : null);
+    window.__themisdbGlobeDebug = {
+        disableLod: !!(readQueryFlag('disableLod') || readQueryFlag('lodOff')),
+        disableAntimeridian: !!(readQueryFlag('disableAntimeridian') || readQueryFlag('antiOff')),
+        featureFilter: featureFilterValue || null,
         rebuiltAt: 0
     };
-    window.__themisdbGlobeDebug.disableLod = !!window.__themisdbGlobeDebug.disableLod || readQueryFlag('disableLod') || readQueryFlag('lodOff');
-    window.__themisdbGlobeDebug.disableAntimeridian = !!window.__themisdbGlobeDebug.disableAntimeridian || readQueryFlag('disableAntimeridian') || readQueryFlag('antiOff');
-    const featureFilterValue = readQueryValue('featureFilter');
-    if (featureFilterValue) {
-        window.__themisdbGlobeDebug.featureFilter = featureFilterValue;
-    }
-    const debugProjectionFromUrl = readQueryFlag('debugProjection') || readQueryFlag('checkerboard') || readQueryFlag('feature') || readQueryFlag('geojson');
-    const requestedFeatureFilter = featureFilterValue;
-    if (requestedFeatureFilter) {
-        window.__themisdbGlobeDebug.featureFilter = requestedFeatureFilter;
-    }
-    window.themisdbGnmData.debugProjection = sanitizeDebugProjectionState();
+    window.themisdbGnmData = Object.assign({}, window.themisdbGnmData || {}, {
+        debugProjection: sanitizeDebugProjectionState()
+    });
 
     function getLandmassDebugState() {
         const debugState = window.__themisdbGlobeDebug || {};
@@ -456,6 +475,12 @@
 
     function getDebugProjectionMode() {
         const url = window.location && window.location.search ? window.location.search : '';
+        if (hasCleanResetQuery(url)) {
+            return 'none';
+        }
+        if (!getExplicitDebugProjectionState(url)) {
+            return 'none';
+        }
         if (readQueryFlag('checkerboard', url)) {
             return 'checkerboard';
         }
@@ -465,7 +490,10 @@
         if (readQueryFlag('geojson', url)) {
             return 'geojson';
         }
-        return 'all';
+        if (readQueryFlag('debugProjection', url) || readQueryFlag('debug', url)) {
+            return 'all';
+        }
+        return 'none';
     }
 
     function getDebugProjectionLabel(mode) {
@@ -478,8 +506,10 @@
                 return 'GeoJSON outlines';
             case 'all':
                 return 'All debug overlays';
+            case 'none':
+                return 'Global';
             default:
-                return 'Debug view';
+                return 'Global';
         }
     }
 
@@ -499,19 +529,26 @@
 
     function isDebugProjectionEnabled() {
         const url = window.location && window.location.search ? window.location.search : '';
-        const queryDebug = readQueryFlag('debugProjection', url) || readQueryFlag('checkerboard', url) || readQueryFlag('feature', url) || readQueryFlag('geojson', url);
+        if (hasCleanResetQuery(url)) {
+            window.__themisdbGlobeDebug = Object.assign({}, window.__themisdbGlobeDebug || {}, {
+                featureFilter: null,
+                rebuiltAt: 0
+            });
+            window.themisdbGnmData = Object.assign({}, window.themisdbGnmData || {}, {
+                debugProjection: false
+            });
+            return false;
+        }
+
+        const queryDebug = getExplicitDebugProjectionState(url);
         if (queryDebug) {
             window.themisdbGnmData = Object.assign({}, window.themisdbGnmData || {}, {
                 debugProjection: true
             });
             return true;
         }
-        const data = window.themisdbGnmData || {};
-        const explicitState = data.debugProjection === true || data.debugProjection === '1' || data.debugProjection === 1;
-        if (explicitState) {
-            return true;
-        }
-        window.themisdbGnmData = Object.assign({}, data, {
+
+        window.themisdbGnmData = Object.assign({}, window.themisdbGnmData || {}, {
             debugProjection: false
         });
         return false;
@@ -637,17 +674,14 @@
             return null;
         }
 
-        const sphericalPoints = normalizedRing.map(function (vertex) {
+        const unitVectors = normalizedRing.map(function (vertex) {
             const lon = Number(vertex[0]);
             const lat = Number(vertex[1]);
             return lonLatToSpherePoint(lon, lat, 1).normalize();
         });
-        if (sphericalPoints.length < 3) {
-            return null;
-        }
 
         const centroid = new THREE.Vector3();
-        sphericalPoints.forEach(function (point) {
+        unitVectors.forEach(function (point) {
             centroid.add(point);
         });
         if (centroid.lengthSq() < 1e-8) {
@@ -662,42 +696,47 @@
         tangentU.normalize();
 
         const tangentV = new THREE.Vector3().crossVectors(centroid, tangentU).normalize();
-        const planarPoints = sphericalPoints.map(function (point) {
+        const planarPoints = unitVectors.map(function (point) {
             return {
                 x: point.dot(tangentU),
                 y: point.dot(tangentV)
             };
         });
 
-        const shape = new THREE.Shape();
-        planarPoints.forEach(function (point, index) {
-            if (index === 0) {
-                shape.moveTo(point.x, point.y);
-                return;
-            }
-            shape.lineTo(point.x, point.y);
-        });
-        shape.closePath();
+        const centroid2D = planarPoints.reduce(function (sum, point) {
+            sum.x += point.x;
+            sum.y += point.y;
+            return sum;
+        }, { x: 0, y: 0 });
+        centroid2D.x /= planarPoints.length;
+        centroid2D.y /= planarPoints.length;
 
-        const planarGeometry = new THREE.ShapeGeometry(shape);
-        const positions = planarGeometry.attributes.position.array;
-        const projected = new Float32Array(positions.length);
-
-        for (let index = 0; index < positions.length; index += 3) {
-            const x = positions[index];
-            const y = positions[index + 1];
-            const direction = centroid.clone()
-                .add(tangentU.clone().multiplyScalar(x))
-                .add(tangentV.clone().multiplyScalar(y))
+        const positions = [];
+        const indices = [];
+        const toSphere = function (point) {
+            return centroid.clone()
+                .add(tangentU.clone().multiplyScalar(point.x - centroid2D.x))
+                .add(tangentV.clone().multiplyScalar(point.y - centroid2D.y))
                 .normalize()
                 .multiplyScalar(radius);
-            projected[index] = direction.x;
-            projected[index + 1] = direction.y;
-            projected[index + 2] = direction.z;
+        };
+
+        const centerVertex = toSphere({ x: centroid2D.x, y: centroid2D.y });
+        positions.push(centerVertex.x, centerVertex.y, centerVertex.z);
+
+        planarPoints.forEach(function (point) {
+            const onSphere = toSphere(point);
+            positions.push(onSphere.x, onSphere.y, onSphere.z);
+        });
+
+        for (let index = 0; index < planarPoints.length; index += 1) {
+            const nextIndex = (index + 1) % planarPoints.length;
+            indices.push(0, index + 1, nextIndex + 1);
         }
 
-        const geometry = planarGeometry.clone();
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(projected, 3));
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setIndex(indices);
         geometry.computeVertexNormals();
         geometry.computeBoundingSphere();
         return geometry;
@@ -764,6 +803,43 @@
             });
             if (matches.length) {
                 return matches[0];
+            }
+
+            const fallbackMappings = {
+                france: 'europe',
+                german: 'europe',
+                germany: 'europe',
+                europe: 'europe',
+                uk: 'europe',
+                unitedkingdom: 'europe',
+                unitedstates: 'north america',
+                usa: 'north america',
+                america: 'north america',
+                canada: 'north america',
+                brazil: 'south america',
+                india: 'asia',
+                japan: 'asia',
+                australia: 'australia',
+                afrika: 'africa',
+                africa: 'africa',
+                southafrica: 'africa'
+            };
+
+            const fallbackTarget = fallbackMappings[names] || fallbackMappings[Object.keys(fallbackMappings).find(function (key) {
+                return names.indexOf(key) >= 0 || key.indexOf(names) >= 0;
+            })] || null;
+
+            if (fallbackTarget) {
+                const fallbackMatch = geojson.features.find(function (feature) {
+                    if (!feature || !feature.properties || !feature.properties.name) {
+                        return false;
+                    }
+                    const candidate = normalizeFeatureName(feature.properties.name);
+                    return candidate.indexOf(fallbackTarget) >= 0 || fallbackTarget.indexOf(candidate) >= 0;
+                });
+                if (fallbackMatch) {
+                    return fallbackMatch;
+                }
             }
 
             return geojson.features.find(function (feature) {
@@ -1765,7 +1841,7 @@
             landLayer.add(cityLayer);
         }
 
-        window.__themisdbGlobeDebug = {
+        window.__themisdbGlobeDebug = Object.assign({}, window.__themisdbGlobeDebug || {}, {
             cityCount: cityLayer ? cityLayer.children.length : 0,
             visibleCities: cityLayer ? getVisibleImportantCities().length : 0,
             mode: CAMERA_ANIMATION.mode,
@@ -1786,7 +1862,7 @@
                     position: child && child.position ? { x: child.position.x, y: child.position.y, z: child.position.z } : null
                 };
             }) : []
-        };
+        });
 
         WEBGL_GLOBE.enabled = true;
         WEBGL_GLOBE.renderer = renderer;
@@ -2555,12 +2631,19 @@
                 ]
             },
             {
+                name: 'france',
+                points: [
+                    [-6, 51], [-5, 49], [-3, 47], [-1, 45], [2, 43], [5, 43], [7, 45], [8, 48], [7, 50], [5, 52],
+                    [2, 51], [0, 49], [-2, 50], [-4, 52], [-6, 51]
+                ]
+            },
+            {
                 name: 'europe-africa',
                 points: [
-                    [-16, 72], [-4, 68], [8, 62], [22, 58], [34, 52], [40, 45], [42, 37], [38, 28], [32, 18],
-                    [24, 10], [16, 2], [10, -8], [12, -20], [16, -30], [22, -36], [32, -34], [38, -24],
-                    [42, -10], [44, 2], [46, 18], [43, 32], [36, 42], [28, 46], [18, 52], [4, 60], [-10, 66],
-                    [-16, 72]
+                    [-16, 72], [-8, 70], [0, 68], [8, 64], [18, 60], [26, 56], [34, 52], [40, 45], [42, 37],
+                    [38, 28], [34, 22], [28, 15], [22, 10], [16, 2], [12, -6], [14, -18], [20, -30], [30, -34],
+                    [38, -24], [42, -10], [44, 2], [46, 18], [43, 32], [36, 42], [28, 46], [18, 52], [4, 60],
+                    [-10, 66], [-16, 72]
                 ]
             },
             {
@@ -2912,7 +2995,7 @@
 
     function getLocalGeoJsonUrl() {
         const data = window.themisdbGnmData || {};
-        return data.geojsonUrl || '';
+        return data.geojsonAjaxUrl || data.geojsonUrl || '';
     }
 
     function loadGeoJson(url, callback) {

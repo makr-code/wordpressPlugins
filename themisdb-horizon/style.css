@@ -56,6 +56,13 @@ Tags: full-site-editing, block-theme, government, custom-colors, custom-logo, cu
     --themisdb-gradient-hero:  linear-gradient(135deg, #0c4a6e 0%, #0284c7 100%);
     --themisdb-gradient-text:  linear-gradient(135deg, #0c4a6e 0%, #0284c7 100%);
 
+    /* ── Motion / rendering ── */
+    --themisdb-transition-fast: 160ms ease;
+    --themisdb-transition-base: 220ms ease;
+    --themisdb-transition-slow: 320ms ease;
+    --themisdb-shadow-soft: 0 10px 24px rgba(12, 74, 110, 0.14);
+    --themisdb-shadow-card: 0 18px 40px rgba(15, 23, 42, 0.12);
+
     /* ── Spacing ── */
     --themisdb-section-py:     6.25rem;  /* 100px – block-section padding */
     --themisdb-section-py-sm:  3.75rem;  /* 60px  – mobile */
@@ -80,12 +87,36 @@ html {
     scroll-behavior: smooth;
 }
 
+img,
+svg,
+video {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
 body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #ffffff;
     color: var(--themisdb-text-primary);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 /* WordPress Adminbar compensation */

@@ -92,15 +92,6 @@ function themisdb_enqueue() {
 		null
 	);
 
-	// ── Font Awesome (CDN) ────────────────────────────────────────────
-	// NOTE: In Produktion durch Self-hosted oder WP-Plugin ersetzen.
-	wp_enqueue_style(
-		'themisdb-font-awesome',
-		'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-		array(),
-		'6.4.0'
-	);
-
 	// ── Theme Stylesheet ──────────────────────────────────────────────
 	wp_enqueue_style(
 		'themisdb-style',

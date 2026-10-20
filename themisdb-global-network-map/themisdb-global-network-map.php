@@ -3,7 +3,7 @@
  * Plugin Name: ThemisDB Global Network Map
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Description: Canvas-based world heatmap showing live ThemisDB runtime locations derived from WordPress DB homecalls and geocache entries.
- * Version: 0.2.0
+ * Version: 0.2.1
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -110,6 +110,75 @@ class ThemisDB_Global_Network_Map {
     private function __construct() {
         add_shortcode('themisdb_global_network_map', array($this, 'render_shortcode'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+        add_action('wp_ajax_themisdb_gnm_geojson', array($this, 'ajax_geojson'));
+        add_action('wp_ajax_nopriv_themisdb_gnm_geojson', array($this, 'ajax_geojson'));
+    }
+
+    public function ajax_geojson() {
+        $geojson_path = THEMISDB_GNM_PLUGIN_DIR . 'assets/data/world.geojson';
+
+        if (!is_readable($geojson_path)) {
+            status_header(404);
+            wp_die('GeoJSON not found', 'GeoJSON not found', array('response' => 404));
+        }
+
+        $raw_geojson = file_get_contents($geojson_path);
+        if ($raw_geojson === false) {
+            status_header(500);
+            wp_die('GeoJSON unreadable', 'GeoJSON unreadable', array('response' => 500));
+        }
+
+        $geojson = json_decode($raw_geojson, true);
+        if (!is_array($geojson)) {
+            status_header(500);
+            wp_die('Invalid GeoJSON', 'Invalid GeoJSON', array('response' => 500));
+        }
+
+        $requested_feature = isset($_GET['feature']) ? sanitize_text_field(wp_unslash($_GET['feature'])) : '';
+        if ($requested_feature !== '') {
+            $needle = strtolower(trim($requested_feature));
+            $filtered = array(
+                'type' => 'FeatureCollection',
+                'features' => array(),
+            );
+
+            foreach ($geojson['features'] as $feature) {
+                if (!is_array($feature) || empty($feature['properties']) || !is_array($feature['properties'])) {
+                    continue;
+                }
+
+                $property_names = array();
+                if (!empty($feature['properties']['name'])) {
+                    $property_names[] = strtolower((string) $feature['properties']['name']);
+                }
+                if (!empty($feature['properties']['ISO3166-1-Alpha-2'])) {
+                    $property_names[] = strtolower((string) $feature['properties']['ISO3166-1-Alpha-2']);
+                }
+                if (!empty($feature['properties']['ISO3166-1-Alpha-3'])) {
+                    $property_names[] = strtolower((string) $feature['properties']['ISO3166-1-Alpha-3']);
+                }
+
+                $matched = false;
+                foreach ($property_names as $name) {
+                    if ($name === $needle || strpos($name, $needle) !== false || strpos($needle, $name) !== false) {
+                        $matched = true;
+                        break;
+                    }
+                }
+
+                if ($matched) {
+                    $filtered['features'][] = $feature;
+                }
+            }
+
+            if (empty($filtered['features'])) {
+                $filtered['features'] = array();
+            }
+
+            wp_send_json($filtered);
+        }
+
+        wp_send_json($geojson);
     }
 
     public function enqueue_assets() {
@@ -183,9 +252,10 @@ class ThemisDB_Global_Network_Map {
                 'theme' => sanitize_key($atts['theme']),
                 'showControls' => !empty($atts['show_controls']) ? 1 : 0,
                 'threeUrl' => $three_url,
-                'geojson' => $geojson,
-                'geojsonUrl' => $geojson_url,
-                'hasLocalGeojson' => $geojson !== null ? 1 : 0,
+                'geojson' => null,
+                'geojsonUrl' => '',
+                'geojsonAjaxUrl' => '',
+                'hasLocalGeojson' => 0,
                 'allowDemoFallback' => (bool) get_option('themisdb_gnm_allow_demo_fallback', true) ? 1 : 0,
                 'debugProjection' => 0,
             ));
@@ -240,8 +310,10 @@ class ThemisDB_Global_Network_Map {
             'theme' => sanitize_key($atts['theme']),
             'showControls' => !empty($atts['show_controls']),
             'threeUrl' => $three_url,
-            'geojsonUrl' => THEMISDB_GNM_PLUGIN_URL . 'assets/data/world.geojson',
-            'hasLocalGeojson' => file_exists(THEMISDB_GNM_PLUGIN_DIR . 'assets/data/world.geojson'),
+            'geojson' => null,
+            'geojsonUrl' => '',
+            'geojsonAjaxUrl' => '',
+            'hasLocalGeojson' => 0,
             'allowDemoFallback' => (bool) get_option('themisdb_gnm_allow_demo_fallback', true),
         );
 
