@@ -179,8 +179,78 @@
         pointer: null,
         lastTime: 0,
         earthSpin: 0,
-        earthPitch: 0
+        earthPitch: 0,
+        postEffects: {
+            composer: null,
+            bloomPass: null,
+            enabled: false,
+            loading: false
+        }
     };
+
+    function supportsWebGPU() {
+        const gpu = navigator && navigator.gpu;
+        return !!(gpu && typeof gpu.requestAdapter === 'function');
+    }
+
+    function shouldUseWebGPUPath() {
+        return supportsWebGPU() && !window.__themisdbLegacyForceWebGL;
+    }
+
+    function shouldReduceMotion() {
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    function initializePostEffects(renderer, scene, camera, canvas) {
+        if (!renderer || !scene || !camera || !canvas || !shouldUseWebGPUPath() || shouldReduceMotion()) {
+            return;
+        }
+
+        const postEffects = WEBGL_GLOBE.postEffects || {};
+        if (postEffects.enabled || postEffects.loading) {
+            return;
+        }
+
+        postEffects.loading = true;
+        const THREE = window.THREE;
+        if (!THREE || !window.Promise) {
+            postEffects.loading = false;
+            return;
+        }
+
+        Promise.all([
+            import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js'),
+            import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/RenderPass.js'),
+            import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js')
+        ]).then(function (modules) {
+            const composerModule = modules[0];
+            const renderPassModule = modules[1];
+            const bloomPassModule = modules[2];
+            const composer = new composerModule.EffectComposer(renderer);
+            const renderPass = new renderPassModule.RenderPass(scene, camera);
+            const bloomPass = new bloomPassModule.UnrealBloomPass(
+                new THREE.Vector2(canvas.clientWidth || 1200, canvas.clientHeight || 540),
+                0.5,
+                0.35,
+                0.1
+            );
+
+            bloomPass.threshold = 0.18;
+            bloomPass.strength = 0.62;
+            bloomPass.radius = 0.4;
+
+            composer.addPass(renderPass);
+            composer.addPass(bloomPass);
+
+            postEffects.composer = composer;
+            postEffects.bloomPass = bloomPass;
+            postEffects.enabled = true;
+            postEffects.loading = false;
+        }).catch(function () {
+            postEffects.enabled = false;
+            postEffects.loading = false;
+        });
+    }
 
     function ensureThreeLoaded(callback) {
         if (window.THREE) {
@@ -191,8 +261,9 @@
         }
 
         const configuredThreeUrl = window.themisdbGnmData && window.themisdbGnmData.threeUrl ? window.themisdbGnmData.threeUrl : null;
+        const modernThreeUrl = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
         const fallbackThreeUrl = 'http://localhost/wordpress/wp-content/plugins/themisdb-global-network-map/assets/vendor/three.min.js';
-        const candidateUrl = configuredThreeUrl || fallbackThreeUrl;
+        const candidateUrl = shouldUseWebGPUPath() ? (configuredThreeUrl || modernThreeUrl) : (configuredThreeUrl || fallbackThreeUrl);
 
         if (document.querySelector('script[data-themisdb-three-loader="true"]')) {
             window.setTimeout(function () {
@@ -1602,6 +1673,31 @@
         }
     }
 
+    function getGlobeViewportSize(canvas) {
+        if (!canvas) {
+            return { width: 1200, height: 540 };
+        }
+
+        const fallbackWidth = Number(canvas.getAttribute('width')) || Number(canvas.width) || 1200;
+        const fallbackHeight = Number(canvas.getAttribute('height')) || Number(canvas.height) || 540;
+        const rect = canvas.getBoundingClientRect ? canvas.getBoundingClientRect() : null;
+
+        let width = rect && Number.isFinite(rect.width) ? rect.width : (Number(canvas.clientWidth) || fallbackWidth);
+        let height = rect && Number.isFinite(rect.height) ? rect.height : (Number(canvas.clientHeight) || fallbackHeight);
+
+        if (!Number.isFinite(width) || width <= 0) {
+            width = fallbackWidth;
+        }
+        if (!Number.isFinite(height) || height <= 0) {
+            height = fallbackHeight;
+        }
+
+        width = Math.max(Math.round(width), 240);
+        height = Math.max(Math.round(height), 180);
+
+        return { width: width, height: height };
+    }
+
     function initWebGLGlobe() {
         if (WEBGL_GLOBE.enabled || !window.THREE) {
             return;
@@ -1612,28 +1708,41 @@
             return;
         }
 
-        const glContext = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-        if (!glContext) {
-            canvas.style.display = 'block';
-            renderFallbackGlobe();
-            return;
+        const THREE = window.THREE;
+        const shouldUseWebGpuRenderer = shouldUseWebGPUPath() && !!THREE.WebGPURenderer && !!(canvas.getContext && canvas.getContext('webgpu'));
+
+        if (!shouldUseWebGpuRenderer) {
+            const glContext = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!glContext) {
+                canvas.style.display = 'block';
+                renderFallbackGlobe();
+                return;
+            }
         }
 
-        const THREE = window.THREE;
-        const renderer = new THREE.WebGLRenderer({
+        const desiredSize = getGlobeViewportSize(canvas);
+        const renderer = shouldUseWebGpuRenderer ? new THREE.WebGPURenderer({
             canvas: canvas,
             alpha: true,
-            antialias: true
+            antialias: true,
+            powerPreference: 'high-performance'
+        }) : new THREE.WebGLRenderer({
+            canvas: canvas,
+            alpha: true,
+            antialias: true,
+            powerPreference: 'high-performance'
         });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        window.__themisdbRendererMode = shouldUseWebGpuRenderer ? 'webgpu' : 'webgl';
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+        renderer.setPixelRatio(pixelRatio);
         renderer.setClearColor(0x000000, 0);
-        renderer.setSize(canvas.clientWidth || canvas.width || 1200, canvas.clientHeight || canvas.height || 540, false);
+        renderer.setSize(desiredSize.width, desiredSize.height, false);
 
         const scene = new THREE.Scene();
         const cameraRig = new THREE.Group();
         const earthRoot = new THREE.Group();
         const earthPivot = new THREE.Group();
-        const camera = new THREE.PerspectiveCamera(28, (canvas.clientWidth || canvas.width || 1200) / Math.max(canvas.clientHeight || canvas.height || 1, 1), 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(28, desiredSize.width / Math.max(desiredSize.height, 1), 0.1, 1000);
         camera.position.z = 4.5;
         cameraRig.add(camera);
         scene.add(cameraRig);
@@ -1879,6 +1988,7 @@
         WEBGL_GLOBE.grid = grid;
         WEBGL_GLOBE.cityLayer = cityLayer;
         WEBGL_GLOBE.pointer = new THREE.Vector2();
+        initializePostEffects(renderer, scene, camera, canvas);
         window.__themisdbGlobe = WEBGL_GLOBE;
         if (!WEBGL_GLOBE.cityLayer || !WEBGL_GLOBE.cityLayer.children.length) {
             renderFallbackGlobe();
@@ -1948,11 +2058,22 @@
             return;
         }
 
-        const width = canvas.clientWidth || canvas.width || 1200;
-        const height = canvas.clientHeight || canvas.height || 540;
+        const desiredSize = getGlobeViewportSize(canvas);
+        const width = desiredSize.width;
+        const height = desiredSize.height;
+        if (width < 160 || height < 120) {
+            return;
+        }
+
         WEBGL_GLOBE.camera.aspect = width / Math.max(height, 1);
         WEBGL_GLOBE.camera.updateProjectionMatrix();
+        WEBGL_GLOBE.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
         WEBGL_GLOBE.renderer.setSize(width, height, false);
+
+        if (WEBGL_GLOBE.postEffects && WEBGL_GLOBE.postEffects.composer) {
+            WEBGL_GLOBE.postEffects.composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.1));
+            WEBGL_GLOBE.postEffects.composer.setSize(width, height, false);
+        }
 
         const earthObject = WEBGL_GLOBE.earthPivot || WEBGL_GLOBE.globe;
         if (!earthObject) {
@@ -2009,7 +2130,11 @@
 
         applyEarthLighting(timestamp);
 
-        WEBGL_GLOBE.renderer.render(WEBGL_GLOBE.scene, WEBGL_GLOBE.camera);
+        if (WEBGL_GLOBE.postEffects && WEBGL_GLOBE.postEffects.enabled && WEBGL_GLOBE.postEffects.composer) {
+            WEBGL_GLOBE.postEffects.composer.render();
+        } else {
+            WEBGL_GLOBE.renderer.render(WEBGL_GLOBE.scene, WEBGL_GLOBE.camera);
+        }
         if (window.__themisdbGlobeDebug) {
             window.__themisdbGlobeDebug.renderCount = (window.__themisdbGlobeDebug.renderCount || 0) + 1;
         }
@@ -2318,8 +2443,10 @@
         }
 
         const canvas = document.createElement('canvas');
-        canvas.width = 220;
-        canvas.height = 52;
+        const textureWidth = 256;
+        const textureHeight = 64;
+        canvas.width = textureWidth;
+        canvas.height = textureHeight;
         const context = canvas.getContext('2d');
         if (!context) {
             return null;
@@ -2335,10 +2462,10 @@
         context.moveTo(radius, 0);
         context.lineTo(labelWidth - radius, 0);
         context.quadraticCurveTo(labelWidth, 0, labelWidth, radius);
-        context.lineTo(labelWidth, 52 - radius);
-        context.quadraticCurveTo(labelWidth, 52, labelWidth - radius, 52);
-        context.lineTo(radius, 52);
-        context.quadraticCurveTo(0, 52, 0, 52 - radius);
+        context.lineTo(labelWidth, textureHeight - radius);
+        context.quadraticCurveTo(labelWidth, textureHeight, labelWidth - radius, textureHeight);
+        context.lineTo(radius, textureHeight);
+        context.quadraticCurveTo(0, textureHeight, 0, textureHeight - radius);
         context.lineTo(0, radius);
         context.quadraticCurveTo(0, 0, radius, 0);
         context.closePath();
@@ -2349,9 +2476,14 @@
         context.textAlign = 'center';
         context.textBaseline = 'middle';
         context.fillStyle = '#eff9ff';
-        context.fillText(cityName, 110, 26);
+        context.fillText(cityName, canvas.width * 0.5, canvas.height * 0.5);
 
-        return new window.THREE.CanvasTexture(canvas);
+        const texture = new window.THREE.CanvasTexture(canvas);
+        texture.generateMipmaps = false;
+        texture.minFilter = window.THREE.LinearFilter;
+        texture.magFilter = window.THREE.LinearFilter;
+        texture.needsUpdate = true;
+        return texture;
     }
 
     function buildCityMarkerGroup() {

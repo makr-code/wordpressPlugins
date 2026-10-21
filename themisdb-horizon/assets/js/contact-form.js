@@ -171,6 +171,17 @@
         submitBtn.textContent = submitLabelDefault;
     }
 
+    function normalizeErrorMessage(raw) {
+        if (raw == null) {
+            return '';
+        }
+
+        var text = String(raw).replace(/<script[\s\S]*?<\/script>/gi, ' ');
+        text = text.replace(/<[^>]+>/g, ' ');
+        text = text.replace(/\s+/g, ' ').trim();
+        return text;
+    }
+
     function showServerError(data, status) {
         const code = data?.code || '';
 
@@ -190,7 +201,8 @@
             return;
         }
 
-        showError(data?.message || fmt(t('contactSendError', 'Fehler beim Senden. Bitte versuchen Sie es erneut oder schreiben Sie direkt an %s.'), getContactEmail()));
+        const message = normalizeErrorMessage(data?.message) || fmt(t('contactSendError', 'Fehler beim Senden. Bitte versuchen Sie es erneut oder schreiben Sie direkt an %s.'), getContactEmail());
+        showError(message);
     }
 
     function getContactEmail() {
@@ -273,7 +285,30 @@
         })
         .then(function (res) {
             responseStatus = res.status;
-            return res.json();
+            return res.text().then(function (raw) {
+                if (!raw) {
+                    return { success: false, data: {} };
+                }
+
+                try {
+                    return JSON.parse(raw);
+                } catch (_err) {
+                    var trimmed = String(raw).trim();
+                    var looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(trimmed);
+                    var fallbackMessage = looksLikeHtml || trimmed.length > 300
+                        ? fmt(
+                            t('contactSendError', 'Fehler beim Senden. Bitte versuchen Sie es erneut oder schreiben Sie direkt an %s.'),
+                            getContactEmail()
+                        )
+                        : trimmed;
+                    return {
+                        success: false,
+                        data: {
+                            message: fallbackMessage
+                        }
+                    };
+                }
+            });
         })
         .then(function (json) {
             if (json.success) {

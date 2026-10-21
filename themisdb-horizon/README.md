@@ -117,11 +117,18 @@ Für Produktivbetrieb ersetzen durch eigene Screenshots der ThemisDB-Oberfläche
 
 | Bibliothek | CDN | Version |
 |------------|-----|---------|
-| Plus Jakarta Sans | Google Fonts | – |
-| Font Awesome | cdnjs.cloudflare.com | 6.4.0 |
 | Mermaid.js | cdn.jsdelivr.net | 11 |
 
-> **Produktions-Hinweis:** Für DSGVO-konformen Betrieb sollten Google Fonts und CDN-Ressourcen durch selbst gehostete Versionen ersetzt werden.
+> **Hinweis:** Das Theme nutzt systemeigene Schrift-Stacks (keine externen Font-CDNs).  
+> Mermaid wird nur bei erkanntem Mermaid-Markup geladen.
+
+---
+
+## Performance / Asset-Loading
+
+- Theme-CSS/JS wird modular geladen.
+- Block-spezifische Assets (Gallery, FAQ, Contact, Motion, Section-Blocks, Slider) werden nur bei relevantem Markup bzw. im Frontpage/Home-Kontext enqueued.
+- Inline-JS-Daten (`themisdbThemeData`) werden nur ausgegeben, wenn abhängige Scripts aktiv sind.
 
 ---
 

@@ -355,7 +355,7 @@
 .themisdb-fs-wrapper.themisdb-fs-variant-announcement .themisdb-fs-slide-inner {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     grid-template-columns: none;
     max-width: 1280px;
     min-height: 30px;
@@ -365,24 +365,31 @@
 .themisdb-fs-wrapper.themisdb-fs-variant-announcement .themisdb-fs-slide-content {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     flex-wrap: nowrap;
     gap: 0.6rem;
     max-width: 100%;
-    width: 100%;
-    text-align: center;
+    width: auto;
+    min-width: 0;
+    margin: 0 auto 0 0;
+    text-align: left;
     white-space: nowrap;
     overflow: hidden;
 }
 
 .themisdb-fs-wrapper.themisdb-fs-variant-announcement .themisdb-fs-ribbons {
-    justify-content: center;
+    display: inline-flex;
+    justify-content: flex-start;
     margin: 0;
     flex-shrink: 0;
     opacity: 1;
 }
 
 .themisdb-fs-wrapper.themisdb-fs-variant-announcement .themisdb-fs-title {
+    flex: 0 1 auto;
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
     margin: 0;
     font-size: 0.82rem;
     line-height: 1.25;
@@ -393,6 +400,12 @@
 }
 
 .themisdb-fs-wrapper.themisdb-fs-variant-announcement .themisdb-fs-title a {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
     color: #ffffff;
     font-weight: 700;
 }
@@ -422,15 +435,15 @@
     }
 
     .themisdb-fs-wrapper.themisdb-fs-variant-announcement .themisdb-fs-slide-content {
-        white-space: normal;
-        flex-wrap: wrap;
+        white-space: nowrap;
+        flex-wrap: nowrap;
         gap: 0.35rem;
     }
 
     .themisdb-fs-wrapper.themisdb-fs-variant-announcement .themisdb-fs-title {
-        white-space: normal;
-        overflow: visible;
-        text-overflow: unset;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 }
 
@@ -447,7 +460,7 @@
     font-size: 0.66rem;
     font-weight: 800;
     padding: 0.24rem 0.62rem;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 .themisdb-fs-category:hover,
@@ -456,9 +469,22 @@
     color: #ffffff;
 }
 
-.themisdb-fs-title {
+.themisdb-fs-slide-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 700px;
+    width: min(100%, 700px);
+}
+
+.themisdb-fs-title,
+.themisdb-fs-excerpt {
+    display: block;
     width: 100%;
     max-width: 100%;
+}
+
+.themisdb-fs-title {
     margin: 0 0 0.65rem;
     font-size: clamp(1.55rem, 1.9vw, 1.9rem);
     line-height: 1;
@@ -466,11 +492,6 @@
     font-weight: 500;
     opacity: 0;
     transition: opacity 1.3s ease-in-out 0.5s;
-}
-
-.themisdb-fs-slide-content {
-    max-width: 700px;
-    width: min(100%, 700px);
 }
 
 .themisdb-fs-slide.is-active .themisdb-fs-title {
@@ -499,6 +520,7 @@
     line-height: 1.5;
     letter-spacing: -0.008em;
     font-weight: 400;
+    max-width: 100%;
 }
 
 .themisdb-fs-meta {

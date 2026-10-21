@@ -82,152 +82,311 @@ add_action( 'after_switch_theme', function() {
 
 add_action( 'wp_enqueue_scripts', 'themisdb_enqueue' );
 
-function themisdb_enqueue() {
+function themisdb_theme_query_markup_blob() {
+	static $blob = null;
 
-	// ── Google Fonts: Plus Jakarta Sans ──────────────────────────────
-	wp_enqueue_style(
-		'themisdb-google-fonts',
-		'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap',
-		array(),
-		null
+	if ( null !== $blob ) {
+		return $blob;
+	}
+
+	$blob = '';
+
+	global $wp_query;
+	if ( ! ( $wp_query instanceof WP_Query ) || empty( $wp_query->posts ) || ! is_array( $wp_query->posts ) ) {
+		return $blob;
+	}
+
+	$chunks = array();
+	foreach ( $wp_query->posts as $post ) {
+		if ( ! ( $post instanceof WP_Post ) ) {
+			continue;
+		}
+		$content = (string) $post->post_content;
+		if ( '' !== $content ) {
+			$chunks[] = $content;
+		}
+	}
+
+	$blob = implode( "\n", $chunks );
+	return $blob;
+}
+
+function themisdb_theme_query_contains_markup( $needles ) {
+	if ( empty( $needles ) ) {
+		return false;
+	}
+
+	if ( ! is_array( $needles ) ) {
+		$needles = array( (string) $needles );
+	}
+
+	$blob = themisdb_theme_query_markup_blob();
+	if ( '' === $blob ) {
+		return false;
+	}
+
+	foreach ( $needles as $needle ) {
+		$needle = (string) $needle;
+		if ( '' !== $needle && false !== strpos( $blob, $needle ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+function themisdb_theme_should_enqueue_mermaid() {
+	if ( is_admin() ) {
+		return false;
+	}
+
+	if ( themisdb_theme_query_contains_markup( array( '```mermaid', 'class="mermaid"', ' class=\'mermaid\'' ) ) ) {
+		return true;
+	}
+
+	return is_page_template( 'templates/homepage.html' ) || is_front_page();
+}
+
+function themisdb_theme_should_enqueue_slider_script() {
+	if ( is_admin() ) {
+		return false;
+	}
+
+	if ( is_front_page() || is_home() ) {
+		return true;
+	}
+
+	return themisdb_theme_query_contains_markup(
+		array(
+			'wp:themisdb/front-slider',
+			'[themisdb_front_slider',
+			'themisdb-front-slider',
+			'themisdb-fs-wrapper',
+		)
+	);
+}
+
+function themisdb_theme_asset_version( $relative_path ) {
+	$version = THEMISDB_THEME_VERSION;
+	$file    = THEMISDB_THEME_DIR . '/' . ltrim( (string) $relative_path, '/' );
+	if ( file_exists( $file ) ) {
+		$version .= '.' . (string) filemtime( $file );
+	}
+
+	return $version;
+}
+
+function themisdb_enqueue() {
+	$is_front_context = is_front_page() || is_home();
+	$should_enqueue_slider_assets = themisdb_theme_should_enqueue_slider_script();
+	$should_enqueue_section_assets = $is_front_context || themisdb_theme_query_contains_markup(
+		array(
+			'wp:themisdb/three-row-grid',
+			'wp:themisdb/section-cards',
+			'wp:themisdb/section-feature',
+			'wp:themisdb/section-timeline',
+			'wp:themisdb/state-grid',
+			'wp:themisdb/button-box-grid',
+			'themisdb-section-shell',
+			'themisdb-feature',
+			'themisdb-timeline',
+			'themisdb-land-grid',
+		)
+	);
+	$should_enqueue_gallery_assets = $is_front_context || themisdb_theme_query_contains_markup(
+		array(
+			'wp:themisdb/gallery-grid',
+			'themisdb-gallery-section',
+			'data-gallery-grid',
+			'themisdb-gallery-item',
+		)
+	);
+	$should_enqueue_faq_assets = $is_front_context || themisdb_theme_query_contains_markup(
+		array(
+			'wp:themisdb/section-faq',
+			'data-faq-container',
+			'themisdb-faq-item',
+		)
+	);
+	$should_enqueue_contact_assets = $is_front_context || themisdb_theme_query_contains_markup(
+		array(
+			'wp:themisdb/contact-form',
+			'id="themisdb-contact-form"',
+			'themisdb-cf-behoerde',
+		)
+	);
+	$should_enqueue_legal_assets = true;
+	$should_enqueue_motion_assets = $is_front_context || $should_enqueue_gallery_assets || $should_enqueue_faq_assets || $should_enqueue_section_assets || themisdb_theme_query_contains_markup( 'themisdb-motion-target' );
+	$should_enqueue_crest_assets = $is_front_context || themisdb_theme_query_contains_markup(
+		array(
+			'themisdb-crest-img',
+			'data-crest=',
+		)
 	);
 
 	// ── Theme Stylesheet ──────────────────────────────────────────────
 	wp_enqueue_style(
 		'themisdb-style',
 		get_stylesheet_uri(),
-		array( 'themisdb-google-fonts' ),
+		array(),
 		THEMISDB_THEME_VERSION
 	);
 
 	// ── Block CSS (modularisiert) ─────────────────────────────────────
 	$block_css = array(
-		'themisdb-hero-slider-css'    => 'assets/css/blocks/hero-slider.css',
-		'themisdb-section-blocks-css' => 'assets/css/blocks/section-blocks.css',
-		'themisdb-gallery-css'        => 'assets/css/blocks/gallery.css',
-		'themisdb-faq-css'            => 'assets/css/blocks/faq.css',
-		'themisdb-contact-form-css'   => 'assets/css/blocks/contact-form.css',
-		'themisdb-motion-css'         => 'assets/css/blocks/motion.css',
+		'themisdb-hero-slider-css'    => array(
+			'path'    => 'assets/css/blocks/hero-slider.css',
+			'version' => themisdb_theme_asset_version( 'assets/css/blocks/hero-slider.css' ),
+			'enqueue' => $should_enqueue_slider_assets,
+		),
+		'themisdb-section-blocks-css' => array(
+			'path'    => 'assets/css/blocks/section-blocks.css',
+			'version' => themisdb_theme_asset_version( 'assets/css/blocks/section-blocks.css' ),
+			'enqueue' => $should_enqueue_section_assets,
+		),
+		'themisdb-gallery-css'        => array(
+			'path'    => 'assets/css/blocks/gallery.css',
+			'version' => themisdb_theme_asset_version( 'assets/css/blocks/gallery.css' ),
+			'enqueue' => $should_enqueue_gallery_assets,
+		),
+		'themisdb-faq-css'            => array(
+			'path'    => 'assets/css/blocks/faq.css',
+			'version' => themisdb_theme_asset_version( 'assets/css/blocks/faq.css' ),
+			'enqueue' => $should_enqueue_faq_assets,
+		),
+		'themisdb-contact-form-css'   => array(
+			'path'    => 'assets/css/blocks/contact-form.css',
+			'version' => themisdb_theme_asset_version( 'assets/css/blocks/contact-form.css' ),
+			'enqueue' => $should_enqueue_contact_assets,
+		),
+		'themisdb-motion-css'         => array(
+			'path'    => 'assets/css/blocks/motion.css',
+			'version' => themisdb_theme_asset_version( 'assets/css/blocks/motion.css' ),
+			'enqueue' => $should_enqueue_motion_assets,
+		),
 	);
-	foreach ( $block_css as $handle => $path ) {
+	foreach ( $block_css as $handle => $asset ) {
+		if ( empty( $asset['enqueue'] ) || empty( $asset['path'] ) ) {
+			continue;
+		}
 		wp_enqueue_style(
 			$handle,
-			THEMISDB_THEME_URI . '/' . $path,
+			THEMISDB_THEME_URI . '/' . $asset['path'],
 			array( 'themisdb-style' ),
-			THEMISDB_THEME_VERSION
+			$asset['version']
 		);
 	}
-
-	// ── Mermaid.js (CDN) – für Prozessdiagramme ───────────────────────
-	// NOTE: In Produktion lokal bundlen.
-	wp_enqueue_script(
-		'mermaid',
-		'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
-		array(),
-		'11',
-		true
-	);
 
 	// ── Navigation JS (Mobile Menu + Smooth Scroll) ────────────────────
 	wp_enqueue_script(
 		'themisdb-navigation',
 		THEMISDB_THEME_URI . '/assets/js/navigation.js',
 		array(),
-		THEMISDB_THEME_VERSION,
+		themisdb_theme_asset_version( 'assets/js/navigation.js' ),
 		true
 	);
 
 	// ── Hero Slider ────────────────────────────────────────────────────
-	$hero_slider_version = THEMISDB_THEME_VERSION;
-	$hero_slider_file    = THEMISDB_THEME_DIR . '/assets/js/hero-slider.js';
-	if ( file_exists( $hero_slider_file ) ) {
-		$hero_slider_version .= '.' . (string) filemtime( $hero_slider_file );
+	$hero_slider_version = themisdb_theme_asset_version( 'assets/js/hero-slider.js' );
+
+	if ( $should_enqueue_slider_assets ) {
+		wp_enqueue_script(
+			'themisdb-hero-slider',
+			THEMISDB_THEME_URI . '/assets/js/hero-slider.js',
+			array(),
+			$hero_slider_version,
+			true
+		);
 	}
 
-	wp_enqueue_script(
-		'themisdb-hero-slider',
-		THEMISDB_THEME_URI . '/assets/js/hero-slider.js',
-		array(),
-		$hero_slider_version,
-		true
-	);
-
 	// ── Gallery + Lightbox ────────────────────────────────────────────
-	wp_enqueue_script(
-		'themisdb-gallery',
-		THEMISDB_THEME_URI . '/assets/js/gallery.js',
-		array(),
-		THEMISDB_THEME_VERSION,
-		true
-	);
+	if ( $should_enqueue_gallery_assets ) {
+		wp_enqueue_script(
+			'themisdb-gallery',
+			THEMISDB_THEME_URI . '/assets/js/gallery.js',
+			array(),
+			themisdb_theme_asset_version( 'assets/js/gallery.js' ),
+			true
+		);
+	}
 
 	// ── FAQ Accordion ─────────────────────────────────────────────────
-	wp_enqueue_script(
-		'themisdb-faq',
-		THEMISDB_THEME_URI . '/assets/js/faq.js',
-		array(),
-		THEMISDB_THEME_VERSION,
-		true
-	);
+	if ( $should_enqueue_faq_assets ) {
+		wp_enqueue_script(
+			'themisdb-faq',
+			THEMISDB_THEME_URI . '/assets/js/faq.js',
+			array(),
+			themisdb_theme_asset_version( 'assets/js/faq.js' ),
+			true
+		);
+	}
 
 	// ── Shared Motion Controller for dynamic blocks ───────────────────
-	wp_enqueue_script(
-		'themisdb-motion',
-		THEMISDB_THEME_URI . '/assets/js/motion.js',
-		array(),
-		THEMISDB_THEME_VERSION,
-		true
-	);
+	if ( $should_enqueue_motion_assets ) {
+		wp_enqueue_script(
+			'themisdb-motion',
+			THEMISDB_THEME_URI . '/assets/js/motion.js',
+			array(),
+			themisdb_theme_asset_version( 'assets/js/motion.js' ),
+			true
+		);
+	}
 
 	// ── Legal Accordion (Impressum / Datenschutz) ─────────────────────
-	wp_enqueue_script(
-		'themisdb-legal',
-		THEMISDB_THEME_URI . '/assets/js/legal-accordion.js',
-		array(),
-		THEMISDB_THEME_VERSION,
-		true
-	);
+	if ( $should_enqueue_legal_assets ) {
+		wp_enqueue_script(
+			'themisdb-legal',
+			THEMISDB_THEME_URI . '/assets/js/legal-accordion.js',
+			array(),
+			themisdb_theme_asset_version( 'assets/js/legal-accordion.js' ),
+			true
+		);
+	}
 
 	// ── Contact Form ──────────────────────────────────────────────────
-	wp_enqueue_script(
-		'themisdb-contact-form',
-		THEMISDB_THEME_URI . '/assets/js/contact-form.js',
-		array(),
-		THEMISDB_THEME_VERSION,
-		true
-	);
+	if ( $should_enqueue_contact_assets ) {
+		wp_enqueue_script(
+			'themisdb-contact-form',
+			THEMISDB_THEME_URI . '/assets/js/contact-form.js',
+			array(),
+			themisdb_theme_asset_version( 'assets/js/contact-form.js' ),
+			true
+		);
+	}
 
-	// ── Mermaid Init ──────────────────────────────────────────────────
-	wp_enqueue_script(
-		'themisdb-mermaid-init',
-		THEMISDB_THEME_URI . '/assets/js/mermaid-init.js',
-		array( 'mermaid' ),
-		THEMISDB_THEME_VERSION,
-		true
-	);
+	if ( themisdb_theme_should_enqueue_mermaid() ) {
+		// ── Mermaid.js (CDN) – für Prozessdiagramme ───────────────────
+		// NOTE: In Produktion lokal bundlen.
+		wp_enqueue_script(
+			'mermaid',
+			'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+			array(),
+			'11',
+			true
+		);
+
+		// ── Mermaid Init ──────────────────────────────────────────────
+		wp_enqueue_script(
+			'themisdb-mermaid-init',
+			THEMISDB_THEME_URI . '/assets/js/mermaid-init.js',
+			array( 'mermaid' ),
+			themisdb_theme_asset_version( 'assets/js/mermaid-init.js' ),
+			true
+		);
+	}
 
 	// Pass runtime data to scripts
 	// ── Coat-of-Arms Loader ───────────────────────────────────────────
-	wp_enqueue_script(
-		'themisdb-crest-loader',
-		THEMISDB_THEME_URI . '/assets/js/crest-loader.js',
-		array(),
-		THEMISDB_THEME_VERSION,
-		true
-	);
+	if ( $should_enqueue_crest_assets ) {
+		wp_enqueue_script(
+			'themisdb-crest-loader',
+			THEMISDB_THEME_URI . '/assets/js/crest-loader.js',
+			array(),
+			themisdb_theme_asset_version( 'assets/js/crest-loader.js' ),
+			true
+		);
+	}
 
-	// Pass runtime data to scripts
-	wp_localize_script( 'themisdb-navigation', 'themisdbTheme', array(
-		'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
-		'nonce'     => wp_create_nonce( 'themisdb_nonce' ),
-		'homeUrl'   => esc_url( home_url( '/' ) ),
-		'assetsUrl' => esc_url( THEMISDB_THEME_URI . '/assets/' ),
-		'version'   => THEMISDB_THEME_VERSION,
-		'i18n'      => array(
-			'menuOpen'  => __( 'Menü öffnen',     'themisdb-theme' ),
-			'menuClose' => __( 'Menü schließen',  'themisdb-theme' ),
-		),
-	) );
 }
 
 /* =====================================================================
@@ -3647,13 +3806,21 @@ function themisdb_customizer( $wp_customize ) {
 add_action( 'wp_footer', 'themisdb_footer_js_data', 5 );
 
 function themisdb_footer_js_data() {
-	$data = array(
-		'sliderInterval' => (int) get_theme_mod( 'themisdb_slider_interval', 5000 ),
-		'crestBaseUrl'   => esc_url( get_theme_mod( 'themisdb_crest_base_url', THEMISDB_THEME_URI . '/assets/crests/' ) ),
-		'contactNonce'   => wp_create_nonce( 'themisdb_contact_nonce' ),
-		'contactEmail'   => themisdb_get_contact_email(),
-		'ajaxUrl'        => esc_url( admin_url( 'admin-ajax.php' ) ),
-		'i18n'           => array(
+	$data = array();
+
+	if ( wp_script_is( 'themisdb-hero-slider', 'enqueued' ) ) {
+		$data['sliderInterval'] = (int) get_theme_mod( 'themisdb_slider_interval', 5000 );
+	}
+
+	if ( wp_script_is( 'themisdb-crest-loader', 'enqueued' ) ) {
+		$data['crestBaseUrl'] = esc_url( get_theme_mod( 'themisdb_crest_base_url', THEMISDB_THEME_URI . '/assets/crests/' ) );
+	}
+
+	if ( wp_script_is( 'themisdb-contact-form', 'enqueued' ) ) {
+		$data['contactNonce'] = wp_create_nonce( 'themisdb_contact_nonce' );
+		$data['contactEmail'] = themisdb_get_contact_email();
+		$data['ajaxUrl']      = esc_url( admin_url( 'admin-ajax.php' ) );
+		$data['i18n']         = array(
 			'contactSubmitDefault'   => __( 'Anfrage senden', 'themisdb-theme' ),
 			'contactSubmitBusy'      => __( 'Wird gesendet...', 'themisdb-theme' ),
 			'contactWaitSeconds'     => __( 'Bitte warten Sie %d Sekunden, bevor Sie eine weitere Anfrage senden.', 'themisdb-theme' ),
@@ -3666,8 +3833,12 @@ function themisdb_footer_js_data() {
 			'contactSendSuccess'     => __( 'Ihre Anfrage wurde erfolgreich gesendet. Wir melden uns in Kuerze.', 'themisdb-theme' ),
 			'contactSendError'       => __( 'Fehler beim Senden. Bitte versuchen Sie es erneut oder schreiben Sie direkt an %s.', 'themisdb-theme' ),
 			'contactNetworkError'    => __( 'Netzwerkfehler. Bitte schreiben Sie direkt an %s.', 'themisdb-theme' ),
-		),
-	);
+		);
+	}
+
+	if ( empty( $data ) ) {
+		return;
+	}
 
 	printf(
 		'<script id="themisdb-data">var themisdbThemeData = %s;</script>',

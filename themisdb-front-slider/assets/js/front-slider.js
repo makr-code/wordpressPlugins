@@ -62,6 +62,7 @@
         var timerStartedAt = null;
         var timerRemaining = interval;
         var rafID          = null;
+        var resizeRafID    = null;
         var imageBlendTimers = [];
         var imageBlendInterval = Math.max(7000, interval + 1800);
 
@@ -225,7 +226,7 @@
          * Autoplay timer
          * ---------------------------------------------------------------- */
         function startTimer() {
-            if (!autoplay) { return; }
+            if (!autoplay || document.hidden) { return; }
             if (timerID !== null) {
                 clearTimeout(timerID);
                 timerID = null;
@@ -255,6 +256,7 @@
             }
             timerStartedAt = null;
             cancelProgressAnimation();
+            stopImageBlendTimers();
         }
 
         function resetProgressBar() {
@@ -269,6 +271,16 @@
                 // the "none" transition is never actually committed.
                 timerFill.offsetWidth; // eslint-disable-line no-unused-expressions
             }
+        }
+
+        function scheduleFitActiveSlide() {
+            if (resizeRafID) {
+                cancelAnimationFrame(resizeRafID);
+            }
+            resizeRafID = requestAnimationFrame(function () {
+                resizeRafID = null;
+                fitActiveSlide();
+            });
         }
 
         function animateProgressBar(duration) {
@@ -299,15 +311,24 @@
         /* ------------------------------------------------------------------
          * Pause / Resume on hover and focus-within
          * ---------------------------------------------------------------- */
-        wrapper.addEventListener('mouseenter', stopTimer);
-        wrapper.addEventListener('mouseleave', function () {
+        function pauseSlider() {
+            stopTimer();
+        }
+
+        function resumeSlider() {
             startTimer();
+            startActiveSlideImageBlend();
+        }
+
+        wrapper.addEventListener('mouseenter', pauseSlider);
+        wrapper.addEventListener('mouseleave', function () {
+            resumeSlider();
         });
-        wrapper.addEventListener('focusin', stopTimer);
+        wrapper.addEventListener('focusin', pauseSlider);
         wrapper.addEventListener('focusout', function (e) {
             // Resume only when focus leaves the slider entirely.
             if (!wrapper.contains(e.relatedTarget)) {
-                startTimer();
+                resumeSlider();
             }
         });
 
@@ -401,9 +422,17 @@
             isDragging  = false;
         });
 
-        window.addEventListener('resize', function () {
-            fitActiveSlide();
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                pauseSlider();
+                return;
+            }
+
+            resetProgressBar();
+            resumeSlider();
         });
+
+        window.addEventListener('resize', scheduleFitActiveSlide);
 
         /* ------------------------------------------------------------------
          * Init

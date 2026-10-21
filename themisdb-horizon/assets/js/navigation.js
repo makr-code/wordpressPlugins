@@ -10,6 +10,23 @@
     const MOBILE  = document.getElementById('themisdb-mobile-menu');
     const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    function getAnchorTarget(href) {
+        if (!href || href === '#') {
+            return null;
+        }
+
+        const hash = href.charAt(0) === '#' ? href.slice(1) : href;
+        if (!hash) {
+            return null;
+        }
+
+        try {
+            return document.getElementById(decodeURIComponent(hash));
+        } catch (_err) {
+            return document.getElementById(hash);
+        }
+    }
+
     /* ── Mobile Menu ── */
     if (BURGER && MOBILE) {
         BURGER.addEventListener('click', function () {
@@ -20,7 +37,7 @@
 
         /* Schließen bei Klick außerhalb */
         document.addEventListener('click', function (e) {
-            if (!NAV.contains(e.target)) {
+            if (!NAV || !NAV.contains(e.target)) {
                 MOBILE.classList.remove('is-open');
                 BURGER.setAttribute('aria-expanded', 'false');
             }
@@ -39,8 +56,7 @@
     document.querySelectorAll('a[href^="#"]').forEach(function (a) {
         a.addEventListener('click', function (e) {
             const href   = a.getAttribute('href');
-            if (href === '#') return;
-            const target = document.querySelector(href);
+            const target = getAnchorTarget(href);
             if (!target) return;
             e.preventDefault();
 

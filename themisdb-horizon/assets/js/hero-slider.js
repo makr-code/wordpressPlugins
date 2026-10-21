@@ -119,7 +119,7 @@
         function goPrev() { goTo(current - 1); }
 
         function startTimer() {
-            if (!autoplay || total < 2) return;
+            if (!autoplay || total < 2 || document.hidden) return;
             clearInterval(timer);
             timer = setInterval(goNext, interval);
         }
@@ -164,6 +164,14 @@
         root.addEventListener('focusin', pause);
         root.addEventListener('focusout', function (e) {
             if (!root.contains(e.relatedTarget)) resume();
+        });
+
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                pause();
+                return;
+            }
+            resume();
         });
 
         let touchX = null;
