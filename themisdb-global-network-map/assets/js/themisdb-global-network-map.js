@@ -2777,6 +2777,12 @@
                 mouseButton.textContent = 'Mouse: ' + (MAP_UI_STATE.mouseControlEnabled ? 'On' : 'Off');
             }
         }
+
+        const menuToggle = document.querySelector('.themisdb-global-network-map__menu-toggle');
+        const controls = document.querySelector('.themisdb-global-network-map__controls');
+        if (menuToggle && controls) {
+            menuToggle.setAttribute('aria-expanded', controls.classList.contains('is-open') ? 'true' : 'false');
+        }
     }
 
     function updateDebugOverlay(nodes, edges, fps) {
@@ -4147,6 +4153,39 @@
                 MAP_UI_STATE.mouseControlEnabled = nextValue;
                 syncUiControls();
             });
+        }
+
+        const menuToggle = document.querySelector('.themisdb-global-network-map__menu-toggle');
+        const controlsPanel = document.querySelector('.themisdb-global-network-map__controls');
+        if (menuToggle && controlsPanel) {
+            const syncMenuToggleState = function () {
+                const isOpen = controlsPanel.classList.contains('is-open');
+                menuToggle.classList.toggle('is-open', isOpen);
+                menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            };
+
+            menuToggle.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                const nextOpenState = !controlsPanel.classList.contains('is-open');
+                controlsPanel.classList.toggle('is-open', nextOpenState);
+                syncMenuToggleState();
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!controlsPanel.classList.contains('is-open')) {
+                    return;
+                }
+
+                if (controlsPanel.contains(event.target) || menuToggle.contains(event.target)) {
+                    return;
+                }
+
+                controlsPanel.classList.remove('is-open');
+                syncMenuToggleState();
+            });
+
+            syncMenuToggleState();
         }
 
         const targetSelect = document.getElementById('themisdb-global-network-map-target');

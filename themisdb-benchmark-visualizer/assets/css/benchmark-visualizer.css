@@ -1110,13 +1110,57 @@
 }
 
 .themisdb-benchmark-meta {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(120px, 1fr));
-    gap: 0.75rem;
-    margin: 1.1rem 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin: 1rem 0 0;
 }
 
-.themisdb-benchmark-stat {
+.themisdb-benchmark-meta--cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    gap: 0.75rem;
+}
+
+.themisdb-benchmark-meta--toolbar .themisdb-benchmark-stat,
+.themisdb-benchmark-meta:not(.themisdb-benchmark-meta--cards) .themisdb-benchmark-stat {
+    flex: 1 1 120px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    min-width: 0;
+    background: rgba(15, 23, 42, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 999px;
+    padding: 0.5rem 0.85rem;
+    color: #0f172a;
+}
+
+.themisdb-benchmark-meta--toolbar .themisdb-benchmark-stat span,
+.themisdb-benchmark-meta:not(.themisdb-benchmark-meta--cards) .themisdb-benchmark-stat span {
+    display: inline-block;
+    margin: 0;
+    white-space: nowrap;
+    color: rgba(51, 65, 85, 0.72);
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.themisdb-benchmark-meta--toolbar .themisdb-benchmark-stat strong,
+.themisdb-benchmark-meta:not(.themisdb-benchmark-meta--cards) .themisdb-benchmark-stat strong {
+    font-size: 0.9rem;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.themisdb-benchmark-meta--cards .themisdb-benchmark-stat {
+    display: block;
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(178, 214, 255, 0.2);
     border-radius: 0.9rem;
@@ -1124,7 +1168,7 @@
     color: #dfeeff;
 }
 
-.themisdb-benchmark-stat span {
+.themisdb-benchmark-meta--cards .themisdb-benchmark-stat span {
     display: block;
     font-size: 0.72rem;
     letter-spacing: 0.08em;
@@ -1133,7 +1177,7 @@
     margin-bottom: 0.28rem;
 }
 
-.themisdb-benchmark-stat strong {
+.themisdb-benchmark-meta--cards .themisdb-benchmark-stat strong {
     font-size: 1.18rem;
     color: #ffffff;
     letter-spacing: -0.04em;

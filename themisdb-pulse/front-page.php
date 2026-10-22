@@ -33,7 +33,7 @@ get_header();
             <p class="has-text-align-center tv3-docs-grid-subtitle">Vergleiche der wichtigsten Betriebs- und Analyse-Workloads in einer interaktiven Übersicht.</p>
             <?php if ( class_exists( 'ThemisDB_Benchmark_Visualizer' ) ) : ?>
                 <?php echo ThemisDB_Benchmark_Visualizer::get_instance()->render_visualizer( array(
-                    'category' => 'all',
+                    'category' => 'vector_search',
                     'metric' => 'latency',
                     'show_header' => 'false',
                     'show_chart' => 'true',
@@ -45,7 +45,7 @@ get_header();
                     'show_table' => 'false',
                 ) ); ?>
             <?php elseif ( shortcode_exists( 'themisdb_benchmark_visualizer' ) ) : ?>
-                <?php echo do_shortcode( '[themisdb_benchmark_visualizer category="all" metric="latency" show_header="false" show_chart="true" show_overlay="false" show_mermaid="false" show_controls="false" show_nav="false" show_stats="false" show_table="false"]' ); ?>
+                <?php echo do_shortcode( '[themisdb_benchmark_visualizer category="vector_search" metric="latency" show_header="false" show_chart="true" show_overlay="false" show_mermaid="false" show_controls="false" show_nav="false" show_stats="false" show_table="false"]' ); ?>
             <?php endif; ?>
         </div>
 

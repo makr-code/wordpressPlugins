@@ -22,6 +22,13 @@ def load_fixture(name: str) -> str:
     return (FIXTURE_DIR / name).read_text(encoding="utf-8")
 
 
+def test_missing_site_config_is_nonfatal_and_uses_safe_defaults(monkeypatch, tmp_path):
+    monkeypatch.setattr(docs_import, "SITE_CONFIG_PATH", tmp_path / "missing-site.json")
+    assert docs_import.load_site_config(required=False) == {}
+    assert docs_import.get_runtime_site_setting("base_url", "http://localhost/wordpress") == "http://localhost/wordpress"
+    assert docs_import.get_runtime_site_setting("rest_route_style", "wp-json") == "wp-json"
+
+
 def test_good_markdown_renders_structured_html():
     html = docs_import.markdown_to_html(
         load_fixture("good.md"),

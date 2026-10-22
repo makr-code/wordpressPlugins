@@ -32,19 +32,33 @@ REST_MAX_RETRIES = int(os.environ.get("WP_REST_RETRIES", "4"))
 REST_RETRY_BACKOFF = float(os.environ.get("WP_REST_RETRY_BACKOFF", "2.0"))
 
 
-def load_site_config() -> Dict[str, Any]:
+def load_site_config(required: bool = True) -> Dict[str, Any]:
     if not SITE_CONFIG_PATH.exists():
-        raise FileNotFoundError(f"Missing secure config at {SITE_CONFIG_PATH}. Place WordPress credentials in .secure/site.json.")
+        if required:
+            raise FileNotFoundError(f"Missing secure config at {SITE_CONFIG_PATH}. Place WordPress credentials in .secure/site.json.")
+        return {}
     try:
-        return json.loads(SITE_CONFIG_PATH.read_text(encoding="utf-8"))
+        payload = json.loads(SITE_CONFIG_PATH.read_text(encoding="utf-8"))
     except Exception:
-        raise RuntimeError(f"Failed to parse secure config at {SITE_CONFIG_PATH}.")
+        if required:
+            raise RuntimeError(f"Failed to parse secure config at {SITE_CONFIG_PATH}.")
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
-DEFAULT_BASE_URL = os.environ.get("WP_BASE_URL") or load_site_config().get("wordpress", {}).get("base_url", "http://localhost/wordpress")
-DEFAULT_USER = os.environ.get("WP_USER") or load_site_config().get("wordpress", {}).get("user", "test")
-DEFAULT_PASSWORD = os.environ.get("WP_APP_PASSWORD") or load_site_config().get("wordpress", {}).get("app_password", "")
-DEFAULT_REST_ROUTE_STYLE = os.environ.get("WP_REST_ROUTE_STYLE") or load_site_config().get("wordpress", {}).get("rest_route_style", "wp-json")
+def get_runtime_site_setting(key: str, default: Any = None) -> Any:
+    config = load_site_config(required=False)
+    wordpress = config.get("wordpress", {}) if isinstance(config, dict) else {}
+    if not isinstance(wordpress, dict):
+        return default
+    value = wordpress.get(key, default)
+    return default if value is None else value
+
+
+DEFAULT_BASE_URL = os.environ.get("WP_BASE_URL") or str(get_runtime_site_setting("base_url", "http://localhost/wordpress") or "http://localhost/wordpress")
+DEFAULT_USER = os.environ.get("WP_USER") or str(get_runtime_site_setting("user", "test") or "test")
+DEFAULT_PASSWORD = os.environ.get("WP_APP_PASSWORD") or str(get_runtime_site_setting("app_password", "") or "")
+DEFAULT_REST_ROUTE_STYLE = os.environ.get("WP_REST_ROUTE_STYLE") or str(get_runtime_site_setting("rest_route_style", "wp-json") or "wp-json")
 RUNTIME_REST_ROUTE_STYLE = str(DEFAULT_REST_ROUTE_STYLE).strip().lower()
 
 

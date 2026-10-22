@@ -14,6 +14,7 @@
         settings: {},
         currentSlideIndex: 0,
         autoRotateTimer: null,
+        autoRotatePaused: false,
 
         /**
          * Initialize the visualizer
@@ -37,23 +38,39 @@
             this.loadData();
         },
 
+        getDefaultCategoryKey: function() {
+            const labels = (this.settings && this.settings.category_labels) ? this.settings.category_labels : {};
+            const keys = Object.keys(labels).filter(function(key) {
+                return String(key) !== 'all';
+            });
+            if (this.settings && this.settings.default_category && String(this.settings.default_category) !== 'all') {
+                return String(this.settings.default_category);
+            }
+            return keys[0] || 'all';
+        },
+
         rebuildCategoryOptions: function() {
             const $category = $('#bv-category-filter');
             if (!$category.length) return;
             const labels = (this.settings && this.settings.category_labels) ? this.settings.category_labels : {};
-            const current = $category.val() || this.settings.default_category || 'all';
-            const keys = Object.keys(labels);
+            const keys = Object.keys(labels).filter(function(key) {
+                return String(key) !== 'all';
+            });
+            const defaultKey = this.getDefaultCategoryKey();
+            const current = $category.val() || defaultKey;
             if (!keys.length) return;
             let html = '';
             keys.forEach(function(key) {
                 html += '<option value="' + String(key).replace(/"/g, '&quot;') + '">' + String(labels[key]) + '</option>';
             });
-            if (keys.indexOf(current) === -1) {
-                html += '<option value="' + current.replace(/"/g, '&quot;') + '">' + current + '</option>';
+            if (current && current !== 'all' && keys.indexOf(current) === -1) {
+                html += '<option value="' + String(current).replace(/"/g, '&quot;') + '">' + String(current) + '</option>';
             }
             $category.html(html);
-            if ($category.find('option[value="' + current.replace(/"/g, '\\"') + '"]').length) {
+            if ($category.find('option[value="' + String(current).replace(/"/g, '\\"') + '"]').length) {
                 $category.val(current);
+            } else if (keys.length) {
+                $category.val(keys[0]);
             }
         },
 
@@ -93,6 +110,9 @@
                 if (willOpen) {
                     $group.addClass('is-open');
                     $(this).attr('aria-expanded', 'true');
+                    self.pauseAutoRotate();
+                } else {
+                    self.startAutoRotate();
                 }
             });
 
@@ -100,6 +120,15 @@
                 if (!$(event.target).closest('.themisdb-split-button').length) {
                     $('.themisdb-split-button').removeClass('is-open');
                     $('.themisdb-split-button__toggle').attr('aria-expanded', 'false');
+                    self.startAutoRotate();
+                }
+            });
+
+            $('.themisdb-benchmark-panel').on('mouseenter focusin', function() {
+                self.pauseAutoRotate();
+            }).on('mouseleave focusout', function(event) {
+                if (!$(event.currentTarget).find(':focus').length && !$(event.currentTarget).find('.themisdb-benchmark-menu.is-open').length) {
+                    self.startAutoRotate();
                 }
             });
 
@@ -149,7 +178,7 @@
          */
         loadData: function() {
             const self = this;
-            const category = $('#bv-category-filter').val() || 'all';
+            const category = $('#bv-category-filter').val() || this.getDefaultCategoryKey();
             const metric = $('#bv-metric-filter').val() || 'latency';
 
             // Show loading state
@@ -311,7 +340,13 @@
             }
         },
 
+        pauseAutoRotate: function() {
+            this.autoRotatePaused = true;
+            this.clearAutoRotate();
+        },
+
         startAutoRotate: function() {
+            this.autoRotatePaused = false;
             this.clearAutoRotate();
 
             if (!this.currentData || !Array.isArray(this.currentData.datasets) || this.currentData.datasets.length < 2) {
@@ -320,7 +355,7 @@
 
             const self = this;
             this.autoRotateTimer = setInterval(function() {
-                if (!self.currentData || !Array.isArray(self.currentData.datasets)) {
+                if (!self.currentData || !Array.isArray(self.currentData.datasets) || self.autoRotatePaused) {
                     return;
                 }
 
@@ -1066,7 +1101,7 @@
                 return configured[category];
             }
             const names = {
-                'all': 'All Operations',
+                
                 'vector_search': 'Vector Search & Embeddings',
                 'graph_traversal': 'Graph Traversal & PageRank',
                 'encryption': 'Encryption & HSM',

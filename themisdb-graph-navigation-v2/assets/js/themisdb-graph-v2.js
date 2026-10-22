@@ -313,6 +313,67 @@
         return shell.id;
     }
 
+    function pruneDuplicateGraphInstances() {
+        const shellMap = new Map();
+        document.querySelectorAll('[data-graph-v2-shell]').forEach((shell) => {
+            const key = getShellId(shell) || shell.getAttribute('data-graph-v2-target') || shell.getAttribute('id') || `shell-${Math.random().toString(36).slice(2, 10)}`;
+            const current = shellMap.get(key);
+            if (!current) {
+                shellMap.set(key, shell);
+                return;
+            }
+
+            const shouldKeep = current.getAttribute('data-graph-v2-expanded') === '1' || (!current.dataset || current.dataset.graphV2Expanded !== '1');
+            const candidateKeeps = shell.getAttribute('data-graph-v2-expanded') === '1';
+            if (candidateKeeps && !shouldKeep) {
+                current.remove();
+                shellMap.set(key, shell);
+                return;
+            }
+
+            if (!candidateKeeps && shouldKeep) {
+                shell.remove();
+                return;
+            }
+
+            if (current.getBoundingClientRect && shell.getBoundingClientRect) {
+                const currentRect = current.getBoundingClientRect();
+                const shellRect = shell.getBoundingClientRect();
+                if (shellRect.width * shellRect.height > currentRect.width * currentRect.height) {
+                    current.remove();
+                    shellMap.set(key, shell);
+                    return;
+                }
+            }
+
+            shell.remove();
+        });
+
+        const toggleMap = new Map();
+        document.querySelectorAll('[data-graph-v2-toggle]').forEach((toggle) => {
+            const target = (toggle.dataset.graphV2Target || toggle.getAttribute('aria-controls') || '').trim();
+            const key = target || toggle.className || `toggle-${Math.random().toString(36).slice(2, 10)}`;
+            const current = toggleMap.get(key);
+            if (!current) {
+                toggleMap.set(key, toggle);
+                return;
+            }
+
+            if (toggle.classList.contains('themisdb-graph-v2-toggle--compact') && !current.classList.contains('themisdb-graph-v2-toggle--compact')) {
+                current.remove();
+                toggleMap.set(key, toggle);
+                return;
+            }
+
+            if (!toggle.classList.contains('themisdb-graph-v2-toggle--compact') && current.classList.contains('themisdb-graph-v2-toggle--compact')) {
+                toggle.remove();
+                return;
+            }
+
+            toggle.remove();
+        });
+    }
+
     function getLinkedToggles(shell) {
         const shellId = getShellId(shell);
         if (!shellId) {
@@ -515,6 +576,21 @@
         }
     }
 
+    function normalizeGraphOverlayPlacement() {
+        document.querySelectorAll('.themisdb-graph-v2-overlay').forEach((overlay) => {
+            overlay.style.setProperty('position', 'static', 'important');
+            overlay.style.setProperty('top', 'auto', 'important');
+            overlay.style.setProperty('left', 'auto', 'important');
+            overlay.style.setProperty('right', 'auto', 'important');
+            overlay.style.setProperty('bottom', 'auto', 'important');
+            overlay.style.setProperty('inset', 'auto', 'important');
+            overlay.style.setProperty('z-index', 'auto', 'important');
+            overlay.style.setProperty('transform', 'none', 'important');
+            overlay.style.setProperty('width', 'auto', 'important');
+            overlay.style.setProperty('height', 'auto', 'important');
+        });
+    }
+
     function injectHeaderBrandTrigger(shell) {
         const brand = document.querySelector('.tv3-header-brand');
         if (!brand || brand.querySelector('.themisdb-graph-v2-header-toggle')) {
@@ -538,7 +614,13 @@
         anchor.setAttribute('aria-label', 'Graph anzeigen');
         anchor.dataset.headerMode = 'true';
         anchor.innerHTML = '<span class="themisdb-graph-v2-header-mark" aria-hidden="true">◉</span><span class="themisdb-graph-v2-header-text">Graph</span>';
-        brand.insertBefore(anchor, brand.firstChild);
+
+        const titleTarget = brand.querySelector('.tv3-brand-title, .wp-block-site-title, .site-title, h1, [class*="site-title"]');
+        if (titleTarget) {
+            brand.insertBefore(anchor, titleTarget);
+        } else {
+            brand.insertBefore(anchor, brand.firstChild);
+        }
 
         const mainToggle = shell.querySelector('[data-graph-v2-toggle]');
         if (mainToggle && mainToggle !== anchor) {
@@ -726,7 +808,10 @@
         syncViewportToContainer(container, state);
 
         const canvas = container.querySelector('canvas');
-        if (!canvas || canvas.dataset.bound === 'true') {
+        if (!canvas) {
+            return;
+        }
+        if (canvas.dataset.bound === 'true') {
             return;
         }
         canvas.dataset.bound = 'true';
@@ -914,9 +999,28 @@
     }
 
     function bootstrapGraph() {
+        normalizeGraphOverlayPlacement();
+        pruneDuplicateGraphInstances();
+
         const state = window.ThemisDBGraphV2.state;
         const containers = getContainers();
         const graphData = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] };
+
+        const shells = Array.from(document.querySelectorAll('[data-graph-v2-shell]'));
+        if (shells.length > 1) {
+            const keepShell = shells.find((shell) => shell.getAttribute('data-graph-v2-expanded') === '1') || shells[0];
+            shells.forEach((shell) => {
+                if (shell === keepShell) {
+                    return;
+                }
+                const parent = shell.closest('.themisdb-graph-v2-overlay');
+                if (parent) {
+                    parent.remove();
+                } else {
+                    shell.remove();
+                }
+            });
+        }
 
         document.querySelectorAll('[data-graph-v2-toggle]').forEach((toggle) => {
             toggle.style.display = 'inline-flex';

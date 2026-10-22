@@ -5,6 +5,10 @@ if (!defined('ABSPATH')) {
 ?>
 <div class="themisdb-global-network-map">
     <div class="themisdb-global-network-map__canvas-wrap">
+        <button type="button" class="themisdb-global-network-map__menu-toggle" aria-label="Map controls" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+
         <canvas
             id="themisdb-global-network-map-canvas"
             class="themisdb-global-network-map__canvas"

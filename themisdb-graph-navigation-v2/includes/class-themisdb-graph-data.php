@@ -15,7 +15,7 @@ final class ThemisDB_Graph_Data {
         $graph = $this->build_graph();
         $normalized = ThemisDB_Graph_Normalizer::normalize($graph);
 
-        $ttl = (int) get_option('themisdb_graph_nav_v2_cache_seconds', HOUR_IN_SECONDS);
+        $ttl = (int) ThemisDB_Graph_Settings::get('cache_seconds', HOUR_IN_SECONDS);
         if ($ttl <= 0) {
             $ttl = HOUR_IN_SECONDS;
         }
@@ -26,14 +26,14 @@ final class ThemisDB_Graph_Data {
     }
 
     private function get_data_mode() {
-        $mode = get_option('themisdb_graph_nav_v2_data_mode', 'all');
+        $mode = ThemisDB_Graph_Settings::get('data_mode', 'all');
         $allowed = array('all', 'content', 'taxonomy', 'pages', 'posts');
         $mode = is_string($mode) ? strtolower(trim($mode)) : 'all';
         return in_array($mode, $allowed, true) ? $mode : 'all';
     }
 
     private function get_selected_post_types() {
-        $raw = get_option('themisdb_graph_nav_v2_post_types', 'post,page');
+        $raw = ThemisDB_Graph_Settings::get('post_types', 'post,page');
         if (is_array($raw)) {
             $items = $raw;
         } else {
@@ -49,7 +49,7 @@ final class ThemisDB_Graph_Data {
     }
 
     private function get_selected_taxonomies() {
-        $raw = get_option('themisdb_graph_nav_v2_taxonomies', 'category,post_tag');
+        $raw = ThemisDB_Graph_Settings::get('taxonomies', 'category,post_tag');
         if (is_array($raw)) {
             $items = $raw;
         } else {
@@ -65,7 +65,8 @@ final class ThemisDB_Graph_Data {
     }
 
     private function get_limit($name, $fallback) {
-        $value = (int) get_option($name, $fallback);
+        $option_key = preg_replace('/^themisdb_graph_nav_v2_/', '', (string) $name);
+        $value = (int) ThemisDB_Graph_Settings::get($option_key, $fallback);
         return max(5, $value);
     }
 

@@ -43,6 +43,11 @@ $show_mermaid = !empty($atts['show_mermaid']);
 $show_nav = !empty($atts['show_nav']);
 $show_stats = !empty($atts['show_stats']);
 $show_table = !empty($atts['show_table']);
+$default_category = (string) get_option('themisdb_bv_default_category', 'vector_search');
+$selected_category = isset($atts['category']) ? sanitize_key((string) $atts['category']) : $default_category;
+if ($selected_category === 'all' && $default_category !== 'all') {
+    $selected_category = $default_category;
+}
 $default_top_n = (string) get_option('themisdb_bv_default_top_n', '30');
 $chart_ratio = isset($atts['aspect_ratio']) ? sanitize_text_field($atts['aspect_ratio']) : '4:3';
 $chart_ratio_css = preg_replace('/\s*:\s*/', ' / ', $chart_ratio);
@@ -69,7 +74,7 @@ if (!preg_match('/^\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?$/', $chart_ratio_css)) {
                         </button>
                         <div id="bv-control-panel" class="themisdb-benchmark-controls themisdb-benchmark-controls--overlay">
                             <select id="bv-category-filter" class="themisdb-select">
-                                <option value="<?php echo esc_attr($atts['category'] ?? 'all'); ?>"><?php echo esc_html($atts['category'] ?? 'all'); ?></option>
+                                <option value="<?php echo esc_attr($selected_category); ?>"><?php echo esc_html($selected_category); ?></option>
                             </select>
                             <select id="bv-metric-filter" class="themisdb-select">
                                 <option value="latency" <?php selected(($atts['metric'] ?? 'latency'), 'latency'); ?>><?php _e('Latency', 'themisdb-benchmark-visualizer'); ?></option>
@@ -144,23 +149,27 @@ if (!preg_match('/^\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?$/', $chart_ratio_css)) {
                 <?php endif; ?>
             </div>
 
-            <div class="themisdb-benchmark-meta">
-                <div class="themisdb-benchmark-stat">
-                    <span><?php _e('Engine', 'themisdb-benchmark-visualizer'); ?></span>
-                    <strong id="bv-slide-title">-</strong>
+            <?php $stats_mode = isset($atts['stats_mode']) ? sanitize_key((string) $atts['stats_mode']) : 'toolbar'; ?>
+            <?php if ($show_stats && $stats_mode !== 'hidden') : ?>
+                <div class="themisdb-benchmark-meta themisdb-benchmark-meta--<?php echo esc_attr($stats_mode); ?>" data-stats-mode="<?php echo esc_attr($stats_mode); ?>">
+                    <div class="themisdb-benchmark-stat">
+                        <span><?php _e('Engine', 'themisdb-benchmark-visualizer'); ?></span>
+                        <strong id="bv-slide-title">-</strong>
+                    </div>
+                    <div class="themisdb-benchmark-stat">
+                        <span><?php _e('Durchschnitt', 'themisdb-benchmark-visualizer'); ?></span>
+                        <strong id="bv-summary-avg">-</strong>
+                    </div>
+                    <div class="themisdb-benchmark-stat">
+                        <span><?php _e('Bestwert', 'themisdb-benchmark-visualizer'); ?></span>
+                        <strong id="bv-summary-fastest">-</strong>
+                    </div>
+                    <div class="themisdb-benchmark-stat">
+                        <span><?php _e('Tasks sichtbar', 'themisdb-benchmark-visualizer'); ?></span>
+                        <strong id="bv-summary-count">0</strong>
+                    </div>
                 </div>
-                <div class="themisdb-benchmark-stat">
-                    <span><?php _e('Durchschnitt', 'themisdb-benchmark-visualizer'); ?></span>
-                    <strong id="bv-summary-avg">-</strong>
-                </div>
-                <div class="themisdb-benchmark-stat">
-                    <span><?php _e('Bestwert', 'themisdb-benchmark-visualizer'); ?></span>
-                    <strong id="bv-summary-fastest">-</strong>
-                </div>
-                <div class="themisdb-benchmark-stat">
-                    <span><?php _e('Tasks sichtbar', 'themisdb-benchmark-visualizer'); ?></span>
-                    <strong id="bv-summary-count">0</strong>
-                </div>
+            <?php endif; ?>
             </div>
         </div>
     <?php endif; ?>

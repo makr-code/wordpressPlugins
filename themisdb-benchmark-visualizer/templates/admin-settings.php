@@ -82,10 +82,11 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                 <tbody>
                     <tr><th><?php _e( 'Datenquelle', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_data_source', 'catalog' ) ); ?></code></td></tr>
                     <tr><th><?php _e( 'Catalog Path', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_catalog_path', '' ) ?: 'auto-detect' ); ?></code></td></tr>
-                    <tr><th><?php _e( 'Kategorie', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_category', 'all' ) ); ?></code></td></tr>
+                    <tr><th><?php _e( 'Kategorie', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_category', 'vector_search' ) ); ?></code></td></tr>
                     <tr><th><?php _e( 'Metrik', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_metric', 'latency' ) ); ?></code></td></tr>
                     <tr><th><?php _e( 'Diagrammtyp', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_chart_type', 'bar' ) ); ?></code></td></tr>
                     <tr><th><?php _e( 'Top-N', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_top_n', '30' ) ); ?></code></td></tr>
+                    <tr><th><?php _e( 'Statistik-Layout', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_stats_mode', 'toolbar' ) ); ?></code></td></tr>
                     <tr><th><?php _e( 'Vergleichsmodus', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_require_comparable_tasks', '1' ) === '1' ? 'strict-cross-engine' : 'all-tasks' ); ?></code></td></tr>
                 </tbody>
             </table>
@@ -229,9 +230,8 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                 </th>
                 <td>
                     <?php
-                    $default_category_value = (string) get_option('themisdb_bv_default_category', 'all');
+                    $default_category_value = (string) get_option('themisdb_bv_default_category', 'vector_search');
                     $default_category_suggestions = array(
-                        'all',
                         'vector_search',
                         'graph_traversal',
                         'transaction',
@@ -316,6 +316,22 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                 </td>
             </tr>
 
+            <tr>
+                <th scope="row">
+                    <label for="themisdb_bv_default_stats_mode"><?php _e('Default Stats Layout', 'themisdb-benchmark-visualizer'); ?></label>
+                </th>
+                <td>
+                    <select name="themisdb_bv_default_stats_mode" id="themisdb_bv_default_stats_mode">
+                        <option value="toolbar" <?php selected(get_option('themisdb_bv_default_stats_mode', 'toolbar'), 'toolbar'); ?>><?php _e('Compact toolbar', 'themisdb-benchmark-visualizer'); ?></option>
+                        <option value="cards" <?php selected(get_option('themisdb_bv_default_stats_mode', 'toolbar'), 'cards'); ?>><?php _e('Cards', 'themisdb-benchmark-visualizer'); ?></option>
+                        <option value="hidden" <?php selected(get_option('themisdb_bv_default_stats_mode', 'toolbar'), 'hidden'); ?>><?php _e('Hidden', 'themisdb-benchmark-visualizer'); ?></option>
+                    </select>
+                    <p class="description">
+                        <?php _e('Use a compact toolbar for the live benchmark summary or keep the larger stat cards.', 'themisdb-benchmark-visualizer'); ?>
+                    </p>
+                </td>
+            </tr>
+
             <!-- Chart Theme -->
             <tr>
                 <th scope="row">
@@ -388,7 +404,7 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
             </tr>
             <tr>
                 <td><code>[themisdb_benchmark_visualizer category="vector_search"]</code></td>
-                <td><?php _e( 'Kategorie vorfiltern (all, vector_search, graph_traversal, transaction, compression, advanced, content, gpu)', 'themisdb-benchmark-visualizer' ); ?></td>
+                <td><?php _e( 'Kategorie vorfiltern (vector_search, graph_traversal, transaction, compression, advanced, content, gpu)', 'themisdb-benchmark-visualizer' ); ?></td>
             </tr>
             <tr>
                 <td><code>[themisdb_benchmark_visualizer metric="throughput"]</code></td>

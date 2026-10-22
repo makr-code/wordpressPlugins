@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('THEMISDB_GRAPH_NAV_V2_VERSION', '2.0.9');
+define('THEMISDB_GRAPH_NAV_V2_VERSION', '2.0.12');
 define('THEMISDB_GRAPH_NAV_V2_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_GRAPH_NAV_V2_URL', plugin_dir_url(__FILE__));
 
@@ -23,28 +23,49 @@ require_once THEMISDB_GRAPH_NAV_V2_DIR . 'includes/class-themisdb-graph-normaliz
 require_once THEMISDB_GRAPH_NAV_V2_DIR . 'includes/class-themisdb-graph-data.php';
 require_once THEMISDB_GRAPH_NAV_V2_DIR . 'includes/class-themisdb-graph-settings.php';
 
+final class ThemisDB_Graph_Runtime_Config {
+    public static function defaults() {
+        return array(
+            'enable_gpu' => true,
+            'max_visible_nodes' => 250,
+            'include_external' => true,
+        );
+    }
+
+    public static function get($key, $default = null) {
+        $defaults = self::defaults();
+        $resolved_default = array_key_exists($key, $defaults) ? $defaults[$key] : $default;
+        return ThemisDB_Graph_Settings::get($key, $resolved_default);
+    }
+
+    public static function build() {
+        $graph = new ThemisDB_Graph_Data();
+        $config = array(
+            'graph' => $graph->get_graph_data(),
+            'assetUrl' => THEMISDB_GRAPH_NAV_V2_URL,
+            'renderer' => array(
+                'preferWebGPU' => (bool) self::get('enable_gpu', true),
+                'allowExperimentalWebGPU' => true,
+                'fallbackToCanvas' => true,
+                'fallbackToSVG' => false,
+            ),
+            'labels' => array(
+                'title' => __('Graph Navigation', 'themisdb-graph-navigation-v2'),
+            ),
+            'settings' => array(
+                'maxVisibleNodes' => (int) self::get('max_visible_nodes', 250),
+                'showExternal' => (bool) self::get('include_external', true),
+            ),
+        );
+
+        return apply_filters('themisdb_graph_nav_v2_runtime_config', $config);
+    }
+}
+
 ThemisDB_Graph_Settings::boot();
 
 function themisdb_graph_nav_v2_get_runtime_config() {
-    $graph = new ThemisDB_Graph_Data();
-
-    return array(
-        'graph' => $graph->get_graph_data(),
-        'assetUrl' => THEMISDB_GRAPH_NAV_V2_URL,
-        'renderer' => array(
-            'preferWebGPU' => (bool) get_option('themisdb_graph_nav_v2_enable_gpu', true),
-            'allowExperimentalWebGPU' => true,
-            'fallbackToCanvas' => true,
-            'fallbackToSVG' => false,
-        ),
-        'labels' => array(
-            'title' => __('Graph Navigation', 'themisdb-graph-navigation-v2'),
-        ),
-        'settings' => array(
-            'maxVisibleNodes' => (int) get_option('themisdb_graph_nav_v2_max_visible_nodes', 250),
-            'showExternal' => (bool) get_option('themisdb_graph_nav_v2_include_external', true),
-        ),
-    );
+    return ThemisDB_Graph_Runtime_Config::build();
 }
 
 function themisdb_graph_nav_v2_enqueue_assets() {
@@ -194,23 +215,8 @@ function themisdb_graph_nav_v2_shortcode($atts = array()) {
 add_shortcode('themisdb_graph_navigation_v2', 'themisdb_graph_nav_v2_shortcode');
 
 function themisdb_graph_nav_v2_append_frontpage_content($content) {
-    if (is_admin() || empty($content)) {
-        return $content;
-    }
-
-    if (strpos($content, 'themisdb_graph_navigation_v2') !== false || strpos($content, 'themisdb-graph-v2-shell') !== false) {
-        return $content;
-    }
-
-    $front_page_id = (int) get_option('page_on_front');
-    if ($front_page_id > 0 && is_page($front_page_id)) {
-        $graph_html = do_shortcode('[themisdb_graph_navigation_v2 title="Graph Navigation" button_text="Graph anzeigen"]');
-        $content .= '<div class="themisdb-graph-homepage-widget-area">' . $graph_html . '</div>';
-    }
-
     return $content;
 }
-add_filter('the_content', 'themisdb_graph_nav_v2_append_frontpage_content', 20);
 
 function themisdb_graph_nav_v2_render_footer_overlay() {
     return;
@@ -277,10 +283,9 @@ function themisdb_graph_nav_v2_flush_cache() {
 }
 
 function themisdb_graph_nav_v2_activate() {
-    add_option('themisdb_graph_nav_v2_enable_gpu', true);
-    add_option('themisdb_graph_nav_v2_max_visible_nodes', 250);
-    add_option('themisdb_graph_nav_v2_include_external', true);
-    add_option('themisdb_graph_nav_v2_cache_seconds', HOUR_IN_SECONDS);
+    foreach (ThemisDB_Graph_Settings::default_values() as $key => $value) {
+        add_option(ThemisDB_Graph_Settings::option_name($key), $value);
+    }
     themisdb_graph_nav_v2_flush_cache();
 }
 register_activation_hook(__FILE__, 'themisdb_graph_nav_v2_activate');

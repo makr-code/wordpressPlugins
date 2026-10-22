@@ -16,8 +16,7 @@ This plugin is designed following the **TCO Calculator** template pattern and pr
 ### Comprehensive Benchmark Visualization
 - 📊 **Interactive Charts**: Dynamic visualizations with Chart.js
 - 🔍 **Multiple Metrics**: Latency, Throughput, Memory Usage
-- 🎯 **10 Category Filters**: 
-  - All Operations (comprehensive overview)
+- 🎯 **Category Filters**: 
   - Vector Search & Embeddings (GNN embeddings support)
   - Graph Traversal & PageRank
   - Encryption & HSM (Hardware Security Module)
@@ -112,12 +111,11 @@ Display the benchmark visualizer with default settings:
 // Show GPU Backend benchmarks
 [themisdb_benchmark_visualizer category="gpu"]
 
-// Show all available categories
-[themisdb_benchmark_visualizer category="all"]
+// Show a concrete category by default
+[themisdb_benchmark_visualizer category="vector_search"]
 ```
 
 **Available Categories:**
-- `all` - All Operations (8 key benchmark files)
 - `vector_search` - Vector Search & GNN Embeddings
 - `graph_traversal` - Graph algorithms including PageRank
 - `encryption` - Encryption and HSM provider tests

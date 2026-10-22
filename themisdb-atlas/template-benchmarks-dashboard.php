@@ -38,7 +38,7 @@ get_header();
                         <div class="benchmark-section">
                             <h2>📊 Performance Overview</h2>
                             <p>Comprehensive view of all ThemisDB performance benchmarks across different categories.</p>
-                            <?php echo do_shortcode( '[themisdb_benchmark_visualizer category="all" metric="latency"]' ); ?>
+                            <?php echo do_shortcode( '[themisdb_benchmark_visualizer category="vector_search" metric="latency"]' ); ?>
                         </div>
 
                         <!-- Category Tabs -->

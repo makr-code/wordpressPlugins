@@ -135,9 +135,10 @@ class ThemisDB_Benchmark_Visualizer {
             'chart_theme' => 'light',
             'auto_update_interval' => 86400, // 24 hours
             'default_metric' => 'latency',
-            'default_category' => 'all',
+            'default_category' => $this->get_default_category_key(),
             'default_chart_type' => 'bar',
             'default_top_n' => '30',
+            'default_stats_mode' => 'toolbar',
             'require_comparable_tasks' => '1',
             'category_keyword_map' => wp_json_encode($this->default_category_keyword_map(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
         );
@@ -163,6 +164,11 @@ class ThemisDB_Benchmark_Visualizer {
     public function init() {
         // Load text domain
         load_plugin_textdomain('themisdb-benchmark-visualizer', false, dirname(plugin_basename(__FILE__)) . '/languages');
+
+        $stored_default_category = get_option('themisdb_bv_default_category', null);
+        if (null === $stored_default_category || 'all' === $stored_default_category || '' === $stored_default_category) {
+            update_option('themisdb_bv_default_category', $this->get_default_category_key());
+        }
     }
     
     /**
@@ -233,7 +239,7 @@ class ThemisDB_Benchmark_Visualizer {
             'settings' => array(
                 'chart_theme' => get_option('themisdb_bv_chart_theme', 'light'),
                 'default_metric' => get_option('themisdb_bv_default_metric', 'latency'),
-                'default_category' => get_option('themisdb_bv_default_category', 'all'),
+                'default_category' => get_option('themisdb_bv_default_category', $this->get_default_category_key()),
                 'default_chart_type' => get_option('themisdb_bv_default_chart_type', 'bar'),
                 'default_top_n' => get_option('themisdb_bv_default_top_n', '30'),
                 'category_labels' => $this->get_category_display_labels(),
@@ -271,9 +277,10 @@ class ThemisDB_Benchmark_Visualizer {
 			}
 			return $default;
 		};
+		$default_category = $this->get_default_category_key();
 
 		$atts = shortcode_atts(array(
-            'category' => get_option('themisdb_bv_default_category', 'all'),
+            'category' => $default_category,
             'compare' => get_option('themisdb_bv_default_comparison_dbs', 'postgresql,mongodb'),
             'metric' => get_option('themisdb_bv_default_metric', 'latency'),
             'chart_type' => get_option('themisdb_bv_default_chart_type', 'bar'),
@@ -285,6 +292,7 @@ class ThemisDB_Benchmark_Visualizer {
             'show_mermaid' => 'false',
             'show_nav' => 'true',
             'show_stats' => 'false',
+            'stats_mode' => get_option('themisdb_bv_default_stats_mode', 'toolbar'),
             'show_table' => 'false',
         ), $raw_atts, 'themisdb_benchmark_visualizer');
 
@@ -297,6 +305,10 @@ class ThemisDB_Benchmark_Visualizer {
 		$atts['show_mermaid'] = $normalize_bool($atts['show_mermaid'] ?? false, false);
 		$atts['show_nav'] = $normalize_bool($atts['show_nav'] ?? false, false);
 		$atts['show_stats'] = $normalize_bool($atts['show_stats'] ?? false, false);
+		$atts['stats_mode'] = isset($atts['stats_mode']) ? strtolower(trim((string) $atts['stats_mode'])) : strtolower(trim((string) get_option('themisdb_bv_default_stats_mode', 'toolbar')));
+		if (!in_array($atts['stats_mode'], array('toolbar', 'cards', 'hidden'), true)) {
+		    $atts['stats_mode'] = 'toolbar';
+		}
 		$atts['show_table'] = $normalize_bool($atts['show_table'] ?? false, false);
 		$atts['aspect_ratio'] = isset($atts['aspect_ratio']) ? sanitize_text_field($atts['aspect_ratio']) : '4:3';
 		$chart_ratio_css = preg_replace('/\s*:\s*/', ' / ', $atts['aspect_ratio']);
@@ -305,7 +317,7 @@ class ThemisDB_Benchmark_Visualizer {
 		}
 
 		$payload = array(
-			'category' => isset($atts['category']) ? sanitize_key($atts['category']) : 'all',
+			'category' => isset($atts['category']) ? sanitize_key($atts['category']) : $default_category,
 			'compare' => isset($atts['compare']) ? sanitize_text_field($atts['compare']) : '',
 			'metric' => isset($atts['metric']) ? sanitize_key($atts['metric']) : 'latency',
 			'chart_type' => isset($atts['chart_type']) ? sanitize_key($atts['chart_type']) : 'bar',
@@ -318,6 +330,7 @@ class ThemisDB_Benchmark_Visualizer {
 			'show_mermaid' => (bool) $atts['show_mermaid'],
 			'show_nav' => (bool) $atts['show_nav'],
 			'show_stats' => (bool) $atts['show_stats'],
+			'stats_mode' => $atts['stats_mode'],
 			'show_table' => (bool) $atts['show_table'],
 		);
 
@@ -375,6 +388,11 @@ class ThemisDB_Benchmark_Visualizer {
         );
         register_setting(
             'themisdb_bv_settings',
+            'themisdb_bv_default_stats_mode',
+            array('sanitize_callback' => array($this, 'sanitize_stats_mode_option'))
+        );
+        register_setting(
+            'themisdb_bv_settings',
             'themisdb_bv_require_comparable_tasks',
             array('sanitize_callback' => array($this, 'sanitize_bool_option'))
         );
@@ -391,6 +409,11 @@ class ThemisDB_Benchmark_Visualizer {
         }
         $text = strtolower(trim((string) $value));
         return in_array($text, array('1', 'true', 'yes', 'on'), true) ? '1' : '0';
+    }
+
+    public function sanitize_stats_mode_option($value) {
+        $normalized = strtolower(trim((string) $value));
+        return in_array($normalized, array('toolbar', 'cards', 'hidden'), true) ? $normalized : 'toolbar';
     }
 
     public function sanitize_category_keyword_map_option($value) {
@@ -654,8 +677,23 @@ class ThemisDB_Benchmark_Visualizer {
         return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on'), true);
     }
 
+    private function get_default_category_key() {
+        $configured = sanitize_key((string) get_option('themisdb_bv_default_category', ''));
+        if ($configured !== '' && $configured !== 'all') {
+            return $configured;
+        }
+
+        foreach (array_keys($this->get_category_keyword_map()) as $category_key) {
+            if ($category_key !== 'all') {
+                return $category_key;
+            }
+        }
+
+        return 'vector_search';
+    }
+
     private function get_category_display_labels() {
-        $labels = array('all' => __('All Operations', 'themisdb-benchmark-visualizer'));
+        $labels = array();
         foreach ($this->get_category_keyword_map() as $key => $keywords) {
             $text = ucwords(str_replace(array('_', '-'), ' ', (string) $key));
             $labels[$key] = $text;
