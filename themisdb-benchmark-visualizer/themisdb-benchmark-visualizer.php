@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Plugin for ThemisDB.
- * Version: 1.0.3
+ * Version: 1.0.5
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -47,7 +47,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('THEMISDB_BV_VERSION', '1.0.3');
+define('THEMISDB_BV_VERSION', '1.0.6');
 define('THEMISDB_BV_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_BV_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_BV_PLUGIN_FILE', __FILE__);
@@ -128,13 +128,18 @@ class ThemisDB_Benchmark_Visualizer {
     public function activate() {
         // Set default options
         $defaults = array(
-            'data_source' => 'local',
+            'data_source' => 'catalog',
+            'catalog_path' => '',
             'github_data_url' => 'https://raw.githubusercontent.com/makr-code/wordpressPlugins/main/benchmarks/benchmark_results/',
             'default_comparison_dbs' => 'postgresql,mongodb',
             'chart_theme' => 'light',
             'auto_update_interval' => 86400, // 24 hours
             'default_metric' => 'latency',
             'default_category' => 'all',
+            'default_chart_type' => 'bar',
+            'default_top_n' => '30',
+            'require_comparable_tasks' => '1',
+            'category_keyword_map' => wp_json_encode($this->default_category_keyword_map(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
         );
         
         foreach ($defaults as $key => $value) {
@@ -229,6 +234,9 @@ class ThemisDB_Benchmark_Visualizer {
                 'chart_theme' => get_option('themisdb_bv_chart_theme', 'light'),
                 'default_metric' => get_option('themisdb_bv_default_metric', 'latency'),
                 'default_category' => get_option('themisdb_bv_default_category', 'all'),
+                'default_chart_type' => get_option('themisdb_bv_default_chart_type', 'bar'),
+                'default_top_n' => get_option('themisdb_bv_default_top_n', '30'),
+                'category_labels' => $this->get_category_display_labels(),
             ),
         ));
     }
@@ -268,13 +276,14 @@ class ThemisDB_Benchmark_Visualizer {
             'category' => get_option('themisdb_bv_default_category', 'all'),
             'compare' => get_option('themisdb_bv_default_comparison_dbs', 'postgresql,mongodb'),
             'metric' => get_option('themisdb_bv_default_metric', 'latency'),
-            'chart_type' => 'bar',
+            'chart_type' => get_option('themisdb_bv_default_chart_type', 'bar'),
+            'aspect_ratio' => get_option('themisdb_bv_default_aspect_ratio', '4:3'),
             'show_header' => 'false',
-            'show_controls' => 'false',
+            'show_controls' => 'true',
             'show_chart' => 'true',
             'show_overlay' => 'false',
             'show_mermaid' => 'false',
-            'show_nav' => 'false',
+            'show_nav' => 'true',
             'show_stats' => 'false',
             'show_table' => 'false',
         ), $raw_atts, 'themisdb_benchmark_visualizer');
@@ -289,12 +298,18 @@ class ThemisDB_Benchmark_Visualizer {
 		$atts['show_nav'] = $normalize_bool($atts['show_nav'] ?? false, false);
 		$atts['show_stats'] = $normalize_bool($atts['show_stats'] ?? false, false);
 		$atts['show_table'] = $normalize_bool($atts['show_table'] ?? false, false);
+		$atts['aspect_ratio'] = isset($atts['aspect_ratio']) ? sanitize_text_field($atts['aspect_ratio']) : '4:3';
+		$chart_ratio_css = preg_replace('/\s*:\s*/', ' / ', $atts['aspect_ratio']);
+		if (!preg_match('/^\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?$/', $chart_ratio_css)) {
+			$chart_ratio_css = '4 / 3';
+		}
 
 		$payload = array(
 			'category' => isset($atts['category']) ? sanitize_key($atts['category']) : 'all',
 			'compare' => isset($atts['compare']) ? sanitize_text_field($atts['compare']) : '',
 			'metric' => isset($atts['metric']) ? sanitize_key($atts['metric']) : 'latency',
 			'chart_type' => isset($atts['chart_type']) ? sanitize_key($atts['chart_type']) : 'bar',
+			'aspect_ratio' => $atts['aspect_ratio'],
 			'chart_theme' => get_option('themisdb_bv_chart_theme', 'light'),
 			'show_header' => (bool) $atts['show_header'],
 			'show_controls' => (bool) $atts['show_controls'],
@@ -337,12 +352,109 @@ class ThemisDB_Benchmark_Visualizer {
      */
     public function register_settings() {
         register_setting('themisdb_bv_settings', 'themisdb_bv_data_source');
+        register_setting('themisdb_bv_settings', 'themisdb_bv_catalog_path');
         register_setting('themisdb_bv_settings', 'themisdb_bv_github_data_url');
         register_setting('themisdb_bv_settings', 'themisdb_bv_default_comparison_dbs');
         register_setting('themisdb_bv_settings', 'themisdb_bv_chart_theme');
         register_setting('themisdb_bv_settings', 'themisdb_bv_auto_update_interval');
         register_setting('themisdb_bv_settings', 'themisdb_bv_default_metric');
-        register_setting('themisdb_bv_settings', 'themisdb_bv_default_category');
+        register_setting(
+            'themisdb_bv_settings',
+            'themisdb_bv_default_category',
+            array('sanitize_callback' => 'sanitize_key')
+        );
+        register_setting(
+            'themisdb_bv_settings',
+            'themisdb_bv_default_chart_type',
+            array('sanitize_callback' => array($this, 'sanitize_chart_type_option'))
+        );
+        register_setting(
+            'themisdb_bv_settings',
+            'themisdb_bv_default_top_n',
+            array('sanitize_callback' => array($this, 'sanitize_top_n_option'))
+        );
+        register_setting(
+            'themisdb_bv_settings',
+            'themisdb_bv_require_comparable_tasks',
+            array('sanitize_callback' => array($this, 'sanitize_bool_option'))
+        );
+        register_setting(
+            'themisdb_bv_settings',
+            'themisdb_bv_category_keyword_map',
+            array('sanitize_callback' => array($this, 'sanitize_category_keyword_map_option'))
+        );
+    }
+
+    public function sanitize_bool_option($value) {
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+        $text = strtolower(trim((string) $value));
+        return in_array($text, array('1', 'true', 'yes', 'on'), true) ? '1' : '0';
+    }
+
+    public function sanitize_category_keyword_map_option($value) {
+        $default = wp_json_encode($this->default_category_keyword_map(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return $default;
+        }
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            add_settings_error(
+                'themisdb_bv_settings',
+                'themisdb_bv_category_keyword_map_invalid',
+                __('Category Keyword Mapping must be valid JSON.', 'themisdb-benchmark-visualizer'),
+                'error'
+            );
+            return $default;
+        }
+
+        $normalized = array();
+        foreach ($decoded as $category => $keywords) {
+            $category_key = sanitize_key((string) $category);
+            if ($category_key === '' || !is_array($keywords)) {
+                continue;
+            }
+            $items = array();
+            foreach ($keywords as $keyword) {
+                $token = strtolower(trim((string) $keyword));
+                if ($token !== '') {
+                    $items[] = $token;
+                }
+            }
+            if (!empty($items)) {
+                $normalized[$category_key] = array_values(array_unique($items));
+            }
+        }
+        if (empty($normalized)) {
+            add_settings_error(
+                'themisdb_bv_settings',
+                'themisdb_bv_category_keyword_map_empty',
+                __('Category Keyword Mapping JSON must contain at least one non-empty category array.', 'themisdb-benchmark-visualizer'),
+                'error'
+            );
+            return $default;
+        }
+        return wp_json_encode($normalized, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    }
+
+    public function sanitize_chart_type_option($value) {
+        $allowed = array('bar', 'line', 'area', 'radar');
+        $candidate = sanitize_key((string) $value);
+        return in_array($candidate, $allowed, true) ? $candidate : 'bar';
+    }
+
+    public function sanitize_top_n_option($value) {
+        $text = strtolower(trim((string) $value));
+        if ($text === 'all') {
+            return 'all';
+        }
+        $numeric = (int) $text;
+        if ($numeric <= 0) {
+            return '30';
+        }
+        return (string) min(200, $numeric);
     }
     
     /**
@@ -397,14 +509,377 @@ class ThemisDB_Benchmark_Visualizer {
      * Load benchmark data
      */
     private function load_benchmark_data($category = 'all', $metric = 'latency') {
-        $data_source = get_option('themisdb_bv_data_source', 'local');
-        
-        if ($data_source === 'local') {
-            return $this->load_local_benchmark_data($category, $metric);
-        } else {
-            return $this->load_github_benchmark_data($category, $metric);
+        $data_source = get_option('themisdb_bv_data_source', 'catalog');
+        $normalized_category = $this->normalize_category_key($category);
+
+        if ($data_source === 'catalog') {
+            return $this->load_catalog_benchmark_data($normalized_category, $metric);
         }
+        if ($data_source === 'local') {
+            return $this->load_local_benchmark_data($normalized_category, $metric);
+        }
+        if ($data_source === 'github') {
+            return $this->load_github_benchmark_data($normalized_category, $metric);
+        }
+        return $this->load_catalog_benchmark_data($normalized_category, $metric);
     }
+
+    private function normalize_category_key($category) {
+        $raw = sanitize_key((string) $category);
+        $aliases = array(
+            'aql_query' => 'advanced',
+            'query' => 'advanced',
+            'transactions' => 'transaction',
+            'graphs' => 'graph_traversal',
+            'vectors' => 'vector_search',
+        );
+        return isset($aliases[$raw]) ? $aliases[$raw] : ($raw ?: 'all');
+    }
+
+    private function find_catalog_path() {
+        $configured_path = trim((string) get_option('themisdb_bv_catalog_path', ''));
+        if ($configured_path !== '') {
+            if (file_exists($configured_path)) {
+                return $configured_path;
+            }
+            return false;
+        }
+
+        $possible_paths = array(
+            THEMISDB_BV_PLUGIN_DIR . '../source-links/benchmarks/benchmark_results/benchmark_catalog.json',
+            THEMISDB_BV_PLUGIN_DIR . '../../source-links/benchmarks/benchmark_results/benchmark_catalog.json',
+            THEMISDB_BV_PLUGIN_DIR . '../../../source-links/benchmarks/benchmark_results/benchmark_catalog.json',
+        );
+
+        if (isset($_SERVER['DOCUMENT_ROOT'])) {
+            $doc_root = untrailingslashit($_SERVER['DOCUMENT_ROOT']);
+            $possible_paths[] = $doc_root . '/source-links/benchmarks/benchmark_results/benchmark_catalog.json';
+            $possible_paths[] = dirname($doc_root) . '/source-links/benchmarks/benchmark_results/benchmark_catalog.json';
+        }
+
+        $env_path = getenv('THEMISDB_BENCHMARK_CATALOG');
+        if ($env_path) {
+            $possible_paths[] = $env_path;
+        }
+
+        foreach ($possible_paths as $path) {
+            if (is_string($path) && file_exists($path)) {
+                return $path;
+            }
+        }
+        return false;
+    }
+
+    private function load_catalog_benchmark_data($category, $metric) {
+        $catalog_path = $this->find_catalog_path();
+        if (!$catalog_path || !is_readable($catalog_path)) {
+            return $this->get_fallback_data($category, $metric);
+        }
+
+        $payload = json_decode((string) file_get_contents($catalog_path), true);
+        if (!is_array($payload) || !isset($payload['records']) || !is_array($payload['records'])) {
+            return $this->get_fallback_data($category, $metric);
+        }
+
+        $parsed_data = $this->parse_catalog_records($payload['records'], $metric, $category);
+        if (empty($parsed_data['labels'])) {
+            return $this->get_fallback_data($category, $metric);
+        }
+
+        $description = $this->get_category_description($category, $parsed_data['summary'], $metric);
+        return array(
+            'labels' => $parsed_data['labels'],
+            'datasets' => $parsed_data['datasets'],
+            'metric' => $metric,
+            'category' => $category,
+            'summary' => $parsed_data['summary'],
+            'description' => $description,
+        );
+    }
+
+    private function is_higher_better($metric) {
+        return sanitize_key((string) $metric) === 'throughput';
+    }
+
+    private function default_category_keyword_map() {
+        return array(
+            'vector_search' => array('vector', 'embedding', 'hnsw', 'simd_distance', 'knn'),
+            'graph_traversal' => array('graph', 'pagerank', 'traversal', 'bfs', 'dfs'),
+            'transaction' => array('tpcc', 'transaction', 'ycsb', 'mvcc', 'lock'),
+            'compression' => array('compression', 'zstd', 'gorilla', 'codec'),
+            'advanced' => array('aql', 'changefeed', 'async', 'batch', 'querymix', 'query'),
+            'content' => array('content', 'blob', 'branch', 'document', 'index'),
+            'gpu' => array('gpu', 'cuda', 'rocm', 'vulkan'),
+        );
+    }
+
+    private function get_category_keyword_map() {
+        $default_map = $this->default_category_keyword_map();
+        $raw = trim((string) get_option('themisdb_bv_category_keyword_map', ''));
+        if ($raw === '') {
+            return $default_map;
+        }
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return $default_map;
+        }
+        $normalized = array();
+        foreach ($decoded as $category => $keywords) {
+            $category_key = sanitize_key((string) $category);
+            if ($category_key === '') {
+                continue;
+            }
+            if (!is_array($keywords)) {
+                continue;
+            }
+            $items = array();
+            foreach ($keywords as $keyword) {
+                $value = trim((string) $keyword);
+                if ($value !== '') {
+                    $items[] = strtolower($value);
+                }
+            }
+            if (!empty($items)) {
+                $normalized[$category_key] = array_values(array_unique($items));
+            }
+        }
+        return !empty($normalized) ? $normalized : $default_map;
+    }
+
+    private function require_comparable_tasks() {
+        $value = get_option('themisdb_bv_require_comparable_tasks', '1');
+        if (is_bool($value)) {
+            return $value;
+        }
+        return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on'), true);
+    }
+
+    private function get_category_display_labels() {
+        $labels = array('all' => __('All Operations', 'themisdb-benchmark-visualizer'));
+        foreach ($this->get_category_keyword_map() as $key => $keywords) {
+            $text = ucwords(str_replace(array('_', '-'), ' ', (string) $key));
+            $labels[$key] = $text;
+        }
+        return $labels;
+    }
+
+    private function normalize_benchmark_label($name) {
+        $task = $this->extract_test_task_label((string) $name);
+        $label = $this->format_benchmark_name($task);
+        $label = preg_replace('/\s+/', ' ', (string) $label);
+        return trim((string) $label);
+    }
+
+    private function extract_test_task_label($name) {
+        $raw = trim((string) $name);
+        if ($raw === '') {
+            return 'benchmark';
+        }
+
+        $segments = array_values(array_filter(explode('/', $raw), function ($segment) {
+            return trim((string) $segment) !== '';
+        }));
+        if (empty($segments)) {
+            return $raw;
+        }
+
+        $skip_pattern = '/^(threads:\d+|manual_time|real_time|cpu_time|iteration|aggregate|mean|median|stddev|cv|p99|p95|\d+)$/i';
+        $candidates = count($segments) > 1 ? array_slice($segments, 1) : $segments;
+        foreach ($candidates as $segment) {
+            $token = trim((string) $segment);
+            if ($token === '' || preg_match($skip_pattern, $token)) {
+                continue;
+            }
+            return $token;
+        }
+
+        return $segments[count($segments) - 1];
+    }
+
+    private function infer_category_from_text($text) {
+        $value = strtolower((string) $text);
+        $mapping = $this->get_category_keyword_map();
+
+        foreach ($mapping as $category => $needles) {
+            foreach ($needles as $needle) {
+                if (strpos($value, $needle) !== false) {
+                    return $category;
+                }
+            }
+        }
+        return 'all';
+    }
+
+    private function infer_workload_for_row($row) {
+        $raw_workload = sanitize_key((string) ($row['workload'] ?? ''));
+        if ($raw_workload !== '' && $raw_workload !== 'all') {
+            return $raw_workload;
+        }
+
+        $name = (string) ($row['benchmark_name'] ?? '');
+        $source = (string) ($row['source_file'] ?? '');
+        $notes = (string) ($row['notes'] ?? '');
+        $inferred = $this->infer_category_from_text($name . ' ' . $source . ' ' . $notes);
+        return sanitize_key((string) $inferred ?: 'all');
+    }
+
+    private function parse_catalog_records($records, $metric, $category) {
+        $metric = sanitize_key((string) $metric);
+        $higher_is_better = $this->is_higher_better($metric);
+        $label_values = array();
+        $label_sources = array();
+        $engines = array();
+        $task_engine_counts = array();
+
+        foreach ($records as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $row_metric = sanitize_key((string) ($row['metric_name'] ?? ''));
+            if ($row_metric !== $metric) {
+                continue;
+            }
+
+            $row_category = $this->infer_workload_for_row($row);
+            if ($category !== 'all' && $row_category !== $category) {
+                continue;
+            }
+
+            $label = $this->normalize_benchmark_label((string) ($row['benchmark_name'] ?? 'benchmark'));
+            $engine = (string) ($row['engine'] ?? 'ThemisDB');
+            $value = is_numeric($row['metric_value'] ?? null) ? (float) $row['metric_value'] : null;
+            if ($label === '' || $value === null) {
+                continue;
+            }
+
+            if (!isset($label_values[$label])) {
+                $label_values[$label] = array();
+                $label_sources[$label] = array();
+            }
+            if (!isset($label_values[$label][$engine])) {
+                $label_values[$label][$engine] = array();
+            }
+            $label_values[$label][$engine][] = $value;
+            $task_engine_counts[$label] = count($label_values[$label]);
+            $source_name = trim((string) ($row['benchmark_name'] ?? ''));
+            if ($source_name !== '' && !in_array($source_name, $label_sources[$label], true)) {
+                $label_sources[$label][] = $source_name;
+            }
+            if (!in_array($engine, $engines, true)) {
+                $engines[] = $engine;
+            }
+        }
+
+        if (empty($label_values) || empty($engines)) {
+            return array('labels' => array(), 'datasets' => array(), 'summary' => array());
+        }
+
+        $comparable_labels = array();
+        foreach ($label_values as $label => $engine_map) {
+            if (count($engine_map) >= 2) {
+                $comparable_labels[] = $label;
+            }
+        }
+        $enforce_comparable = $this->require_comparable_tasks();
+        $eligible_labels = ($enforce_comparable && !empty($comparable_labels)) ? $comparable_labels : array_keys($label_values);
+        $excluded_non_comparable = max(0, count($label_values) - count($eligible_labels));
+
+        $label_scores = array();
+        foreach ($label_values as $label => $engine_map) {
+            if (!in_array($label, $eligible_labels, true)) {
+                continue;
+            }
+            if (isset($engine_map['ThemisDB']) && !empty($engine_map['ThemisDB'])) {
+                $values = $engine_map['ThemisDB'];
+                $label_scores[$label] = array_sum($values) / count($values);
+                continue;
+            }
+            $fallback = array();
+            foreach ($engine_map as $values) {
+                foreach ($values as $value) {
+                    $fallback[] = $value;
+                }
+            }
+            if (!empty($fallback)) {
+                $label_scores[$label] = array_sum($fallback) / count($fallback);
+            }
+        }
+
+        if (empty($label_scores)) {
+            return array('labels' => array(), 'datasets' => array(), 'summary' => array());
+        }
+
+        $labels = array_keys($label_scores);
+        usort($labels, function ($left, $right) use ($label_scores, $higher_is_better) {
+            $lv = (float) ($label_scores[$left] ?? 0.0);
+            $rv = (float) ($label_scores[$right] ?? 0.0);
+            if ($lv === $rv) {
+                return strcmp((string) $left, (string) $right);
+            }
+            if ($higher_is_better) {
+                return ($rv <=> $lv);
+            }
+            return ($lv <=> $rv);
+        });
+
+        $max_points = 30;
+        if (count($labels) > $max_points) {
+            $labels = array_slice($labels, 0, $max_points);
+        }
+
+        $datasets = array();
+        foreach ($engines as $engine) {
+            $data = array();
+            foreach ($labels as $label) {
+                $points = $label_values[$label][$engine] ?? array();
+                $data[] = empty($points) ? null : round(array_sum($points) / count($points), 3);
+            }
+            $datasets[] = array(
+                'label' => $engine,
+                'data' => $data,
+                'backgroundColor' => $engine === 'ThemisDB' ? 'rgba(46, 164, 79, 0.8)' : 'rgba(80, 120, 200, 0.55)',
+                'borderColor' => $engine === 'ThemisDB' ? 'rgba(46, 164, 79, 1)' : 'rgba(80, 120, 200, 0.95)',
+                'borderWidth' => 2,
+                'pointRadius' => 4,
+                'pointHoverRadius' => 6,
+            );
+        }
+
+        $summary_values = array_values($label_scores);
+        $min_value = min($summary_values);
+        $max_value = max($summary_values);
+        $avg_value = array_sum($summary_values) / count($summary_values);
+        $summary = array(
+            'total_benchmarks' => count($label_scores),
+            'total_tasks_raw' => count($label_values),
+            'task_count' => count($label_scores),
+            'comparable_task_count' => count($comparable_labels),
+            'excluded_non_comparable_tasks' => $excluded_non_comparable,
+            'displayed_benchmarks' => count($labels),
+            'avg_time' => $avg_value,
+            'fastest' => $min_value,
+            'slowest' => $max_value,
+            'min_value' => $min_value,
+            'max_value' => $max_value,
+            'best_value' => $higher_is_better ? $max_value : $min_value,
+            'worst_value' => $higher_is_better ? $min_value : $max_value,
+            'files_parsed' => 0,
+            'metric' => $metric,
+            'higher_is_better' => $higher_is_better,
+            'task_sources' => $label_sources,
+            'task_engine_counts' => $task_engine_counts,
+            'comparison_mode' => $enforce_comparable ? (!empty($comparable_labels) ? 'cross_engine' : 'single_engine_fallback') : 'all_tasks',
+            'enforce_comparable_tasks' => $enforce_comparable,
+        );
+
+        return array(
+            'labels' => $labels,
+            'datasets' => $datasets,
+            'summary' => $summary,
+        );
+    }
+    
     
     /**
      * Load local benchmark data
@@ -428,7 +903,7 @@ class ThemisDB_Benchmark_Visualizer {
         $parsed_data = $this->parse_benchmark_files($benchmark_files, $metric);
         
         // Get detailed description for this category
-        $description = $this->get_category_description($category, $parsed_data['summary']);
+        $description = $this->get_category_description($category, $parsed_data['summary'], $metric);
         
         return array(
             'labels' => $parsed_data['labels'],
@@ -551,7 +1026,7 @@ class ThemisDB_Benchmark_Visualizer {
     /**
      * Get detailed category description based on actual benchmark data
      */
-    private function get_category_description($category, $summary_stats) {
+    private function get_category_description($category, $summary_stats, $metric = 'latency') {
         $descriptions = array(
             'all' => array(
                 'title' => 'Umfassende Multi-Model-Performance',
@@ -717,12 +1192,24 @@ class ThemisDB_Benchmark_Visualizer {
         
         // Add summary statistics to description
         if ($summary_stats && isset($summary_stats['total_benchmarks'])) {
+            $metric_key = sanitize_key((string) $metric);
+            $unit = $metric_key === 'throughput' ? 'ops/s' : ($metric_key === 'memory' ? 'MB' : 'ms');
+            $best_label = $metric_key === 'throughput' ? 'Höchster Durchsatz' : 'Niedrigste Latenz';
+            $worst_label = $metric_key === 'throughput' ? 'Niedrigster Durchsatz' : 'Höchste Latenz';
+            $best_value = isset($summary_stats['best_value']) ? (float) $summary_stats['best_value'] : (float) ($summary_stats['fastest'] ?? 0);
+            $worst_value = isset($summary_stats['worst_value']) ? (float) $summary_stats['worst_value'] : (float) ($summary_stats['slowest'] ?? 0);
+            $task_count = isset($summary_stats['task_count']) ? (int) $summary_stats['task_count'] : (int) $summary_stats['total_benchmarks'];
             $desc['stats_summary'] = sprintf(
-                '%d Tests durchgeführt. Durchschnitt: %.2f ms. Schnellster: %.2f ms. Langsamster: %.2f ms.',
-                $summary_stats['total_benchmarks'],
+                '%d Testaufgaben. Durchschnitt: %.2f %s. %s: %.2f %s. %s: %.2f %s.',
+                $task_count,
                 $summary_stats['avg_time'],
-                $summary_stats['fastest'],
-                $summary_stats['slowest']
+                $unit,
+                $best_label,
+                $best_value,
+                $unit,
+                $worst_label,
+                $worst_value,
+                $unit
             );
         }
         
@@ -735,6 +1222,9 @@ class ThemisDB_Benchmark_Visualizer {
     private function parse_benchmark_files($files, $metric) {
         $labels = array();
         $data_points = array();
+        $higher_is_better = $this->is_higher_better($metric);
+        $label_values = array();
+        $label_sources = array();
         $summary_stats = array(
             'total_benchmarks' => 0,
             'avg_time' => 0,
@@ -756,15 +1246,21 @@ class ThemisDB_Benchmark_Visualizer {
             $summary_stats['files_parsed']++;
             
             foreach ($json['benchmarks'] as $bench) {
-                $name = $this->format_benchmark_name($bench['name']);
+                $name = $this->normalize_benchmark_label($bench['name']);
                 
                 // Extract metric value
                 $value = $this->extract_metric_value($bench, $metric);
                 
                 if ($value !== null) {
-                    $labels[] = $name;
-                    $data_points[] = $value;
-                    $summary_stats['total_benchmarks']++;
+                    if (!isset($label_values[$name])) {
+                        $label_values[$name] = array();
+                        $label_sources[$name] = array();
+                    }
+                    $label_values[$name][] = $value;
+                    $source_name = trim((string) ($bench['name'] ?? ''));
+                    if ($source_name !== '' && !in_array($source_name, $label_sources[$name], true)) {
+                        $label_sources[$name][] = $source_name;
+                    }
                     
                     // Track min and max for all metrics
                     if ($summary_stats['min_value'] === null || $value < $summary_stats['min_value']) {
@@ -774,20 +1270,26 @@ class ThemisDB_Benchmark_Visualizer {
                         $summary_stats['max_value'] = $value;
                     }
                     
-                    // For latency, fastest = lowest, slowest = highest
-                    // For throughput, fastest = highest, slowest = lowest
-                    if ($summary_stats['fastest'] === null || $value < $summary_stats['fastest']) {
-                        $summary_stats['fastest'] = $value;
-                    }
-                    if ($summary_stats['slowest'] === null || $value > $summary_stats['slowest']) {
-                        $summary_stats['slowest'] = $value;
-                    }
                 }
             }
         }
+
+        foreach ($label_values as $label => $values) {
+            $labels[] = $label;
+            $data_points[] = array_sum($values) / count($values);
+        }
+        $summary_stats['total_benchmarks'] = count($data_points);
+        $summary_stats['task_count'] = count($data_points);
         
         if (!empty($data_points)) {
             $summary_stats['avg_time'] = array_sum($data_points) / count($data_points);
+            $summary_stats['fastest'] = min($data_points);
+            $summary_stats['slowest'] = max($data_points);
+            $summary_stats['best_value'] = $higher_is_better ? max($data_points) : min($data_points);
+            $summary_stats['worst_value'] = $higher_is_better ? min($data_points) : max($data_points);
+            $summary_stats['higher_is_better'] = $higher_is_better;
+            $summary_stats['metric'] = sanitize_key((string) $metric);
+            $summary_stats['task_sources'] = $label_sources;
         }
         
         // Limit the number of data points for better visualization (show top N by performance)
@@ -800,8 +1302,14 @@ class ThemisDB_Benchmark_Visualizer {
             }
             
             // Sort by value (best performers first)
-            usort($indexed_data, function($a, $b) {
-                return $a['value'] <=> $b['value'];
+            usort($indexed_data, function($a, $b) use ($higher_is_better) {
+                if ($a['value'] == $b['value']) {
+                    return 0;
+                }
+                if ($higher_is_better) {
+                    return ($b['value'] <=> $a['value']);
+                }
+                return ($a['value'] <=> $b['value']);
             });
             
             // Take top N performers
@@ -929,5 +1437,3 @@ function themisdb_benchmark_visualizer_init() {
 }
 
 add_action('plugins_loaded', 'themisdb_benchmark_visualizer_init');
-
-

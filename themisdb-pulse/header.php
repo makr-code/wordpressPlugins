@@ -18,6 +18,7 @@
     <div class="wp-block-group tv3-header-row">
         <!-- wp:group {"layout":{"type":"flex","verticalAlignment":"center"},"className":"tv3-header-brand"} -->
         <div class="wp-block-group tv3-header-brand">
+            <?php echo do_shortcode('[themisdb_graph_navigation_v2 compact="1" button_text="Graph"]'); ?>
             <!-- wp:site-logo {"width":32,"shouldSyncIcon":false} /-->
             <!-- wp:site-title {"level":0,"className":"tv3-brand-title"} /-->
         </div>

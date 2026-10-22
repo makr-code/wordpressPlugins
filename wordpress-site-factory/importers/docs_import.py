@@ -16,7 +16,7 @@ from PIL import Image
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Optional
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import requests
 
@@ -24,6 +24,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS_CACHE_PATH = ROOT / "output" / "docs_cache.json"
 TAXONOMY_PATH = ROOT / "config" / "taxonomy.json"
 SITE_CONFIG_PATH = ROOT.parent / ".secure" / "site.json"
+LOCAL_SITE_CONFIG_PATH = ROOT.parent / ".secure" / "site.local.json"
+WP_CONNECTIONS_PATH = ROOT.parent / ".secure" / ".wp_connections.json"
+BLOG_SOURCES_PATH = ROOT.parent / "page-content-blog" / "sources"
 REST_TIMEOUT_SECONDS = int(os.environ.get("WP_REST_TIMEOUT", "30"))
 REST_MAX_RETRIES = int(os.environ.get("WP_REST_RETRIES", "4"))
 REST_RETRY_BACKOFF = float(os.environ.get("WP_REST_RETRY_BACKOFF", "2.0"))
@@ -41,6 +44,79 @@ def load_site_config() -> Dict[str, Any]:
 DEFAULT_BASE_URL = os.environ.get("WP_BASE_URL") or load_site_config().get("wordpress", {}).get("base_url", "http://localhost/wordpress")
 DEFAULT_USER = os.environ.get("WP_USER") or load_site_config().get("wordpress", {}).get("user", "test")
 DEFAULT_PASSWORD = os.environ.get("WP_APP_PASSWORD") or load_site_config().get("wordpress", {}).get("app_password", "")
+DEFAULT_REST_ROUTE_STYLE = os.environ.get("WP_REST_ROUTE_STYLE") or load_site_config().get("wordpress", {}).get("rest_route_style", "wp-json")
+RUNTIME_REST_ROUTE_STYLE = str(DEFAULT_REST_ROUTE_STYLE).strip().lower()
+
+
+def is_local_wordpress_url(base_url: str) -> bool:
+    host = (urlparse(str(base_url or "")).hostname or "").strip().lower()
+    return host in {"localhost", "127.0.0.1"}
+
+
+def load_optional_site_config(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def normalize_app_password(value: str) -> str:
+    text = str(value or "").strip()
+    return re.sub(r"\s+", "", text)
+
+
+def resolve_runtime_credentials(base_url: str, user: str, password: str) -> Dict[str, str]:
+    resolved_user = str(user or "")
+    resolved_password = str(password or "")
+    resolved_rest_route_style = RUNTIME_REST_ROUTE_STYLE
+
+    if not is_local_wordpress_url(base_url):
+        resolved_password = normalize_app_password(resolved_password)
+        return {"user": resolved_user, "password": normalize_app_password(resolved_password), "rest_route_style": resolved_rest_route_style}
+
+    local_env_user = str(os.environ.get("WP_LOCAL_USER") or "").strip()
+    local_env_password = str(os.environ.get("WP_LOCAL_APP_PASSWORD") or "").strip()
+    local_config = load_optional_site_config(LOCAL_SITE_CONFIG_PATH).get("wordpress", {})
+    local_cfg_user = str(local_config.get("user") or "").strip() if isinstance(local_config, dict) else ""
+    local_cfg_password = str(local_config.get("app_password") or "").strip() if isinstance(local_config, dict) else ""
+    local_cfg_route_style = str(local_config.get("rest_route_style") or "").strip().lower() if isinstance(local_config, dict) else ""
+
+    connections_config = load_optional_site_config(WP_CONNECTIONS_PATH)
+    profiles = connections_config.get("profiles", {}) if isinstance(connections_config, dict) else {}
+    default_profile_name = str(connections_config.get("default") or "").strip() if isinstance(connections_config, dict) else ""
+    profile_name = str(os.environ.get("WP_CONNECTION_PROFILE") or default_profile_name).strip()
+    selected_profile = profiles.get(profile_name, {}) if isinstance(profiles, dict) and profile_name else {}
+    if not isinstance(selected_profile, dict):
+        selected_profile = {}
+    profile_base = str(selected_profile.get("wp_base") or "").strip()
+    profile_user = str(selected_profile.get("wp_user") or "").strip()
+    profile_password = str(selected_profile.get("wp_app_password") or "").strip()
+    profile_route_style = str(selected_profile.get("rest_route_style") or "").strip().lower()
+    profile_matches_local = is_local_wordpress_url(profile_base)
+
+    if profile_matches_local and (not resolved_user or resolved_user == str(DEFAULT_USER)) and profile_user:
+        resolved_user = profile_user
+    if profile_matches_local and (not resolved_password or resolved_password == str(DEFAULT_PASSWORD)) and profile_password:
+        resolved_password = profile_password
+    if profile_matches_local and profile_route_style:
+        resolved_rest_route_style = profile_route_style
+
+    if (not resolved_user or resolved_user == str(DEFAULT_USER)) and local_env_user:
+        resolved_user = local_env_user
+    if (not resolved_password or resolved_password == str(DEFAULT_PASSWORD)) and local_env_password:
+        resolved_password = local_env_password
+
+    if (not resolved_user or resolved_user == str(DEFAULT_USER)) and local_cfg_user:
+        resolved_user = local_cfg_user
+    if (not resolved_password or resolved_password == str(DEFAULT_PASSWORD)) and local_cfg_password:
+        resolved_password = local_cfg_password
+    if local_cfg_route_style:
+        resolved_rest_route_style = local_cfg_route_style
+
+    return {"user": resolved_user, "password": resolved_password, "rest_route_style": resolved_rest_route_style}
 
 
 def load_json(path: Path) -> Dict[str, Any]:
@@ -50,6 +126,128 @@ def load_json(path: Path) -> Dict[str, Any]:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {"documents": []}
+
+
+def slugify_text(value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "-", str(value or "").lower())
+    normalized = re.sub(r"-{2,}", "-", normalized).strip("-")
+    return normalized or "document"
+
+
+def extract_markdown_title(markdown_path: Path) -> str:
+    try:
+        for line in markdown_path.read_text(encoding="utf-8", errors="replace").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("# "):
+                return stripped[2:].strip()
+    except Exception:
+        return ""
+    return ""
+
+
+def load_legacy_status_hint(page_content_root: Path, folder_name: str) -> Dict[str, str]:
+    status_file = page_content_root / "output" / folder_name / "status.yaml"
+    if not status_file.exists():
+        return {}
+    try:
+        text = status_file.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return {}
+
+    def _find(pattern: str) -> str:
+        match = re.search(pattern, text, flags=re.MULTILINE)
+        return match.group(1).strip() if match else ""
+
+    return {
+        "wp_slug": _find(r"^\s*wp_slug:\s*([^\n]+)\s*$"),
+        "wp_id": _find(r"^\s*wp_id:\s*([0-9]+)\s*$"),
+        "title": _find(r"^\s*title:\s*(.+?)\s*$"),
+        "date": _find(r"^\s*date:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\s*$"),
+    }
+
+
+def build_blog_documents_from_sources(sources_root: Path) -> List[Dict[str, Any]]:
+    documents: List[Dict[str, Any]] = []
+    if not sources_root.exists():
+        return documents
+
+    page_content_root = sources_root.parent
+    for folder in sorted(path for path in sources_root.iterdir() if path.is_dir()):
+        if folder.name.startswith("_"):
+            continue
+        article_path = folder / "article.md"
+        meta_path = folder / "meta.json"
+        meta: Dict[str, Any] = {}
+
+        if article_path.exists() and meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except Exception:
+                meta = {}
+        else:
+            legacy_candidates = [
+                path
+                for path in sorted(folder.glob("*.md"))
+                if path.is_file() and not path.name.endswith((".duplicate", ".bak", ".bak2"))
+            ]
+            if not legacy_candidates:
+                continue
+            article_path = legacy_candidates[0]
+            meta = {}
+
+        content = article_path.read_text(encoding="utf-8", errors="replace")
+        legacy_hint = load_legacy_status_hint(page_content_root, folder.name)
+        derived_title = extract_markdown_title(article_path)
+        title = str(meta.get("title") or derived_title or legacy_hint.get("title") or folder.name).strip() or folder.name
+        slug = str(meta.get("slug") or legacy_hint.get("wp_slug") or "").strip() or slugify_text(title)
+        last_modified = datetime.fromtimestamp(article_path.stat().st_mtime, tz=timezone.utc).isoformat()
+        category = str(meta.get("category") or "Blog").strip() or "Blog"
+        tags = coerce_term_list(meta.get("tags", []))
+        excerpt = str(meta.get("excerpt") or "").strip()
+        status = str(meta.get("status") or "draft").strip().lower()
+        published_date = str(meta.get("date") or legacy_hint.get("date") or "").strip()
+        published_at = normalize_iso_datetime(f"{published_date}T09:00:00+00:00") if published_date else last_modified
+
+        doc = {
+            "title": title,
+            "slug": slug,
+            "kind": "blog",
+            "category": category,
+            "tags": tags,
+            "excerpt": excerpt,
+            "status": status,
+            "source_path": str(article_path),
+            "relative_path": str(article_path),
+            "extension": "md",
+            "size": len(content.encode("utf-8", errors="ignore")),
+            "hash": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            "last_modified": last_modified,
+            "source_class": "public",
+            "pipeline": "page-content-blog",
+            "allow_unrestricted_tags": True,
+            "legacy_wp_id": legacy_hint.get("wp_id") or "",
+            "metadata": {
+                "author": meta.get("author") or "ThemisDB",
+                "coauthors": meta.get("coauthors") or [],
+                "language": meta.get("language") or "de",
+                "source_origin": "page-content-blog/sources",
+                "source_path": str(article_path),
+                "summary": excerpt,
+                "status": status,
+                "category": category,
+                "date": published_at,
+                "published_at": published_at,
+                "legacy_wp_id": legacy_hint.get("wp_id") or "",
+            },
+            "suitability": {
+                "score": 100,
+                "readiness": "ready",
+                "recommendation": "import",
+                "review_flags": [],
+            },
+        }
+        documents.append(doc)
+    return documents
 
 
 def load_taxonomy() -> Dict[str, List[str]]:
@@ -67,42 +265,77 @@ def load_taxonomy() -> Dict[str, List[str]]:
 
 
 def build_wp_url(base_url: str, path: str) -> str:
+    return build_wp_url_for_style(base_url, path, str(RUNTIME_REST_ROUTE_STYLE).strip().lower())
+
+
+def build_wp_url_for_style(base_url: str, path: str, style: str) -> str:
+    normalized = path.lstrip("/")
+    if normalized.startswith("wp-json/"):
+        normalized = normalized[len("wp-json/"):]
+    if str(style).strip().lower() == "query":
+        return base_url.rstrip("/") + "/?rest_route=/" + normalized
     return base_url.rstrip("/") + "/" + path.lstrip("/")
 
 
 def rest_request(base_url: str, user: str, password: str, path: str, method: str = "GET", payload: Optional[Dict[str, Any]] = None) -> Any:
-    url = build_wp_url(base_url, path)
     auth = (user, password) if user and password else None
     response = None
+    preferred_style = str(RUNTIME_REST_ROUTE_STYLE).strip().lower()
+    styles = [preferred_style]
+    if preferred_style == "query":
+        styles.append("wp-json")
+    elif preferred_style == "wp-json":
+        styles.append("query")
 
-    for attempt in range(1, REST_MAX_RETRIES + 1):
-        try:
-            response = requests.request(
-                method=method,
-                url=url,
-                auth=auth,
-                json=payload,
-                timeout=REST_TIMEOUT_SECONDS,
-            )
-        except requests.exceptions.RequestException as exc:
-            if attempt >= REST_MAX_RETRIES:
-                raise RuntimeError(
-                    f"REST call failed after {REST_MAX_RETRIES} attempts: {method} {url} -> {exc}"
-                ) from exc
-            sleep_seconds = min(REST_RETRY_BACKOFF ** (attempt - 1), 12.0)
-            time.sleep(sleep_seconds)
+    for style_index, style in enumerate(styles):
+        url = build_wp_url_for_style(base_url, path, style)
+        response = None
+        for attempt in range(1, REST_MAX_RETRIES + 1):
+            try:
+                response = requests.request(
+                    method=method,
+                    url=url,
+                    auth=auth,
+                    json=payload,
+                    timeout=REST_TIMEOUT_SECONDS,
+                )
+            except requests.exceptions.RequestException as exc:
+                if attempt >= REST_MAX_RETRIES:
+                    if style_index + 1 < len(styles):
+                        response = None
+                        break
+                    raise RuntimeError(
+                        f"REST call failed after {REST_MAX_RETRIES} attempts: {method} {url} -> {exc}"
+                    ) from exc
+                sleep_seconds = min(REST_RETRY_BACKOFF ** (attempt - 1), 12.0)
+                time.sleep(sleep_seconds)
+                continue
+
+            if response.status_code >= 500 and attempt < REST_MAX_RETRIES:
+                sleep_seconds = min(REST_RETRY_BACKOFF ** (attempt - 1), 12.0)
+                time.sleep(sleep_seconds)
+                continue
+            break
+
+        if response is None:
             continue
 
-        if response.status_code >= 500 and attempt < REST_MAX_RETRIES:
-            sleep_seconds = min(REST_RETRY_BACKOFF ** (attempt - 1), 12.0)
-            time.sleep(sleep_seconds)
-            continue
+        if response.status_code in (401, 404) and auth and style_index + 1 < len(styles):
+            body = {}
+            try:
+                body = response.json()
+            except ValueError:
+                body = {}
+            code = str(body.get("code") or "").strip()
+            if code in {"rest_not_logged_in", "rest_no_route"}:
+                response = None
+                continue
         break
 
     if response is None:
-        raise RuntimeError(f"REST call failed without response: {method} {url}")
+        raise RuntimeError(f"REST call failed without response: {method} {build_wp_url(base_url, path)}")
     if response.status_code >= 400:
-        raise RuntimeError(f"REST call failed: {method} {url} -> {response.status_code}: {response.text[:500]}")
+        raise RuntimeError(f"REST call failed: {method} {response.url} -> {response.status_code}: {response.text[:500]}")
     if not response.content:
         return None
     try:
@@ -115,9 +348,10 @@ def fetch_posts_by_source_path(base_url: str, user: str, password: str, source_p
     if not source_path:
         return []
     candidates: List[Dict[str, Any]] = []
+    query_suffix = "&status=any&context=edit"
     for query in (
-        "wp-json/wp/v2/posts?search=" + quote(source_path) + "&per_page=20",
-        "wp-json/wp/v2/posts?meta_key=themisdb_source_path&meta_value=" + quote(source_path) + "&per_page=20",
+        "wp-json/wp/v2/posts?search=" + quote(source_path) + "&per_page=20" + query_suffix,
+        "wp-json/wp/v2/posts?meta_key=themisdb_source_path&meta_value=" + quote(source_path) + "&per_page=20" + query_suffix,
     ):
         try:
             posts = rest_request(base_url, user, password, query)
@@ -163,7 +397,12 @@ def existing_wp_doc(base_url: str, user: str, password: str, source_path: str, s
 
     if slug:
         try:
-            posts = rest_request(base_url, user, password, "wp-json/wp/v2/posts?slug=" + quote(slug) + "&per_page=20")
+            posts = rest_request(
+                base_url,
+                user,
+                password,
+                "wp-json/wp/v2/posts?slug=" + quote(slug) + "&per_page=20&status=any&context=edit",
+            )
         except Exception:
             posts = []
         if isinstance(posts, list):
@@ -175,7 +414,12 @@ def existing_wp_doc(base_url: str, user: str, password: str, source_path: str, s
 
     if title:
         try:
-            posts = rest_request(base_url, user, password, "wp-json/wp/v2/posts?search=" + quote(title) + "&per_page=20")
+            posts = rest_request(
+                base_url,
+                user,
+                password,
+                "wp-json/wp/v2/posts?search=" + quote(title) + "&per_page=20&status=any&context=edit",
+            )
         except Exception:
             posts = []
         if isinstance(posts, list):
@@ -188,6 +432,14 @@ def existing_wp_doc(base_url: str, user: str, password: str, source_path: str, s
                     return post
 
     return None
+
+
+def fetch_wp_post_by_id(base_url: str, user: str, password: str, post_id: int) -> Optional[Dict[str, Any]]:
+    try:
+        post = rest_request(base_url, user, password, f"wp-json/wp/v2/posts/{int(post_id)}")
+    except Exception:
+        return None
+    return post if isinstance(post, dict) else None
 
 
 def ensure_taxonomy_terms(tags: Iterable[str]) -> List[str]:
@@ -233,7 +485,14 @@ def ensure_term_id(base_url: str, user: str, password: str, taxonomy: str, term_
         created = rest_request(base_url, user, password, f"wp-json/wp/v2/{taxonomy}", method="POST", payload=create_payload)
     except RuntimeError as exc:
         message = str(exc).lower()
-        if "401" in message or "403" in message or "rest_cannot_create" in message or "cannot_create" in message:
+        if (
+            "401" in message
+            or "403" in message
+            or "404" in message
+            or "rest_cannot_create" in message
+            or "cannot_create" in message
+            or "rest_no_route" in message
+        ):
             return None
         raise
     if isinstance(created, dict) and "id" in created:
@@ -253,6 +512,37 @@ def resolve_term_ids(base_url: str, user: str, password: str, taxonomy: str, ter
         if term_id is not None:
             ids.append(term_id)
     return ids
+
+
+def prewarm_terms_for_docs(base_url: str, user: str, password: str, docs: Iterable[Dict[str, Any]]) -> None:
+    taxonomy = load_taxonomy()
+    allowed = set(taxonomy.get("selection_tags", [])) | set(taxonomy.get("descriptive_tags", []))
+    tag_names: List[str] = []
+    category_names: List[str] = []
+
+    for doc in docs:
+        if not isinstance(doc, dict):
+            continue
+        doc_tags = ensure_taxonomy_terms(doc.get("tags", []))[:5]
+        for tag in doc_tags:
+            if tag in allowed:
+                tag_names.append(tag)
+
+        category = primary_category_for_tags(doc_tags) if doc_tags else "documentation"
+        category_names.append(category)
+
+    if tag_names:
+        resolve_term_ids(base_url, user, password, "tags", tag_names)
+    if category_names:
+        resolve_term_ids(base_url, user, password, "categories", category_names)
+
+
+def normalize_post_status(value: Any) -> str:
+    allowed = {"draft", "pending", "private", "publish"}
+    status = str(value or "").strip().lower()
+    if status in allowed:
+        return status
+    return "draft"
 
 
 def build_excerpt(title: str, tags: List[str]) -> str:
@@ -639,6 +929,91 @@ def upload_media_asset(base_url: str, user: str, password: str, local_path: str,
         if source_url:
             return str(source_url)
     raise RuntimeError(f"Unexpected media upload response for {path.name}: {response.text[:500]}")
+
+
+def upload_media_asset_info(base_url: str, user: str, password: str, local_path: str, title: str = "", alt_text: str = "") -> Optional[Dict[str, Any]]:
+    path = Path(local_path)
+    if not path.exists():
+        return None
+    mime_types = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".svg": "image/svg+xml",
+        ".webp": "image/webp",
+        ".pdf": "application/pdf",
+    }
+    mime_type = mime_types.get(path.suffix.lower(), "application/octet-stream")
+    with path.open("rb") as upload_file:
+        response = requests.post(
+            build_wp_url(base_url, "wp-json/wp/v2/media"),
+            auth=(user, password) if user and password else None,
+            files={"file": (path.name, upload_file, mime_type)},
+            data={"title": title or path.stem, "alt_text": alt_text or title or path.stem},
+            timeout=90,
+        )
+    if response.status_code >= 400:
+        return None
+    payload = response.json()
+    if not isinstance(payload, dict):
+        return None
+    source_url = payload.get("source_url") or payload.get("guid", {}).get("rendered")
+    media_id = payload.get("id")
+    if source_url:
+        return {"id": media_id, "url": str(source_url)}
+    return None
+
+
+def build_blog_media_html(doc: Dict[str, Any], base_url: str, user: str, password: str, dry_run: bool) -> Dict[str, Any]:
+    source_path = str(doc.get("source_path") or "").strip()
+    if not source_path:
+        return {"html": "", "featured_media": None}
+    article_file = Path(source_path)
+    image_dir = article_file.parent / "images"
+    if not image_dir.exists():
+        return {"html": "", "featured_media": None}
+
+    featured_candidates = [image_dir / name for name in ("featured.png", "featured.jpg", "featured.jpeg", "featured.webp")]
+    featured_path = next((path for path in featured_candidates if path.exists()), None)
+    context_paths = [path for path in sorted(image_dir.glob("context-*.*")) if path.is_file()]
+
+    featured_media_id: Optional[int] = None
+    featured_url = ""
+    context_urls: List[str] = []
+
+    if dry_run:
+        if featured_path:
+            featured_url = featured_path.as_posix()
+        context_urls = [path.as_posix() for path in context_paths]
+    else:
+        if featured_path:
+            uploaded = upload_media_asset_info(base_url, user, password, str(featured_path), featured_path.stem, featured_path.stem)
+            if uploaded and uploaded.get("url"):
+                featured_url = str(uploaded["url"])
+                if uploaded.get("id"):
+                    try:
+                        featured_media_id = int(uploaded["id"])
+                    except Exception:
+                        featured_media_id = None
+        for path in context_paths:
+            uploaded = upload_media_asset_info(base_url, user, password, str(path), path.stem, path.stem)
+            if uploaded and uploaded.get("url"):
+                context_urls.append(str(uploaded["url"]))
+
+    if not featured_url and not context_urls:
+        return {"html": "", "featured_media": featured_media_id}
+
+    parts: List[str] = ['<section class="themisdb-import-media">']
+    if featured_url:
+        parts.append(f'<figure class="themisdb-import-media-featured"><img src="{html_lib.escape(featured_url, quote=True)}" alt="Featured image" /></figure>')
+    if context_urls:
+        parts.append('<div class="themisdb-import-media-context">')
+        for url in context_urls:
+            parts.append(f'<figure><img src="{html_lib.escape(url, quote=True)}" alt="Context image" /></figure>')
+        parts.append('</div>')
+    parts.append('</section>')
+    return {"html": "".join(parts), "featured_media": featured_media_id}
 
 
 def resolve_puppeteer_chrome_path() -> Optional[str]:
@@ -1281,6 +1656,30 @@ def resolve_author_user_id(base_url: str, user: str, password: str, author_name:
     return None
 
 
+_CURRENT_USER_ID_CACHE: Dict[str, Optional[int]] = {}
+
+
+def resolve_current_user_id(base_url: str, user: str, password: str) -> Optional[int]:
+    cache_key = f"{base_url}|{user}"
+    if cache_key in _CURRENT_USER_ID_CACHE:
+        return _CURRENT_USER_ID_CACHE[cache_key]
+    try:
+        current_user = rest_request(base_url, user, password, "wp-json/wp/v2/users/me")
+    except Exception:
+        _CURRENT_USER_ID_CACHE[cache_key] = None
+        return None
+    if isinstance(current_user, dict) and current_user.get("id") is not None:
+        try:
+            resolved = int(current_user["id"])
+            _CURRENT_USER_ID_CACHE[cache_key] = resolved
+            return resolved
+        except Exception:
+            _CURRENT_USER_ID_CACHE[cache_key] = None
+            return None
+    _CURRENT_USER_ID_CACHE[cache_key] = None
+    return None
+
+
 def extract_doc_metadata(doc: Dict[str, Any]) -> Dict[str, Any]:
     metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
     author = metadata.get("author") or "ThemisDB"
@@ -1310,6 +1709,9 @@ def extract_doc_metadata(doc: Dict[str, Any]) -> Dict[str, Any]:
         "related_docs": metadata.get("related_docs") or [],
         "relation_graph": metadata.get("relation_graph") or {"nodes": [], "edges": []},
         "sha256": document_hash,
+        "status": metadata.get("status") or doc.get("status") or "draft",
+        "category": metadata.get("category") or doc.get("category") or "",
+        "summary": metadata.get("summary") or doc.get("excerpt") or "",
     }
 
 
@@ -1554,25 +1956,42 @@ def assign_post_coauthors(base_url: str, user: str, password: str, post_id: Any,
 
 def normalize_post_payload(doc: Dict[str, Any], base_url: str = "", user: str = "", password: str = "", dry_run: bool = False, link_lookup: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     taxonomy = load_taxonomy()
-    raw_tags = ensure_taxonomy_terms(doc.get("tags", []))[:5]
+    unrestricted_tags = bool(doc.get("allow_unrestricted_tags"))
+    if unrestricted_tags:
+        raw_tags = [str(tag).strip() for tag in coerce_term_list(doc.get("tags", [])) if str(tag).strip()][:12]
+    else:
+        raw_tags = ensure_taxonomy_terms(doc.get("tags", []))[:5]
     tags = list(dict.fromkeys(raw_tags))
     public_selection = [tag for tag in tags if tag in taxonomy.get("selection_tags", [])]
     descriptive = [tag for tag in tags if tag in taxonomy.get("descriptive_tags", [])]
-    category_names = [primary_category_for_tags(tags)] if tags else ["documentation"]
+    metadata = extract_doc_metadata(doc)
+    explicit_category = str(metadata.get("category") or "").strip()
+    category_names = [explicit_category] if explicit_category else ([primary_category_for_tags(tags)] if tags else ["documentation"])
     if not public_selection and descriptive:
         category_names = [descriptive[0]]
     custom_taxonomies = extract_custom_taxonomy_values(doc)
-    metadata = extract_doc_metadata(doc)
     author_id = resolve_author_user_id(base_url, user, password, metadata["author"]) if base_url and user and password else None
+    current_user_id = resolve_current_user_id(base_url, user, password) if base_url and user and password else None
+    payload_author: Optional[int] = None
+    if author_id is not None and current_user_id is not None and author_id == current_user_id:
+        payload_author = author_id
+    elif author_id is not None and current_user_id is None:
+        payload_author = author_id
+    elif current_user_id is not None:
+        payload_author = current_user_id
     source_markdown = read_document_body(doc)
-    source_markdown_for_html = rewrite_markdown_assets(
-        source_markdown,
-        current_relative_path=str(doc.get("relative_path") or ""),
-        base_url=base_url,
-        user=user,
-        password=password,
-        repo_root=ROOT,
-    ) if source_markdown else ""
+    source_markdown_for_html = (
+        rewrite_markdown_assets(
+            source_markdown,
+            current_relative_path=str(doc.get("relative_path") or ""),
+            base_url=base_url,
+            user=user,
+            password=password,
+            repo_root=ROOT.parent,
+        )
+        if source_markdown and not dry_run
+        else (source_markdown or "")
+    )
     source_html = markdown_to_html(source_markdown_for_html, current_relative_path=str(doc.get("relative_path") or ""), doc_lookup=link_lookup, base_url=base_url) if source_markdown_for_html else ""
     source_html = strip_duplicate_leading_h1(source_html, str(doc.get("title") or ""))
     coauthor_names = normalize_coauthor_names(metadata.get("coauthors") or [])
@@ -1582,17 +2001,26 @@ def normalize_post_payload(doc: Dict[str, Any], base_url: str = "", user: str = 
     coauthor_ids = resolve_guest_author_ids(base_url, user, password, coauthor_names) if base_url and user and password else []
     content_body = source_html or f"<h2>{doc.get('title', 'Document')}</h2><p>Source: {doc.get('relative_path', '')}</p>"
 
+    featured_media_id: Optional[int] = None
+    if str(doc.get("pipeline") or "").strip().lower() == "page-content-blog":
+        media_block = build_blog_media_html(doc, base_url, user, password, dry_run=dry_run)
+        media_html = str(media_block.get("html") or "").strip()
+        if media_html:
+            content_body = media_html + "\n" + content_body
+        media_id = media_block.get("featured_media")
+        if isinstance(media_id, int):
+            featured_media_id = media_id
+
     payload = {
         "title": doc.get("title", "Untitled document"),
         "slug": doc.get("slug", "document"),
-        "status": "publish",
+        "status": normalize_post_status(metadata.get("status")),
         "content": content_body,
-        "excerpt": build_excerpt(doc.get("title", "Untitled document"), tags),
+        "excerpt": str(doc.get("excerpt") or metadata.get("summary") or build_excerpt(doc.get("title", "Untitled document"), tags)),
         "date": metadata["date"] or metadata["published_at"] or metadata["created_at"],
         "date_gmt": (metadata["date"] or metadata["published_at"] or metadata["created_at"]).replace("+00:00", "+00:00") if (metadata["date"] or metadata["published_at"] or metadata["created_at"]) else None,
         "modified": metadata["modified_at"] or metadata["date"] or metadata["created_at"],
         "modified_gmt": (metadata["modified_at"] or metadata["date"] or metadata["created_at"]).replace("+00:00", "+00:00") if (metadata["modified_at"] or metadata["date"] or metadata["created_at"]) else None,
-        "author": author_id if author_id is not None else 1,
         "tags": tags,
         "categories": category_names,
         "meta_input": {
@@ -1630,6 +2058,10 @@ def normalize_post_payload(doc: Dict[str, Any], base_url: str = "", user: str = 
             }, ensure_ascii=False),
         },
     }
+    if featured_media_id is not None:
+        payload["featured_media"] = featured_media_id
+    if payload_author is not None:
+        payload["author"] = payload_author
     if custom_taxonomies:
         payload["tax_input"] = {taxonomy_name: list(values) for taxonomy_name, values in custom_taxonomies.items()}
     if dry_run:
@@ -1637,7 +2069,10 @@ def normalize_post_payload(doc: Dict[str, Any], base_url: str = "", user: str = 
 
     payload["tags"] = resolve_term_ids(base_url, user, password, "tags", tags)
     payload["categories"] = resolve_term_ids(base_url, user, password, "categories", category_names)
-    payload["author"] = author_id if author_id is not None else 1
+    if payload_author is not None:
+        payload["author"] = payload_author
+    else:
+        payload.pop("author", None)
     payload["tax_input"] = {
         taxonomy_name: resolve_term_ids(base_url, user, password, taxonomy_name, values)
         for taxonomy_name, values in custom_taxonomies.items()
@@ -1660,18 +2095,46 @@ def normalize_post_payload(doc: Dict[str, Any], base_url: str = "", user: str = 
     return payload
 
 
-def create_or_update_document(base_url: str, user: str, password: str, doc: Dict[str, Any], dry_run: bool = False, link_lookup: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    existing = existing_wp_doc(base_url, user, password, doc.get("source_path", ""), doc.get("slug", ""), doc.get("title", "")) if not dry_run else None
+def create_or_update_document(
+    base_url: str,
+    user: str,
+    password: str,
+    doc: Dict[str, Any],
+    dry_run: bool = False,
+    link_lookup: Optional[Dict[str, str]] = None,
+    update_only: bool = False,
+) -> Dict[str, Any]:
+    should_probe_existing = (not dry_run) or update_only
+    existing = (
+        existing_wp_doc(base_url, user, password, doc.get("source_path", ""), doc.get("slug", ""), doc.get("title", ""))
+        if should_probe_existing
+        else None
+    )
+    legacy_wp_id_raw = doc.get("legacy_wp_id") or (doc.get("metadata", {}) if isinstance(doc.get("metadata"), dict) else {}).get("legacy_wp_id")
+    legacy_wp_id: Optional[int] = None
+    if legacy_wp_id_raw not in (None, ""):
+        try:
+            legacy_wp_id = int(str(legacy_wp_id_raw).strip())
+        except Exception:
+            legacy_wp_id = None
+    if existing is None and legacy_wp_id is not None and should_probe_existing:
+        existing = fetch_wp_post_by_id(base_url, user, password, legacy_wp_id)
+        if existing is None and update_only:
+            existing = {"id": legacy_wp_id, "slug": str(doc.get("slug") or ""), "status": "draft"}
     payload = normalize_post_payload(doc, base_url, user, password, dry_run=dry_run, link_lookup=link_lookup)
     metadata = extract_doc_metadata(doc)
     coauthor_names = normalize_coauthor_names(metadata.get("coauthors") or [])
     if not coauthor_names and metadata.get("author"):
         coauthor_names = normalize_coauthor_names([metadata["author"]])
 
+    if update_only and not existing:
+        raise RuntimeError(f"Skipped create for slug '{payload.get('slug', doc.get('slug', 'unknown'))}' because --update-only is enabled and no existing post was found.")
+
     if existing:
         payload["id"] = existing["id"]
         payload["status"] = existing.get("status", "draft")
         payload["slug"] = existing.get("slug", payload["slug"])
+        payload.pop("author", None)
 
     if dry_run:
         return {
@@ -1693,9 +2156,24 @@ def create_or_update_document(base_url: str, user: str, password: str, doc: Dict
     return {"dry_run": False, "action": "create" if not existing else "update", "slug": payload["slug"], "title": payload["title"], "response": response, "coauthor_assignment": coauthor_assignment}
 
 
-def run_import(manifest_path: Path = DOCS_CACHE_PATH, dry_run: bool = False, base_url: str = DEFAULT_BASE_URL, user: str = DEFAULT_USER, password: str = DEFAULT_PASSWORD, limit: Optional[int] = None, include_low_quality: bool = False) -> Dict[str, Any]:
-    manifest = load_json(manifest_path)
-    all_docs = manifest.get("documents", [])
+def run_import(
+    manifest_path: Path = DOCS_CACHE_PATH,
+    dry_run: bool = False,
+    base_url: str = DEFAULT_BASE_URL,
+    user: str = DEFAULT_USER,
+    password: str = DEFAULT_PASSWORD,
+    limit: Optional[int] = None,
+    include_low_quality: bool = False,
+    blog_sources_root: Optional[Path] = None,
+    update_only: bool = False,
+) -> Dict[str, Any]:
+    if blog_sources_root is not None:
+        all_docs = build_blog_documents_from_sources(blog_sources_root)
+        source_label = str(blog_sources_root)
+    else:
+        manifest = load_json(manifest_path)
+        all_docs = manifest.get("documents", [])
+        source_label = str(manifest_path)
     filtered_docs = []
     skipped = []
     for doc in all_docs:
@@ -1707,11 +2185,39 @@ def run_import(manifest_path: Path = DOCS_CACHE_PATH, dry_run: bool = False, bas
         filtered_docs.append(doc)
     docs = filtered_docs if limit is None else filtered_docs[:limit]
     link_lookup = build_document_link_lookup(all_docs)
+    if not dry_run and base_url and user and password:
+        try:
+            current_user = rest_request(base_url, user, password, "wp-json/wp/v2/users/me")
+        except Exception as exc:
+            raise RuntimeError(
+                "WordPress authentication preflight failed. "
+                "Check --user/--password, WP_LOCAL_USER/WP_LOCAL_APP_PASSWORD, or .secure/.wp_connections.json for localhost runs."
+            ) from exc
+        capabilities = current_user.get("capabilities") if isinstance(current_user, dict) else {}
+        if isinstance(capabilities, dict) and not update_only:
+            can_create = bool(capabilities.get("create_posts") or capabilities.get("edit_posts") or capabilities.get("publish_posts"))
+            if not can_create:
+                raise RuntimeError(
+                    "WordPress user is authenticated but lacks create/edit post capabilities for live imports. "
+                    "Use --update-only or an account with Author/Editor/Admin rights."
+                )
+    if not dry_run and base_url and user and password:
+        prewarm_terms_for_docs(base_url, user, password, docs)
     results = []
     failed = []
     for doc in docs:
         try:
-            results.append(create_or_update_document(base_url, user, password, doc, dry_run=dry_run, link_lookup=link_lookup))
+            results.append(
+                create_or_update_document(
+                    base_url,
+                    user,
+                    password,
+                    doc,
+                    dry_run=dry_run,
+                    link_lookup=link_lookup,
+                    update_only=update_only,
+                )
+            )
         except Exception as exc:
             failed.append(
                 {
@@ -1722,7 +2228,7 @@ def run_import(manifest_path: Path = DOCS_CACHE_PATH, dry_run: bool = False, bas
             )
 
     return {
-        "source": str(manifest_path),
+        "source": source_label,
         "count": len(docs),
         "dry_run": dry_run,
         "skipped": skipped,
@@ -1748,25 +2254,34 @@ def write_utf8(text: str) -> None:
 
 
 def main() -> None:
+    global RUNTIME_REST_ROUTE_STYLE
     parser = argparse.ArgumentParser(description="Import the normalized docs manifest into WordPress using the REST API")
     parser.add_argument("--manifest", default=str(DOCS_CACHE_PATH), help="Manifest file to import")
+    parser.add_argument("--blog-sources-root", default=None, help="Optional page-content-blog sources root (supports */article.md + meta.json and legacy folders with .md files)")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="WordPress base URL")
     parser.add_argument("--user", default=DEFAULT_USER, help="WordPress user")
     parser.add_argument("--password", default=DEFAULT_PASSWORD, help="Application password")
     parser.add_argument("--dry-run", action="store_true", help="Compute what would be created/updated without sending requests")
     parser.add_argument("--limit", type=int, default=None, help="Optional number of docs to process")
     parser.add_argument("--include-low-quality", action="store_true", help="Process docs classified as needs_review or blocked")
+    parser.add_argument("--update-only", action="store_true", help="Only update existing posts; skip creates when no post matches source slug/path/title")
     parser.add_argument("--json", action="store_true", help="Print JSON result")
     args = parser.parse_args()
+
+    blog_root = Path(args.blog_sources_root).resolve() if args.blog_sources_root else None
+    resolved_credentials = resolve_runtime_credentials(args.base_url, args.user, args.password)
+    RUNTIME_REST_ROUTE_STYLE = str(resolved_credentials.get("rest_route_style") or RUNTIME_REST_ROUTE_STYLE).strip().lower() or RUNTIME_REST_ROUTE_STYLE
 
     result = run_import(
         Path(args.manifest),
         dry_run=args.dry_run,
         base_url=args.base_url,
-        user=args.user,
-        password=args.password,
+        user=resolved_credentials["user"],
+        password=resolved_credentials["password"],
         limit=args.limit,
         include_low_quality=args.include_low_quality,
+        blog_sources_root=blog_root,
+        update_only=args.update_only,
     )
     if args.json:
         payload = {

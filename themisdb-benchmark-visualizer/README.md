@@ -28,10 +28,11 @@ This plugin is designed following the **TCO Calculator** template pattern and pr
   - GPU Backends (hardware acceleration)
   - Content Versioning & Indexing
 - 📈 **Multiple Chart Types**: Bar, Line, and Radar charts
+- 🎛️ **Interactive Controls**: Category, metric, chart type, engine, Top-N and task search filters are rendered as a glass-overlay directly above the chart canvas
 - 🔄 **Real-time Data**: Parses actual benchmark results from Google Benchmark JSON files
 - 📊 **Statistics Dashboard**: View total benchmarks, files parsed, average/best/worst performance
 - 💡 **Performance Insights**: Automated analysis with category-specific recommendations
-- 🎨 **Smart Visualization**: Displays top 30 performers for optimal chart readability
+- 🎨 **Smart Visualization**: Uses configurable Top-N defaults and auto-adjusts dense bar charts (horizontal mode + label truncation) for readability
 
 ### WordPress Integration
 - 📝 **Shortcode**: Easy embedding via `[themisdb_benchmark_visualizer]`
@@ -42,8 +43,11 @@ This plugin is designed following the **TCO Calculator** template pattern and pr
 - 📱 **Responsive**: Optimized for all screen sizes
 
 ### Data Management
-- 💾 **Real Benchmark Data**: Parses Google Benchmark JSON format from benchmark_results directory
+- 💾 **Real Benchmark Data**: Reads normalized `benchmark_catalog.json` (recommended) or legacy benchmark JSON files
 - 📁 **19 Benchmark Files**: Comprehensive coverage of all ThemisDB features
+- 🧭 **Task-based Evaluation**: Metrics are grouped by benchmark test task (not mixed per raw variant row)
+- ⚖️ **Fair Comparability Filter**: Cross-engine views prefer tasks with at least two engines and flag excluded single-engine tasks
+- ⚙️ **Configurable Category Mapping**: Keep plugin logic generic and tune task-specific keyword mapping in WordPress admin settings
 - ⚡ **Smart Caching**: Configurable cache duration for optimal performance
 - 🔄 **Auto-refresh**: Optional automatic data updates
 - 📊 **Top Performers**: Displays best-performing benchmarks for clarity
@@ -171,14 +175,32 @@ Display the benchmark visualizer with default settings:
 Access plugin settings at **Settings → Benchmark Visualizer**:
 
 ### Data Source
-- **Local Files**: Load benchmark data from plugin directory
+- **Benchmark Catalog JSON (recommended)**: Load normalized benchmark data from `benchmark_catalog.json`
+- **Local Files**: Legacy mode loading benchmark JSON files by file pattern
 - **GitHub Repository**: Fetch latest benchmarks from GitHub
 
+### Catalog Path
+- Optional absolute path to `benchmark_catalog.json`
+- Leave empty to auto-detect under `source-links/benchmarks/benchmark_results`
+
+### Build catalog file
+
+```bash
+python wordpress-site-factory/importers/build_benchmark_catalog.py \
+  --source-dir C:/Projects/wordpressPlugins/source-links/benchmarks/benchmark_results \
+  --output C:/Projects/wordpressPlugins/source-links/benchmarks/benchmark_results/benchmark_catalog.json \
+  --summary
+```
+
 ### Default Values
-- **Default Category**: Initial category to display
+- **Default Category**: Initial category key to display (supports custom keys from your JSON category mapping)
 - **Default Metric**: Initial metric (latency, throughput, memory)
+- **Default Chart Type**: Initial visualization mode (bar, line, area, radar)
+- **Default Top-N**: Initial task subset size
 - **Default Comparison Databases**: Which databases to compare by default
 - **Chart Theme**: Light or dark theme for charts
+- **Strict Cross-Engine Comparability**: Compare only tasks with >=2 engines (recommended for fair ranking)
+- **Category Keyword Mapping (JSON)**: Map benchmark names/files to categories per deployment/task
 
 ### Performance
 - **Cache Duration**: How long to cache benchmark data (1 hour to 1 week)

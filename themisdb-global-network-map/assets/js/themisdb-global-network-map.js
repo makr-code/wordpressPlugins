@@ -180,6 +180,14 @@
         lastTime: 0,
         earthSpin: 0,
         earthPitch: 0,
+        lastRenderFrame: 0,
+        viewportState: {
+            width: 0,
+            height: 0,
+            aspect: 0,
+            pixelRatio: 0,
+            composerPixelRatio: 0
+        },
         postEffects: {
             composer: null,
             bloomPass: null,
@@ -201,8 +209,60 @@
         return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
 
+    function shouldEnableEnhancedEffects() {
+        if (shouldReduceMotion()) {
+            return false;
+        }
+
+        const hardwareCores = navigator && Number.isFinite(navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4;
+        const deviceMemory = navigator && navigator.deviceMemory ? Number(navigator.deviceMemory) : 8;
+        if (hardwareCores <= 4 || deviceMemory <= 4) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function getOptimizedPixelRatio() {
+        const baseRatio = Math.min(window.devicePixelRatio || 1, shouldEnableEnhancedEffects() ? 1.5 : 1.1);
+        return shouldReduceMotion() ? Math.min(baseRatio, 1.1) : baseRatio;
+    }
+
+    function getComposerPixelRatio() {
+        return shouldEnableEnhancedEffects() ? Math.min(window.devicePixelRatio || 1, 1.1) : 1;
+    }
+
+    function getRenderFrameBudgetMs() {
+        if (shouldReduceMotion()) {
+            return 50;
+        }
+        if (!shouldEnableEnhancedEffects()) {
+            return 33;
+        }
+        return 16;
+    }
+
+    function shouldSkipRenderFrame(timestamp) {
+        if (!WEBGL_GLOBE.enabled || typeof timestamp !== 'number') {
+            return false;
+        }
+
+        const lastFrame = Number(WEBGL_GLOBE.lastRenderFrame || 0);
+        const elapsed = timestamp - lastFrame;
+        if (elapsed < getRenderFrameBudgetMs() && !MAP_UI_STATE.dragActive && !CAMERA_ANIMATION.focusTarget) {
+            return true;
+        }
+
+        WEBGL_GLOBE.lastRenderFrame = timestamp;
+        return false;
+    }
+
+    function isDocumentVisible() {
+        return !document || document.visibilityState !== 'hidden';
+    }
+
     function initializePostEffects(renderer, scene, camera, canvas) {
-        if (!renderer || !scene || !camera || !canvas || !shouldUseWebGPUPath() || shouldReduceMotion()) {
+        if (!renderer || !scene || !camera || !canvas || !shouldUseWebGPUPath() || !shouldEnableEnhancedEffects()) {
             return;
         }
 
@@ -314,6 +374,7 @@
     let lastSvgRenderStamp = 0;
     let svgSceneDirty = true;
     let lastSvgSignature = '';
+    let visibilityFrameHookBound = false;
 
     window.themisdbGnmData = Object.assign({}, window.themisdbGnmData || {});
     const debugProjectionParam = window.location && window.location.search ? window.location.search : '';
@@ -1733,10 +1794,14 @@
             powerPreference: 'high-performance'
         });
         window.__themisdbRendererMode = shouldUseWebGpuRenderer ? 'webgpu' : 'webgl';
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+        const pixelRatio = getOptimizedPixelRatio();
         renderer.setPixelRatio(pixelRatio);
+        WEBGL_GLOBE.viewportState.pixelRatio = pixelRatio;
         renderer.setClearColor(0x000000, 0);
         renderer.setSize(desiredSize.width, desiredSize.height, false);
+        WEBGL_GLOBE.viewportState.width = desiredSize.width;
+        WEBGL_GLOBE.viewportState.height = desiredSize.height;
+        WEBGL_GLOBE.viewportState.aspect = desiredSize.width / Math.max(desiredSize.height, 1);
 
         const scene = new THREE.Scene();
         const cameraRig = new THREE.Group();
@@ -2048,8 +2113,16 @@
     function updateWebGLGlobe(timestamp) {
         syncDebugProjectionLabel();
 
+        if (!isDocumentVisible()) {
+            return;
+        }
+
         if (!WEBGL_GLOBE.enabled || !WEBGL_GLOBE.renderer || !WEBGL_GLOBE.scene || !WEBGL_GLOBE.camera) {
             renderFallbackGlobe();
+            return;
+        }
+
+        if (shouldSkipRenderFrame(timestamp)) {
             return;
         }
 
@@ -2067,12 +2140,19 @@
 
         WEBGL_GLOBE.camera.aspect = width / Math.max(height, 1);
         WEBGL_GLOBE.camera.updateProjectionMatrix();
-        WEBGL_GLOBE.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+        const rendererPixelRatio = getOptimizedPixelRatio();
+        WEBGL_GLOBE.renderer.setPixelRatio(rendererPixelRatio);
         WEBGL_GLOBE.renderer.setSize(width, height, false);
+        WEBGL_GLOBE.viewportState.width = width;
+        WEBGL_GLOBE.viewportState.height = height;
+        WEBGL_GLOBE.viewportState.aspect = width / Math.max(height, 1);
+        WEBGL_GLOBE.viewportState.pixelRatio = rendererPixelRatio;
 
         if (WEBGL_GLOBE.postEffects && WEBGL_GLOBE.postEffects.composer) {
-            WEBGL_GLOBE.postEffects.composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.1));
+            const composerPixelRatio = getComposerPixelRatio();
+            WEBGL_GLOBE.postEffects.composer.setPixelRatio(composerPixelRatio);
             WEBGL_GLOBE.postEffects.composer.setSize(width, height, false);
+            WEBGL_GLOBE.viewportState.composerPixelRatio = composerPixelRatio;
         }
 
         const earthObject = WEBGL_GLOBE.earthPivot || WEBGL_GLOBE.globe;
@@ -2130,7 +2210,9 @@
 
         applyEarthLighting(timestamp);
 
-        if (WEBGL_GLOBE.postEffects && WEBGL_GLOBE.postEffects.enabled && WEBGL_GLOBE.postEffects.composer) {
+        if (shouldReduceMotion()) {
+            WEBGL_GLOBE.renderer.render(WEBGL_GLOBE.scene, WEBGL_GLOBE.camera);
+        } else if (WEBGL_GLOBE.postEffects && WEBGL_GLOBE.postEffects.enabled && WEBGL_GLOBE.postEffects.composer) {
             WEBGL_GLOBE.postEffects.composer.render();
         } else {
             WEBGL_GLOBE.renderer.render(WEBGL_GLOBE.scene, WEBGL_GLOBE.camera);
@@ -3924,6 +4006,15 @@
         }
 
         function tickFrame(timestamp) {
+            if (!isDocumentVisible() || shouldReduceMotion()) {
+                if (animationFrameHandle) {
+                    cancelAnimationFrame(animationFrameHandle);
+                    animationFrameHandle = null;
+                }
+                tickFrame.lastTimestamp = 0;
+                return;
+            }
+
             if (WEBGL_GLOBE.enabled) {
                 updateWebGLGlobe(timestamp);
                 if (MAP_UI_STATE.animationEnabled) {
@@ -4004,6 +4095,28 @@
                 syncUiControls();
             });
         }
+
+        const bindVisibilityFrameHook = function () {
+            if (visibilityFrameHookBound || !document) {
+                return;
+            }
+            visibilityFrameHookBound = true;
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) {
+                    if (animationFrameHandle) {
+                        cancelAnimationFrame(animationFrameHandle);
+                        animationFrameHandle = null;
+                    }
+                    return;
+                }
+                if (MAP_UI_STATE.animationEnabled && !animationFrameHandle) {
+                    tickFrame.lastTimestamp = 0;
+                    animationFrameHandle = requestAnimationFrame(tickFrame);
+                }
+            });
+        };
+
+        bindVisibilityFrameHook();
 
         const animationToggle = document.querySelector('[data-map-animation-toggle]');
         if (animationToggle) {

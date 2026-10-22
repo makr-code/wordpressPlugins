@@ -80,9 +80,13 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
             <h2><?php _e( 'Aktive Defaults', 'themisdb-benchmark-visualizer' ); ?></h2>
             <table class="widefat striped">
                 <tbody>
-                    <tr><th><?php _e( 'Datenquelle', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_data_source', 'local' ) ); ?></code></td></tr>
+                    <tr><th><?php _e( 'Datenquelle', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_data_source', 'catalog' ) ); ?></code></td></tr>
+                    <tr><th><?php _e( 'Catalog Path', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_catalog_path', '' ) ?: 'auto-detect' ); ?></code></td></tr>
                     <tr><th><?php _e( 'Kategorie', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_category', 'all' ) ); ?></code></td></tr>
                     <tr><th><?php _e( 'Metrik', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_metric', 'latency' ) ); ?></code></td></tr>
+                    <tr><th><?php _e( 'Diagrammtyp', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_chart_type', 'bar' ) ); ?></code></td></tr>
+                    <tr><th><?php _e( 'Top-N', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_default_top_n', '30' ) ); ?></code></td></tr>
+                    <tr><th><?php _e( 'Vergleichsmodus', 'themisdb-benchmark-visualizer' ); ?></th><td><code><?php echo esc_html( get_option( 'themisdb_bv_require_comparable_tasks', '1' ) === '1' ? 'strict-cross-engine' : 'all-tasks' ); ?></code></td></tr>
                 </tbody>
             </table>
         </div>
@@ -102,6 +106,9 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                 </th>
                 <td>
                     <select name="themisdb_bv_data_source" id="themisdb_bv_data_source">
+                        <option value="catalog" <?php selected(get_option('themisdb_bv_data_source'), 'catalog'); ?>>
+                            <?php _e('Benchmark Catalog JSON (recommended)', 'themisdb-benchmark-visualizer'); ?>
+                        </option>
                         <option value="local" <?php selected(get_option('themisdb_bv_data_source'), 'local'); ?>>
                             <?php _e('Local Files', 'themisdb-benchmark-visualizer'); ?>
                         </option>
@@ -110,7 +117,23 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                         </option>
                     </select>
                     <p class="description">
-                        <?php _e('Choose whether to load benchmark data from local files or GitHub repository.', 'themisdb-benchmark-visualizer'); ?>
+                        <?php _e('Choose whether to load benchmark data from the normalized catalog (recommended), legacy local files, or GitHub repository.', 'themisdb-benchmark-visualizer'); ?>
+                    </p>
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">
+                    <label for="themisdb_bv_catalog_path"><?php _e('Catalog File Path', 'themisdb-benchmark-visualizer'); ?></label>
+                </th>
+                <td>
+                    <input type="text"
+                           name="themisdb_bv_catalog_path"
+                           id="themisdb_bv_catalog_path"
+                           value="<?php echo esc_attr(get_option('themisdb_bv_catalog_path', '')); ?>"
+                           class="regular-text code" />
+                    <p class="description">
+                        <?php _e('Absolute path to benchmark_catalog.json. Leave empty for automatic detection in source-links/benchmarks/benchmark_results.', 'themisdb-benchmark-visualizer'); ?>
                     </p>
                 </td>
             </tr>
@@ -149,28 +172,88 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                 </td>
             </tr>
 
+            <tr>
+                <th scope="row">
+                    <label for="themisdb_bv_require_comparable_tasks"><?php _e('Strict Cross-Engine Comparability', 'themisdb-benchmark-visualizer'); ?></label>
+                </th>
+                <td>
+                    <input type="hidden" name="themisdb_bv_require_comparable_tasks" value="0" />
+                    <label for="themisdb_bv_require_comparable_tasks">
+                        <input type="checkbox"
+                               name="themisdb_bv_require_comparable_tasks"
+                               id="themisdb_bv_require_comparable_tasks"
+                               value="1"
+                               <?php checked(get_option('themisdb_bv_require_comparable_tasks', '1'), '1'); ?> />
+                        <?php _e('Only include tasks with at least two engines in cross-engine comparisons', 'themisdb-benchmark-visualizer'); ?>
+                    </label>
+                    <p class="description">
+                        <?php _e('Disable this to include all tasks even when only one engine has data.', 'themisdb-benchmark-visualizer'); ?>
+                    </p>
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">
+                    <label for="themisdb_bv_category_keyword_map"><?php _e('Category Keyword Mapping (JSON)', 'themisdb-benchmark-visualizer'); ?></label>
+                </th>
+                <td>
+                    <?php
+                    $default_map = array(
+                        'vector_search' => array('vector', 'embedding', 'hnsw', 'simd_distance', 'knn'),
+                        'graph_traversal' => array('graph', 'pagerank', 'traversal', 'bfs', 'dfs'),
+                        'transaction' => array('tpcc', 'transaction', 'ycsb', 'mvcc', 'lock'),
+                        'compression' => array('compression', 'zstd', 'gorilla', 'codec'),
+                        'advanced' => array('aql', 'changefeed', 'async', 'batch', 'querymix', 'query'),
+                        'content' => array('content', 'blob', 'branch', 'document', 'index'),
+                        'gpu' => array('gpu', 'cuda', 'rocm', 'vulkan'),
+                    );
+                    $category_map_value = (string) get_option('themisdb_bv_category_keyword_map', '');
+                    if ($category_map_value === '') {
+                        $category_map_value = wp_json_encode($default_map, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+                    }
+                    ?>
+                    <textarea name="themisdb_bv_category_keyword_map"
+                              id="themisdb_bv_category_keyword_map"
+                              rows="14"
+                              class="large-text code"><?php echo esc_textarea($category_map_value); ?></textarea>
+                    <p class="description">
+                        <?php _e('Use JSON object format: {"category_key":["keyword1","keyword2"]}. This controls task-to-category assignment.', 'themisdb-benchmark-visualizer'); ?>
+                    </p>
+                </td>
+            </tr>
+
             <!-- Default Category -->
             <tr>
                 <th scope="row">
                     <label for="themisdb_bv_default_category"><?php _e('Default Category', 'themisdb-benchmark-visualizer'); ?></label>
                 </th>
                 <td>
-                    <select name="themisdb_bv_default_category" id="themisdb_bv_default_category">
-                        <option value="all" <?php selected(get_option('themisdb_bv_default_category'), 'all'); ?>>
-                            <?php _e('All Operations', 'themisdb-benchmark-visualizer'); ?>
-                        </option>
-                        <option value="vector_search" <?php selected(get_option('themisdb_bv_default_category'), 'vector_search'); ?>>
-                            <?php _e('Vector Search', 'themisdb-benchmark-visualizer'); ?>
-                        </option>
-                        <option value="aql_query" <?php selected(get_option('themisdb_bv_default_category'), 'aql_query'); ?>>
-                            <?php _e('AQL Queries', 'themisdb-benchmark-visualizer'); ?>
-                        </option>
-                        <option value="graph_traversal" <?php selected(get_option('themisdb_bv_default_category'), 'graph_traversal'); ?>>
-                            <?php _e('Graph Traversal', 'themisdb-benchmark-visualizer'); ?>
-                        </option>
-                    </select>
+                    <?php
+                    $default_category_value = (string) get_option('themisdb_bv_default_category', 'all');
+                    $default_category_suggestions = array(
+                        'all',
+                        'vector_search',
+                        'graph_traversal',
+                        'transaction',
+                        'compression',
+                        'advanced',
+                        'content',
+                        'gpu',
+                    );
+                    ?>
+                    <input type="text"
+                           name="themisdb_bv_default_category"
+                           id="themisdb_bv_default_category"
+                           value="<?php echo esc_attr($default_category_value); ?>"
+                           class="regular-text"
+                           list="themisdb_bv_default_category_suggestions" />
+                    <datalist id="themisdb_bv_default_category_suggestions">
+                        <?php foreach ($default_category_suggestions as $suggestion) : ?>
+                            <option value="<?php echo esc_attr($suggestion); ?>"></option>
+                        <?php endforeach; ?>
+                    </datalist>
                     <p class="description">
-                        <?php _e('Default category to display when the visualizer loads.', 'themisdb-benchmark-visualizer'); ?>
+                        <?php _e('Default category key to display when the visualizer loads. You can use custom keys from your category keyword mapping.', 'themisdb-benchmark-visualizer'); ?>
                     </p>
                 </td>
             </tr>
@@ -194,6 +277,41 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                     </select>
                     <p class="description">
                         <?php _e('Default metric to display in charts.', 'themisdb-benchmark-visualizer'); ?>
+                    </p>
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">
+                    <label for="themisdb_bv_default_chart_type"><?php _e('Default Chart Type', 'themisdb-benchmark-visualizer'); ?></label>
+                </th>
+                <td>
+                    <select name="themisdb_bv_default_chart_type" id="themisdb_bv_default_chart_type">
+                        <option value="bar" <?php selected(get_option('themisdb_bv_default_chart_type', 'bar'), 'bar'); ?>><?php _e('Bar', 'themisdb-benchmark-visualizer'); ?></option>
+                        <option value="line" <?php selected(get_option('themisdb_bv_default_chart_type', 'bar'), 'line'); ?>><?php _e('Line', 'themisdb-benchmark-visualizer'); ?></option>
+                        <option value="area" <?php selected(get_option('themisdb_bv_default_chart_type', 'bar'), 'area'); ?>><?php _e('Area', 'themisdb-benchmark-visualizer'); ?></option>
+                        <option value="radar" <?php selected(get_option('themisdb_bv_default_chart_type', 'bar'), 'radar'); ?>><?php _e('Radar', 'themisdb-benchmark-visualizer'); ?></option>
+                    </select>
+                    <p class="description">
+                        <?php _e('Initial chart type for the frontend visualizer.', 'themisdb-benchmark-visualizer'); ?>
+                    </p>
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">
+                    <label for="themisdb_bv_default_top_n"><?php _e('Default Top-N', 'themisdb-benchmark-visualizer'); ?></label>
+                </th>
+                <td>
+                    <select name="themisdb_bv_default_top_n" id="themisdb_bv_default_top_n">
+                        <option value="10" <?php selected(get_option('themisdb_bv_default_top_n', '30'), '10'); ?>>10</option>
+                        <option value="20" <?php selected(get_option('themisdb_bv_default_top_n', '30'), '20'); ?>>20</option>
+                        <option value="30" <?php selected(get_option('themisdb_bv_default_top_n', '30'), '30'); ?>>30</option>
+                        <option value="50" <?php selected(get_option('themisdb_bv_default_top_n', '30'), '50'); ?>>50</option>
+                        <option value="all" <?php selected(get_option('themisdb_bv_default_top_n', '30'), 'all'); ?>><?php _e('All', 'themisdb-benchmark-visualizer'); ?></option>
+                    </select>
+                    <p class="description">
+                        <?php _e('Initial number of tasks shown before user filtering.', 'themisdb-benchmark-visualizer'); ?>
                     </p>
                 </td>
             </tr>
@@ -270,7 +388,7 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
             </tr>
             <tr>
                 <td><code>[themisdb_benchmark_visualizer category="vector_search"]</code></td>
-                <td><?php _e( 'Kategorie vorfiltern (all, vector_search, aql_query, graph_traversal)', 'themisdb-benchmark-visualizer' ); ?></td>
+                <td><?php _e( 'Kategorie vorfiltern (all, vector_search, graph_traversal, transaction, compression, advanced, content, gpu)', 'themisdb-benchmark-visualizer' ); ?></td>
             </tr>
             <tr>
                 <td><code>[themisdb_benchmark_visualizer metric="throughput"]</code></td>
@@ -329,4 +447,3 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
     font-size: 12px;
 }
 </style>
-

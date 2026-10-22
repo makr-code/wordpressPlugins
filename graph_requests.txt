@@ -1,0 +1,7 @@
+18. [GET] http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation-v2/assets/css/graph.css?ver=2.0.2 => [200] OK
+49. [GET] http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation-v2/assets/js/state.js?ver=2.0.2 => [200] OK
+50. [GET] http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation-v2/assets/js/graph-store.js?ver=2.0.2 => [200] OK
+51. [GET] http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation-v2/assets/js/render/canvas-renderer.js?ver=2.0.2 => [200] OK
+52. [GET] http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation-v2/assets/js/render/graph-view.js?ver=2.0.2 => [200] OK
+53. [GET] http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation-v2/assets/js/render/webgpu-renderer.js?ver=2.0.2 => [200] OK
+54. [GET] http://localhost/wordpress/wp-content/plugins/themisdb-graph-navigation-v2/assets/js/themisdb-graph-v2.js?ver=2.0.2 => [200] OK

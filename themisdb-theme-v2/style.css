@@ -185,10 +185,27 @@ Tags: full-site-editing, block-theme, custom-colors, custom-logo, custom-menu, e
     --matrix-transition:       var(--themis-transition);
 }
 
+.themisdb-graph-homepage-widget-area {
+    margin: 2rem 0;
+    padding: 0 1rem;
+}
+
+.themisdb-graph-v2-widget {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(44, 62, 80, 0.12);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    padding: 1.25rem;
+}
+
+/*.themisdb-graph-v2-widget .widget-title {
+    margin: 0 0 1rem;
+    font-size: 1.25rem;
+}*/
+
 /* ============================================================
    Base / Reset
-   ============================================================ */
-*, *::before, *::after {
+   ============================================================ */*, *::before, *::after {
     box-sizing: border-box;
 }
 

@@ -9,6 +9,7 @@
     // Global namespace
     window.ThemisDBBenchmarks = {
         chart: null,
+        rawData: null,
         currentData: null,
         settings: {},
         currentSlideIndex: 0,
@@ -21,6 +22,13 @@
             // Store settings from PHP
             this.settings = themisdbBV.settings || {};
             this.currentSlideIndex = 0;
+            this.rebuildCategoryOptions();
+            if ($('#bv-chart-type').length && this.settings.default_chart_type) {
+                $('#bv-chart-type').val(this.settings.default_chart_type);
+            }
+            if ($('#bv-top-n').length && this.settings.default_top_n) {
+                $('#bv-top-n').val(String(this.settings.default_top_n));
+            }
 
             // Set up event listeners
             this.setupEventListeners();
@@ -29,15 +37,83 @@
             this.loadData();
         },
 
+        rebuildCategoryOptions: function() {
+            const $category = $('#bv-category-filter');
+            if (!$category.length) return;
+            const labels = (this.settings && this.settings.category_labels) ? this.settings.category_labels : {};
+            const current = $category.val() || this.settings.default_category || 'all';
+            const keys = Object.keys(labels);
+            if (!keys.length) return;
+            let html = '';
+            keys.forEach(function(key) {
+                html += '<option value="' + String(key).replace(/"/g, '&quot;') + '">' + String(labels[key]) + '</option>';
+            });
+            if (keys.indexOf(current) === -1) {
+                html += '<option value="' + current.replace(/"/g, '&quot;') + '">' + current + '</option>';
+            }
+            $category.html(html);
+            if ($category.find('option[value="' + current.replace(/"/g, '\\"') + '"]').length) {
+                $category.val(current);
+            }
+        },
+
         /**
          * Setup event listeners
          */
         setupEventListeners: function() {
             const self = this;
 
+            $('.themisdb-benchmark-menu-toggle').on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const $menu = $(this).closest('.themisdb-benchmark-menu');
+                const isOpen = $menu.hasClass('is-open');
+                $('.themisdb-benchmark-menu').removeClass('is-open');
+                $('.themisdb-benchmark-menu-toggle').attr('aria-expanded', 'false');
+                if (!isOpen) {
+                    $menu.addClass('is-open');
+                    $(this).attr('aria-expanded', 'true');
+                }
+            });
+
+            $(document).on('click', function(event) {
+                if (!$(event.target).closest('.themisdb-benchmark-menu').length) {
+                    $('.themisdb-benchmark-menu').removeClass('is-open');
+                    $('.themisdb-benchmark-menu-toggle').attr('aria-expanded', 'false');
+                }
+            });
+
+            $('.themisdb-split-button__toggle').on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const $group = $(this).closest('.themisdb-split-button');
+                const willOpen = !$group.hasClass('is-open');
+                $('.themisdb-split-button').removeClass('is-open');
+                $('.themisdb-split-button__toggle').attr('aria-expanded', 'false');
+                if (willOpen) {
+                    $group.addClass('is-open');
+                    $(this).attr('aria-expanded', 'true');
+                }
+            });
+
+            $(document).on('click', function(event) {
+                if (!$(event.target).closest('.themisdb-split-button').length) {
+                    $('.themisdb-split-button').removeClass('is-open');
+                    $('.themisdb-split-button__toggle').attr('aria-expanded', 'false');
+                }
+            });
+
             // Filter changes
-            $('#bv-metric-filter, #bv-chart-type').on('change', function() {
+            $('#bv-category-filter, #bv-metric-filter, #bv-chart-type').on('change', function() {
                 self.loadData();
+            });
+
+            $('#bv-top-n, #bv-engine-filter').on('change', function() {
+                self.applyClientFiltersAndRender();
+            });
+
+            $('#bv-task-search').on('input', function() {
+                self.applyClientFiltersAndRender();
             });
 
             $('.themisdb-benchmark-arrow').on('click', function() {
@@ -90,14 +166,10 @@
                 },
                 success: function(response) {
                     if (response.success) {
-                        self.currentData = response.data;
+                        self.rawData = response.data;
                         self.currentSlideIndex = 0;
-                        self.renderChart();
-                        self.renderSliderMeta();
-                        self.renderMermaidDiagram();
-                        self.renderResultsTable();
-                        self.generateInsights();
-                        self.startAutoRotate();
+                        self.rebuildEngineFilterOptions();
+                        self.applyClientFiltersAndRender();
                     } else {
                         self.showError('Failed to load benchmark data');
                     }
@@ -108,6 +180,111 @@
                     self.hideLoading();
                 }
             });
+        },
+
+        rebuildEngineFilterOptions: function() {
+            const $engineFilter = $('#bv-engine-filter');
+            if (!$engineFilter.length || !this.rawData || !Array.isArray(this.rawData.datasets)) {
+                return;
+            }
+            const currentValue = $engineFilter.val() || 'all';
+            let html = '<option value="all">Alle Engines</option>';
+            this.rawData.datasets.forEach(function(dataset) {
+                const label = String(dataset.label || '').trim();
+                if (label) {
+                    html += '<option value="' + label.replace(/"/g, '&quot;') + '">' + label + '</option>';
+                }
+            });
+            $engineFilter.html(html);
+            if ($engineFilter.find('option[value="' + currentValue.replace(/"/g, '\\"') + '"]').length) {
+                $engineFilter.val(currentValue);
+            }
+        },
+
+        applyClientFiltersAndRender: function() {
+            if (!this.rawData) return;
+            try {
+                this.currentData = this.buildFilteredData(this.rawData);
+                this.currentSlideIndex = 0;
+                this.renderChart();
+                this.renderSliderMeta();
+                this.renderMermaidDiagram();
+                this.renderResultsTable();
+                this.generateInsights();
+                this.startAutoRotate();
+            } catch (error) {
+                console.error('ThemisDB benchmark rendering failed:', error);
+                this.hideLoading();
+                this.showFallbackChartState('The benchmark chart could not be rendered. Please try a different filter combination.');
+            }
+        },
+
+        buildFilteredData: function(sourceData) {
+            const labels = Array.isArray(sourceData.labels) ? sourceData.labels.slice() : [];
+            const datasets = Array.isArray(sourceData.datasets)
+                ? sourceData.datasets.map(function(ds) {
+                    return Object.assign({}, ds, { data: Array.isArray(ds.data) ? ds.data.slice() : [] });
+                })
+                : [];
+            const summary = Object.assign({}, sourceData.summary || {});
+            const search = String($('#bv-task-search').val() || '').trim().toLowerCase();
+            const engineFilter = String($('#bv-engine-filter').val() || 'all').trim();
+            const topNRaw = String($('#bv-top-n').val() || '').trim();
+            const defaultTopN = Number(this.settings.default_top_n) || 10;
+            const topN = topNRaw === 'all' ? -1 : Math.max(1, Number(topNRaw) || defaultTopN);
+
+            let selectedDatasets = datasets;
+            if (engineFilter !== 'all') {
+                selectedDatasets = datasets.filter(function(ds) { return String(ds.label || '') === engineFilter; });
+            }
+
+            let indexSet = labels.map(function(_, idx) { return idx; });
+            if (search) {
+                indexSet = indexSet.filter(function(idx) {
+                    return String(labels[idx] || '').toLowerCase().includes(search);
+                });
+            }
+
+            const metric = $('#bv-metric-filter').val() || 'latency';
+            const higherIsBetter = metric === 'throughput';
+            if (topN > 0 && indexSet.length > topN) {
+                const primaryDataset = selectedDatasets.find(function(ds) { return String(ds.label || '').toLowerCase().includes('themisdb'); }) || selectedDatasets[0];
+                if (primaryDataset && Array.isArray(primaryDataset.data)) {
+                    indexSet = indexSet
+                        .map(function(idx) { return { idx: idx, val: Number(primaryDataset.data[idx] ?? Number.POSITIVE_INFINITY) }; })
+                        .sort(function(a, b) { return higherIsBetter ? b.val - a.val : a.val - b.val; })
+                        .slice(0, topN)
+                        .map(function(entry) { return entry.idx; });
+                } else {
+                    indexSet = indexSet.slice(0, topN);
+                }
+            }
+
+            const filteredLabels = indexSet.map(function(idx) { return labels[idx]; });
+            const filteredDatasets = selectedDatasets.map(function(ds) {
+                return Object.assign({}, ds, { data: indexSet.map(function(idx) { return ds.data[idx]; }) });
+            });
+
+            summary.total_benchmarks = labels.length;
+            summary.displayed_benchmarks = filteredLabels.length;
+
+            return {
+                labels: filteredLabels,
+                datasets: filteredDatasets,
+                metric: sourceData.metric,
+                category: sourceData.category,
+                description: sourceData.description,
+                summary: summary
+            };
+        },
+
+        formatTaskLabel: function(value, maxLength) {
+            const input = String(value || '').trim();
+            const limit = Math.max(8, Number(maxLength) || 26);
+            if (input.length <= limit) {
+                return input;
+            }
+            return input.slice(0, limit - 1) + '…';
         },
 
         /**
@@ -177,8 +354,11 @@
                 const numeric = Number(value) || 0;
                 return sum + numeric;
             }, 0) / values.length : 0;
-            const fastest = values.length ? Math.min.apply(null, values.map(function(value) { return Number(value) || 0; })) : 0;
-            const slowest = values.length ? Math.max.apply(null, values.map(function(value) { return Number(value) || 0; })) : 0;
+            const bestValue = values.length
+                ? (metric === 'throughput'
+                    ? Math.max.apply(null, values.map(function(value) { return Number(value) || 0; }))
+                    : Math.min.apply(null, values.map(function(value) { return Number(value) || 0; })))
+                : 0;
 
             $('#bv-slide-title').text(dataset.label || 'Benchmark');
             $('#bv-slide-value').text(avg.toFixed(2));
@@ -192,7 +372,7 @@
             );
 
             $('#bv-summary-avg').text(avg.toFixed(2) + ' ' + unit);
-            $('#bv-summary-fastest').text(fastest.toFixed(2) + ' ' + unit);
+            $('#bv-summary-fastest').text(bestValue.toFixed(2) + ' ' + unit);
             $('#bv-summary-count').text(String(this.currentData.labels ? this.currentData.labels.length : values.length));
 
             const dots = this.currentData.datasets.map(function(item, index) {
@@ -222,15 +402,32 @@
             }
 
             const label = this.currentData.labels[activeIndex] || 'Vector Search';
-            const dataset = this.currentData.datasets[0] || {};
+            const datasetIndex = ((this.currentSlideIndex % this.currentData.datasets.length) + this.currentData.datasets.length) % this.currentData.datasets.length;
+            const dataset = this.currentData.datasets[datasetIndex] || this.currentData.datasets[0] || {};
             const value = Array.isArray(dataset.data) && dataset.data[activeIndex] !== undefined ? dataset.data[activeIndex] : 0;
             const metric = $('#bv-metric-filter').val() || 'latency';
             const unit = this.getMetricUnit(metric);
 
             const titleEl = document.getElementById('themisdb-benchmark-focus__title');
-            const valueEl = document.getElementById('themisdb-benchmark-focus__value');
+            const valueEl = document.getElementById('bv-slide-value');
+            const unitEl = document.getElementById('bv-slide-unit');
             if (titleEl) titleEl.textContent = label;
-            if (valueEl) valueEl.textContent = Number(value).toFixed(2) + ' ' + unit;
+            if (valueEl) valueEl.textContent = Number(value).toFixed(2);
+            if (unitEl) unitEl.textContent = unit;
+
+            const panel = document.querySelector('.themisdb-benchmark-panel');
+            if (panel) {
+                panel.classList.add('chart-hovered');
+            }
+        },
+
+        hideFocusState: function() {
+            const focus = document.getElementById('themisdb-benchmark-focus');
+            if (!focus) return;
+            const panel = document.querySelector('.themisdb-benchmark-panel');
+            if (panel) {
+                panel.classList.remove('chart-hovered');
+            }
         },
 
         renderChart: function() {
@@ -240,6 +437,10 @@
 
             const chartType = $('#bv-chart-type').val() || 'bar';
             const metric = $('#bv-metric-filter').val() || 'latency';
+            const normalizedChartType = chartType === 'area' ? 'line' : chartType;
+            const labelCount = Array.isArray(this.currentData.labels) ? this.currentData.labels.length : 0;
+            const isDense = labelCount > 14;
+            const isHorizontalBar = normalizedChartType === 'bar' && isDense;
 
             // Destroy existing chart
             if (this.chart) {
@@ -250,28 +451,30 @@
 
             const baseStyle = {
                 borderWidth: 0,
-                borderRadius: 0,
+                borderRadius: 6,
                 borderSkipped: false,
                 borderAlign: 'center',
                 pointRadius: chartType === 'line' ? 4 : 0,
                 pointHoverRadius: chartType === 'line' ? 6 : 0,
                 pointBackgroundColor: 'rgba(255, 255, 255, 0.95)',
                 pointBorderWidth: 2,
-                pointBorderColor: 'rgba(86, 160, 255, 0.9)',
+                pointBorderColor: 'rgba(59, 130, 246, 0.9)',
                 hoverBorderWidth: 2,
-                hoverBorderColor: 'rgba(255,255,255,0.9)',
-                hoverBackgroundColor: 'rgba(159, 214, 255, 0.95)'
+                hoverBorderColor: 'rgba(15, 23, 42, 0.9)',
+                hoverBackgroundColor: 'rgba(147, 197, 253, 0.95)'
             };
 
-            // Chart configuration
+            const axisLabelColor = '#475569';
+            const gridColor = 'rgba(15, 23, 42, 0.08)';
+
             const config = {
-                type: chartType,
+                type: normalizedChartType,
                 data: {
                     labels: this.currentData.labels,
                     datasets: this.currentData.datasets.map(function(dataset) {
                         const normalized = Object.assign({}, dataset, baseStyle);
-                        normalized.backgroundColor = dataset.backgroundColor || 'rgba(103, 189, 255, 0.78)';
-                        normalized.borderColor = dataset.borderColor || 'rgba(116, 204, 255, 0.95)';
+                        normalized.backgroundColor = dataset.backgroundColor || 'rgba(59, 130, 246, 0.72)';
+                        normalized.borderColor = dataset.borderColor || 'rgba(37, 99, 235, 0.95)';
                         return normalized;
                     })
                 },
@@ -279,17 +482,10 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     animation: {
-                        duration: 1400,
-                        easing: 'easeOutCubic',
+                        duration: 900,
+                        easing: 'easeOutQuart',
                         delay: function(context) {
-                            return context.type === 'data' ? context.dataIndex * 80 + context.datasetIndex * 30 : 0;
-                        },
-                        onComplete: function(animation) {
-                            const chart = animation.chart;
-                            chart.ctx.save();
-                            chart.ctx.shadowColor = 'rgba(52, 152, 219, 0.18)';
-                            chart.ctx.shadowBlur = 12;
-                            chart.ctx.restore();
+                            return context.type === 'data' ? context.dataIndex * 25 + context.datasetIndex * 15 : 0;
                         }
                     },
                     interaction: {
@@ -298,6 +494,17 @@
                     },
                     onHover: function(event, activeElements) {
                         if (!activeElements || !activeElements.length) {
+                            self.hideFocusState();
+                            return;
+                        }
+                        const activeIndex = activeElements[0].index;
+                        if (typeof activeIndex === 'number') {
+                            self.updateFocusState(activeIndex);
+                        }
+                    },
+                    onClick: function(event, activeElements) {
+                        if (!activeElements || !activeElements.length) {
+                            self.hideFocusState();
                             return;
                         }
                         const activeIndex = activeElements[0].index;
@@ -310,7 +517,7 @@
                             left: 12,
                             right: 12,
                             top: 12,
-                            bottom: 12
+                            bottom: 8
                         }
                     },
                     plugins: {
@@ -318,14 +525,21 @@
                             display: false
                         },
                         legend: {
-                            display: false,
-                            position: 'top',
+                            display: this.currentData && Array.isArray(this.currentData.datasets) && this.currentData.datasets.length > 1,
+                            position: 'bottom',
+                            labels: {
+                                color: '#334155',
+                                boxWidth: 10,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                padding: 14
+                            }
                         },
                         tooltip: {
                             enabled: true,
                             mode: 'index',
                             intersect: false,
-                            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
                             titleColor: '#fff',
                             bodyColor: '#fff',
                             padding: 10,
@@ -336,7 +550,10 @@
                                     if (label) {
                                         label += ': ';
                                     }
-                                    label += context.parsed.y.toFixed(2);
+                                    const parsedValue = typeof context.parsed.y === 'number'
+                                        ? context.parsed.y
+                                        : (typeof context.parsed.x === 'number' ? context.parsed.x : (typeof context.parsed.r === 'number' ? context.parsed.r : Number(context.raw)));
+                                    label += Number(parsedValue || 0).toFixed(2);
                                     label += ' ' + (metric === 'latency' ? 'ms' :
                                                    metric === 'throughput' ? 'ops/sec' : 'MB');
                                     return label;
@@ -344,55 +561,80 @@
                             }
                         }
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
+                    scales: normalizedChartType === 'radar' ? {} : {
+                        x: {
+                            beginAtZero: false,
                             grid: {
-                                color: 'rgba(255,255,255,0.12)',
+                                display: !isHorizontalBar,
+                                color: gridColor,
                                 drawBorder: false
                             },
                             ticks: {
-                                color: 'rgba(255,255,255,0.8)',
-                                maxTicksLimit: 6
+                                color: axisLabelColor,
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: isHorizontalBar ? 8 : 12,
+                                callback: function(value, index) {
+                                    if (isHorizontalBar) {
+                                        return value;
+                                    }
+                                    const labels = self.currentData && Array.isArray(self.currentData.labels) ? self.currentData.labels : [];
+                                    return self.formatTaskLabel(labels[index] || '', 18);
+                                }
+                            },
+                            border: {
+                                display: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Tasks',
+                                color: axisLabelColor,
+                                font: {
+                                    size: 11,
+                                    weight: 600
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: gridColor,
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: axisLabelColor,
+                                maxTicksLimit: 6,
+                                callback: function(value) {
+                                    return value;
+                                }
                             },
                             display: true,
                             border: {
                                 display: false
                             },
                             title: {
-                                display: false
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false,
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: 'rgba(255,255,255,0.8)',
-                                maxRotation: 0,
-                                autoSkip: false
-                            },
-                            border: {
-                                display: false
-                            },
-                            title: {
-                                display: false
+                                display: true,
+                                text: metric === 'latency' ? 'Latency (ms)' : metric === 'throughput' ? 'Throughput (ops/s)' : 'Memory (MB)',
+                                color: axisLabelColor,
+                                font: {
+                                    size: 11,
+                                    weight: 600
+                                }
                             }
                         }
                     },
                     elements: {
                         bar: {
-                            borderRadius: 0,
+                            borderRadius: 6,
                             borderSkipped: false,
                             borderWidth: 0,
                             hoverBorderWidth: 2,
-                            hoverBorderColor: 'rgba(255,255,255,0.8)'
+                            hoverBorderColor: 'rgba(15, 23, 42, 0.9)'
                         },
                         line: {
                             borderWidth: 3,
                             tension: 0.3,
-                            pointRadius: 4,
+                            pointRadius: normalizedChartType === 'line' || normalizedChartType === 'radar' ? 4 : 0,
                             pointHoverRadius: 7
                         },
                         point: {
@@ -404,9 +646,32 @@
                 }
             };
 
+            if (isHorizontalBar) {
+                config.options.indexAxis = 'y';
+                config.options.scales.x.title.text = 'Tasks';
+                config.options.scales.y.title.text = metric === 'latency' ? 'Latency (ms)' : metric === 'throughput' ? 'Throughput (ops/s)' : 'Memory (MB)';
+                config.options.scales.x.ticks.callback = function(value, index) {
+                    return self.formatTaskLabel((self.currentData && Array.isArray(self.currentData.labels) ? self.currentData.labels[index] : '') || '', 18);
+                };
+                config.options.scales.y.ticks.callback = function(value) {
+                    return value;
+                };
+            }
+
+            if (chartType === 'area') {
+                config.data.datasets = config.data.datasets.map(function(dataset) {
+                    return Object.assign({}, dataset, {
+                        fill: true,
+                        backgroundColor: dataset.backgroundColor || 'rgba(103, 189, 255, 0.28)',
+                    });
+                });
+            }
+            if (isHorizontalBar) {
+                config.options.indexAxis = 'y';
+            }
             // Create chart
             this.chart = new Chart(ctx, config);
-            this.updateFocusState(0);
+            this.hideFocusState();
         },
 
         /**
@@ -504,6 +769,15 @@
             return labels[metric] || 'Value';
         },
 
+        escapeHtml: function(value) {
+            return String(value === undefined || value === null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        },
+
         /**
          * Render results table
          */
@@ -518,7 +792,7 @@
 
             let html = '<table>';
             html += '<thead><tr>';
-            html += '<th>Operation</th>';
+            html += '<th>Testaufgabe</th>';
 
             // Add column for each dataset (database)
             this.currentData.datasets.forEach(function(dataset) {
@@ -529,15 +803,36 @@
 
             // Add rows for each label (operation)
             this.currentData.labels.forEach(function(label, index) {
+                const summary = this.currentData.summary || {};
+                const sourcesByTask = summary.task_sources || {};
+                const taskSources = Array.isArray(sourcesByTask[label]) ? sourcesByTask[label] : [];
+
                 html += '<tr>';
-                html += '<td><strong>' + label + '</strong></td>';
+                html += '<td><strong>' + this.escapeHtml(label) + '</strong>';
+                if (taskSources.length) {
+                    html += '<details class="themisdb-task-sources">';
+                    html += '<summary>' + taskSources.length + ' Rohlauf' + (taskSources.length === 1 ? '' : 'e') + '</summary>';
+                    html += '<ul>';
+                    taskSources.slice(0, 10).forEach(function(source) {
+                        html += '<li><code>' + this.escapeHtml(source) + '</code></li>';
+                    }.bind(this));
+                    if (taskSources.length > 10) {
+                        html += '<li>… +' + (taskSources.length - 10) + ' weitere</li>';
+                    }
+                    html += '</ul></details>';
+                }
+                html += '</td>';
 
                 // Add data for each dataset
                 this.currentData.datasets.forEach(function(dataset) {
                     const value = dataset.data[index];
                     const unit = metric === 'latency' ? ' ms' : 
                                 metric === 'throughput' ? ' ops/s' : ' MB';
-                    html += '<td class="value-cell">' + value.toFixed(2) + unit + '</td>';
+                    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+                        html += '<td class="value-cell">—</td>';
+                    } else {
+                        html += '<td class="value-cell">' + Number(value).toFixed(2) + unit + '</td>';
+                    }
                 });
 
                 html += '</tr>';
@@ -562,13 +857,22 @@
             // Total benchmarks
             html += '<div class="themisdb-stat-card">';
             html += '<div class="stat-icon">📊</div>';
-            html += '<div class="stat-value">' + summary.total_benchmarks + '</div>';
-            html += '<div class="stat-label">Total Benchmarks';
+            const totalTasks = summary.task_count || summary.total_benchmarks || 0;
+            html += '<div class="stat-value">' + totalTasks + '</div>';
+            html += '<div class="stat-label">Testaufgaben';
             if (summary.displayed_benchmarks && summary.displayed_benchmarks < summary.total_benchmarks) {
-                html += ' (' + summary.displayed_benchmarks + ' shown)';
+                html += ' (' + summary.displayed_benchmarks + ' sichtbar)';
             }
             html += '</div>';
             html += '</div>';
+
+            if (summary.comparable_task_count !== undefined) {
+                html += '<div class="themisdb-stat-card">';
+                html += '<div class="stat-icon">⚖️</div>';
+                html += '<div class="stat-value">' + Number(summary.comparable_task_count) + '</div>';
+                html += '<div class="stat-label">Direkt vergleichbar</div>';
+                html += '</div>';
+            }
             
             // Files parsed
             if (summary.files_parsed) {
@@ -590,13 +894,16 @@
             }
             
             // Fastest / Best performance
-            if (summary.fastest !== null) {
+            const bestValue = summary.best_value !== undefined ? summary.best_value : summary.fastest;
+            const worstValue = summary.worst_value !== undefined ? summary.worst_value : summary.slowest;
+
+            if (bestValue !== null && bestValue !== undefined) {
                 html += '<div class="themisdb-stat-card success">';
                 html += '<div class="stat-icon">🚀</div>';
-                html += '<div class="stat-value">' + summary.fastest.toFixed(2) + '</div>';
+                html += '<div class="stat-value">' + Number(bestValue).toFixed(2) + '</div>';
                 html += '<div class="stat-label">';
                 if (metric === 'throughput') {
-                    html += 'Lowest Throughput';
+                    html += 'Peak Throughput';
                 } else {
                     html += 'Best Performance';
                 }
@@ -605,13 +912,13 @@
             }
             
             // Slowest / Worst performance or Peak
-            if (summary.slowest !== null) {
+            if (worstValue !== null && worstValue !== undefined) {
                 html += '<div class="themisdb-stat-card warning">';
                 html += '<div class="stat-icon">🐌</div>';
-                html += '<div class="stat-value">' + summary.slowest.toFixed(2) + '</div>';
+                html += '<div class="stat-value">' + Number(worstValue).toFixed(2) + '</div>';
                 html += '<div class="stat-label">';
                 if (metric === 'throughput') {
-                    html += 'Peak Throughput';
+                    html += 'Lowest Throughput';
                 } else {
                     html += 'Slowest Operation';
                 }
@@ -622,10 +929,21 @@
             html += '</div>';
             
             // Add note if data is limited
-            if (summary.displayed_benchmarks && summary.displayed_benchmarks < summary.total_benchmarks) {
+            const hasDisplayLimit = summary.displayed_benchmarks && summary.displayed_benchmarks < summary.total_benchmarks;
+            const hasComparableExclusions = summary.excluded_non_comparable_tasks && Number(summary.excluded_non_comparable_tasks) > 0;
+            const isFallbackMode = summary.comparison_mode === 'single_engine_fallback';
+            if (hasDisplayLimit || hasComparableExclusions || isFallbackMode) {
                 html += '<div class="themisdb-display-note">';
-                html += '<p><small>📝 Showing top ' + summary.displayed_benchmarks + ' best-performing benchmarks out of ' + 
-                        summary.total_benchmarks + ' total for better visualization.</small></p>';
+                if (hasDisplayLimit) {
+                    html += '<p><small>📝 Zeige die ' + summary.displayed_benchmarks + ' besten Testaufgaben von insgesamt ' + 
+                            summary.total_benchmarks + ' für eine bessere Visualisierung.</small></p>';
+                }
+                if (hasComparableExclusions) {
+                    html += '<p><small>⚖️ ' + Number(summary.excluded_non_comparable_tasks) + ' Aufgaben ohne ausreichende Engine-Abdeckung wurden für faire Vergleichbarkeit ausgeblendet.</small></p>';
+                }
+                if (isFallbackMode) {
+                    html += '<p><small>ℹ️ Keine Cross-Engine-Aufgaben gefunden – Darstellung nutzt Single-Engine-Fallback.</small></p>';
+                }
                 html += '</div>';
             }
             
@@ -687,15 +1005,15 @@
                     
                     html += '<div class="themisdb-insight-card success">';
                     html += '<h4>📊 Benchmark Summary</h4>';
-                    html += '<p><strong>' + summary.total_benchmarks + ' benchmarks</strong> were executed in the ';
+                    html += '<p><strong>' + summary.total_benchmarks + ' test tasks</strong> were executed in the ';
                     html += '<strong>' + this.getCategoryName(category) + '</strong> category. ';
                     
                     if (metric === 'latency') {
                         html += 'Average latency: <strong>' + summary.avg_time.toFixed(2) + ' ms</strong>. ';
-                        html += 'Best performance: <strong>' + summary.fastest.toFixed(2) + ' ms</strong>.';
+                        html += 'Best performance: <strong>' + Number(summary.best_value ?? summary.fastest).toFixed(2) + ' ms</strong>.';
                     } else if (metric === 'throughput') {
                         html += 'Average throughput: <strong>' + summary.avg_time.toFixed(0) + ' ops/sec</strong>. ';
-                        html += 'Peak throughput: <strong>' + summary.slowest.toFixed(0) + ' ops/sec</strong>.';
+                        html += 'Peak throughput: <strong>' + Number(summary.best_value ?? summary.slowest).toFixed(0) + ' ops/sec</strong>.';
                     } else {
                         html += 'Average value: <strong>' + summary.avg_time.toFixed(2) + '</strong>.';
                     }
@@ -703,9 +1021,12 @@
                 }
 
                 // Performance range insight
-                if (this.currentData.summary && this.currentData.summary.fastest && this.currentData.summary.slowest) {
-                    const range = this.currentData.summary.slowest - this.currentData.summary.fastest;
-                    const rangePercent = (range / this.currentData.summary.avg_time * 100).toFixed(1);
+                const summaryStats = this.currentData.summary || {};
+                const rangeBest = summaryStats.best_value !== undefined ? summaryStats.best_value : summaryStats.fastest;
+                const rangeWorst = summaryStats.worst_value !== undefined ? summaryStats.worst_value : summaryStats.slowest;
+                if (summaryStats.avg_time && rangeBest !== null && rangeBest !== undefined && rangeWorst !== null && rangeWorst !== undefined) {
+                    const range = Math.abs(Number(rangeWorst) - Number(rangeBest));
+                    const rangePercent = (range / Number(summaryStats.avg_time) * 100).toFixed(1);
                     
                     html += '<div class="themisdb-insight-card info">';
                     html += '<h4>📈 Performance Variance</h4>';
@@ -738,6 +1059,12 @@
          * Get category display name
          */
         getCategoryName: function(category) {
+            const configured = (window.themisdbBV && themisdbBV.settings && themisdbBV.settings.category_labels)
+                ? themisdbBV.settings.category_labels
+                : {};
+            if (configured && configured[category]) {
+                return configured[category];
+            }
             const names = {
                 'all': 'All Operations',
                 'vector_search': 'Vector Search & Embeddings',
@@ -829,6 +1156,18 @@
             // For a full implementation, you would use a library like jsPDF
             // For now, we'll just trigger print which can save as PDF
             window.print();
+        },
+
+        /**
+         * Show a fallback state when rendering fails.
+         */
+        showFallbackChartState: function(message) {
+            const $loading = $('#bv-loading');
+            if ($loading.length) {
+                $loading.html('<div class="themisdb-insight-card warning"><h4>⚠️ Notice</h4><p>' + message + '</p></div>').show();
+            }
+            $('#themisdb-benchmark-chart').css('opacity', '0.35');
+            this.clearAutoRotate();
         },
 
         /**

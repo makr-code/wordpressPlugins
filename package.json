@@ -1,0 +1,28 @@
+{
+  "name": "wordpressplugins",
+  "version": "1.0.0",
+  "description": "Status: In Konsolidierung zum durchgaengigen Sales-, Lizenz-, Build- und Support-Lifecycle\r Stand: Mai 2026",
+  "main": "tmp-graph-smoke.spec.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/makr-code/wordpressPlugins.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/makr-code/wordpressPlugins/issues"
+  },
+  "homepage": "https://github.com/makr-code/wordpressPlugins#readme",
+  "dependencies": {
+    "jquery": "^4.0.0",
+    "jsdom": "^29.1.1"
+  }
+}
