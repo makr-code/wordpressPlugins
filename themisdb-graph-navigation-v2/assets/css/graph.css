@@ -100,11 +100,17 @@ body:has(.themisdb-graph-v2-toggle--compact) .themisdb-graph-v2-overlay > .themi
 
 .themisdb-graph-v2-shell {
     position: fixed !important;
-    right: 18px !important;
-    bottom: 18px !important;
+    top: auto !important;
+    left: auto !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    inset: auto !important;
     display: none;
-    width: min(820px, calc(100vw - 32px));
-    height: min(560px, calc(100vh - 110px));
+    width: min(820px, calc(100vw - 24px));
+    height: min(560px, calc(100vh - 24px));
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    margin: 0 !important;
     border: 1px solid rgba(124, 77, 255, 0.45);
     border-radius: 18px;
     overflow: hidden;
@@ -118,12 +124,35 @@ body:has(.themisdb-graph-v2-toggle--compact) .themisdb-graph-v2-overlay > .themi
     z-index: 2147483647;
 }
 
+@media (max-width: 640px) {
+    .themisdb-graph-v2-shell {
+        right: 12px !important;
+        bottom: 12px !important;
+        width: min(92vw, 420px) !important;
+        height: min(72vh, 440px) !important;
+        max-width: calc(100vw - 24px) !important;
+        max-height: calc(100vh - 24px) !important;
+    }
+}
+
 .themisdb-graph-v2-shell.is-open {
-    display: block;
+    display: block !important;
+    position: fixed !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    top: auto !important;
+    left: auto !important;
+    inset: auto !important;
 }
 
 .themisdb-graph-v2-shell[data-graph-v2-expanded="1"] {
-    display: block;
+    display: block !important;
+    position: fixed !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    top: auto !important;
+    left: auto !important;
+    inset: auto !important;
 }
 
 .themisdb-graph-v2-header {
@@ -135,6 +164,39 @@ body:has(.themisdb-graph-v2-toggle--compact) .themisdb-graph-v2-overlay > .themi
     background: rgba(15, 23, 42, 0.82);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     color: #e2e8f0;
+}
+
+.themisdb-graph-v2-stats {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-left: auto;
+    padding: 0.28rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(15, 23, 42, 0.48);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    font-size: 0.68rem;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    color: #dbeafe;
+    pointer-events: none;
+}
+
+.themisdb-graph-v2-stats__item,
+.themisdb-graph-v2-stats__mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    white-space: nowrap;
+}
+
+.themisdb-graph-v2-stats__mode {
+    padding-left: 0.3rem;
+    border-left: 1px solid rgba(148, 163, 184, 0.25);
+    color: #7dd3fc;
 }
 
 .themisdb-graph-v2-header strong {

@@ -3,16 +3,62 @@
 
     window.ThemisDBGraphV2 = window.ThemisDBGraphV2 || {};
 
+    function getReductionProfile(nodeCount, options) {
+        const localOptions = Object.assign({
+            maxVisibleNodes: 120,
+            minDegree: 0,
+            showExternal: true,
+        }, options || {});
+
+        const maxVisibleNodes = Math.max(30, Number(localOptions.maxVisibleNodes) || 120);
+        const minDegree = Math.max(0, Number(localOptions.minDegree) || 0);
+
+        if (nodeCount <= 120) {
+            return {
+                active: false,
+                strategy: 'full',
+                maxVisibleNodes,
+                minDegree,
+            };
+        }
+
+        if (nodeCount > 1200) {
+            return {
+                active: true,
+                strategy: 'aggressive',
+                maxVisibleNodes: Math.min(maxVisibleNodes, 120),
+                minDegree: Math.max(minDegree, 2),
+            };
+        }
+
+        if (nodeCount > 600) {
+            return {
+                active: true,
+                strategy: 'moderate',
+                maxVisibleNodes: Math.min(maxVisibleNodes, 180),
+                minDegree: Math.max(minDegree, 1),
+            };
+        }
+
+        return {
+            active: true,
+            strategy: 'light',
+            maxVisibleNodes: Math.min(maxVisibleNodes, 220),
+            minDegree: Math.max(minDegree, 0),
+        };
+    }
+
     function calculateVisibleGraph(graph, options) {
         const nodes = Array.isArray(graph && graph.nodes) ? graph.nodes : [];
         const links = Array.isArray(graph && graph.links) ? graph.links : [];
         const localOptions = Object.assign({
-            maxVisibleNodes: 250,
+            maxVisibleNodes: 120,
             minDegree: 0,
             showExternal: true,
             selectedNodeId: null,
         }, options || {});
 
+        const reduction = getReductionProfile(nodes.length, localOptions);
         const selectedNodeId = localOptions.selectedNodeId ? String(localOptions.selectedNodeId) : '';
         const nodeMap = new Map(nodes.map((node) => [String(node.id), Object.assign({}, node)]));
         const adjacency = new Map();
@@ -48,7 +94,7 @@
             if (!localOptions.showExternal && isExternal) {
                 return false;
             }
-            if ((node.degree || 0) < localOptions.minDegree) {
+            if ((node.degree || 0) < reduction.minDegree) {
                 return false;
             }
             if (selectedNodeId) {
@@ -64,7 +110,7 @@
 
         const rootNodes = ranked.filter((node) => String(node.type) === 'home' || String(node.type) === 'category' || String(node.type) === 'tag');
         const contentNodes = ranked.filter((node) => !rootNodes.includes(node));
-        const topNodes = rootNodes.concat(contentNodes).slice(0, localOptions.maxVisibleNodes);
+        const topNodes = rootNodes.concat(contentNodes).slice(0, reduction.maxVisibleNodes);
         const topNodeSet = new Set(topNodes.map((node) => String(node.id)));
 
         if (selectedNodeId) {
@@ -72,7 +118,7 @@
             (adjacency.get(selectedNodeId) || []).forEach((neighborId) => selectedNeighbors.add(String(neighborId)));
             const expanded = nodes.filter((node) => selectedNeighbors.has(String(node.id)));
             expanded.sort((a, b) => (b.degree || 0) - (a.degree || 0));
-            expanded.slice(0, localOptions.maxVisibleNodes).forEach((node) => topNodeSet.add(String(node.id)));
+            expanded.slice(0, reduction.maxVisibleNodes).forEach((node) => topNodeSet.add(String(node.id)));
         }
 
         const visibleNodes = nodes.filter((node) => {
@@ -96,30 +142,53 @@
         return {
             nodes: visibleNodes,
             links: visibleLinks,
+            stats: {
+                totalNodes: nodes.length,
+                totalLinks: links.length,
+                visibleNodes: visibleNodes.length,
+                visibleLinks: visibleLinks.length,
+                reduction,
+            },
         };
     }
 
     function resolveHitNode(graph, pointerX, pointerY, canvas) {
         const nodes = Array.isArray(graph && graph.nodes) ? graph.nodes : [];
-        if (!canvas || !nodes.length) {
+        const activeCanvas = canvas
+            || (pointerY && typeof pointerY.getBoundingClientRect === 'function' ? pointerY : null)
+            || (pointerX && typeof pointerX.getBoundingClientRect === 'function' ? pointerX : null);
+
+        if (!activeCanvas || !nodes.length) {
             return null;
         }
 
-        let clientX = pointerX;
-        let clientY = pointerY;
+        let clientX = Number.NaN;
+        let clientY = Number.NaN;
+
         if (pointerX && typeof pointerX === 'object') {
-            clientX = Number(pointerX.clientX);
-            clientY = Number(pointerX.clientY);
+            if ('clientX' in pointerX && 'clientY' in pointerX) {
+                clientX = Number(pointerX.clientX);
+                clientY = Number(pointerX.clientY);
+            } else if (pointerX instanceof Element && typeof pointerX.getBoundingClientRect === 'function') {
+                const rect = pointerX.getBoundingClientRect();
+                clientX = rect.left + rect.width / 2;
+                clientY = rect.top + rect.height / 2;
+            } else if (pointerY && typeof pointerY === 'object' && 'clientX' in pointerY && 'clientY' in pointerY) {
+                clientX = Number(pointerY.clientX);
+                clientY = Number(pointerY.clientY);
+            }
+        } else if (typeof pointerX === 'number' || typeof pointerY === 'number') {
+            clientX = Number(pointerX);
+            clientY = Number(pointerY);
         }
 
-        const rect = canvas.getBoundingClientRect();
-        const isClientPointer = Number.isFinite(clientX) && Number.isFinite(clientY)
+        const rect = activeCanvas.getBoundingClientRect();
+        const hasViewportCoords = Number.isFinite(clientX) && Number.isFinite(clientY)
             && Number.isFinite(rect.left) && Number.isFinite(rect.top)
-            && clientX >= rect.left && clientX <= rect.right
-            && clientY >= rect.top && clientY <= rect.bottom;
+            && Number.isFinite(rect.width) && Number.isFinite(rect.height);
 
-        const localX = isClientPointer ? (clientX - rect.left) : (Number.isFinite(clientX) ? clientX : 0);
-        const localY = isClientPointer ? (clientY - rect.top) : (Number.isFinite(clientY) ? clientY : 0);
+        const localX = hasViewportCoords ? (clientX - rect.left) : (Number.isFinite(clientX) ? clientX : 0);
+        const localY = hasViewportCoords ? (clientY - rect.top) : (Number.isFinite(clientY) ? clientY : 0);
 
         let bestNode = null;
         let bestDistance = Number.POSITIVE_INFINITY;
@@ -141,11 +210,15 @@
     function buildGraphModel(graph) {
         const rawNodes = Array.isArray(graph && graph.nodes) ? graph.nodes : [];
         const rawLinks = Array.isArray(graph && graph.links) ? graph.links : [];
+        const adjacencySource = graph && graph.adjacency && typeof graph.adjacency === 'object' ? graph.adjacency : {};
+        const adjacencyMap = new Map(Object.entries(adjacencySource).map(([nodeId, neighbors]) => [String(nodeId), Array.isArray(neighbors) ? neighbors.map((neighbor) => String(neighbor)) : []]));
 
         const nodeMap = new Map(rawNodes.map((node) => [String(node.id), Object.assign({}, node, {
             degree: 0,
             x: 0,
             y: 0,
+            featureVector: Array.isArray(node.featureVector) ? node.featureVector : [],
+            neighbors: adjacencyMap.get(String(node.id)) || [],
         })]));
 
         rawLinks.forEach((link) => {
@@ -153,9 +226,15 @@
             const target = String(link.target);
             if (nodeMap.has(source)) {
                 nodeMap.get(source).degree += 1;
+                if (!nodeMap.get(source).neighbors.includes(target)) {
+                    nodeMap.get(source).neighbors.push(target);
+                }
             }
             if (nodeMap.has(target)) {
                 nodeMap.get(target).degree += 1;
+                if (!nodeMap.get(target).neighbors.includes(source)) {
+                    nodeMap.get(target).neighbors.push(source);
+                }
             }
         });
 
@@ -166,6 +245,8 @@
         return {
             nodes,
             links: rawLinks,
+            adjacency: Object.fromEntries(Array.from(nodeMap.keys()).map((nodeId) => [nodeId, nodeMap.get(nodeId).neighbors || []])),
+            nodeIndex: graph && graph.nodeIndex && typeof graph.nodeIndex === 'object' ? graph.nodeIndex : Object.fromEntries(nodes.map((node, index) => [String(node.id), index])),
             stats: graph && graph.stats ? graph.stats : {
                 nodeCount: nodes.length,
                 linkCount: rawLinks.length,
@@ -177,6 +258,7 @@
     window.ThemisDBGraphV2.GraphStore = {
         buildGraphModel,
         calculateVisibleGraph,
+        getReductionProfile,
         resolveHitNode,
     };
 })();

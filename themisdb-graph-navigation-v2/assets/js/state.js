@@ -17,7 +17,7 @@
         },
         filters: {
             minDegree: 0,
-            maxVisibleNodes: (window.themisdbGraphV2 && window.themisdbGraphV2.settings && window.themisdbGraphV2.settings.maxVisibleNodes) || 250,
+            maxVisibleNodes: (window.themisdbGraphV2 && window.themisdbGraphV2.settings && window.themisdbGraphV2.settings.maxVisibleNodes) || 120,
             showLabels: true,
             showExternal: (window.themisdbGraphV2 && window.themisdbGraphV2.settings && window.themisdbGraphV2.settings.showExternal !== undefined)
                 ? Boolean(window.themisdbGraphV2.settings.showExternal)

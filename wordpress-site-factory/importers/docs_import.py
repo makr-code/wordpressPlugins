@@ -186,43 +186,25 @@ def build_blog_documents_from_sources(sources_root: Path) -> List[Dict[str, Any]
         return documents
 
     page_content_root = sources_root.parent
-    for folder in sorted(path for path in sources_root.iterdir() if path.is_dir()):
-        if folder.name.startswith("_"):
-            continue
-        article_path = folder / "article.md"
-        meta_path = folder / "meta.json"
-        meta: Dict[str, Any] = {}
+    folder_modes = [path for path in sorted(sources_root.iterdir()) if path.is_dir() and not path.name.startswith("_")]
 
-        if article_path.exists() and meta_path.exists():
-            try:
-                meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            except Exception:
-                meta = {}
-        else:
-            legacy_candidates = [
-                path
-                for path in sorted(folder.glob("*.md"))
-                if path.is_file() and not path.name.endswith((".duplicate", ".bak", ".bak2"))
-            ]
-            if not legacy_candidates:
-                continue
-            article_path = legacy_candidates[0]
-            meta = {}
-
+    def _build_entry_from_path(article_path: Path, folder_label: str = "", meta: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+        if not article_path.is_file() or article_path.name.endswith((".duplicate", ".bak", ".bak2")):
+            return None
         content = article_path.read_text(encoding="utf-8", errors="replace")
-        legacy_hint = load_legacy_status_hint(page_content_root, folder.name)
+        legacy_hint = load_legacy_status_hint(page_content_root, folder_label) if folder_label else {}
         derived_title = extract_markdown_title(article_path)
-        title = str(meta.get("title") or derived_title or legacy_hint.get("title") or folder.name).strip() or folder.name
-        slug = str(meta.get("slug") or legacy_hint.get("wp_slug") or "").strip() or slugify_text(title)
+        title = str((meta or {}).get("title") or derived_title or legacy_hint.get("title") or article_path.stem).strip() or article_path.stem
+        slug = str((meta or {}).get("slug") or legacy_hint.get("wp_slug") or "").strip() or slugify_text(title)
         last_modified = datetime.fromtimestamp(article_path.stat().st_mtime, tz=timezone.utc).isoformat()
-        category = str(meta.get("category") or "Blog").strip() or "Blog"
-        tags = coerce_term_list(meta.get("tags", []))
-        excerpt = str(meta.get("excerpt") or "").strip()
-        status = str(meta.get("status") or "draft").strip().lower()
-        published_date = str(meta.get("date") or legacy_hint.get("date") or "").strip()
+        category = str((meta or {}).get("category") or "Blog").strip() or "Blog"
+        tags = coerce_term_list((meta or {}).get("tags", []))
+        excerpt = str((meta or {}).get("excerpt") or "").strip()
+        status = str((meta or {}).get("status") or "draft").strip().lower()
+        published_date = str((meta or {}).get("date") or legacy_hint.get("date") or "").strip()
         published_at = normalize_iso_datetime(f"{published_date}T09:00:00+00:00") if published_date else last_modified
 
-        doc = {
+        return {
             "title": title,
             "slug": slug,
             "kind": "blog",
@@ -241,9 +223,9 @@ def build_blog_documents_from_sources(sources_root: Path) -> List[Dict[str, Any]
             "allow_unrestricted_tags": True,
             "legacy_wp_id": legacy_hint.get("wp_id") or "",
             "metadata": {
-                "author": meta.get("author") or "ThemisDB",
-                "coauthors": meta.get("coauthors") or [],
-                "language": meta.get("language") or "de",
+                "author": (meta or {}).get("author") or "ThemisDB",
+                "coauthors": (meta or {}).get("coauthors") or [],
+                "language": (meta or {}).get("language") or "de",
                 "source_origin": "page-content-blog/sources",
                 "source_path": str(article_path),
                 "summary": excerpt,
@@ -260,7 +242,49 @@ def build_blog_documents_from_sources(sources_root: Path) -> List[Dict[str, Any]
                 "review_flags": [],
             },
         }
-        documents.append(doc)
+
+    if folder_modes:
+        for folder in folder_modes:
+            article_path = folder / "article.md"
+            meta_path = folder / "meta.json"
+            meta: Dict[str, Any] = {}
+
+            if article_path.exists() and meta_path.exists():
+                try:
+                    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                except Exception:
+                    meta = {}
+            else:
+                legacy_candidates = [
+                    path
+                    for path in sorted(folder.glob("*.md"))
+                    if path.is_file() and not path.name.endswith((".duplicate", ".bak", ".bak2"))
+                ]
+                if not legacy_candidates:
+                    continue
+                article_path = legacy_candidates[0]
+                meta = {}
+
+            entry = _build_entry_from_path(article_path, folder_label=folder.name, meta=meta)
+            if entry is not None:
+                documents.append(entry)
+        return documents
+
+    for path in sorted(sources_root.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in {".md", ".markdown", ".txt"}:
+            continue
+        if path.name.endswith((".duplicate", ".bak", ".bak2")):
+            continue
+        if path.name == "README.md":
+            continue
+        if any(part.startswith("_") for part in path.relative_to(sources_root).parts[:-1]):
+            continue
+
+        entry = _build_entry_from_path(path, folder_label=path.parent.name)
+        if entry is not None:
+            documents.append(entry)
     return documents
 
 
@@ -2180,6 +2204,8 @@ def run_import(
     include_low_quality: bool = False,
     blog_sources_root: Optional[Path] = None,
     update_only: bool = False,
+    offset: int = 0,
+    window_size: Optional[int] = None,
 ) -> Dict[str, Any]:
     if blog_sources_root is not None:
         all_docs = build_blog_documents_from_sources(blog_sources_root)
@@ -2197,7 +2223,16 @@ def run_import(
             skipped.append({"title": doc.get("title"), "slug": doc.get("slug"), "suitability": suitability})
             continue
         filtered_docs.append(doc)
-    docs = filtered_docs if limit is None else filtered_docs[:limit]
+
+    start_index = max(int(offset or 0), 0)
+    selection_size = window_size if window_size is not None else limit
+    if selection_size is not None:
+        selection_size = max(int(selection_size), 0)
+    if selection_size is None:
+        docs = filtered_docs[start_index:]
+    else:
+        docs = filtered_docs[start_index : start_index + selection_size]
+
     link_lookup = build_document_link_lookup(all_docs)
     if not dry_run and base_url and user and password:
         try:
@@ -2245,6 +2280,9 @@ def run_import(
         "source": source_label,
         "count": len(docs),
         "dry_run": dry_run,
+        "offset": start_index,
+        "window_size": selection_size,
+        "total_filtered": len(filtered_docs),
         "skipped": skipped,
         "results": results,
         "failed": failed,
@@ -2276,7 +2314,9 @@ def main() -> None:
     parser.add_argument("--user", default=DEFAULT_USER, help="WordPress user")
     parser.add_argument("--password", default=DEFAULT_PASSWORD, help="Application password")
     parser.add_argument("--dry-run", action="store_true", help="Compute what would be created/updated without sending requests")
-    parser.add_argument("--limit", type=int, default=None, help="Optional number of docs to process")
+    parser.add_argument("--offset", type=int, default=0, help="Start processing from this filtered-document offset")
+    parser.add_argument("--limit", type=int, default=None, help="Optional number of docs to process from the offset")
+    parser.add_argument("--window-size", "--batch-size", dest="window_size", type=int, default=None, help="Sliding window size for batch processing; equivalent to --limit when set")
     parser.add_argument("--include-low-quality", action="store_true", help="Process docs classified as needs_review or blocked")
     parser.add_argument("--update-only", action="store_true", help="Only update existing posts; skip creates when no post matches source slug/path/title")
     parser.add_argument("--json", action="store_true", help="Print JSON result")
@@ -2292,10 +2332,12 @@ def main() -> None:
         base_url=args.base_url,
         user=resolved_credentials["user"],
         password=resolved_credentials["password"],
-        limit=args.limit,
+        limit=args.limit if args.window_size is None else None,
         include_low_quality=args.include_low_quality,
         blog_sources_root=blog_root,
         update_only=args.update_only,
+        offset=args.offset,
+        window_size=args.window_size,
     )
     if args.json:
         payload = {

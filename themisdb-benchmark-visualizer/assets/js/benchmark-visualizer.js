@@ -15,6 +15,7 @@
         currentSlideIndex: 0,
         autoRotateTimer: null,
         autoRotatePaused: false,
+        renderQueueToken: 0,
 
         /**
          * Initialize the visualizer
@@ -77,6 +78,13 @@
         /**
          * Setup event listeners
          */
+        closeControlPanels: function() {
+            $('.themisdb-benchmark-menu').removeClass('is-open');
+            $('.themisdb-benchmark-menu-toggle').attr('aria-expanded', 'false');
+            $('.themisdb-split-button').removeClass('is-open');
+            $('.themisdb-split-button__toggle').attr('aria-expanded', 'false');
+        },
+
         setupEventListeners: function() {
             const self = this;
 
@@ -85,18 +93,28 @@
                 e.stopPropagation();
                 const $menu = $(this).closest('.themisdb-benchmark-menu');
                 const isOpen = $menu.hasClass('is-open');
-                $('.themisdb-benchmark-menu').removeClass('is-open');
-                $('.themisdb-benchmark-menu-toggle').attr('aria-expanded', 'false');
+                self.closeControlPanels();
                 if (!isOpen) {
                     $menu.addClass('is-open');
                     $(this).attr('aria-expanded', 'true');
+                    $(this).attr('aria-label', $(this).attr('aria-label') || 'Diagramm-Optionen');
+                    self.pauseAutoRotate();
+                } else {
+                    self.startAutoRotate();
                 }
             });
 
             $(document).on('click', function(event) {
-                if (!$(event.target).closest('.themisdb-benchmark-menu').length) {
-                    $('.themisdb-benchmark-menu').removeClass('is-open');
-                    $('.themisdb-benchmark-menu-toggle').attr('aria-expanded', 'false');
+                if (!$(event.target).closest('.themisdb-benchmark-menu, .themisdb-split-button').length) {
+                    self.closeControlPanels();
+                    self.startAutoRotate();
+                }
+            });
+
+            $(document).on('keydown', function(event) {
+                if (event.key === 'Escape' || event.key === 'Esc') {
+                    self.closeControlPanels();
+                    self.startAutoRotate();
                 }
             });
 
@@ -105,8 +123,7 @@
                 e.stopPropagation();
                 const $group = $(this).closest('.themisdb-split-button');
                 const willOpen = !$group.hasClass('is-open');
-                $('.themisdb-split-button').removeClass('is-open');
-                $('.themisdb-split-button__toggle').attr('aria-expanded', 'false');
+                self.closeControlPanels();
                 if (willOpen) {
                     $group.addClass('is-open');
                     $(this).attr('aria-expanded', 'true');
@@ -116,18 +133,11 @@
                 }
             });
 
-            $(document).on('click', function(event) {
-                if (!$(event.target).closest('.themisdb-split-button').length) {
-                    $('.themisdb-split-button').removeClass('is-open');
-                    $('.themisdb-split-button__toggle').attr('aria-expanded', 'false');
-                    self.startAutoRotate();
-                }
-            });
-
             $('.themisdb-benchmark-panel').on('mouseenter focusin', function() {
                 self.pauseAutoRotate();
             }).on('mouseleave focusout', function(event) {
-                if (!$(event.currentTarget).find(':focus').length && !$(event.currentTarget).find('.themisdb-benchmark-menu.is-open').length) {
+                const hasOpenControl = $('.themisdb-benchmark-menu.is-open, .themisdb-split-button.is-open').length > 0;
+                if (!$(event.currentTarget).find(':focus').length && !hasOpenControl) {
                     self.startAutoRotate();
                 }
             });
@@ -194,12 +204,15 @@
                     metric: metric
                 },
                 success: function(response) {
-                    if (response.success) {
+                    if (response.success && response.data) {
                         self.rawData = response.data;
                         self.currentSlideIndex = 0;
                         self.rebuildEngineFilterOptions();
                         self.applyClientFiltersAndRender();
                     } else {
+                        self.rawData = null;
+                        self.currentData = null;
+                        self.showFallbackChartState('No benchmark data is available for the current filters.');
                         self.showError('Failed to load benchmark data');
                     }
                     self.hideLoading();
@@ -231,21 +244,46 @@
         },
 
         applyClientFiltersAndRender: function() {
-            if (!this.rawData) return;
+            if (!this.rawData) {
+                this.showFallbackChartState('No benchmark data is available.');
+                return;
+            }
             try {
                 this.currentData = this.buildFilteredData(this.rawData);
+                if (!this.currentData || !Array.isArray(this.currentData.labels) || !this.currentData.labels.length || !Array.isArray(this.currentData.datasets) || !this.currentData.datasets.length) {
+                    this.showFallbackChartState('No benchmark data matches the selected filters.');
+                    return;
+                }
                 this.currentSlideIndex = 0;
                 this.renderChart();
                 this.renderSliderMeta();
-                this.renderMermaidDiagram();
-                this.renderResultsTable();
-                this.generateInsights();
-                this.startAutoRotate();
+                this.queueSecondaryRender();
             } catch (error) {
                 console.error('ThemisDB benchmark rendering failed:', error);
                 this.hideLoading();
                 this.showFallbackChartState('The benchmark chart could not be rendered. Please try a different filter combination.');
             }
+        },
+
+        queueSecondaryRender: function() {
+            const token = ++this.renderQueueToken;
+            const self = this;
+
+            if (typeof window.requestAnimationFrame === 'function') {
+                window.requestAnimationFrame(function() {
+                    if (token !== self.renderQueueToken || !self.currentData) return;
+                    self.renderMermaidDiagram();
+                    self.renderResultsTable();
+                    self.generateInsights();
+                    self.startAutoRotate();
+                });
+                return;
+            }
+
+            this.renderMermaidDiagram();
+            this.renderResultsTable();
+            this.generateInsights();
+            this.startAutoRotate();
         },
 
         buildFilteredData: function(sourceData) {
@@ -396,15 +434,27 @@
                 : 0;
 
             $('#bv-slide-title').text(dataset.label || 'Benchmark');
-            $('#bv-slide-value').text(avg.toFixed(2));
-            $('#bv-slide-unit').text(unit);
-            $('#bv-slide-summary').text(
-                metric === 'throughput'
-                    ? 'Higher throughput indicates better sustained capacity under demand.'
-                    : metric === 'memory'
-                        ? 'Lower memory footprint reduces overhead and improves efficiency.'
-                        : 'Lower is better for latency-sensitive reads and retrieval workloads.'
-            );
+
+            const $slideValue = $('#bv-slide-value');
+            if ($slideValue.length) {
+                $slideValue.text(avg.toFixed(2));
+            }
+
+            const $slideUnit = $('#bv-slide-unit');
+            if ($slideUnit.length) {
+                $slideUnit.text(unit);
+            }
+
+            const $slideSummary = $('#bv-slide-summary');
+            if ($slideSummary.length) {
+                $slideSummary.text(
+                    metric === 'throughput'
+                        ? 'Higher throughput indicates better sustained capacity under demand.'
+                        : metric === 'memory'
+                            ? 'Lower memory footprint reduces overhead and improves efficiency.'
+                            : 'Lower is better for latency-sensitive reads and retrieval workloads.'
+                );
+            }
 
             $('#bv-summary-avg').text(avg.toFixed(2) + ' ' + unit);
             $('#bv-summary-fastest').text(bestValue.toFixed(2) + ' ' + unit);
@@ -431,24 +481,9 @@
          * Render chart using Chart.js
          */
         updateFocusState: function(activeIndex) {
-            const focus = document.getElementById('themisdb-benchmark-focus');
-            if (!focus || !this.currentData || !Array.isArray(this.currentData.labels) || !Array.isArray(this.currentData.datasets)) {
+            if (!this.currentData || !Array.isArray(this.currentData.labels) || !Array.isArray(this.currentData.datasets)) {
                 return;
             }
-
-            const label = this.currentData.labels[activeIndex] || 'Vector Search';
-            const datasetIndex = ((this.currentSlideIndex % this.currentData.datasets.length) + this.currentData.datasets.length) % this.currentData.datasets.length;
-            const dataset = this.currentData.datasets[datasetIndex] || this.currentData.datasets[0] || {};
-            const value = Array.isArray(dataset.data) && dataset.data[activeIndex] !== undefined ? dataset.data[activeIndex] : 0;
-            const metric = $('#bv-metric-filter').val() || 'latency';
-            const unit = this.getMetricUnit(metric);
-
-            const titleEl = document.getElementById('themisdb-benchmark-focus__title');
-            const valueEl = document.getElementById('bv-slide-value');
-            const unitEl = document.getElementById('bv-slide-unit');
-            if (titleEl) titleEl.textContent = label;
-            if (valueEl) valueEl.textContent = Number(value).toFixed(2);
-            if (unitEl) unitEl.textContent = unit;
 
             const panel = document.querySelector('.themisdb-benchmark-panel');
             if (panel) {
@@ -457,8 +492,6 @@
         },
 
         hideFocusState: function() {
-            const focus = document.getElementById('themisdb-benchmark-focus');
-            if (!focus) return;
             const panel = document.querySelector('.themisdb-benchmark-panel');
             if (panel) {
                 panel.classList.remove('chart-hovered');
@@ -466,7 +499,10 @@
         },
 
         renderChart: function() {
-            if (!this.currentData) return;
+            if (!this.currentData || !Array.isArray(this.currentData.labels) || !this.currentData.labels.length || !Array.isArray(this.currentData.datasets) || !this.currentData.datasets.length) {
+                this.showFallbackChartState('No benchmark data is available for the selected view.');
+                return;
+            }
             const ctx = document.getElementById('themisdb-benchmark-chart');
             if (!ctx) return;
 
@@ -483,14 +519,15 @@
             }
 
             const self = this;
+            const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
             const baseStyle = {
                 borderWidth: 0,
                 borderRadius: 6,
                 borderSkipped: false,
                 borderAlign: 'center',
-                pointRadius: chartType === 'line' ? 4 : 0,
-                pointHoverRadius: chartType === 'line' ? 6 : 0,
+                pointRadius: chartType === 'line' ? 3 : 0,
+                pointHoverRadius: chartType === 'line' ? 5 : 0,
                 pointBackgroundColor: 'rgba(255, 255, 255, 0.95)',
                 pointBorderWidth: 2,
                 pointBorderColor: 'rgba(59, 130, 246, 0.9)',
@@ -516,11 +553,11 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: {
-                        duration: 900,
-                        easing: 'easeOutQuart',
+                    animation: prefersReducedMotion ? false : {
+                        duration: 220,
+                        easing: 'easeOutCubic',
                         delay: function(context) {
-                            return context.type === 'data' ? context.dataIndex * 25 + context.datasetIndex * 15 : 0;
+                            return context.type === 'data' ? Math.min(context.dataIndex * 8 + context.datasetIndex * 4, 32) : 0;
                         }
                     },
                     interaction: {
@@ -560,14 +597,14 @@
                             display: false
                         },
                         legend: {
-                            display: this.currentData && Array.isArray(this.currentData.datasets) && this.currentData.datasets.length > 1,
+                            display: this.currentData && Array.isArray(this.currentData.datasets) && this.currentData.datasets.length > 1 && this.currentData.datasets.length <= 5,
                             position: 'bottom',
                             labels: {
                                 color: '#334155',
                                 boxWidth: 10,
                                 usePointStyle: true,
                                 pointStyle: 'circle',
-                                padding: 14
+                                padding: 10
                             }
                         },
                         tooltip: {

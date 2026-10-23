@@ -14,7 +14,7 @@ final class ThemisDB_Graph_Settings {
     public static function default_values() {
         return array(
             'enable_gpu' => true,
-            'max_visible_nodes' => 250,
+            'max_visible_nodes' => 120,
             'include_external' => true,
             'cache_seconds' => HOUR_IN_SECONDS,
             'data_mode' => 'all',
@@ -182,7 +182,7 @@ final class ThemisDB_Graph_Settings {
                     <tr>
                         <th scope="row"><?php esc_html_e('Max visible nodes', 'themisdb-graph-navigation-v2'); ?></th>
                         <td>
-                            <input type="number" min="20" max="1000" step="10" name="themisdb_graph_nav_v2_max_visible_nodes" value="<?php echo esc_attr((int) ThemisDB_Graph_Settings::get('max_visible_nodes', 250)); ?>" />
+                            <input type="number" min="20" max="1000" step="10" name="themisdb_graph_nav_v2_max_visible_nodes" value="<?php echo esc_attr((int) ThemisDB_Graph_Settings::get('max_visible_nodes', 120)); ?>" />
                         </td>
                     </tr>
                     <tr>

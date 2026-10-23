@@ -308,7 +308,6 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                         <option value="20" <?php selected(get_option('themisdb_bv_default_top_n', '30'), '20'); ?>>20</option>
                         <option value="30" <?php selected(get_option('themisdb_bv_default_top_n', '30'), '30'); ?>>30</option>
                         <option value="50" <?php selected(get_option('themisdb_bv_default_top_n', '30'), '50'); ?>>50</option>
-                        <option value="all" <?php selected(get_option('themisdb_bv_default_top_n', '30'), 'all'); ?>><?php _e('All', 'themisdb-benchmark-visualizer'); ?></option>
                     </select>
                     <p class="description">
                         <?php _e('Initial number of tasks shown before user filtering.', 'themisdb-benchmark-visualizer'); ?>

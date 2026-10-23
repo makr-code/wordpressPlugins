@@ -2348,15 +2348,13 @@ function themisdb_v3_render_read_time_shortcode( $atts = array() ) {
  */
 function themisdb_v3_render_breadcrumbs_shortcode() {
     $html = '<nav class="tv3-breadcrumbs" aria-label="' . esc_attr__( 'Breadcrumb-Navigation', 'themisdb-v3' ) . '" data-tv3-anchor-nav="true" data-tv3-breadcrumb-before="1" data-tv3-breadcrumb-after="3">';
-    $html .= '<ol class="tv3-breadcrumbs-list" itemscope itemtype="https://schema.org/BreadcrumbList" data-tv3-anchor-list="true" data-tv3-anchor-limit="8" data-tv3-breadcrumb-before="1" data-tv3-breadcrumb-after="3">';
+    $html .= '<ol class="tv3-breadcrumbs-list" itemscope itemtype="https://schema.org/BreadcrumbList" data-tv3-anchor-list="true" data-tv3-breadcrumb-before="1" data-tv3-breadcrumb-after="3">';
     $html .= '<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--home" data-tv3-home-breadcrumb="1" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">';
     $html .= '<a href="' . esc_url( home_url( '/' ) ) . '" itemprop="item">';
     $html .= '<span itemprop="name">' . esc_html__( 'Start', 'themisdb-v3' ) . '</span>';
     $html .= '</a>';
     $html .= '<meta itemprop="position" content="1" />';
     $html .= '</li>';
-    $html .= '<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--ellipsis" data-tv3-breadcrumbs-leading="1" aria-hidden="true" style="display:none;">…</li>';
-    $html .= '<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--ellipsis" data-tv3-breadcrumbs-trailing="1" aria-hidden="true" style="display:none;">…</li>';
     $html .= '<li class="tv3-breadcrumbs-item tv3-breadcrumbs-item--progress" data-tv3-reading-progress-breadcrumb="1" aria-live="polite"><span>0% gelesen</span></li>';
     $html .= '</ol></nav>';
 

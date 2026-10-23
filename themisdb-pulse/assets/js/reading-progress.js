@@ -5,6 +5,18 @@
         return Math.min(max, Math.max(min, value));
     }
 
+    function resolveAnchorLimit(nav) {
+        var value = nav && nav.getAttribute('data-tv3-anchor-limit');
+        if (value !== null && value !== undefined && value !== '') {
+            var parsed = toInt(value, Number.MAX_SAFE_INTEGER);
+            if (Number.isFinite(parsed) && parsed > 0) {
+                return parsed;
+            }
+        }
+
+        return Number.MAX_SAFE_INTEGER;
+    }
+
     function toInt(value, fallback) {
         var parsed = parseInt(value, 10);
         return Number.isFinite(parsed) ? parsed : fallback;
@@ -47,7 +59,24 @@
     }
 
     function pickReadingTarget() {
+        var body = document.body;
+        if (body && isVisibleNode(body)) {
+            return body;
+        }
+
+        var siteBlocks = document.querySelector('.wp-site-blocks');
+        if (siteBlocks && isVisibleNode(siteBlocks)) {
+            return siteBlocks;
+        }
+
+        var frontMain = document.querySelector('.tv3-front-main');
+        if (frontMain && isVisibleNode(frontMain)) {
+            return frontMain;
+        }
+
         var selectors = [
+            'body',
+            '.wp-site-blocks',
             '.tv3-page-content-card .wp-block-post-content',
             '.wp-block-post-content',
             '.tv3-front-main',
@@ -81,13 +110,85 @@
         return bestNode;
     }
 
+    function isCardGridTitle(node) {
+        if (!node) {
+            return false;
+        }
+
+        var overlayAncestor = node.closest(
+            '.themisdb-benchmark-overlay, .themisdb-benchmark-focus, .themisdb-visualizer, [class*="benchmark-overlay"], [class*="benchmark-focus"]'
+        );
+        if (overlayAncestor) {
+            return true;
+        }
+
+        var className = node.className || '';
+        if (typeof className === 'string' && /(^|\s)[a-z0-9_-]*(?:card|tile)(?:[a-z0-9_-]*)(?=\s|$)/i.test(className)) {
+            return true;
+        }
+
+        var cardAncestor = node.closest(
+            '.tv3-docs-grid-card, .tv3-feature-card, .tv3-product-card, .tv3-pricing-card, .tv3-download-card, .tv3-card, .tv3-blog-card'
+        );
+        return !!cardAncestor;
+    }
+
+    function isAnchorTargetHeading(node) {
+        if (!node || !node.textContent || !node.tagName) {
+            return false;
+        }
+
+        if (node.tagName && node.tagName.toLowerCase() !== 'h2') {
+            return false;
+        }
+
+        if (node.closest('nav, header, footer, .tv3-breadcrumbs, .wp-block-navigation, .widget, .sidebar, .menu, .pagination, .wp-block-post-template, .wp-block-query, .wp-block-posts, .wp-block-latest-posts, .wp-block-post-title')) {
+            return false;
+        }
+
+        if (node.closest('.themisdb-front-slider, .themisdb-fs-slide-content, .tv3-hero-slider-shell, .tv3-frontpage-hero-shell, .themisdb-benchmark-headline, .themisdb-benchmark-overlay, .themisdb-benchmark-focus, .themisdb-visualizer, [class*="benchmark-overlay"], [class*="benchmark-focus"], [class*="benchmark-headline"]')) {
+            return false;
+        }
+
+        if (isCardGridTitle(node)) {
+            return false;
+        }
+
+        var className = node.className || '';
+        if (typeof className === 'string' && /(^|\s)(tv3-[a-z-]*card-title|card-title)(?=\s|$)/i.test(className)) {
+            return false;
+        }
+
+        if (typeof className === 'string' && /(^|\s)(themisdb-fs-title|la-section-title|benchmark-headline)(?=\s|$)/i.test(className)) {
+            return false;
+        }
+
+        var text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!text || text.length < 3) {
+            return false;
+        }
+
+        var rect = node.getBoundingClientRect ? node.getBoundingClientRect() : null;
+        if (rect && rect.width === 0 && rect.height === 0) {
+            return false;
+        }
+
+        return true;
+    }
+
     function pickAnchorScope() {
         var selectors = [
+            'body',
+            '.wp-site-blocks',
             '.tv3-front-main',
             '.tv3-page-content-card .wp-block-post-content',
+            '.entry-content',
             '.wp-block-post-content',
             'main'
         ];
+
+        var bestNode = null;
+        var bestScore = -1;
 
         for (var i = 0; i < selectors.length; i++) {
             var node = document.querySelector(selectors[i]);
@@ -95,12 +196,19 @@
                 continue;
             }
 
-            if ((node.textContent || '').trim().length > 120) {
-                return node;
+            var headings = Array.prototype.slice.call(node.querySelectorAll('h2')).filter(isAnchorTargetHeading);
+            if (!headings.length) {
+                continue;
+            }
+
+            var score = headings.length + (node === document.body ? 25 : 0) + (node.classList && node.classList.contains('wp-site-blocks') ? 10 : 0) + (node.classList && node.classList.contains('wp-block-post-content') ? 4 : 0);
+            if (score > bestScore) {
+                bestNode = node;
+                bestScore = score;
             }
         }
 
-        return null;
+        return bestNode || document.querySelector('.tv3-front-main') || document.querySelector('main');
     }
 
     function collectSectionAnchors(limit) {
@@ -109,11 +217,15 @@
             return [];
         }
 
-        var headings = Array.prototype.slice.call(scope.querySelectorAll('h2, h3, h4'));
-        var filteredH2 = headings.filter(function (node) {
+        var headings = Array.prototype.slice.call(scope.querySelectorAll('h2'));
+        var visibleHeadings = headings.filter(isAnchorTargetHeading);
+
+        var prioritized = visibleHeadings.filter(function (node) {
             return node.tagName && node.tagName.toLowerCase() === 'h2';
         });
-        var source = filteredH2.length >= 3 ? filteredH2 : headings;
+        var source = prioritized.length ? prioritized.concat(visibleHeadings.filter(function (node) {
+            return !prioritized.includes(node);
+        })) : visibleHeadings;
 
         if (!source.length) {
             var paragraphNodes = Array.prototype.slice.call(scope.querySelectorAll('p'));
@@ -126,7 +238,7 @@
                     return false;
                 }
 
-                if (node.classList.contains('tv3-article-lead') || node.classList.contains('tv3-page-hero-excerpt')) {
+                if (node.classList && (node.classList.contains('tv3-article-lead') || node.classList.contains('tv3-page-hero-excerpt'))) {
                     return false;
                 }
 
@@ -167,7 +279,7 @@
                 heading.id = id;
             }
 
-            if (!id || seen[id]) {
+            if (id && seen[id]) {
                 continue;
             }
 
@@ -196,16 +308,10 @@
             return;
         }
 
-        var primary = null;
-        shells.forEach(function (shell) {
-            if (!primary && shell.querySelector('[data-tv3-anchor-nav], .tv3-hero-context-nav')) {
-                primary = shell;
-            }
+        var preferred = shells.filter(function (shell) {
+            return !!shell.querySelector('[data-tv3-anchor-nav], .tv3-hero-context-nav');
         });
-
-        if (!primary) {
-            primary = shells[0];
-        }
+        var primary = preferred.length ? preferred[0] : shells[0];
 
         shells.forEach(function (shell) {
             if (shell !== primary) {
@@ -234,8 +340,26 @@
             return;
         }
 
-        var primary = shells[0];
-        shells.slice(1).forEach(function (shell) {
+        var frontpageShells = shells.filter(function (shell) {
+            return shell.classList && shell.classList.contains('tv3-breadcrumbs-frontpage');
+        });
+
+        if (frontpageShells.length) {
+            shells.forEach(function (shell) {
+                if (!shell.classList || !shell.classList.contains('tv3-breadcrumbs-frontpage')) {
+                    if (shell.parentNode) {
+                        shell.parentNode.removeChild(shell);
+                    }
+                }
+            });
+            return;
+        }
+
+        var primary = shells.find(function (shell) {
+            return !!shell.querySelector('[data-tv3-anchor-nav], .tv3-breadcrumbs, [data-tv3-anchor-list]');
+        }) || shells[0];
+
+        shells.forEach(function (shell) {
             if (shell !== primary && shell.parentNode) {
                 shell.parentNode.removeChild(shell);
             }
@@ -299,139 +423,12 @@
             return;
         }
 
-        var requestedBefore = Number.isFinite(beforeCount) ? Math.max(0, beforeCount) : 1;
-        var requestedAfter = Number.isFinite(afterCount) ? Math.max(0, afterCount) : 3;
-        var ordered = items.filter(function (entry) {
-            return entry && entry.item && list.contains(entry.item);
-        });
-
-        if (!ordered.length) {
-            return;
-        }
-
-        var progressEntry = ordered.find(function (entry) {
-            return entry.id === '__progress__';
-        });
-        var baseItems = ordered.filter(function (entry) {
-            return entry.id !== '__progress__';
-        });
-
-        var homeEntry = baseItems.find(function (entry) {
-            return entry.id === '__start__';
-        }) || baseItems[0];
-        var generatedItems = baseItems.filter(function (entry) {
-            return entry.id !== '__start__';
-        });
-
-        if (!generatedItems.length) {
-            if (homeEntry && homeEntry.item) {
-                homeEntry.item.style.display = '';
-                homeEntry.item.hidden = false;
-            }
-            if (progressEntry && progressEntry.item) {
-                progressEntry.item.style.display = '';
-                progressEntry.item.hidden = false;
-            }
-            return;
-        }
-
-        var listWidth = list.clientWidth || list.getBoundingClientRect().width || 1200;
-        var estimatedItemWidth = 150;
-        var reservedWidth = 320;
-        var adaptiveVisible = Math.max(
-            1,
-            Math.min(
-                generatedItems.length,
-                Math.floor(Math.max(listWidth - reservedWidth, 220) / estimatedItemWidth)
-            )
-        );
-
-        var activeIndex = generatedItems.findIndex(function (entry) {
-            return entry.id === activeId;
-        });
-        if (activeIndex === -1) {
-            activeIndex = 0;
-        }
-
-        var minVisible = Math.max(1, requestedBefore + requestedAfter + 1);
-        var totalVisible = Math.max(minVisible, Math.min(adaptiveVisible, generatedItems.length));
-        var beforeVisible = Math.min(requestedBefore, activeIndex);
-        var afterVisible = Math.min(requestedAfter, Math.max(0, generatedItems.length - activeIndex - 1));
-
-        while (beforeVisible + afterVisible + 1 > totalVisible) {
-            if (afterVisible > 1) {
-                afterVisible -= 1;
-            } else if (beforeVisible > 0) {
-                beforeVisible -= 1;
-            } else {
-                break;
-            }
-        }
-
-        if (beforeVisible + afterVisible + 1 < totalVisible && generatedItems.length > totalVisible) {
-            var remainingAfter = Math.max(0, generatedItems.length - (activeIndex + 1));
-            if (remainingAfter > requestedAfter) {
-                afterVisible = Math.min(requestedAfter, totalVisible - beforeVisible - 1);
-            }
-        }
-
-        var startIndex = clamp(activeIndex - beforeVisible, 0, Math.max(0, generatedItems.length - (beforeVisible + afterVisible + 1)));
-        var visibleIds = {};
-        generatedItems.slice(startIndex, startIndex + beforeVisible + afterVisible + 1).forEach(function (entry) {
-            visibleIds[entry.id] = true;
-        });
-
-        var leadingEllipsis = list.querySelector('.tv3-breadcrumbs-item--ellipsis[data-tv3-breadcrumbs-leading="1"]');
-        var trailingEllipsis = list.querySelector('.tv3-breadcrumbs-item--ellipsis[data-tv3-breadcrumbs-trailing="1"]');
-        var shouldShowLeadingEllipsis = startIndex > 0;
-        var shouldShowTrailingEllipsis = startIndex + beforeVisible + afterVisible + 1 < generatedItems.length || (activeId === '__start__' && generatedItems.length > Math.max(2, requestedAfter + 1));
-
         Array.prototype.slice.call(list.children).forEach(function (itemNode) {
-            var isHome = homeEntry && homeEntry.item && itemNode === homeEntry.item;
-            var isProgress = progressEntry && progressEntry.item && itemNode === progressEntry.item;
-
-            if (isHome || isProgress) {
+            if (itemNode && itemNode.style) {
                 itemNode.style.display = '';
                 itemNode.hidden = false;
-                return;
             }
-
-            if (itemNode.classList && itemNode.classList.contains('tv3-breadcrumbs-item--ellipsis')) {
-                var showLeading = itemNode === leadingEllipsis && shouldShowLeadingEllipsis;
-                var showTrailing = itemNode === trailingEllipsis && shouldShowTrailingEllipsis;
-                itemNode.style.display = showLeading || showTrailing ? '' : 'none';
-                itemNode.hidden = !(showLeading || showTrailing);
-                return;
-            }
-
-            var isVisibleGenerated = !!generatedItems.find(function (entry) {
-                return entry.item === itemNode && visibleIds[entry.id];
-            });
-
-            itemNode.style.display = isVisibleGenerated ? '' : 'none';
-            itemNode.hidden = !isVisibleGenerated;
         });
-
-        if (leadingEllipsis) {
-            leadingEllipsis.style.display = startIndex > 0 ? '' : 'none';
-            leadingEllipsis.hidden = startIndex <= 0;
-        }
-
-        if (trailingEllipsis) {
-            var trailingVisible = startIndex + beforeVisible + afterVisible + 1 < generatedItems.length;
-            trailingEllipsis.style.display = trailingVisible ? '' : 'none';
-            trailingEllipsis.hidden = !trailingVisible;
-        }
-
-        if (homeEntry && homeEntry.item) {
-            homeEntry.item.style.display = '';
-            homeEntry.item.hidden = false;
-        }
-
-        if (progressEntry && progressEntry.item) {
-            progressEntry.item.style.display = '';
-            progressEntry.item.hidden = false;
-        }
     }
 
     function syncProgressBreadcrumbText(value) {
@@ -452,15 +449,19 @@
             return false;
         }
 
-        var currentSectionCount = collectSectionAnchors(clamp(toInt(nav.getAttribute('data-tv3-anchor-limit'), 8), 1, 12)).length;
-        var generatedCount = list ? list.querySelectorAll('li[data-tv3-anchor-generated="1"]').length : 0;
-        if (nav.getAttribute('data-tv3-anchor-ready') === '1' && generatedCount >= currentSectionCount && currentSectionCount > 0) {
-            console.log('TV3 Anchors: already ready with ' + currentSectionCount + ' sections');
-            return true;
+        var list;
+        var currentSectionCount = collectSectionAnchors(resolveAnchorLimit(nav)).length;
+        if (nav.getAttribute('data-tv3-anchor-ready') === '1') {
+            list = nav.querySelector('[data-tv3-anchor-list]') || nav.querySelector('.tv3-breadcrumbs-list');
+            var generatedCount = list ? list.querySelectorAll('li[data-tv3-anchor-generated="1"]').length : 0;
+            if (generatedCount >= currentSectionCount && currentSectionCount > 0) {
+                console.log('TV3 Anchors: already ready with ' + currentSectionCount + ' sections');
+                return true;
+            }
         }
 
         // Get the list to populate (either .tv3-breadcrumbs-list or [data-tv3-anchor-list])
-        var list = nav.querySelector('[data-tv3-anchor-list]') || nav.querySelector('.tv3-breadcrumbs-list');
+        list = nav.querySelector('[data-tv3-anchor-list]') || nav.querySelector('.tv3-breadcrumbs-list');
         if (!list) {
             if (nav.hasAttribute('data-tv3-anchor-list')) {
                 list = nav;
@@ -472,7 +473,7 @@
             return false;
         }
 
-        var limit = clamp(toInt(nav.getAttribute('data-tv3-anchor-limit'), 8), 1, 12);
+        var limit = resolveAnchorLimit(nav);
         var sections = collectSectionAnchors(limit);
         console.log('TV3 Anchors: found ' + sections.length + ' sections');
         nav.hidden = false;
@@ -572,15 +573,10 @@
             item.className = 'tv3-breadcrumbs-item';
             item.setAttribute('data-tv3-anchor-generated', '1');
 
-            var leadingEllipsis = list.querySelector('[data-tv3-breadcrumbs-leading="1"]');
-            var trailingEllipsis = list.querySelector('[data-tv3-breadcrumbs-trailing="1"]');
             var progressItem = list.querySelector('[data-tv3-reading-progress-breadcrumb="1"]');
-            var insertBeforeNode = trailingEllipsis || progressItem || null;
 
-            if (insertBeforeNode) {
-                list.insertBefore(item, insertBeforeNode);
-            } else if (leadingEllipsis) {
-                list.insertBefore(item, leadingEllipsis.nextSibling || null);
+            if (progressItem) {
+                list.insertBefore(item, progressItem);
             } else {
                 list.appendChild(item);
             }
@@ -649,9 +645,17 @@
             raf = false;
             var activationLine = getAnchorActivationLine();
             var current = '__start__';
+            var generatedAnchorItems = items.filter(function (entry) {
+                return entry && entry.id && entry.id !== '__start__' && entry.id !== '__progress__' && !!entry.node;
+            });
 
             if (window.scrollY <= 50) {
-                current = '__start__';
+                var isFrontpageBreadcrumbContext = !!document.querySelector('.tv3-breadcrumbs-frontpage') || document.body.classList.contains('home') || document.body.classList.contains('front-page');
+                if (isFrontpageBreadcrumbContext && generatedAnchorItems.length) {
+                    current = generatedAnchorItems[generatedAnchorItems.length - 1].id;
+                } else {
+                    current = '__start__';
+                }
             } else {
                 for (var i = 1; i < items.length; i++) {
                     var item = items[i];

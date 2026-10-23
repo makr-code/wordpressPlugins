@@ -19,6 +19,7 @@ final class ThemisDB_Graph_Normalizer {
         }
 
         $degree_counts = array_fill_keys(array_keys($node_map), 0);
+        $adjacency = array_fill_keys(array_keys($node_map), array());
         $link_map = array();
         foreach ((array) ($graph['links'] ?? array()) as $link) {
             if (!is_array($link)) {
@@ -51,21 +52,42 @@ final class ThemisDB_Graph_Normalizer {
 
             $degree_counts[$source] = (int) ($degree_counts[$source] ?? 0) + 1;
             $degree_counts[$target] = (int) ($degree_counts[$target] ?? 0) + 1;
+            $adjacency[$source][] = $target;
+            $adjacency[$target][] = $source;
+        }
+
+        foreach ($adjacency as $node_id => &$neighbors) {
+            $neighbors = array_values(array_unique(array_map('strval', $neighbors)));
+        }
+        unset($neighbors);
+
+        $node_index = array();
+        foreach (array_keys($node_map) as $index => $node_id) {
+            $node_index[$node_id] = (int) $index;
         }
 
         foreach ($node_map as $id => &$node) {
             $node['degree'] = (int) ($degree_counts[$id] ?? 0);
             $node['size'] = self::get_node_size($node['type'], $node['degree']);
             $node['clusterId'] = self::resolve_cluster_id($node['type']);
+            $node['neighbors'] = array_values($adjacency[$id] ?? array());
+            $node['featureVector'] = self::build_feature_vector($node);
         }
         unset($node);
 
         $clusters = self::build_clusters($node_map);
+        $node_ids = array_keys($node_map);
 
         return array(
             'nodes' => array_values($node_map),
             'links' => array_values($link_map),
+            'nodeIndex' => $node_index,
+            'adjacency' => $adjacency,
             'clusters' => $clusters,
+            'featureSpace' => array(
+                'dimension' => 7,
+                'labels' => array('level', 'degree', 'size', 'hasUrl', 'hasMetadata', 'type', 'weight'),
+            ),
             'stats' => array(
                 'nodeCount' => count($node_map),
                 'linkCount' => count($link_map),
@@ -73,6 +95,7 @@ final class ThemisDB_Graph_Normalizer {
                 'maxDegree' => max(array_merge(array(0), array_map(static function ($node) {
                     return (int) ($node['degree'] ?? 0);
                 }, $node_map))),
+                'featureVectorSize' => 7,
             ),
         );
     }
@@ -134,6 +157,39 @@ final class ThemisDB_Graph_Normalizer {
 
         $size = isset($base[$type]) ? $base[$type] : 14;
         return max(10, $size + (int) min(10, $degree / 2));
+    }
+
+    protected static function build_feature_vector($node) {
+        $type = isset($node['type']) ? (string) $node['type'] : 'generic';
+        $type_rank = array(
+            'home' => 0,
+            'category' => 1,
+            'tag' => 2,
+            'page' => 3,
+            'post' => 4,
+            'taxonomy_term' => 5,
+            'external_resource' => 6,
+            'generic' => 7,
+        );
+
+        $metadata = is_array($node['metadata'] ?? null) ? $node['metadata'] : array();
+        $degree = (int) ($node['degree'] ?? 0);
+        $level = (int) ($node['level'] ?? 0);
+        $size = (float) ($node['size'] ?? 14);
+        $has_url = !empty($node['url']) ? 1.0 : 0.0;
+        $has_metadata = !empty($metadata) ? 1.0 : 0.0;
+        $type_index = isset($type_rank[$type]) ? (float) $type_rank[$type] : 7.0;
+        $weight = isset($node['weight']) ? (float) $node['weight'] : 1.0;
+
+        return array(
+            (float) $level,
+            (float) $degree,
+            $size,
+            $has_url,
+            $has_metadata,
+            $type_index,
+            (float) $weight,
+        );
     }
 
     protected static function build_clusters($nodes) {

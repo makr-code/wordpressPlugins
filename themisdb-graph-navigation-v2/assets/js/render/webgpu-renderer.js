@@ -3,6 +3,10 @@
 
     window.ThemisDBGraphV2 = window.ThemisDBGraphV2 || {};
 
+    function vec2(x, y) {
+        return { x, y };
+    }
+
     function vec3(x, y, z) {
         return { x, y, z };
     }
@@ -92,23 +96,37 @@
             this.bindGroup = null;
             this.uniformBuffer = null;
             this.ready = false;
+            this.disabled = Boolean(window.ThemisDBGraphV2 && window.ThemisDBGraphV2.WebGPUBlocked);
         }
 
         async init() {
+            if (this.disabled) {
+                return false;
+            }
+
             const gpu = window.navigator && window.navigator.gpu;
             if (!gpu || typeof gpu.requestAdapter !== 'function') {
+                this.disabled = true;
+                window.ThemisDBGraphV2 = window.ThemisDBGraphV2 || {};
+                window.ThemisDBGraphV2.WebGPUBlocked = true;
                 return false;
             }
 
             try {
                 const adapter = await gpu.requestAdapter();
                 if (!adapter) {
+                    this.disabled = true;
+                    window.ThemisDBGraphV2 = window.ThemisDBGraphV2 || {};
+                    window.ThemisDBGraphV2.WebGPUBlocked = true;
                     return false;
                 }
 
                 this.device = await adapter.requestDevice();
                 this.context = this.canvas.getContext('webgpu');
                 if (!this.context) {
+                    this.disabled = true;
+                    window.ThemisDBGraphV2 = window.ThemisDBGraphV2 || {};
+                    window.ThemisDBGraphV2.WebGPUBlocked = true;
                     return false;
                 }
 
@@ -150,12 +168,16 @@
 
                         struct VertexInput {
                             @location(0) pos: vec3f,
-                            @location(1) color: vec4f,
+                            @location(1) localPos: vec2f,
+                            @location(2) color: vec4f,
+                            @location(3) isCircle: f32,
                         };
 
                         struct VertexOutput {
                             @builtin(position) position: vec4f,
                             @location(0) color: vec4f,
+                            @location(1) localPos: vec2f,
+                            @location(2) isCircle: f32,
                         };
 
                         @vertex
@@ -163,12 +185,20 @@
                             var output: VertexOutput;
                             output.position = uniforms.viewProj * vec4f(input.pos, 1.0);
                             output.color = input.color;
+                            output.localPos = input.localPos;
+                            output.isCircle = input.isCircle;
                             return output;
                         }
 
                         @fragment
-                        fn fs_main(@location(0) color: vec4f) -> @location(0) vec4f {
-                            return color;
+                        fn fs_main(input: VertexOutput) -> @location(0) vec4f {
+                            if (input.isCircle > 0.5) {
+                                let dist = length(input.localPos);
+                                if (dist > 1.0) {
+                                    discard;
+                                }
+                            }
+                            return input.color;
                         }
                     `,
                 });
@@ -181,10 +211,12 @@
                         module: shader,
                         entryPoint: 'vs_main',
                         buffers: [{
-                            arrayStride: 28,
+                            arrayStride: 40,
                             attributes: [
                                 { shaderLocation: 0, offset: 0, format: 'float32x3' },
-                                { shaderLocation: 1, offset: 12, format: 'float32x4' },
+                                { shaderLocation: 1, offset: 12, format: 'float32x2' },
+                                { shaderLocation: 2, offset: 20, format: 'float32x4' },
+                                { shaderLocation: 3, offset: 36, format: 'float32' },
                             ],
                         }],
                     },
@@ -201,7 +233,12 @@
                 this.ready = true;
                 return true;
             } catch (error) {
-                console.warn('WebGPU initialization failed:', error);
+                this.disabled = true;
+                window.ThemisDBGraphV2 = window.ThemisDBGraphV2 || {};
+                window.ThemisDBGraphV2.WebGPUBlocked = true;
+                if (window.themisdbGraphV2 && window.themisdbGraphV2.renderer) {
+                    window.themisdbGraphV2.renderer.allowExperimentalWebGPU = false;
+                }
                 return false;
             }
         }
@@ -209,6 +246,28 @@
         render(graph, state) {
             if (!this.ready || !this.device || !this.context || !this.pipeline || !this.bindGroup || !this.uniformBuffer) {
                 return false;
+            }
+
+            const rect = this.canvas.getBoundingClientRect ? this.canvas.getBoundingClientRect() : { width: this.canvas.width || 1, height: this.canvas.height || 1 };
+            const cssWidth = Math.max(1, Number(rect.width || this.canvas.clientWidth || this.canvas.width || 1));
+            const cssHeight = Math.max(1, Number(rect.height || this.canvas.clientHeight || this.canvas.height || 1));
+            const ratio = window.devicePixelRatio || 1;
+            const targetWidth = Math.max(1, Math.round(cssWidth * ratio));
+            const targetHeight = Math.max(1, Math.round(cssHeight * ratio));
+
+            if (this.canvas.width !== targetWidth || this.canvas.height !== targetHeight) {
+                this.canvas.width = targetWidth;
+                this.canvas.height = targetHeight;
+                this.canvas.style.width = cssWidth + 'px';
+                this.canvas.style.height = cssHeight + 'px';
+                const gpu = window.navigator && window.navigator.gpu;
+                if (gpu && this.context && this.device) {
+                    this.context.configure({
+                        device: this.device,
+                        format: gpu.getPreferredCanvasFormat(),
+                        alphaMode: 'premultiplied',
+                    });
+                }
             }
 
             const activeState = state || this.graphState || window.ThemisDBGraphV2.state;
@@ -220,8 +279,8 @@
 
             const selectedNodeId = activeState && activeState.selection ? activeState.selection.nodeId : null;
             const hoverNodeId = activeState && activeState.selection ? activeState.selection.hoverNodeId : null;
-            const width = Math.max(1, this.canvas.width || 1);
-            const height = Math.max(1, this.canvas.height || 1);
+            const width = cssWidth;
+            const height = cssHeight;
             const aspect = width / height;
             const baseNode = visibleNodes.find((node) => String(node.type || '').toLowerCase() === 'home')
                 || visibleNodes.find((node) => String(node.id || '') === String(selectedNodeId || ''))
@@ -250,17 +309,48 @@
             this.device.queue.writeBuffer(this.uniformBuffer, 0, viewProj);
 
             const vertexData = [];
-            const pushVertex = (position, color) => {
-                vertexData.push(position.x, position.y, position.z, color[0], color[1], color[2], color[3]);
+            const pushVertex = (position, localPos, color, isCircle) => {
+                vertexData.push(position.x, position.y, position.z, localPos.x, localPos.y, color[0], color[1], color[2], color[3], isCircle ? 1 : 0);
             };
 
-            const pushQuad = (a, b, c, d, color) => {
-                pushVertex(a, color);
-                pushVertex(b, color);
-                pushVertex(c, color);
-                pushVertex(a, color);
-                pushVertex(c, color);
-                pushVertex(d, color);
+            const pushLine = (start, end, color, thickness) => {
+                const direction = normalize(subtract(end, start));
+                const normal = normalize(cross(direction, vec3(0, 1, 0)));
+                const offset = multiply(normal, thickness);
+                const a = add(start, offset);
+                const b = subtract(start, offset);
+                const c = add(end, offset);
+                const d = subtract(end, offset);
+                pushVertex(a, vec2(0, 0), color, 0);
+                pushVertex(b, vec2(0, 0), color, 0);
+                pushVertex(c, vec2(0, 0), color, 0);
+                pushVertex(a, vec2(0, 0), color, 0);
+                pushVertex(c, vec2(0, 0), color, 0);
+                pushVertex(d, vec2(0, 0), color, 0);
+            };
+
+            const pushCircleNode = (center, radius, color) => {
+                const segments = 20;
+                for (let index = 0; index < segments; index += 1) {
+                    const angleA = (index / segments) * Math.PI * 2;
+                    const angleB = ((index + 1) / segments) * Math.PI * 2;
+                    const pointA = vec3(
+                        center.x + Math.cos(angleA) * radius,
+                        center.y + Math.sin(angleA) * radius,
+                        center.z
+                    );
+                    const pointB = vec3(
+                        center.x + Math.cos(angleB) * radius,
+                        center.y + Math.sin(angleB) * radius,
+                        center.z
+                    );
+                    const localA = vec2(Math.cos(angleA), Math.sin(angleA));
+                    const localB = vec2(Math.cos(angleB), Math.sin(angleB));
+
+                    pushVertex(center, vec2(0, 0), color, 1);
+                    pushVertex(pointA, localA, color, 1);
+                    pushVertex(pointB, localB, color, 1);
+                }
             };
 
             const edgeColorForType = (type) => {
@@ -279,36 +369,21 @@
                     return;
                 }
 
-                const direction = normalize(subtract(target.world, source.world));
-                const side = normalize(cross(direction, vec3(0, 1, 0)));
-                const thickness = Math.max(0.03, Number(link.weight || 1) * 0.05);
-                const offset = multiply(side, thickness);
-                const a = add(source.world, offset);
-                const b = subtract(source.world, offset);
-                const c = add(target.world, offset);
-                const d = subtract(target.world, offset);
                 const color = edgeColorForType(link.type);
-                pushQuad(a, b, c, d, color);
+                const thickness = Math.max(0.015, Number(link.weight || 1) * 0.012);
+                pushLine(source.world, target.world, color, thickness);
             });
 
             visibleNodes.forEach((node) => {
                 const world = worldNodeMap.get(String(node.id)) ? (worldNodeMap.get(String(node.id)).world) : vec3(0, 0, 0);
-                const size = Math.max(0.18, Number(node.size || 14) * 0.02);
+                const size = Math.max(0.15, Number(node.size || 14) * 0.02);
                 const isSelected = String(selectedNodeId || '') === String(node.id || '');
                 const isHovered = String(hoverNodeId || '') === String(node.id || '');
                 const color = isSelected
                     ? this.hexToRgba('#f8fafc')
                     : (isHovered ? this.hexToRgba('#7dd3fc') : this.hexToRgba(node.color || '#7c4dff'));
 
-                const forward = normalize(subtract(cameraEye, world));
-                const right = normalize(cross(forward, cameraUp));
-                const up = normalize(cross(right, forward));
-                const half = size * 0.65;
-                const p1 = add(world, add(multiply(right, -half), multiply(up, -half)));
-                const p2 = add(world, add(multiply(right, half), multiply(up, -half)));
-                const p3 = add(world, add(multiply(right, half), multiply(up, half)));
-                const p4 = add(world, add(multiply(right, -half), multiply(up, half)));
-                pushQuad(p1, p2, p3, p4, color);
+                pushCircleNode(world, size, color);
             });
 
             if (!vertexData.length) {
@@ -335,7 +410,7 @@
             pass.setPipeline(this.pipeline);
             pass.setBindGroup(0, this.bindGroup);
             pass.setVertexBuffer(0, vertexBuffer);
-            pass.draw(vertexData.length / 7, 1, 0, 0);
+            pass.draw(vertexData.length / 10, 1, 0, 0);
             pass.end();
 
             this.device.queue.submit([encoder.finish()]);

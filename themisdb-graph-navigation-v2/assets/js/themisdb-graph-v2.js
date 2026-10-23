@@ -22,6 +22,23 @@
     }
 
     const graphAnimations = new WeakMap();
+    const graphRenderQueue = new WeakMap();
+
+    function scheduleGraphRender(container, graphData, state) {
+        if (!container || !graphData) {
+            return;
+        }
+
+        if (graphRenderQueue.has(container)) {
+            return;
+        }
+
+        graphRenderQueue.set(container, true);
+        requestAnimationFrame(() => {
+            graphRenderQueue.delete(container);
+            renderGraph(container, graphData, state);
+        });
+    }
 
     function getAnimationGraph(container, rawGraph, state) {
         const running = graphAnimations.get(container);
@@ -48,40 +65,59 @@
         const viewportHeight = Number(state && state.viewport ? state.viewport.height : 420) || 420;
         const centerX = viewportWidth / 2;
         const centerY = viewportHeight / 2;
-        const orbitRadius = Math.max(90, Math.min(viewportWidth, viewportHeight) * 0.28);
 
-        const clusters = new Map();
+        const clusterOrder = ['home', 'taxonomy', 'category', 'tag', 'page', 'post', 'generic', 'external_resource'];
+        const clusterBuckets = new Map();
         nodes.forEach((node) => {
-            const type = String(node.type || 'node');
-            if (!clusters.has(type)) {
-                clusters.set(type, []);
+            const type = String(node.type || 'generic');
+            const bucketKey = type === 'home'
+                ? 'home'
+                : (type === 'category' || type === 'tag' || type === 'taxonomy_term')
+                    ? 'taxonomy'
+                    : (type === 'page' || type === 'post')
+                        ? type
+                        : 'generic';
+            if (!clusterBuckets.has(bucketKey)) {
+                clusterBuckets.set(bucketKey, []);
             }
-            clusters.get(type).push(node);
+            clusterBuckets.get(bucketKey).push(node);
         });
 
-        const clusterKeys = Array.from(clusters.keys())
-            .filter((key) => key !== 'home')
-            .sort();
+        const orderedBuckets = clusterOrder
+            .map((key) => ({ key, nodes: clusterBuckets.get(key) || [] }))
+            .filter((entry) => entry.nodes.length > 0);
 
-        const centerCluster = clusters.get('home') || [];
-        centerCluster.forEach((node, index) => {
-            node.tx = centerX + Math.cos(index * 0.9) * 12;
-            node.ty = centerY + Math.sin(index * 0.9) * 12;
+        const homeNodes = clusterBuckets.get('home') || [];
+        homeNodes.forEach((node, index) => {
+            node.tx = centerX + Math.cos(index * 1.2) * 12;
+            node.ty = centerY + Math.sin(index * 1.2) * 12;
         });
 
-        clusterKeys.forEach((clusterKey, clusterIndex) => {
-            const group = clusters.get(clusterKey) || [];
-            const angle = (clusterIndex / Math.max(1, clusterKeys.length)) * Math.PI * 2;
-            const anchorX = centerX + Math.cos(angle) * orbitRadius;
-            const anchorY = centerY + Math.sin(angle) * (orbitRadius * 0.8);
-            const spread = Math.max(26, Math.min(88, Math.sqrt(group.length) * 12));
+        const taxonomyOrbit = Math.min(viewportWidth, viewportHeight) * 0.24;
+        const contentOrbit = Math.min(viewportWidth, viewportHeight) * 0.42;
+
+        orderedBuckets.forEach((bucket) => {
+            if (bucket.key === 'home') {
+                return;
+            }
+
+            const orbitRadius = bucket.key === 'taxonomy' ? taxonomyOrbit : contentOrbit;
+            const group = bucket.nodes;
+            const startAngle = bucket.key === 'taxonomy' ? Math.PI * 0.25 : Math.PI * 0.9;
+            const angleStep = (Math.PI * 2) / Math.max(1, group.length);
 
             group.forEach((node, index) => {
-                const localAngle = (index / Math.max(1, group.length)) * Math.PI * 2;
-                const localRadius = spread + ((index % 3) * 8);
-                node.tx = anchorX + Math.cos(localAngle) * localRadius;
-                node.ty = anchorY + Math.sin(localAngle) * localRadius;
+                const localAngle = startAngle + (index * angleStep);
+                const radialOffset = 18 + ((index % 5) * 10);
+                node.tx = centerX + Math.cos(localAngle) * (orbitRadius + radialOffset);
+                node.ty = centerY + Math.sin(localAngle) * (orbitRadius * 0.72 + radialOffset * 0.5);
             });
+        });
+
+        const floatingNodes = nodes.filter((node) => !node.tx && !node.ty);
+        floatingNodes.forEach((node, index) => {
+            node.tx = centerX + Math.cos(index * 0.7) * contentOrbit;
+            node.ty = centerY + Math.sin(index * 0.7) * contentOrbit * 0.8;
         });
     }
 
@@ -128,121 +164,35 @@
         }
 
         const nodes = simulation.nodes;
-        const links = simulation.links || [];
-        const effectiveDt = Math.max(0.6, Math.min(1.6, dt / 16.67));
-        simulation.alpha = Math.max(
-            Number(simulation.alphaTarget || 0.08),
-            Number(simulation.alpha || 0.9) * Math.pow(Number(simulation.cooling || 0.985), effectiveDt)
-        );
-        const alpha = Number(simulation.alpha || 0.08);
-        const repulsion = 2100 * (0.55 + alpha);
-        const springStrength = 0.015 + (0.028 * alpha);
-        const centerGravity = 0.11 + (0.15 * alpha);
-        const velocityDamping = 0.9 + ((1 - alpha) * 0.06);
-        const minDistance = 24;
-        const nodeById = new Map(nodes.map((node) => [String(node.id), node]));
-
-        for (let i = 0; i < nodes.length; i += 1) {
-            const node = nodes[i];
-            const level = Math.max(0, Number(node.level || 0));
-            const anchorStrength = (level <= 1 ? 0.008 : 0.0025) * alpha;
-            let fx = (Number(node.tx || 0) - Number(node.x || 0)) * anchorStrength;
-            let fy = (Number(node.ty || 0) - Number(node.y || 0)) * anchorStrength;
-
-            for (let j = 0; j < nodes.length; j += 1) {
-                if (i === j) {
-                    continue;
-                }
-                const other = nodes[j];
-                const dx = Number(node.x || 0) - Number(other.x || 0);
-                const dy = Number(node.y || 0) - Number(other.y || 0);
-                const distanceSq = Math.max(minDistance * minDistance, (dx * dx) + (dy * dy));
-                const force = (repulsion / distanceSq) * effectiveDt;
-                fx += (dx / Math.sqrt(distanceSq)) * force;
-                fy += (dy / Math.sqrt(distanceSq)) * force;
-            }
-
-            node.vx = (Number(node.vx || 0) + (fx * effectiveDt)) * velocityDamping;
-            node.vy = (Number(node.vy || 0) + (fy * effectiveDt)) * velocityDamping;
-        }
-
-        links.forEach((link) => {
-            const source = nodeById.get(String(link.source));
-            const target = nodeById.get(String(link.target));
-            if (!source || !target) {
-                return;
-            }
-
-            const dx = Number(target.x || 0) - Number(source.x || 0);
-            const dy = Number(target.y || 0) - Number(source.y || 0);
-            const distance = Math.max(1, Math.sqrt((dx * dx) + (dy * dy)));
-            const desired = 94 + ((Number(source.level || 0) + Number(target.level || 0)) * 12);
-            const stretch = (distance - desired) * springStrength * effectiveDt;
-            const nx = dx / distance;
-            const ny = dy / distance;
-
-            source.vx += nx * stretch;
-            source.vy += ny * stretch;
-            target.vx -= nx * stretch;
-            target.vy -= ny * stretch;
-        });
-
-        const viewportWidth = Number(state.viewport.width || 800);
-        const viewportHeight = Number(state.viewport.height || 420);
+        const effectiveDt = Math.max(0.6, Math.min(1.8, dt / 16.67));
+        const viewportWidth = Number(state && state.viewport ? state.viewport.width : 800) || 800;
+        const viewportHeight = Number(state && state.viewport ? state.viewport.height : 420) || 420;
         const centerX = viewportWidth / 2;
         const centerY = viewportHeight / 2;
-        const padding = 28;
-        const maxX = viewportWidth - padding;
-        const maxY = viewportHeight - padding;
-
-        for (let i = 0; i < nodes.length; i += 1) {
-            for (let j = i + 1; j < nodes.length; j += 1) {
-                const a = nodes[i];
-                const b = nodes[j];
-                const dx = Number(a.x || 0) - Number(b.x || 0);
-                const dy = Number(a.y || 0) - Number(b.y || 0);
-                const dist = Math.sqrt((dx * dx) + (dy * dy)) || 0.0001;
-                const ra = Math.max(9, Number(a.size || 12) * 0.55);
-                const rb = Math.max(9, Number(b.size || 12) * 0.55);
-                const minGap = ra + rb + 5;
-                if (dist >= minGap) {
-                    continue;
-                }
-
-                const overlap = (minGap - dist) / minGap;
-                const push = overlap * (0.9 + alpha) * effectiveDt;
-                const nx = dx / dist;
-                const ny = dy / dist;
-                a.vx += nx * push;
-                a.vy += ny * push;
-                b.vx -= nx * push;
-                b.vy -= ny * push;
-            }
-        }
 
         nodes.forEach((node) => {
-            node.vx += (centerX - Number(node.x || 0)) * centerGravity * 0.0018 * effectiveDt;
-            node.vy += (centerY - Number(node.y || 0)) * centerGravity * 0.0018 * effectiveDt;
-            node.vx = Math.max(-9, Math.min(9, Number(node.vx || 0)));
-            node.vy = Math.max(-9, Math.min(9, Number(node.vy || 0)));
+            const targetX = Number.isFinite(Number(node.tx)) ? Number(node.tx) : Number(node.x || centerX);
+            const targetY = Number.isFinite(Number(node.ty)) ? Number(node.ty) : Number(node.y || centerY);
+            const currentX = Number(node.x || targetX);
+            const currentY = Number(node.y || targetY);
+            const easing = 0.14 * effectiveDt;
+            const dx = targetX - currentX;
+            const dy = targetY - currentY;
 
-            node.x = Number(node.x || 0) + (Number(node.vx || 0) * effectiveDt);
-            node.y = Number(node.y || 0) + (Number(node.vy || 0) * effectiveDt);
+            node.vx = (Number(node.vx || 0) * 0.72) + (dx * easing);
+            node.vy = (Number(node.vy || 0) * 0.72) + (dy * easing);
 
-            if (node.x < padding) {
-                node.x = padding + ((padding - node.x) * 0.4);
-                node.vx = Math.abs(Number(node.vx || 0)) * 0.45;
-            } else if (node.x > maxX) {
-                node.x = maxX - ((node.x - maxX) * 0.4);
-                node.vx = -Math.abs(Number(node.vx || 0)) * 0.45;
+            node.x = currentX + node.vx;
+            node.y = currentY + node.vy;
+
+            const padding = 20;
+            if (node.x < padding || node.x > viewportWidth - padding) {
+                node.vx *= -0.45;
+                node.x = Math.min(Math.max(node.x, padding), viewportWidth - padding);
             }
-
-            if (node.y < padding) {
-                node.y = padding + ((padding - node.y) * 0.4);
-                node.vy = Math.abs(Number(node.vy || 0)) * 0.45;
-            } else if (node.y > maxY) {
-                node.y = maxY - ((node.y - maxY) * 0.4);
-                node.vy = -Math.abs(Number(node.vy || 0)) * 0.45;
+            if (node.y < padding || node.y > viewportHeight - padding) {
+                node.vy *= -0.45;
+                node.y = Math.min(Math.max(node.y, padding), viewportHeight - padding);
             }
         });
     }
@@ -406,6 +356,112 @@
         }
     }
 
+    function clampGraphShellToViewport(shell) {
+        if (!shell) {
+            return;
+        }
+
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 900;
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
+        const safeGap = 12;
+        const maxWidth = Math.min(820, Math.max(260, viewportWidth - (safeGap * 2)));
+        const maxHeight = Math.min(560, Math.max(260, viewportHeight - (safeGap * 2)));
+
+        shell.style.setProperty('position', 'fixed', 'important');
+        shell.style.setProperty('top', 'auto', 'important');
+        shell.style.setProperty('left', 'auto', 'important');
+        shell.style.setProperty('right', safeGap + 'px', 'important');
+        shell.style.setProperty('bottom', safeGap + 'px', 'important');
+        shell.style.setProperty('inset', 'auto', 'important');
+        shell.style.setProperty('margin', '0', 'important');
+        shell.style.setProperty('transform', 'none', 'important');
+        shell.style.setProperty('max-width', 'calc(100vw - ' + (safeGap * 2) + 'px)', 'important');
+        shell.style.setProperty('max-height', 'calc(100vh - ' + (safeGap * 2) + 'px)', 'important');
+        shell.style.setProperty('width', Math.min(maxWidth, viewportWidth - (safeGap * 2)) + 'px', 'important');
+        shell.style.setProperty('height', Math.min(maxHeight, viewportHeight - (safeGap * 2)) + 'px', 'important');
+    }
+
+    function setGraphShellState(shell, shouldOpen, canvas) {
+        if (!shell) {
+            return;
+        }
+
+        shell.setAttribute('data-graph-v2-expanded', shouldOpen ? '1' : '0');
+        shell.classList.toggle('is-open', shouldOpen);
+
+        shell.style.setProperty('position', 'fixed', 'important');
+        shell.style.setProperty('inset', 'auto', 'important');
+        shell.style.setProperty('top', 'auto', 'important');
+        shell.style.setProperty('left', 'auto', 'important');
+        shell.style.setProperty('right', '12px', 'important');
+        shell.style.setProperty('bottom', '12px', 'important');
+        shell.style.setProperty('margin', '0', 'important');
+        shell.style.setProperty('transform', 'none', 'important');
+        shell.style.setProperty('transform-origin', 'center center', 'important');
+        shell.style.setProperty('visibility', 'visible', 'important');
+        shell.style.setProperty('opacity', '1', 'important');
+        shell.style.setProperty('z-index', '2147483647', 'important');
+        shell.style.setProperty('display', shouldOpen ? 'block' : 'none', 'important');
+
+        if (canvas) {
+            canvas.hidden = !shouldOpen;
+        }
+
+        requestAnimationFrame(() => {
+            clampGraphShellToViewport(shell);
+        });
+    }
+
+    function ensureGraphStatsOverlay(shell) {
+        if (!shell) {
+            return null;
+        }
+
+        let overlay = shell.querySelector('.themisdb-graph-v2-stats');
+        if (overlay) {
+            return overlay;
+        }
+
+        overlay = document.createElement('div');
+        overlay.className = 'themisdb-graph-v2-stats';
+        overlay.setAttribute('aria-live', 'polite');
+        overlay.innerHTML = [
+            '<span class="themisdb-graph-v2-stats__item"><strong>0</strong> nodes</span>',
+            '<span class="themisdb-graph-v2-stats__item"><strong>0</strong> edges</span>',
+            '<span class="themisdb-graph-v2-stats__mode">Full view</span>'
+        ].join('');
+
+        const header = shell.querySelector('.themisdb-graph-v2-header');
+        if (header) {
+            header.appendChild(overlay);
+        } else {
+            shell.insertBefore(overlay, shell.firstChild);
+        }
+
+        return overlay;
+    }
+
+    function updateGraphStats(shell, graphData) {
+        const overlay = ensureGraphStatsOverlay(shell);
+        if (!overlay) {
+            return;
+        }
+
+        const visibleGraph = graphData && Array.isArray(graphData.nodes) ? graphData : { nodes: [], links: [] };
+        const totalNodes = Number((graphData && graphData.stats && graphData.stats.totalNodes) || visibleGraph.nodes.length || 0);
+        const totalLinks = Number((graphData && graphData.stats && graphData.stats.totalLinks) || (graphData && graphData.links ? graphData.links.length : 0) || 0);
+        const visibleNodes = Array.isArray(visibleGraph.nodes) ? visibleGraph.nodes.length : 0;
+        const visibleLinks = Array.isArray(visibleGraph.links) ? visibleGraph.links.length : 0;
+        const reduction = graphData && graphData.stats && graphData.stats.reduction ? graphData.stats.reduction : null;
+        const modeLabel = reduction && reduction.active ? ('Reduced: ' + (reduction.strategy || 'dynamic')) : 'Full view';
+
+        overlay.innerHTML = [
+            '<span class="themisdb-graph-v2-stats__item"><strong>' + visibleNodes + '</strong> / ' + totalNodes + ' nodes</span>',
+            '<span class="themisdb-graph-v2-stats__item"><strong>' + visibleLinks + '</strong> / ' + totalLinks + ' edges</span>',
+            '<span class="themisdb-graph-v2-stats__mode">' + escapeHtml(modeLabel) + '</span>'
+        ].join('');
+    }
+
     function ensureNodeInfoPanel(shell) {
         if (!shell) {
             return null;
@@ -499,10 +555,27 @@
             .replace(/'/g, '&#039;');
     }
 
+    function ensureGraphCanvas(container) {
+        if (!container) {
+            return null;
+        }
+
+        let canvas = container.querySelector('canvas');
+        if (!canvas && window.ThemisDBGraphV2.GraphView && window.ThemisDBGraphV2.GraphView.ensureCanvas) {
+            canvas = window.ThemisDBGraphV2.GraphView.ensureCanvas(container);
+        }
+
+        return canvas || container.querySelector('canvas');
+    }
+
     function bindToggleButton(shell, canvas, toggleOverride) {
         const toggle = toggleOverride || (shell ? shell.querySelector('[data-graph-v2-toggle]') : null);
         const closeButton = shell ? shell.querySelector('[data-graph-v2-close]') : null;
-        if (!toggle || toggle.dataset.bound === 'true') {
+        const renderContainer = (canvas && canvas.hasAttribute && canvas.hasAttribute('data-graph-v2-canvas'))
+            ? canvas
+            : (shell ? shell.querySelector('[data-graph-v2-canvas]') : null);
+        const alreadyBound = !!toggle && (toggle.__themisdbGraphHandler || toggle.dataset.bound === 'true');
+        if (!toggle || alreadyBound) {
             return;
         }
 
@@ -521,12 +594,7 @@
 
         const setOpenState = (shouldOpen) => {
             if (shell) {
-                shell.setAttribute('data-graph-v2-expanded', shouldOpen ? '1' : '0');
-                shell.classList.toggle('is-open', shouldOpen);
-                shell.style.display = shouldOpen ? 'block' : 'none';
-                if (canvas) {
-                    canvas.hidden = !shouldOpen;
-                }
+                setGraphShellState(shell, shouldOpen, renderContainer);
                 const nodePanel = shell.querySelector('.themisdb-graph-v2-node-panel');
                 if (nodePanel) {
                     nodePanel.hidden = !shouldOpen;
@@ -540,38 +608,49 @@
             linked.forEach((linkedToggle) => syncToggleState(linkedToggle, shell, shouldOpen));
         };
 
-        const handleToggle = () => {
+        const handleToggle = (event) => {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
             const shouldOpen = shell ? shell.getAttribute('data-graph-v2-expanded') !== '1' : true;
             setOpenState(shouldOpen);
 
-            if (!canvas) {
+            if (!renderContainer) {
                 return;
             }
 
             if (!shouldOpen) {
-                stopGraphAnimation(canvas);
+                stopGraphAnimation(renderContainer);
                 return;
             }
 
-            requestAnimationFrame(() => {
-                const state = window.ThemisDBGraphV2.state;
-                const graphData = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] };
-                state.viewport.width = Math.max(320, canvas.clientWidth || canvas.getBoundingClientRect().width || 720);
-                state.viewport.height = Math.max(320, canvas.clientHeight || canvas.getBoundingClientRect().height || 420);
+            const ensuredCanvas = ensureGraphCanvas(renderContainer);
+            if (ensuredCanvas) {
+                ensuredCanvas.hidden = false;
+                ensuredCanvas.style.pointerEvents = 'auto';
+                renderContainer.style.pointerEvents = 'auto';
+            }
 
-                startGraphAnimation(canvas, graphData, state, true);
-                bindInteraction(canvas, graphData, state);
-            });
+            const state = window.ThemisDBGraphV2.state;
+            const graphData = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] };
+            state.viewport.width = Math.max(320, renderContainer.clientWidth || renderContainer.getBoundingClientRect().width || 720);
+            state.viewport.height = Math.max(320, renderContainer.clientHeight || renderContainer.getBoundingClientRect().height || 420);
+
+            startGraphAnimation(renderContainer, graphData, state, true);
+            bindInteraction(renderContainer, graphData, state);
         };
 
+        toggle.__themisdbGraphHandler = handleToggle;
         toggle.addEventListener('click', handleToggle);
 
         if (closeButton) {
-            closeButton.addEventListener('click', () => {
+            closeButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 setOpenState(false);
-                if (canvas) {
-                    stopGraphAnimation(canvas);
-                }
+                stopGraphAnimation(renderContainer);
             });
         }
     }
@@ -588,6 +667,21 @@
             overlay.style.setProperty('transform', 'none', 'important');
             overlay.style.setProperty('width', 'auto', 'important');
             overlay.style.setProperty('height', 'auto', 'important');
+        });
+
+        document.querySelectorAll('.themisdb-graph-v2-shell').forEach((shell) => {
+            shell.style.setProperty('position', 'fixed', 'important');
+            shell.style.setProperty('top', 'auto', 'important');
+            shell.style.setProperty('left', 'auto', 'important');
+            shell.style.setProperty('right', '12px', 'important');
+            shell.style.setProperty('bottom', '12px', 'important');
+            shell.style.setProperty('inset', 'auto', 'important');
+            shell.style.setProperty('margin', '0', 'important');
+            shell.style.setProperty('transform', 'none', 'important');
+            shell.style.setProperty('z-index', '2147483647', 'important');
+            shell.style.setProperty('max-width', 'calc(100vw - 24px)', 'important');
+            shell.style.setProperty('max-height', 'calc(100vh - 24px)', 'important');
+            clampGraphShellToViewport(shell);
         });
     }
 
@@ -628,12 +722,7 @@
         }
 
         const setOpenState = (shouldOpen) => {
-            shell.setAttribute('data-graph-v2-expanded', shouldOpen ? '1' : '0');
-            shell.classList.toggle('is-open', shouldOpen);
-            shell.style.display = shouldOpen ? 'block' : 'none';
-            if (canvas) {
-                canvas.hidden = !shouldOpen;
-            }
+            setGraphShellState(shell, shouldOpen, canvas);
             const nodePanel = shell.querySelector('.themisdb-graph-v2-node-panel');
             if (nodePanel) {
                 nodePanel.hidden = !shouldOpen;
@@ -645,7 +734,12 @@
             }
         };
 
-        anchor.addEventListener('click', () => {
+        anchor.addEventListener('click', (event) => {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
             const shouldOpen = shell.getAttribute('data-graph-v2-expanded') !== '1';
             setOpenState(shouldOpen);
 
@@ -656,33 +750,84 @@
                 return;
             }
 
-            requestAnimationFrame(() => {
-                const state = window.ThemisDBGraphV2.state;
-                const graphData = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] };
-                state.viewport.width = Math.max(320, canvas.clientWidth || canvas.getBoundingClientRect().width || 720);
-                state.viewport.height = Math.max(320, canvas.clientHeight || canvas.getBoundingClientRect().height || 420);
+            const state = window.ThemisDBGraphV2.state;
+            const graphData = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] };
+            state.viewport.width = Math.max(320, canvas.clientWidth || canvas.getBoundingClientRect().width || 720);
+            state.viewport.height = Math.max(320, canvas.clientHeight || canvas.getBoundingClientRect().height || 420);
 
-                startGraphAnimation(canvas, graphData, state, true);
-                bindInteraction(canvas, graphData, state);
-            });
+            startGraphAnimation(canvas, graphData, state, true);
+            bindInteraction(canvas, graphData, state);
         });
     }
 
     function layoutRadial(nodes, width, height) {
         const centerX = width / 2;
         const centerY = height / 2;
-        const radiusBase = Math.min(width, height) * 0.22;
+        const minDimension = Math.max(180, Math.min(width, height));
+        const radiusBase = minDimension * 0.28;
 
-        return nodes.map((node, index) => {
-            const count = Math.max(1, nodes.length);
-            const angle = (index / count) * Math.PI * 2;
-            const radius = radiusBase + (Number(node.level || 0) * 18);
+        const bucketMap = new Map();
+        nodes.forEach((node) => {
+            const type = String(node.type || 'generic');
+            const key = type === 'home'
+                ? 'home'
+                : (type === 'category' || type === 'tag' || type === 'taxonomy_term')
+                    ? 'taxonomy'
+                    : (type === 'page' || type === 'post')
+                        ? 'content'
+                        : 'generic';
+            if (!bucketMap.has(key)) {
+                bucketMap.set(key, []);
+            }
+            bucketMap.get(key).push(node);
+        });
 
-            return Object.assign({}, node, {
-                x: centerX + Math.cos(angle) * radius,
-                y: centerY + Math.sin(angle) * radius,
+        const positioned = nodes.map((node) => ({ ...node }));
+        const homeNodes = bucketMap.get('home') || [];
+        const taxonomyNodes = bucketMap.get('taxonomy') || [];
+        const contentNodes = bucketMap.get('content') || [];
+        const genericNodes = bucketMap.get('generic') || [];
+
+        const ringMap = [
+            { key: 'home', nodes: homeNodes, radius: 0, angleOffset: 0 },
+            { key: 'taxonomy', nodes: taxonomyNodes, radius: radiusBase + 32, angleOffset: Math.PI * 0.20 },
+            { key: 'content', nodes: contentNodes, radius: radiusBase + 110, angleOffset: Math.PI * 0.85 },
+            { key: 'generic', nodes: genericNodes, radius: radiusBase + 190, angleOffset: Math.PI * 1.5 },
+        ];
+
+        ringMap.forEach(({ nodes: ringNodes, radius, angleOffset }) => {
+            if (!ringNodes || !ringNodes.length) {
+                return;
+            }
+
+            ringNodes.forEach((node, index) => {
+                const total = Math.max(1, ringNodes.length);
+                const localAngle = angleOffset + (index / total) * (Math.PI * 2);
+                const x = centerX + Math.cos(localAngle) * radius;
+                const y = centerY + Math.sin(localAngle) * (radius * 0.72);
+                const target = positioned.find((candidate) => String(candidate.id) === String(node.id));
+                if (target) {
+                    target.x = x;
+                    target.y = y;
+                    target.tx = x;
+                    target.ty = y;
+                }
             });
         });
+
+        positioned.forEach((node) => {
+            if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) {
+                const count = Math.max(1, positioned.length);
+                const angle = ((Number(node.level || 0) + 1) * 1.17) + (count * 0.13);
+                const radius = radiusBase + 240 + ((Number(node.level || 0) % 5) * 36);
+                node.x = centerX + Math.cos(angle) * radius;
+                node.y = centerY + Math.sin(angle) * radius * 0.78;
+                node.tx = node.x;
+                node.ty = node.y;
+            }
+        });
+
+        return positioned;
     }
 
     function createLayoutWorker() {
@@ -708,7 +853,7 @@
         if (!state || !state.selection || !state.filters || !state.viewport) {
             return {
                 selection: { nodeId: null, hoverNodeId: null },
-                filters: { minDegree: 0, maxVisibleNodes: 250, showExternal: true },
+                filters: { minDegree: 0, maxVisibleNodes: 120, showExternal: true },
                 viewport: { width: 800, height: 420 },
             };
         }
@@ -772,6 +917,10 @@
 
     function renderGraph(container, graphData, state) {
         syncViewportToContainer(container, state);
+        const shell = container && container.closest ? container.closest('[data-graph-v2-shell]') : null;
+        if (shell) {
+            updateGraphStats(shell, graphData);
+        }
 
         if (window.ThemisDBGraphV2.GraphView && window.ThemisDBGraphV2.GraphView.applyGraphView) {
             return window.ThemisDBGraphV2.GraphView.applyGraphView(container, graphData, state);
@@ -807,15 +956,24 @@
     function bindInteraction(container, rawGraph, state) {
         syncViewportToContainer(container, state);
 
-        const canvas = container.querySelector('canvas');
+        const canvas = window.ThemisDBGraphV2.GraphView && window.ThemisDBGraphV2.GraphView.ensureCanvas
+            ? window.ThemisDBGraphV2.GraphView.ensureCanvas(container)
+            : (container.querySelector('canvas') || document.createElement('canvas'));
+
         if (!canvas) {
             return;
         }
-        if (canvas.dataset.bound === 'true') {
+        if (container.dataset.themisdbInteractionBound === 'true' || canvas.dataset.themisdbInteractionBound === 'true') {
             return;
         }
+
+        container.dataset.themisdbInteractionBound = 'true';
+        canvas.dataset.themisdbInteractionBound = 'true';
         canvas.dataset.bound = 'true';
         canvas.style.cursor = 'grab';
+        canvas.style.pointerEvents = 'auto';
+        container.style.pointerEvents = 'auto';
+
         let dragNodeId = null;
         let panPointerId = null;
         let lastPanPoint = null;
@@ -830,15 +988,30 @@
             };
         };
 
-        canvas.style.pointerEvents = 'auto';
-
-        canvas.addEventListener('pointermove', (event) => {
-            event.preventDefault();
-            const point = toCanvasPoint(event);
+        const refreshHoverState = (event, forceRedraw = false) => {
             const nextGraph = getAnimationGraph(container, rawGraph, state);
             const hitNode = window.ThemisDBGraphV2.GraphStore && window.ThemisDBGraphV2.GraphStore.resolveHitNode
                 ? window.ThemisDBGraphV2.GraphStore.resolveHitNode(nextGraph, event, canvas)
                 : null;
+            const nextHoverNodeId = hitNode ? String(hitNode.id) : null;
+            const hoverChanged = state.selection.hoverNodeId !== nextHoverNodeId;
+
+            if (hoverChanged || forceRedraw) {
+                state.selection.hoverNodeId = nextHoverNodeId;
+                canvas.style.cursor = nextHoverNodeId ? 'pointer' : 'grab';
+                scheduleGraphRender(container, nextGraph, state);
+            } else if (nextHoverNodeId) {
+                canvas.style.cursor = 'pointer';
+            }
+
+            return hitNode;
+        };
+
+        container.addEventListener('pointermove', (event) => {
+            event.preventDefault();
+            const point = toCanvasPoint(event);
+            const nextGraph = getAnimationGraph(container, rawGraph, state);
+            const hitNode = refreshHoverState(event);
             const nextHoverNodeId = hitNode ? String(hitNode.id) : null;
 
             if (dragNodeId) {
@@ -854,7 +1027,7 @@
                         dragged.ty = point.y;
                     }
                     isDragging = true;
-                    renderGraph(container, activeGraph, state);
+                    scheduleGraphRender(container, activeGraph, state);
                 }
                 return;
             }
@@ -873,25 +1046,24 @@
                 });
                 lastPanPoint = point;
                 hasPanned = true;
-                renderGraph(container, activeGraph, state);
+                scheduleGraphRender(container, activeGraph, state);
                 return;
             }
 
             if (state.selection.hoverNodeId !== nextHoverNodeId) {
                 state.selection.hoverNodeId = nextHoverNodeId;
                 canvas.style.cursor = nextHoverNodeId ? 'pointer' : 'grab';
-                renderGraph(container, nextGraph, state);
-            } else if (nextHoverNodeId) {
-                canvas.style.cursor = 'pointer';
+                scheduleGraphRender(container, nextGraph, state);
             }
         });
 
-        canvas.addEventListener('pointerdown', (event) => {
+        container.addEventListener('pointerdown', (event) => {
             event.preventDefault();
             const nextGraph = getAnimationGraph(container, rawGraph, state);
             const hitNode = window.ThemisDBGraphV2.GraphStore && window.ThemisDBGraphV2.GraphStore.resolveHitNode
                 ? window.ThemisDBGraphV2.GraphStore.resolveHitNode(nextGraph, event, canvas)
                 : null;
+
             if (!hitNode) {
                 panPointerId = event.pointerId;
                 lastPanPoint = toCanvasPoint(event);
@@ -900,12 +1072,13 @@
                 canvas.style.cursor = 'grabbing';
                 return;
             }
+
             dragNodeId = String(hitNode.id);
             canvas.setPointerCapture(event.pointerId);
             state.selection.nodeId = dragNodeId;
             state.selection.hoverNodeId = dragNodeId;
             isDragging = false;
-            renderGraph(container, nextGraph, state);
+            scheduleGraphRender(container, nextGraph, state);
         });
 
         const finishDrag = (event) => {
@@ -923,21 +1096,21 @@
             canvas.style.cursor = state.selection.hoverNodeId ? 'pointer' : 'grab';
         };
 
-        canvas.addEventListener('pointerup', finishDrag);
-        canvas.addEventListener('pointercancel', finishDrag);
+        container.addEventListener('pointerup', finishDrag);
+        container.addEventListener('pointercancel', finishDrag);
 
-        canvas.addEventListener('pointerleave', () => {
+        container.addEventListener('pointerleave', () => {
             if (dragNodeId) {
                 return;
             }
             if (state.selection.hoverNodeId !== null) {
                 state.selection.hoverNodeId = null;
                 canvas.style.cursor = 'grab';
-                renderGraph(container, getAnimationGraph(container, rawGraph, state), state);
+                scheduleGraphRender(container, getAnimationGraph(container, rawGraph, state), state);
             }
         });
 
-        canvas.addEventListener('click', (event) => {
+        container.addEventListener('click', (event) => {
             if (isDragging || hasPanned) {
                 isDragging = false;
                 hasPanned = false;
@@ -957,11 +1130,11 @@
                 state.selection.hoverNodeId = String(hitNode.id);
                 updateNodeInfoPanel(container.closest('[data-graph-v2-shell]'), hitNode);
             }
-            renderGraph(container, nextGraph, state);
+            scheduleGraphRender(container, nextGraph, state);
             startGraphAnimation(container, rawGraph, state, true);
         });
 
-        canvas.addEventListener('dblclick', (event) => {
+        container.addEventListener('dblclick', (event) => {
             if (isDragging || hasPanned) {
                 return;
             }
@@ -974,7 +1147,7 @@
             }
         });
 
-        canvas.addEventListener('wheel', (event) => {
+        container.addEventListener('wheel', (event) => {
             event.preventDefault();
             const activeGraph = getAnimationGraph(container, rawGraph, state);
             const zoomFactor = event.deltaY < 0 ? 1.08 : 0.92;
@@ -1000,6 +1173,7 @@
 
     function bootstrapGraph() {
         normalizeGraphOverlayPlacement();
+        window.addEventListener('resize', normalizeGraphOverlayPlacement, { passive: true });
         pruneDuplicateGraphInstances();
 
         const state = window.ThemisDBGraphV2.state;
@@ -1033,7 +1207,7 @@
 
             if (shell) {
                 const canvas = shell.querySelector('[data-graph-v2-canvas]');
-                if (!toggle.dataset.bound) {
+                if (!toggle.__themisdbGraphHandler && toggle.dataset.bound !== 'true') {
                     bindToggleButton(shell, canvas, toggle);
                 }
             }

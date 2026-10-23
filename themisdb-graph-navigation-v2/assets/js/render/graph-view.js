@@ -21,28 +21,45 @@
         const { width, height } = getCanvasSize(container);
         const ratio = window.devicePixelRatio || 1;
 
-        if (existing) {
-            const desiredWidth = Math.floor(width * ratio);
-            const desiredHeight = Math.floor(height * ratio);
+        const syncCanvasDimension = (canvas) => {
+            const desiredWidth = Math.max(1, Math.floor(width * ratio));
+            const desiredHeight = Math.max(1, Math.floor(height * ratio));
 
-            if (existing.width !== desiredWidth || existing.height !== desiredHeight) {
-                existing.width = desiredWidth;
-                existing.height = desiredHeight;
-                existing.style.width = width + 'px';
-                existing.style.height = height + 'px';
+            if (canvas.width !== desiredWidth || canvas.height !== desiredHeight || canvas.style.width !== width + 'px' || canvas.style.height !== height + 'px') {
+                canvas.width = desiredWidth;
+                canvas.height = desiredHeight;
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
             }
-            return existing;
+
+            if (window.ThemisDBGraphV2 && window.ThemisDBGraphV2.state) {
+                window.ThemisDBGraphV2.state.viewport.width = width;
+                window.ThemisDBGraphV2.state.viewport.height = height;
+            }
+
+            return canvas;
+        };
+
+        if (existing) {
+            return syncCanvasDimension(existing);
         }
 
         const canvas = document.createElement('canvas');
-        canvas.width = Math.floor(width * ratio);
-        canvas.height = Math.floor(height * ratio);
-        canvas.style.width = width + 'px';
-        canvas.style.height = height + 'px';
+        const resolvedCanvas = syncCanvasDimension(canvas);
         container.innerHTML = '';
-        container.appendChild(canvas);
+        container.appendChild(resolvedCanvas);
 
-        return canvas;
+        return resolvedCanvas;
+    }
+
+    function getOrCreateWebGPURenderer(canvas, state) {
+        const cached = window.ThemisDBGraphV2.rendererCache || (window.ThemisDBGraphV2.rendererCache = new WeakMap());
+        let renderer = cached.get(canvas);
+        if (!renderer) {
+            renderer = new window.ThemisDBGraphV2.WebGPURenderer(canvas, state || window.ThemisDBGraphV2.state);
+            cached.set(canvas, renderer);
+        }
+        return renderer;
     }
 
     function applyGraphView(root, graphData, state) {
@@ -53,20 +70,17 @@
 
         const canvas = ensureCanvas(container);
         const renderer = window.ThemisDBGraphV2.CanvasRenderer;
+        const activeState = state || window.ThemisDBGraphV2.state;
         const rendererConfig = window.themisdbGraphV2 && window.themisdbGraphV2.renderer ? window.themisdbGraphV2.renderer : {};
         const preferWebGPU = rendererConfig.preferWebGPU !== false;
-        const allowExperimentalWebGPU = rendererConfig.allowExperimentalWebGPU === true;
-        const shouldUseWebGPU = preferWebGPU && allowExperimentalWebGPU && window.navigator && 'gpu' in navigator && window.ThemisDBGraphV2.WebGPURenderer;
+        const webGPUBlocked = Boolean(window.ThemisDBGraphV2 && window.ThemisDBGraphV2.WebGPUBlocked);
+        const shouldUseWebGPU = !webGPUBlocked && preferWebGPU && window.navigator && 'gpu' in navigator && window.ThemisDBGraphV2.WebGPURenderer;
 
         if (shouldUseWebGPU) {
-            const activeState = state || window.ThemisDBGraphV2.state;
-            const gpuRenderer = new window.ThemisDBGraphV2.WebGPURenderer(canvas, activeState);
+            const gpuRenderer = getOrCreateWebGPURenderer(canvas, activeState);
             gpuRenderer.init().then((ready) => {
-                if (ready) {
-                    const rendered = gpuRenderer.render(graphData, activeState);
-                    if (rendered) {
-                        return;
-                    }
+                if (ready && gpuRenderer.render(graphData, activeState)) {
+                    return;
                 }
                 if (renderer) {
                     renderer.draw(graphData, canvas, activeState);
@@ -80,7 +94,7 @@
         }
 
         if (renderer) {
-            renderer.draw(graphData, canvas, state || window.ThemisDBGraphV2.state);
+            renderer.draw(graphData, canvas, activeState);
         }
 
         return true;

@@ -23,6 +23,7 @@
   "homepage": "https://github.com/makr-code/wordpressPlugins#readme",
   "dependencies": {
     "jquery": "^4.0.0",
-    "jsdom": "^29.1.1"
+    "jsdom": "^29.1.1",
+    "playwright": "^1.64.1"
   }
 }

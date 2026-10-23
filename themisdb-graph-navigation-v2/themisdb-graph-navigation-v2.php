@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('THEMISDB_GRAPH_NAV_V2_VERSION', '2.0.12');
+define('THEMISDB_GRAPH_NAV_V2_VERSION', '2.0.14');
 define('THEMISDB_GRAPH_NAV_V2_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_GRAPH_NAV_V2_URL', plugin_dir_url(__FILE__));
 
@@ -27,7 +27,7 @@ final class ThemisDB_Graph_Runtime_Config {
     public static function defaults() {
         return array(
             'enable_gpu' => true,
-            'max_visible_nodes' => 250,
+            'max_visible_nodes' => 120,
             'include_external' => true,
         );
     }
@@ -53,7 +53,7 @@ final class ThemisDB_Graph_Runtime_Config {
                 'title' => __('Graph Navigation', 'themisdb-graph-navigation-v2'),
             ),
             'settings' => array(
-                'maxVisibleNodes' => (int) self::get('max_visible_nodes', 250),
+                'maxVisibleNodes' => (int) self::get('max_visible_nodes', 120),
                 'showExternal' => (bool) self::get('include_external', true),
             ),
         );
