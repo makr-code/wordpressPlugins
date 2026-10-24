@@ -1,16 +1,15 @@
 # ThemisDB Graph Navigation V2
 
-A fresh graph navigation plugin for heterogeneous WordPress content with animated force-like physics, worker-assisted layout, and a robust canvas renderer (with optional experimental WebGPU path).
+A semantic graph navigation plugin for heterogeneous WordPress content, built around a compact relationship map, stable canvas rendering, and optional WebGPU acceleration only when the browser and graphics stack support it.
 
 ## Architecture
 
 - Local WordPress content collection from posts, pages, taxonomies, custom post types, menus, and internal links
 - Graph normalization for canonical IDs, deduplication, degree scoring, and cluster assignment
-- Visibility/Lod pruning so large graphs render within performance budgets
-- Canvas 2D rendering with continuous force-like animation (repulsion, spring links, centering, damping)
-- Type-based cluster target layout for clearer structure (home/content/taxonomy groups)
-- Worker-based layout bootstrap for initial placement
-- Optional experimental WebGPU rendering path behind an explicit runtime flag
+- Visibility / LOD pruning so large graphs render within performance budgets
+- Semantic 2D layout with cluster-aware positioning rather than a dense neural-network cloud
+- Stable canvas renderer as the production-default path
+- Optional WebGPU acceleration behind explicit runtime checks and graceful fallback
 - Pointer interaction on the canvas (hover/select, drag nodes, pan background, wheel zoom)
 - Shortcode-based registration for immediate use
 

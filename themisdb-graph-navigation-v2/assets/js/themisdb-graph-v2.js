@@ -982,9 +982,11 @@
 
         const toCanvasPoint = (event) => {
             const rect = canvas.getBoundingClientRect();
+            const scrollLeft = container && typeof container.scrollLeft === 'number' ? container.scrollLeft : 0;
+            const scrollTop = container && typeof container.scrollTop === 'number' ? container.scrollTop : 0;
             return {
-                x: event.clientX - rect.left,
-                y: event.clientY - rect.top,
+                x: event.clientX - rect.left + scrollLeft,
+                y: event.clientY - rect.top + scrollTop,
             };
         };
 
@@ -1035,18 +1037,15 @@
             if (panPointerId === event.pointerId && lastPanPoint) {
                 const dx = point.x - lastPanPoint.x;
                 const dy = point.y - lastPanPoint.y;
-                const activeGraph = getAnimationGraph(container, rawGraph, state);
-                (activeGraph.nodes || []).forEach((node) => {
-                    node.x = Number(node.x || 0) + dx;
-                    node.y = Number(node.y || 0) + dy;
-                    if (Number.isFinite(node.tx) && Number.isFinite(node.ty)) {
-                        node.tx += dx;
-                        node.ty += dy;
-                    }
-                });
+                const nextScrollLeft = Math.max(0, (container.scrollLeft || 0) - dx);
+                const nextScrollTop = Math.max(0, (container.scrollTop || 0) - dy);
+                container.scrollLeft = nextScrollLeft;
+                container.scrollTop = nextScrollTop;
+                state.viewport.panX = nextScrollLeft;
+                state.viewport.panY = nextScrollTop;
                 lastPanPoint = point;
                 hasPanned = true;
-                scheduleGraphRender(container, activeGraph, state);
+                scheduleGraphRender(container, getAnimationGraph(container, rawGraph, state), state);
                 return;
             }
 
@@ -1070,6 +1069,8 @@
                 hasPanned = false;
                 canvas.setPointerCapture(event.pointerId);
                 canvas.style.cursor = 'grabbing';
+                state.viewport.panX = container.scrollLeft || 0;
+                state.viewport.panY = container.scrollTop || 0;
                 return;
             }
 
@@ -1098,6 +1099,12 @@
 
         container.addEventListener('pointerup', finishDrag);
         container.addEventListener('pointercancel', finishDrag);
+
+        container.addEventListener('scroll', () => {
+            state.viewport.panX = container.scrollLeft || 0;
+            state.viewport.panY = container.scrollTop || 0;
+            scheduleGraphRender(container, getAnimationGraph(container, rawGraph, state), state);
+        }, { passive: true });
 
         container.addEventListener('pointerleave', () => {
             if (dragNodeId) {
@@ -1152,21 +1159,33 @@
             const activeGraph = getAnimationGraph(container, rawGraph, state);
             const zoomFactor = event.deltaY < 0 ? 1.08 : 0.92;
             const point = toCanvasPoint(event);
-            state.viewport.zoom = Math.max(0.35, Math.min(2.8, Number(state.viewport.zoom || 1) * zoomFactor));
+            const currentZoom = Number(state.viewport.zoom || 1);
+            const nextZoom = Math.max(0.35, Math.min(2.8, currentZoom * zoomFactor));
+            const zoomDelta = nextZoom / currentZoom;
+            state.viewport.zoom = nextZoom;
 
             (activeGraph.nodes || []).forEach((node) => {
                 const x = Number(node.x || 0);
                 const y = Number(node.y || 0);
-                node.x = point.x + ((x - point.x) * zoomFactor);
-                node.y = point.y + ((y - point.y) * zoomFactor);
+                node.x = point.x + ((x - point.x) * zoomDelta);
+                node.y = point.y + ((y - point.y) * zoomDelta);
                 if (Number.isFinite(node.tx) && Number.isFinite(node.ty)) {
-                    node.tx = point.x + ((Number(node.tx) - point.x) * zoomFactor);
-                    node.ty = point.y + ((Number(node.ty) - point.y) * zoomFactor);
+                    node.tx = point.x + ((Number(node.tx) - point.x) * zoomDelta);
+                    node.ty = point.y + ((Number(node.ty) - point.y) * zoomDelta);
                 }
                 node.vx = Number(node.vx || 0) * 0.75;
                 node.vy = Number(node.vy || 0) * 0.75;
             });
 
+            const nextWorldWidth = Math.max(state.viewport.width * 2.2, 1600) * nextZoom;
+            const nextWorldHeight = Math.max(state.viewport.height * 2.2, 1100) * nextZoom;
+            state.viewport.worldWidth = nextWorldWidth;
+            state.viewport.worldHeight = nextWorldHeight;
+            const canvas = container.querySelector('canvas');
+            if (canvas) {
+                canvas.style.width = nextWorldWidth + 'px';
+                canvas.style.height = nextWorldHeight + 'px';
+            }
             startGraphAnimation(container, rawGraph, state, false);
         }, { passive: false });
     }

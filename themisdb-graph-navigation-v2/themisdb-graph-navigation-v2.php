@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ThemisDB Graph Navigation V2
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Description: GPU-first graph navigation for heterogeneous WordPress content.
+ * Description: Semantic graph navigation for heterogeneous WordPress content with a compact overlay and optional WebGPU acceleration.
  * Version: 2.0.0
  * Author: makr-code
  * License: MIT
@@ -26,7 +26,7 @@ require_once THEMISDB_GRAPH_NAV_V2_DIR . 'includes/class-themisdb-graph-settings
 final class ThemisDB_Graph_Runtime_Config {
     public static function defaults() {
         return array(
-            'enable_gpu' => true,
+            'enable_gpu' => false,
             'max_visible_nodes' => 120,
             'include_external' => true,
         );
@@ -44,10 +44,11 @@ final class ThemisDB_Graph_Runtime_Config {
             'graph' => $graph->get_graph_data(),
             'assetUrl' => THEMISDB_GRAPH_NAV_V2_URL,
             'renderer' => array(
-                'preferWebGPU' => (bool) self::get('enable_gpu', true),
-                'allowExperimentalWebGPU' => true,
+                'preferWebGPU' => false,
+                'allowExperimentalWebGPU' => false,
                 'fallbackToCanvas' => true,
                 'fallbackToSVG' => false,
+                'mode' => 'semantic-2d',
             ),
             'labels' => array(
                 'title' => __('Graph Navigation', 'themisdb-graph-navigation-v2'),

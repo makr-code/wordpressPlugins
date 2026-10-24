@@ -1,0 +1,45 @@
+{
+  "default_category": "blog",
+  "source_roots": [
+    "page-content-blog/sources",
+    "page-content-blog/output",
+    "_unmapped/_docs"
+  ],
+  "category_rules": [
+    {
+      "match": ["blog", "article", "post"],
+      "category": "blog"
+    },
+    {
+      "match": ["documentation", "docs", "manual", "wiki", "guide"],
+      "category": "documentation"
+    },
+    {
+      "match": ["podcast", "audio", "episode", "mp3"],
+      "category": "podcast"
+    },
+    {
+      "match": ["benchmark", "analysis", "report"],
+      "category": "benchmark"
+    },
+    {
+      "match": ["security", "privacy", "compliance"],
+      "category": "security"
+    },
+    {
+      "match": ["architecture", "design", "system"],
+      "category": "architecture"
+    }
+  ],
+  "public_tags": [
+    "blog",
+    "documentation",
+    "podcast",
+    "benchmark",
+    "security",
+    "architecture",
+    "ai",
+    "analysis",
+    "research"
+  ]
+}

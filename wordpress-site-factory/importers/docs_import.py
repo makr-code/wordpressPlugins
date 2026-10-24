@@ -12,7 +12,7 @@ import sys
 import tempfile
 import time
 
-from PIL import Image
+from PIL import Image, ImageOps
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Optional
@@ -27,9 +27,12 @@ SITE_CONFIG_PATH = ROOT.parent / ".secure" / "site.json"
 LOCAL_SITE_CONFIG_PATH = ROOT.parent / ".secure" / "site.local.json"
 WP_CONNECTIONS_PATH = ROOT.parent / ".secure" / ".wp_connections.json"
 BLOG_SOURCES_PATH = ROOT.parent / "page-content-blog" / "sources"
+LEGACY_IMPORT_STATE_PATH = ROOT.parent / "page-content-blog" / ".wp_import_state.json"
 REST_TIMEOUT_SECONDS = int(os.environ.get("WP_REST_TIMEOUT", "30"))
 REST_MAX_RETRIES = int(os.environ.get("WP_REST_RETRIES", "4"))
 REST_RETRY_BACKOFF = float(os.environ.get("WP_REST_RETRY_BACKOFF", "2.0"))
+_IMPORT_MEDIA_CACHE: Dict[str, Any] = {}
+_IMPORT_IMAGE_CACHE: Dict[str, Any] = {}
 
 
 def load_site_config(required: bool = True) -> Dict[str, Any]:
@@ -55,13 +58,6 @@ def get_runtime_site_setting(key: str, default: Any = None) -> Any:
     return default if value is None else value
 
 
-DEFAULT_BASE_URL = os.environ.get("WP_BASE_URL") or str(get_runtime_site_setting("base_url", "http://localhost/wordpress") or "http://localhost/wordpress")
-DEFAULT_USER = os.environ.get("WP_USER") or str(get_runtime_site_setting("user", "test") or "test")
-DEFAULT_PASSWORD = os.environ.get("WP_APP_PASSWORD") or str(get_runtime_site_setting("app_password", "") or "")
-DEFAULT_REST_ROUTE_STYLE = os.environ.get("WP_REST_ROUTE_STYLE") or str(get_runtime_site_setting("rest_route_style", "wp-json") or "wp-json")
-RUNTIME_REST_ROUTE_STYLE = str(DEFAULT_REST_ROUTE_STYLE).strip().lower()
-
-
 def is_local_wordpress_url(base_url: str) -> bool:
     host = (urlparse(str(base_url or "")).hostname or "").strip().lower()
     return host in {"localhost", "127.0.0.1"}
@@ -75,6 +71,47 @@ def load_optional_site_config(path: Path) -> Dict[str, Any]:
     except Exception:
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def preferred_default_wp_connection() -> Dict[str, str]:
+    connections_config = load_optional_site_config(WP_CONNECTIONS_PATH)
+    profiles = connections_config.get("profiles", {}) if isinstance(connections_config, dict) else {}
+    default_profile_name = str(connections_config.get("default") or "").strip() if isinstance(connections_config, dict) else ""
+    if profiles and default_profile_name:
+        selected = profiles.get(default_profile_name, {})
+        if isinstance(selected, dict):
+            base_url = str(selected.get("wp_base") or "").strip()
+            if is_local_wordpress_url(base_url):
+                return {
+                    "base_url": base_url,
+                    "user": str(selected.get("wp_user") or "").strip(),
+                    "password": str(selected.get("wp_app_password") or "").strip(),
+                    "rest_route_style": str(selected.get("rest_route_style") or "wp-json").strip() or "wp-json",
+                }
+    local_config = load_optional_site_config(LOCAL_SITE_CONFIG_PATH).get("wordpress", {})
+    if isinstance(local_config, dict):
+        base_url = str(local_config.get("base_url") or "").strip()
+        if is_local_wordpress_url(base_url):
+            return {
+                "base_url": base_url,
+                "user": str(local_config.get("user") or "").strip(),
+                "password": str(local_config.get("app_password") or "").strip(),
+                "rest_route_style": str(local_config.get("rest_route_style") or "wp-json").strip() or "wp-json",
+            }
+    return {
+        "base_url": str(get_runtime_site_setting("base_url", "http://localhost/wordpress") or "http://localhost/wordpress").strip(),
+        "user": str(get_runtime_site_setting("user", "test") or "test").strip(),
+        "password": str(get_runtime_site_setting("app_password", "") or "").strip(),
+        "rest_route_style": str(get_runtime_site_setting("rest_route_style", "wp-json") or "wp-json").strip() or "wp-json",
+    }
+
+
+_DEFAULT_CONNECTION = preferred_default_wp_connection()
+DEFAULT_BASE_URL = os.environ.get("WP_BASE_URL") or _DEFAULT_CONNECTION["base_url"]
+DEFAULT_USER = os.environ.get("WP_USER") or _DEFAULT_CONNECTION["user"]
+DEFAULT_PASSWORD = os.environ.get("WP_APP_PASSWORD") or _DEFAULT_CONNECTION["password"]
+DEFAULT_REST_ROUTE_STYLE = os.environ.get("WP_REST_ROUTE_STYLE") or _DEFAULT_CONNECTION["rest_route_style"]
+RUNTIME_REST_ROUTE_STYLE = str(DEFAULT_REST_ROUTE_STYLE).strip().lower()
 
 
 def normalize_app_password(value: str) -> str:
@@ -133,6 +170,20 @@ def resolve_runtime_credentials(base_url: str, user: str, password: str) -> Dict
     return {"user": resolved_user, "password": resolved_password, "rest_route_style": resolved_rest_route_style}
 
 
+def make_json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, (Path, PurePosixPath)):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(key): make_json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [make_json_safe(item) for item in value]
+    if isinstance(value, set):
+        return [make_json_safe(item) for item in sorted(value, key=lambda item: str(item))]
+    return str(value)
+
+
 def load_json(path: Path) -> Dict[str, Any]:
     if not path.exists():
         return {"documents": []}
@@ -140,6 +191,45 @@ def load_json(path: Path) -> Dict[str, Any]:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {"documents": []}
+
+
+def load_legacy_import_state() -> None:
+    global _IMPORT_MEDIA_CACHE, _IMPORT_IMAGE_CACHE
+    if not LEGACY_IMPORT_STATE_PATH.exists():
+        return
+    try:
+        state = json.loads(LEGACY_IMPORT_STATE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    if isinstance(state, dict):
+        media_cache = state.get("_media_cache")
+        image_cache = state.get("_image_cache")
+        if isinstance(media_cache, dict):
+            _IMPORT_MEDIA_CACHE.update(media_cache)
+        if isinstance(image_cache, dict):
+            _IMPORT_IMAGE_CACHE.update(image_cache)
+
+
+def save_legacy_import_state() -> None:
+    try:
+        state: Dict[str, Any] = {}
+        if LEGACY_IMPORT_STATE_PATH.exists():
+            try:
+                parsed = json.loads(LEGACY_IMPORT_STATE_PATH.read_text(encoding="utf-8"))
+                if isinstance(parsed, dict):
+                    state = parsed
+            except Exception:
+                state = {}
+        state["_media_cache"] = dict(_IMPORT_MEDIA_CACHE)
+        state["_image_cache"] = dict(_IMPORT_IMAGE_CACHE)
+        tmp_path = LEGACY_IMPORT_STATE_PATH.with_suffix(".json.tmp")
+        tmp_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp_path.replace(LEGACY_IMPORT_STATE_PATH)
+    except Exception:
+        pass
+
+
+load_legacy_import_state()
 
 
 def slugify_text(value: str) -> str:
@@ -197,10 +287,11 @@ def build_blog_documents_from_sources(sources_root: Path) -> List[Dict[str, Any]
         title = str((meta or {}).get("title") or derived_title or legacy_hint.get("title") or article_path.stem).strip() or article_path.stem
         slug = str((meta or {}).get("slug") or legacy_hint.get("wp_slug") or "").strip() or slugify_text(title)
         last_modified = datetime.fromtimestamp(article_path.stat().st_mtime, tz=timezone.utc).isoformat()
-        category = str((meta or {}).get("category") or "Blog").strip() or "Blog"
-        tags = coerce_term_list((meta or {}).get("tags", []))
+        derived_tags = merge_tag_list((meta or {}).get("tags", []), source_match_tags_for_path(article_path, title), source_match_tags_for_path(folder_label, title))
+        category = str((meta or {}).get("category") or "").strip() or source_match_category_for_path(article_path, title) or "Blog"
+        tags = derived_tags or coerce_term_list((meta or {}).get("tags", []))
         excerpt = str((meta or {}).get("excerpt") or "").strip()
-        status = str((meta or {}).get("status") or "draft").strip().lower()
+        status = str((meta or {}).get("status") or "publish").strip().lower()
         published_date = str((meta or {}).get("date") or legacy_hint.get("date") or "").strip()
         published_at = normalize_iso_datetime(f"{published_date}T09:00:00+00:00") if published_date else last_modified
 
@@ -300,6 +391,66 @@ def load_taxonomy() -> Dict[str, List[str]]:
         "restricted_tags": data.get("restricted_tags", []),
         "descriptive_tags": data.get("descriptive_tags", []),
     }
+
+
+SOURCE_MATCH_TABLE: List[Dict[str, Any]] = [
+    {"match": ["page-content-blog", "sources"], "tags": ["blog"], "category": "blog"},
+    {"match": ["_unmapped", "_docs", "docs", "wiki", "documentation", "handbuch", "manual"], "tags": ["documentation"], "category": "documentation"},
+    {"match": ["benchmark", "benchmarks", "vergleich"], "tags": ["benchmark"], "category": "benchmark"},
+    {"match": ["podcast", "audio", "episode"], "tags": ["podcast"], "category": "podcast"},
+    {"match": ["roadmap", "architecture", "design"], "tags": ["architecture"], "category": "architecture"},
+    {"match": ["security", "security-review", "threat"], "tags": ["security"], "category": "security"},
+    {"match": ["guide", "how-to", "tutorial", "anleitung"], "tags": ["guide"], "category": "documentation"},
+    {"match": ["analysis", "research", "insight", "evaluierung"], "tags": ["analysis"], "category": "documentation"},
+]
+
+
+def normalize_source_lookup_value(value: Any) -> str:
+    return str(value or "").replace("\\", "/").lower().strip()
+
+
+def merge_tag_list(*parts: Iterable[str]) -> List[str]:
+    merged: List[str] = []
+    seen = set()
+    for part in parts:
+        for item in coerce_term_list(part):
+            value = str(item).strip().lower().replace("_", "-")
+            if not value or value in seen:
+                continue
+            seen.add(value)
+            merged.append(value)
+    return merged
+
+
+def source_match_tags_for_path(source_path: Any, title: str = "") -> List[str]:
+    resolved = normalize_source_lookup_value(source_path)
+    text = f"{resolved} {normalize_source_lookup_value(title)}"
+    if not text:
+        return []
+
+    matched_tags: List[str] = []
+    for rule in SOURCE_MATCH_TABLE:
+        tokens = [normalize_source_lookup_value(token) for token in rule.get("match", [])]
+        if not tokens:
+            continue
+        if any(token in text for token in tokens):
+            matched_tags.extend(coerce_term_list(rule.get("tags", [])))
+    return merge_tag_list(matched_tags)
+
+
+def source_match_category_for_path(source_path: Any, title: str = "") -> str:
+    resolved = normalize_source_lookup_value(source_path)
+    text = f"{resolved} {normalize_source_lookup_value(title)}"
+    if not text:
+        return "documentation"
+
+    for rule in SOURCE_MATCH_TABLE:
+        tokens = [normalize_source_lookup_value(token) for token in rule.get("match", [])]
+        if any(token in text for token in tokens):
+            category = str(rule.get("category") or "documentation").strip().lower().replace("_", "-")
+            if category:
+                return category
+    return "documentation"
 
 
 def build_wp_url(base_url: str, path: str) -> str:
@@ -507,16 +658,104 @@ def primary_category_for_tags(tags: Iterable[str]) -> str:
     return "documentation"
 
 
+def resolve_document_category_names(doc: Dict[str, Any], tags: Iterable[str], explicit_category: str = "") -> List[str]:
+    explicit = str(explicit_category or "").strip()
+    if explicit:
+        return [explicit]
+
+    source_origin = str(doc.get("source_origin") or doc.get("metadata", {}).get("source_origin") if isinstance(doc.get("metadata"), dict) else "").lower()
+    pipeline = str(doc.get("pipeline") or "").lower()
+    source_path = str(doc.get("source_path") or "").lower()
+    title = str(doc.get("title") or "").lower()
+    tag_values = [str(tag).strip().lower().replace("_", "-") for tag in coerce_term_list(tags) if str(tag).strip()]
+    route_text = " ".join([source_path, title, " ".join(tag_values)])
+    matched_categories: List[str] = []
+
+    for rule in SOURCE_MATCH_TABLE:
+        tokens = [normalize_source_lookup_value(token) for token in rule.get("match", [])]
+        if not tokens:
+            continue
+        if any(token in route_text for token in tokens):
+            category = str(rule.get("category") or "").strip().lower().replace("_", "-")
+            if category:
+                matched_categories.append(category)
+
+    if "page-content-blog" in source_origin or "page-content-blog" in source_path or pipeline == "page-content-blog":
+        matched_categories.append("blog")
+    if "podcast" in route_text or "audio" in route_text or "episode" in route_text:
+        matched_categories.append("podcast")
+    if "help" in route_text or "hilfe" in route_text or "faq" in route_text or "anleitung" in route_text or "guide" in route_text:
+        matched_categories.append("help")
+    if "dokumentation" in route_text or "documentation" in route_text or "wiki" in route_text or "manual" in route_text or "wikki" in route_text:
+        matched_categories.append("documentation")
+    if "blog" in tag_values:
+        matched_categories.append("blog")
+    for preferred in ("documentation", "feature", "security", "benchmark", "architecture"):
+        if preferred in tag_values:
+            matched_categories.append(preferred)
+    if "docs" in source_origin or "docs" in source_path or "documentation" in source_origin or "documentation" in source_path:
+        matched_categories.append("documentation")
+
+    if matched_categories:
+        ordered = []
+        seen = set()
+        for category in matched_categories + [primary_category_for_tags(tag_values) or "documentation"]:
+            normalized = str(category).strip().lower().replace("_", "-")
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            ordered.append(normalized)
+        return ordered
+
+    return [primary_category_for_tags(tag_values) or "documentation"]
+
+
+def find_existing_term_id(base_url: str, user: str, password: str, taxonomy: str, term_name: str) -> Optional[int]:
+    slug = str(term_name or "").strip().lower().replace("_", "-")
+    if not slug:
+        return None
+    candidates = []
+    for path in (
+        f"wp-json/wp/v2/{taxonomy}?search={quote(slug)}&per_page=20",
+        f"wp-json/wp/v2/{taxonomy}?search={quote(term_name.strip())}&per_page=20",
+        f"wp-json/wp/v2/{taxonomy}?slug={quote(slug)}&per_page=20",
+    ):
+        try:
+            results = rest_request(base_url, user, password, path)
+        except Exception:
+            continue
+        if not isinstance(results, list):
+            continue
+        candidates.extend(results)
+    seen = set()
+    for item in candidates:
+        if not isinstance(item, dict):
+            continue
+        item_id = item.get("id")
+        item_slug = str(item.get("slug") or "").strip().lower().replace("_", "-")
+        item_name = str(item.get("name") or "").strip().lower()
+        if item_id is None:
+            continue
+        if item_slug == slug or item_name == str(term_name).strip().lower():
+            if item_id not in seen:
+                seen.add(int(item_id))
+                return int(item_id)
+    return None
+
+
 def ensure_term_id(base_url: str, user: str, password: str, taxonomy: str, term_name: str) -> Optional[int]:
-    slug = term_name.strip().lower().replace("_", "-")
-    search_path = f"wp-json/wp/v2/{taxonomy}?search={slug}&per_page=20"
+    term_name = str(term_name or "").strip()
+    if not term_name:
+        return None
+    slug = term_name.lower().replace("_", "-")
+    search_path = f"wp-json/wp/v2/{taxonomy}?search={quote(slug)}&per_page=20"
     try:
         results = rest_request(base_url, user, password, search_path)
     except Exception:
         results = []
     if isinstance(results, list):
         for item in results:
-            if isinstance(item, dict) and item.get("slug") == slug:
+            if isinstance(item, dict) and (str(item.get("slug") or "").strip().lower().replace("_", "-") == slug or str(item.get("name") or "").strip().lower() == term_name.lower()):
                 return int(item["id"])
     create_payload = {"name": term_name, "slug": slug}
     try:
@@ -532,6 +771,11 @@ def ensure_term_id(base_url: str, user: str, password: str, taxonomy: str, term_
             or "rest_no_route" in message
         ):
             return None
+        if "term_exists" in message or "already exists" in message:
+            existing = find_existing_term_id(base_url, user, password, taxonomy, term_name)
+            if existing is not None:
+                return existing
+            raise
         raise
     if isinstance(created, dict) and "id" in created:
         return int(created["id"])
@@ -575,12 +819,14 @@ def prewarm_terms_for_docs(base_url: str, user: str, password: str, docs: Iterab
         resolve_term_ids(base_url, user, password, "categories", category_names)
 
 
-def normalize_post_status(value: Any) -> str:
+def normalize_post_status(value: Any, default_status: str = "publish") -> str:
     allowed = {"draft", "pending", "private", "publish"}
     status = str(value or "").strip().lower()
     if status in allowed:
         return status
-    return "draft"
+    if not status:
+        return default_status
+    return default_status if status in {"publish", "private", "pending"} else "draft"
 
 
 def build_excerpt(title: str, tags: List[str]) -> str:
@@ -936,10 +1182,9 @@ def resolve_local_asset_path(ref: str, current_relative_path: str = "", repo_roo
     return None
 
 
-def upload_media_asset(base_url: str, user: str, password: str, local_path: str, title: str = "", alt_text: str = "") -> str:
-    path = Path(local_path)
+def _prepare_wordpress_upload_file(path: Path) -> tuple[Path, str]:
     if not path.exists():
-        raise FileNotFoundError(f"Asset not found: {local_path}")
+        return path, "application/octet-stream"
 
     mime_types = {
         ".jpg": "image/jpeg",
@@ -949,16 +1194,42 @@ def upload_media_asset(base_url: str, user: str, password: str, local_path: str,
         ".svg": "image/svg+xml",
         ".webp": "image/webp",
         ".pdf": "application/pdf",
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".ogg": "audio/ogg",
+        ".m4a": "audio/mp4",
+        ".aac": "audio/aac",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".mov": "video/quicktime",
+        ".m4v": "video/x-m4v",
     }
-    mime_type = mime_types.get(path.suffix.lower(), "application/octet-stream")
-    with path.open("rb") as upload_file:
+
+    normalized = convert_image_for_wordpress(path)
+    mime_type = mime_types.get(normalized.suffix.lower(), mime_types.get(path.suffix.lower(), "application/octet-stream"))
+    return normalized, mime_type
+
+
+def upload_media_asset(base_url: str, user: str, password: str, local_path: str, title: str = "", alt_text: str = "") -> str:
+    path = Path(local_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Asset not found: {local_path}")
+
+    upload_path, mime_type = _prepare_wordpress_upload_file(path)
+    upload_name = upload_path.name
+    with upload_path.open("rb") as upload_file:
         response = requests.post(
             build_wp_url(base_url, "wp-json/wp/v2/media"),
             auth=(user, password) if user and password else None,
-            files={"file": (path.name, upload_file, mime_type)},
+            files={"file": (upload_name, upload_file, mime_type)},
             data={"title": title or path.stem, "alt_text": alt_text or title or path.stem},
             timeout=60,
         )
+    if upload_path != path:
+        try:
+            upload_path.unlink(missing_ok=True)
+        except OSError:
+            pass
     if response.status_code >= 400:
         raise RuntimeError(f"Media upload failed: {response.status_code}: {response.text[:500]}")
     payload = response.json()
@@ -966,31 +1237,29 @@ def upload_media_asset(base_url: str, user: str, password: str, local_path: str,
         source_url = payload.get("source_url") or payload.get("guid", {}).get("rendered")
         if source_url:
             return str(source_url)
-    raise RuntimeError(f"Unexpected media upload response for {path.name}: {response.text[:500]}")
+    raise RuntimeError(f"Unexpected media upload response for {upload_name}: {response.text[:500]}")
 
 
 def upload_media_asset_info(base_url: str, user: str, password: str, local_path: str, title: str = "", alt_text: str = "") -> Optional[Dict[str, Any]]:
     path = Path(local_path)
     if not path.exists():
         return None
-    mime_types = {
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".gif": "image/gif",
-        ".svg": "image/svg+xml",
-        ".webp": "image/webp",
-        ".pdf": "application/pdf",
-    }
-    mime_type = mime_types.get(path.suffix.lower(), "application/octet-stream")
-    with path.open("rb") as upload_file:
+
+    upload_path, mime_type = _prepare_wordpress_upload_file(path)
+    upload_name = upload_path.name
+    with upload_path.open("rb") as upload_file:
         response = requests.post(
             build_wp_url(base_url, "wp-json/wp/v2/media"),
             auth=(user, password) if user and password else None,
-            files={"file": (path.name, upload_file, mime_type)},
+            files={"file": (upload_name, upload_file, mime_type)},
             data={"title": title or path.stem, "alt_text": alt_text or title or path.stem},
             timeout=90,
         )
+    if upload_path != path:
+        try:
+            upload_path.unlink(missing_ok=True)
+        except OSError:
+            pass
     if response.status_code >= 400:
         return None
     payload = response.json()
@@ -1003,43 +1272,185 @@ def upload_media_asset_info(base_url: str, user: str, password: str, local_path:
     return None
 
 
+def resolve_article_image_dir(source_path: str) -> Path:
+    article_file = Path(source_path)
+    if article_file.exists():
+        candidate = article_file.parent / "images"
+        if candidate.exists():
+            return candidate
+    page_root = ROOT.parent / "page-content-blog"
+    candidate = page_root / "sources" / article_file.parent.name / "images"
+    if candidate.exists():
+        return candidate
+    return article_file.parent / "images"
+
+
+def resolve_article_media_paths(source_path: str) -> List[Path]:
+    article_file = Path(source_path)
+    candidates: List[Path] = []
+    if article_file.exists() and article_file.parent.exists():
+        for path in sorted(article_file.parent.glob("*.*")):
+            if path.is_file():
+                candidates.append(path)
+
+    image_dir = resolve_article_image_dir(source_path)
+    if image_dir.exists():
+        for path in sorted(image_dir.glob("*.*")):
+            if path.is_file():
+                candidates.append(path)
+
+    seen: set[str] = set()
+    ordered: List[Path] = []
+    for path in candidates:
+        key = str(path.resolve())
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(path)
+    return ordered
+
+
+def load_image_manifest(doc: Dict[str, Any]) -> Dict[str, Any]:
+    source_path = str(doc.get("source_path") or doc.get("relative_path") or "").strip()
+    if not source_path:
+        return {}
+    image_dir = resolve_article_image_dir(source_path)
+    manifest_path = image_dir / "manifest.json"
+    if not manifest_path.exists():
+        return {}
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else {}
+    except Exception:
+        return {}
+
+
+def collect_context_images(doc: Dict[str, Any], title: str) -> List[Dict[str, Any]]:
+    source_path = str(doc.get("source_path") or doc.get("relative_path") or "").strip()
+    if not source_path:
+        return []
+    image_dir = resolve_article_image_dir(source_path)
+    results: List[Dict[str, Any]] = []
+    for idx, path in enumerate(sorted(image_dir.glob("context-*.*")), start=1):
+        alt_text = f"Kontextbild {idx} zu {title}"
+        results.append({"path": str(path), "alt": alt_text})
+    return results
+
+
+def preflight_import_checks(doc: Dict[str, Any]) -> Dict[str, List[str]]:
+    warnings: List[str] = []
+    errors: List[str] = []
+    source_path = str(doc.get("source_path") or doc.get("relative_path") or "").strip()
+    if not source_path:
+        return {"warnings": warnings, "errors": errors}
+
+    source_file = Path(source_path)
+    image_dir = resolve_article_image_dir(source_path)
+    markdown_text = read_document_body(doc)
+    image_anchors = re.findall(r"(?m)^\s*<!--\s*IMAGE_ANCHOR:", markdown_text)
+    if image_anchors and not image_dir.exists():
+        errors.append(f"{len(image_anchors)} IMAGE_ANCHOR markers found but no images folder at {image_dir}")
+    featured_candidates = [image_dir / name for name in ("featured.png", "featured.jpg", "featured.jpeg", "featured.webp", "cover.png", "cover.jpg", "hero.png", "hero.jpg")]
+    if image_anchors and not any(path.exists() for path in featured_candidates):
+        warnings.append("Image markers are present but no featured image was found in the source image folder")
+    if image_dir.exists() and not any(image_dir.glob("context-*.*")):
+        warnings.append("No context images were found for this article")
+    if not source_file.exists() and not image_dir.exists():
+        errors.append(f"No source markdown file or images directory could be resolved for {source_path}")
+    return {"warnings": warnings, "errors": errors}
+
+
 def build_blog_media_html(doc: Dict[str, Any], base_url: str, user: str, password: str, dry_run: bool) -> Dict[str, Any]:
     source_path = str(doc.get("source_path") or "").strip()
     if not source_path:
         return {"html": "", "featured_media": None}
     article_file = Path(source_path)
-    image_dir = article_file.parent / "images"
-    if not image_dir.exists():
+    image_dir = resolve_article_image_dir(source_path)
+    article_media_paths = resolve_article_media_paths(source_path)
+    if not image_dir.exists() and not article_media_paths:
         return {"html": "", "featured_media": None}
 
-    featured_candidates = [image_dir / name for name in ("featured.png", "featured.jpg", "featured.jpeg", "featured.webp")]
+    manifest = load_image_manifest(doc)
+    featured_candidates = [image_dir / name for name in ("featured.png", "featured.jpg", "featured.jpeg", "featured.webp", "cover.png", "cover.jpg", "hero.png", "hero.jpg")]
     featured_path = next((path for path in featured_candidates if path.exists()), None)
     context_paths = [path for path in sorted(image_dir.glob("context-*.*")) if path.is_file()]
+    diagram_paths = [path for path in sorted(image_dir.glob("diagram-*.*")) if path.is_file()]
+    if not featured_path and isinstance(manifest, dict):
+        for key in ("featured", "hero", "cover"):
+            candidate = manifest.get(key)
+            if isinstance(candidate, str) and (image_dir / candidate).exists():
+                featured_path = image_dir / candidate
+                break
+
+    article_dir_media = []
+    if article_file.exists() and article_file.parent.exists():
+        article_dir_media = [
+            path for path in sorted(article_file.parent.glob("*.*"))
+            if path.is_file()
+            and path.suffix.lower() not in {".json", ".yaml", ".yml", ".mmd", ".md", ".markdown", ".txt"}
+            and path not in set(context_paths)
+            and path not in set(diagram_paths)
+            and path != featured_path
+        ]
+
+    media_paths = [
+        path for path in sorted(image_dir.glob("*.*"))
+        if path.is_file() and path.name.lower() not in {p.name.lower() for p in [featured_path] if p is not None}
+        and path.suffix.lower() not in {".json", ".yaml", ".yml", ".mmd", ".md", ".markdown", ".txt"}
+        and path not in set(context_paths) and path not in set(diagram_paths)
+    ]
+    for path in article_dir_media:
+        if path not in media_paths:
+            media_paths.append(path)
 
     featured_media_id: Optional[int] = None
     featured_url = ""
     context_urls: List[str] = []
+    extra_media: List[str] = []
 
-    if dry_run:
-        if featured_path:
-            featured_url = featured_path.as_posix()
-        context_urls = [path.as_posix() for path in context_paths]
-    else:
-        if featured_path:
-            uploaded = upload_media_asset_info(base_url, user, password, str(featured_path), featured_path.stem, featured_path.stem)
-            if uploaded and uploaded.get("url"):
-                featured_url = str(uploaded["url"])
-                if uploaded.get("id"):
-                    try:
-                        featured_media_id = int(uploaded["id"])
-                    except Exception:
-                        featured_media_id = None
-        for path in context_paths:
-            uploaded = upload_media_asset_info(base_url, user, password, str(path), path.stem, path.stem)
-            if uploaded and uploaded.get("url"):
-                context_urls.append(str(uploaded["url"]))
+    def upload_media(path: Path) -> tuple[str, Optional[int]]:
+        if dry_run:
+            return path.as_posix(), None
+        uploaded = upload_media_asset_info(base_url, user, password, str(path), path.stem, path.stem)
+        if uploaded and uploaded.get("url"):
+            media_id = None
+            if uploaded.get("id") is not None:
+                try:
+                    media_id = int(uploaded["id"])
+                except Exception:
+                    media_id = None
+            return str(uploaded["url"]), media_id
+        return "", None
 
-    if not featured_url and not context_urls:
+    if featured_path:
+        featured_url, featured_media_id = upload_media(featured_path)
+
+    for path in context_paths:
+        url, _ = upload_media(path)
+        if url:
+            context_urls.append(url)
+
+    for path in diagram_paths:
+        url, _ = upload_media(path)
+        if url:
+            extra_media.append(f'<figure class="themisdb-import-diagram"><img src="{html_lib.escape(url, quote=True)}" alt="Diagram" /></figure>')
+
+    for path in media_paths:
+        lower = path.suffix.lower()
+        if lower in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"}:
+            url, _ = upload_media(path)
+            if url:
+                extra_media.append(f'<figure class="themisdb-import-inline-image"><img src="{html_lib.escape(url, quote=True)}" alt="{html_lib.escape(path.stem, quote=True)}" /></figure>')
+        elif lower in {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"}:
+            url, _ = upload_media(path)
+            if url:
+                extra_media.append(f'<video controls preload="metadata" src="{html_lib.escape(url, quote=True)}"></video>')
+        elif lower in {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"}:
+            url, _ = upload_media(path)
+            if url:
+                extra_media.append(f'<audio controls src="{html_lib.escape(url, quote=True)}"></audio>')
+
+    if not featured_url and not context_urls and not extra_media:
         return {"html": "", "featured_media": featured_media_id}
 
     parts: List[str] = ['<section class="themisdb-import-media">']
@@ -1050,6 +1461,8 @@ def build_blog_media_html(doc: Dict[str, Any], base_url: str, user: str, passwor
         for url in context_urls:
             parts.append(f'<figure><img src="{html_lib.escape(url, quote=True)}" alt="Context image" /></figure>')
         parts.append('</div>')
+    if extra_media:
+        parts.extend(extra_media)
     parts.append('</section>')
     return {"html": "".join(parts), "featured_media": featured_media_id}
 
@@ -1148,13 +1561,19 @@ def render_mermaid_to_svg(mermaid_source: str, output_path: Path) -> Path:
 
 
 def convert_image_for_wordpress(image_path: Path) -> Path:
-    if image_path.suffix.lower() != ".png":
+    if image_path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tif", ".tiff"}:
         return image_path
-    jpeg_path = image_path.with_suffix(".jpg")
-    with Image.open(image_path) as img:
-        converted = img.convert("RGB") if img.mode in {"RGBA", "LA", "P", "CMYK"} else img
-        converted.save(jpeg_path, "JPEG", quality=90)
-    return jpeg_path
+
+    try:
+        with Image.open(image_path) as img:
+            img = ImageOps.exif_transpose(img)
+            if img.mode not in {"RGB", "L"}:
+                img = img.convert("RGB")
+            jpeg_path = image_path.with_suffix(".jpg")
+            img.save(jpeg_path, "JPEG", quality=90, optimize=True)
+            return jpeg_path
+    except Exception:
+        return image_path
 
 
 def rewrite_markdown_assets(markdown: str, current_relative_path: str = "", base_url: str = "", user: str = "", password: str = "", repo_root: Optional[Path] = None) -> str:
@@ -1753,14 +2172,75 @@ def extract_doc_metadata(doc: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def resolve_document_source_path(doc: Dict[str, Any]) -> Optional[Path]:
+    candidates: List[Path] = []
+    for key in ("source_path", "relative_path"):
+        value = doc.get(key)
+        if value:
+            candidates.append(Path(str(value)))
+
+    if not candidates:
+        return None
+
+    seen = set()
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        key = str(candidate.resolve())
+        if key in seen:
+            continue
+        seen.add(key)
+        if candidate.suffix.lower() in {".md", ".markdown", ".txt"}:
+            return candidate
+
+    for candidate in candidates:
+        if candidate.parent.exists():
+            for suffix in (".md", ".markdown", ".txt"):
+                sibling = candidate.with_suffix(suffix)
+                if sibling.exists():
+                    return sibling
+            article_md = candidate.parent / "article.md"
+            if article_md.exists():
+                return article_md
+            for child in sorted(candidate.parent.glob("*.md")):
+                if child.is_file() and not child.name.endswith((".duplicate", ".bak", ".bak2")):
+                    return child
+
+    for candidate in candidates:
+        folder = candidate.parent
+        for path in sorted(folder.rglob("*.md")):
+            if path.is_file() and not path.name.endswith((".duplicate", ".bak", ".bak2")):
+                return path
+
+    return None
+
+
 def read_document_body(doc: Dict[str, Any]) -> str:
-    source_path = doc.get("source_path") or doc.get("relative_path")
-    if not source_path:
-        return ""
-    try:
-        return Path(source_path).read_text(encoding="utf-8", errors="replace")
-    except Exception:
-        return ""
+    source_path = resolve_document_source_path(doc)
+    if source_path is not None:
+        try:
+            return source_path.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+    source_lookup = str(doc.get("source_path") or doc.get("relative_path") or "").strip()
+    if source_lookup:
+        try:
+            path = Path(source_lookup)
+            if path.exists() and path.is_file():
+                return path.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+    output_lookup = str(doc.get("output_path") or "").strip()
+    if output_lookup:
+        try:
+            output_path = Path(output_lookup)
+            if output_path.exists() and output_path.is_file():
+                return output_path.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+    return ""
 
 
 def coerce_term_list(value: Any) -> List[str]:
@@ -1992,19 +2472,183 @@ def assign_post_coauthors(base_url: str, user: str, password: str, post_id: Any,
         return None
 
 
+def discover_source_documents(manifest_path: Path = DOCS_CACHE_PATH, blog_sources_root: Optional[Path] = None) -> List[Dict[str, Any]]:
+    if blog_sources_root is not None:
+        return build_blog_documents_from_sources(blog_sources_root)
+    return load_json(Path(manifest_path)).get("documents", [])
+
+
+def resolve_document_metadata(doc: Dict[str, Any]) -> Dict[str, Any]:
+    metadata = extract_doc_metadata(doc)
+    title = str(doc.get("title") or metadata.get("title") or "Untitled document").strip() or "Untitled document"
+    slug = str(doc.get("slug") or metadata.get("slug") or slugify_text(title)).strip() or slugify_text(title)
+    status = normalize_post_status(metadata.get("status"), default_status="publish")
+    source_path = str(doc.get("source_path") or metadata.get("source_path") or doc.get("relative_path") or "").strip()
+    raw_excerpt = str((doc.get("excerpt") or metadata.get("summary") or "")).strip()
+    return {
+        "title": title,
+        "slug": slug,
+        "status": status,
+        "source_path": source_path,
+        "source_origin": str(metadata.get("source_origin") or doc.get("source_origin") or "page-content-blog/sources").strip(),
+        "date": str(metadata.get("date") or metadata.get("published_at") or metadata.get("created_at") or "").strip(),
+        "published_at": str(metadata.get("published_at") or metadata.get("date") or metadata.get("created_at") or "").strip(),
+        "created_at": str(metadata.get("created_at") or doc.get("last_modified") or "").strip(),
+        "modified_at": str(metadata.get("modified_at") or doc.get("last_modified") or metadata.get("created_at") or "").strip(),
+        "author": str(metadata.get("author") or "ThemisDB").strip(),
+        "coauthors": list(metadata.get("coauthors") or []),
+        "excerpt": raw_excerpt,
+        "category": str(metadata.get("category") or doc.get("category") or "").strip(),
+    }
+
+
+def apply_source_tags_and_categories(doc: Dict[str, Any], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    resolved = metadata or resolve_document_metadata(doc)
+    heuristic_tags = source_match_tags_for_path(doc.get("source_path"), str(doc.get("title") or ""))
+    explicit_tags = merge_tag_list(doc.get("tags", []), heuristic_tags)
+    if doc.get("allow_unrestricted_tags"):
+        tags = explicit_tags[:12]
+    else:
+        tags = ensure_taxonomy_terms(explicit_tags)[:12]
+    category_names = resolve_document_category_names(doc, tags, str(resolved.get("category") or "").strip())
+    if not category_names:
+        category_names = ["documentation"]
+    return {"tags": list(dict.fromkeys(tags)), "categories": list(dict.fromkeys(category_names))}
+
+
+def collect_article_media(doc: Dict[str, Any]) -> Dict[str, Any]:
+    source_path = str(doc.get("source_path") or doc.get("relative_path") or "").strip()
+    if not source_path:
+        return {"featured": None, "context": [], "diagram": [], "audio": [], "video": [], "images": [], "all_media": []}
+
+    article_file = Path(source_path)
+    image_dir = resolve_article_image_dir(source_path)
+    featured_candidates = [
+        image_dir / name for name in (
+            "featured.png",
+            "featured.jpg",
+            "featured.jpeg",
+            "featured.webp",
+            "cover.png",
+            "cover.jpg",
+            "hero.png",
+            "hero.jpg",
+        )
+    ]
+    featured = next((path for path in featured_candidates if path.exists()), None)
+    context_paths = [path for path in sorted(image_dir.glob("context-*.*")) if path.is_file()]
+    diagram_paths = [path for path in sorted(image_dir.glob("diagram-*.*")) if path.is_file()]
+    article_dir_files = []
+    if article_file.exists() and article_file.parent.exists():
+        article_dir_files = [
+            path for path in sorted(article_file.parent.glob("*.*"))
+            if path.is_file()
+            and path.suffix.lower() not in {".json", ".yaml", ".yml", ".mmd", ".md", ".markdown", ".txt"}
+        ]
+    media_paths = [
+        path for path in sorted(image_dir.glob("*.*"))
+        if path.is_file() and path.suffix.lower() not in {".json", ".yaml", ".yml", ".mmd", ".md", ".markdown", ".txt"}
+    ]
+    for path in article_dir_files:
+        if path not in media_paths:
+            media_paths.append(path)
+
+    images = [path for path in media_paths if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"}]
+    audio = [path for path in media_paths if path.suffix.lower() in {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"}]
+    video = [path for path in media_paths if path.suffix.lower() in {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"}]
+    return {
+        "featured": featured,
+        "context": context_paths,
+        "diagram": diagram_paths,
+        "audio": audio,
+        "video": video,
+        "images": images,
+        "all_media": media_paths,
+    }
+
+
+def upload_media_bundle(doc: Dict[str, Any], base_url: str = "", user: str = "", password: str = "", dry_run: bool = False) -> Dict[str, Any]:
+    media = collect_article_media(doc)
+    if not base_url or not user or not password or dry_run:
+        return {"featured_media": None, "html": "", "media": media}
+    html_block = build_blog_media_html(doc, base_url, user, password, dry_run=False)
+    return {"featured_media": html_block.get("featured_media"), "html": html_block.get("html", ""), "media": media}
+
+
+def render_document_content(doc: Dict[str, Any], base_url: str = "", user: str = "", password: str = "", dry_run: bool = False, link_lookup: Optional[Dict[str, str]] = None) -> str:
+    metadata = resolve_document_metadata(doc)
+    source_markdown = read_document_body(doc)
+    if not source_markdown:
+        return ""
+    source_markdown_for_html = rewrite_markdown_assets(
+        source_markdown,
+        current_relative_path=str(doc.get("relative_path") or ""),
+        base_url=base_url,
+        user=user,
+        password=password,
+        repo_root=ROOT.parent,
+    ) if source_markdown and not dry_run else source_markdown
+    source_html = markdown_to_html(source_markdown_for_html, current_relative_path=str(doc.get("relative_path") or ""), doc_lookup=link_lookup, base_url=base_url) if source_markdown_for_html else ""
+    source_html = strip_duplicate_leading_h1(source_html, str(doc.get("title") or metadata.get("title") or ""))
+    media_block = build_blog_media_html(doc, base_url, user, password, dry_run=dry_run)
+    media_html = str(media_block.get("html") or "").strip()
+    if media_html:
+        return media_html + "\n" + source_html
+    return source_html
+
+
+def upsert_wordpress_post(base_url: str, user: str, password: str, doc: Dict[str, Any], dry_run: bool = False, link_lookup: Optional[Dict[str, str]] = None, update_only: bool = False) -> Dict[str, Any]:
+    return create_or_update_document(
+        base_url,
+        user,
+        password,
+        doc,
+        dry_run=dry_run,
+        link_lookup=link_lookup,
+        update_only=update_only,
+    )
+
+
+def persist_import_state(doc: Dict[str, Any], post_result: Dict[str, Any], media_result: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    state_path = LEGACY_IMPORT_STATE_PATH
+    state: Dict[str, Any] = {}
+    if state_path.exists():
+        try:
+            parsed = json.loads(state_path.read_text(encoding="utf-8"))
+            if isinstance(parsed, dict):
+                state = parsed
+        except Exception:
+            state = {}
+    documents_state = state.setdefault("documents", {})
+    source_key = str(doc.get("source_path") or doc.get("relative_path") or doc.get("slug") or doc.get("title") or "unknown")
+    documents_state[source_key] = {
+        "title": doc.get("title"),
+        "slug": doc.get("slug"),
+        "source_path": str(doc.get("source_path") or doc.get("relative_path") or ""),
+        "wp_action": post_result.get("action"),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "featured_media": (media_result or {}).get("featured_media"),
+    }
+    tmp_path = state_path.with_suffix(".json.tmp")
+    tmp_path.write_text(json.dumps(make_json_safe(state), ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_path.replace(state_path)
+    return state
+
+
 def normalize_post_payload(doc: Dict[str, Any], base_url: str = "", user: str = "", password: str = "", dry_run: bool = False, link_lookup: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     taxonomy = load_taxonomy()
     unrestricted_tags = bool(doc.get("allow_unrestricted_tags"))
+    heuristic_tags = source_match_tags_for_path(doc.get("source_path"), str(doc.get("title") or ""))
     if unrestricted_tags:
-        raw_tags = [str(tag).strip() for tag in coerce_term_list(doc.get("tags", [])) if str(tag).strip()][:12]
+        raw_tags = merge_tag_list(doc.get("tags", []), heuristic_tags)[:12]
     else:
-        raw_tags = ensure_taxonomy_terms(doc.get("tags", []))[:5]
+        raw_tags = ensure_taxonomy_terms(merge_tag_list(doc.get("tags", []), heuristic_tags))[:12]
     tags = list(dict.fromkeys(raw_tags))
     public_selection = [tag for tag in tags if tag in taxonomy.get("selection_tags", [])]
     descriptive = [tag for tag in tags if tag in taxonomy.get("descriptive_tags", [])]
     metadata = extract_doc_metadata(doc)
     explicit_category = str(metadata.get("category") or "").strip()
-    category_names = [explicit_category] if explicit_category else ([primary_category_for_tags(tags)] if tags else ["documentation"])
+    category_names = resolve_document_category_names(doc, tags, explicit_category)
     if not public_selection and descriptive:
         category_names = [descriptive[0]]
     custom_taxonomies = extract_custom_taxonomy_values(doc)
@@ -2052,7 +2696,7 @@ def normalize_post_payload(doc: Dict[str, Any], base_url: str = "", user: str = 
     payload = {
         "title": doc.get("title", "Untitled document"),
         "slug": doc.get("slug", "document"),
-        "status": normalize_post_status(metadata.get("status")),
+        "status": normalize_post_status(metadata.get("status"), default_status="publish"),
         "content": content_body,
         "excerpt": str(doc.get("excerpt") or metadata.get("summary") or build_excerpt(doc.get("title", "Untitled document"), tags)),
         "date": metadata["date"] or metadata["published_at"] or metadata["created_at"],
@@ -2170,7 +2814,7 @@ def create_or_update_document(
 
     if existing:
         payload["id"] = existing["id"]
-        payload["status"] = existing.get("status", "draft")
+        payload["status"] = payload.get("status") or existing.get("status", "draft")
         payload["slug"] = existing.get("slug", payload["slug"])
         payload.pop("author", None)
 
@@ -2180,8 +2824,8 @@ def create_or_update_document(
             "action": "create" if not existing else "update",
             "slug": payload["slug"],
             "title": payload["title"],
-            "doc": doc,
-            "payload": payload,
+            "doc": make_json_safe(doc),
+            "payload": make_json_safe(payload),
         }
 
     path = "wp-json/wp/v2/posts"
@@ -2256,17 +2900,38 @@ def run_import(
     failed = []
     for doc in docs:
         try:
-            results.append(
-                create_or_update_document(
-                    base_url,
-                    user,
-                    password,
-                    doc,
-                    dry_run=dry_run,
-                    link_lookup=link_lookup,
-                    update_only=update_only,
-                )
+            prepared_doc = dict(doc)
+            metadata = resolve_document_metadata(prepared_doc)
+            classification = apply_source_tags_and_categories(prepared_doc, metadata)
+            prepared_doc["tags"] = classification["tags"]
+            prepared_doc["categories"] = classification["categories"]
+            prepared_doc.setdefault("metadata", {})
+            if isinstance(prepared_doc["metadata"], dict):
+                prepared_doc["metadata"].setdefault("source_path", metadata["source_path"])
+                prepared_doc["metadata"].setdefault("source_origin", metadata["source_origin"])
+                prepared_doc["metadata"].setdefault("status", metadata["status"])
+                prepared_doc["metadata"].setdefault("category", classification["categories"][0] if classification["categories"] else "")
+            media_bundle = upload_media_bundle(prepared_doc, base_url, user, password, dry_run=dry_run)
+            prepared_doc["media_bundle"] = media_bundle
+            prepared_doc["rendered_content"] = render_document_content(
+                prepared_doc,
+                base_url=base_url,
+                user=user,
+                password=password,
+                dry_run=dry_run,
+                link_lookup=link_lookup,
             )
+            result = upsert_wordpress_post(
+                base_url,
+                user,
+                password,
+                prepared_doc,
+                dry_run=dry_run,
+                link_lookup=link_lookup,
+                update_only=update_only,
+            )
+            persist_import_state(prepared_doc, result, media_bundle)
+            results.append(result)
         except Exception as exc:
             failed.append(
                 {
@@ -2283,9 +2948,9 @@ def run_import(
         "offset": start_index,
         "window_size": selection_size,
         "total_filtered": len(filtered_docs),
-        "skipped": skipped,
-        "results": results,
-        "failed": failed,
+        "skipped": make_json_safe(skipped),
+        "results": make_json_safe(results),
+        "failed": make_json_safe(failed),
     }
 
 

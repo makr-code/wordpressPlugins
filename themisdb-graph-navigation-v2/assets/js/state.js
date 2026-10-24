@@ -7,9 +7,13 @@
         viewport: {
             width: 0,
             height: 0,
+            worldWidth: 0,
+            worldHeight: 0,
             zoom: 1,
             offsetX: 0,
             offsetY: 0,
+            panX: 0,
+            panY: 0,
         },
         selection: {
             nodeId: null,

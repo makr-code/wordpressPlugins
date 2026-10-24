@@ -187,8 +187,12 @@
             && Number.isFinite(rect.left) && Number.isFinite(rect.top)
             && Number.isFinite(rect.width) && Number.isFinite(rect.height);
 
-        const localX = hasViewportCoords ? (clientX - rect.left) : (Number.isFinite(clientX) ? clientX : 0);
-        const localY = hasViewportCoords ? (clientY - rect.top) : (Number.isFinite(clientY) ? clientY : 0);
+        const container = activeCanvas && activeCanvas.parentElement ? activeCanvas.parentElement : null;
+        const scrollLeft = container && typeof container.scrollLeft === 'number' ? container.scrollLeft : 0;
+        const scrollTop = container && typeof container.scrollTop === 'number' ? container.scrollTop : 0;
+
+        const localX = hasViewportCoords ? (clientX - rect.left + scrollLeft) : (Number.isFinite(clientX) ? clientX : 0);
+        const localY = hasViewportCoords ? (clientY - rect.top + scrollTop) : (Number.isFinite(clientY) ? clientY : 0);
 
         let bestNode = null;
         let bestDistance = Number.POSITIVE_INFINITY;

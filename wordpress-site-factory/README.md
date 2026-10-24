@@ -57,6 +57,45 @@ links the canonical content from `C:/Projects/themisdb` into this repository wit
 it. This is the right place to mount docs, benchmark reports, releases, examples, and other
 import source material before building the WordPress importers.
 
+## Operational import workflow
+
+The repository now includes a repeatable local import workflow for the Markdown and media sources under `../page-content-blog/sources`.
+
+### Included operational files
+
+- `config/source_rules.json` — category/tag matching rules for source-aware imports
+- `config/wp_target.json` — local vs production WordPress profile defaults
+- `state/import_manifest.json` — source-to-WordPress manifest for idempotent import runs
+- `state/failed_imports.json` — persisted failures for retry and review
+- `state/media_cache.json` — cache for uploaded media references
+- `scripts/import_batch.ps1` — dry-run or live batch importer entry point
+- `scripts/validate_import.ps1` — WordPress post/media/taxonomy validation helper
+- `scripts/repair_taxonomy.ps1` — quick taxonomy review for duplicate or stale taxonomy entries
+
+### Local import usage
+
+From PowerShell:
+
+```powershell
+cd C:\Projects\wordpressPlugins
+.\wordpress-site-factory\scripts\import_batch.ps1 -WindowSize 20
+.\wordpress-site-factory\scripts\import_batch.ps1 -DryRun -WindowSize 10
+```
+
+Use environment variables if you do not want to hardcode a local password:
+
+```powershell
+$env:WP_LOCAL_USER = "test"
+$env:WP_LOCAL_APP_PASSWORD = "<your-local-app-password>"
+```
+
+The importer remains source-first, but the operational layer adds:
+
+- stable manifest state for repeated re-runs
+- batch boundaries for safe incremental imports
+- validation hooks for taxonomy and media issues
+- local recovery scripts for failed imports
+
 ## Canonical import contract
 
 The importer should normalize Markdown into a semantic intermediate format before it is rendered to WordPress HTML. The canonical target is a YAML-first block model that represents content as typed blocks instead of raw source text.

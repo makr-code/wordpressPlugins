@@ -1,0 +1,22 @@
+{
+  "default_target": "local",
+  "profiles": {
+    "local": {
+      "base_url": "http://localhost/wordpress",
+      "user": "${WP_LOCAL_USER:-test}",
+      "password": "${WP_LOCAL_APP_PASSWORD:-set-via-secure-config}",
+      "rest_route_style": "wp-json"
+    },
+    "production": {
+      "base_url": "https://example.com",
+      "user": "${WP_USER:-set-me}",
+      "password": "${WP_APP_PASSWORD:-set-me}",
+      "rest_route_style": "wp-json"
+    }
+  },
+  "validation": {
+    "require_local_profile_for_local_run": true,
+    "allow_dry_run": true,
+    "allow_update_only": true
+  }
+}

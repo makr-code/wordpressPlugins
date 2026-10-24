@@ -279,6 +279,8 @@
 
             const selectedNodeId = activeState && activeState.selection ? activeState.selection.nodeId : null;
             const hoverNodeId = activeState && activeState.selection ? activeState.selection.hoverNodeId : null;
+            const panX = Number(activeState && activeState.viewport ? (activeState.viewport.panX || 0) : 0);
+            const panY = Number(activeState && activeState.viewport ? (activeState.viewport.panY || 0) : 0);
             const width = cssWidth;
             const height = cssHeight;
             const aspect = width / height;
@@ -291,8 +293,8 @@
             const baseZ = 0;
 
             const worldNodes = visibleNodes.map((node, index) => {
-                const nx = Number(node.x || 0) - baseX;
-                const ny = Number(node.y || 0) - baseY;
+                const nx = (Number(node.x || 0) - panX) - baseX;
+                const ny = (Number(node.y || 0) - panY) - baseY;
                 const nz = (Number(node.level || 0) * 0.8) + (Number(node.degree || 0) * 0.12) + ((index % 6) * 0.25) - 0.6;
                 return Object.assign({}, node, {
                     world: vec3((nx / Math.max(1, width)) * 8, (ny / Math.max(1, height)) * 6, nz),
