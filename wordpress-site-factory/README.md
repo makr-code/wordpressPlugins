@@ -48,6 +48,7 @@ This factory is intentionally aligned with the existing ThemisDB repo setup:
 - active theme: themisdb-pulse
 - public selection tags and restricted tags are managed in one taxonomy layer
 - pages are created using the WordPress REST API, not hard-coded HTML only
+- the site bootstrap assigns the canonical home/blog pages and creates the primary/footer navigation in the active theme locations
 - canonical content sources are linked into the repo through `../source-links/`
 
 ## Source roots

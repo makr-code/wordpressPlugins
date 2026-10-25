@@ -52,7 +52,58 @@
       "template": "page",
       "menu_order": 50,
       "parent": null,
+      "content": "<!-- wp:shortcode -->[themisdb_pricing_table]<!-- /wp:shortcode -->",
       "tags": ["pricing"]
+    },
+    {
+      "title": "Order",
+      "slug": "order",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 55,
+      "parent": null,
+      "content": "<!-- wp:shortcode -->[themisdb_order_flow]<!-- /wp:shortcode -->",
+      "tags": ["order", "commerce"]
+    },
+    {
+      "title": "My Orders",
+      "slug": "my-orders",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 56,
+      "parent": null,
+      "content": "<!-- wp:shortcode -->[themisdb_my_orders]<!-- /wp:shortcode -->",
+      "tags": ["orders", "customer"]
+    },
+    {
+      "title": "My Contracts",
+      "slug": "my-contracts",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 57,
+      "parent": null,
+      "content": "<!-- wp:shortcode -->[themisdb_my_contracts]<!-- /wp:shortcode -->",
+      "tags": ["contracts", "customer"]
+    },
+    {
+      "title": "Login",
+      "slug": "login",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 58,
+      "parent": null,
+      "content": "<!-- wp:shortcode -->[themisdb_login]<!-- /wp:shortcode -->",
+      "tags": ["login", "customer"]
+    },
+    {
+      "title": "License Upload",
+      "slug": "license-upload",
+      "status": "publish",
+      "template": "page",
+      "menu_order": 59,
+      "parent": null,
+      "content": "<!-- wp:shortcode -->[themisdb_license_upload]<!-- /wp:shortcode -->",
+      "tags": ["license", "customer"]
     },
     {
       "title": "Support",

@@ -210,6 +210,31 @@ def test_markdown_advanced_standard_features_render_cleanly():
     assert "<!--" not in html
 
 
+def test_markdown_table_without_leading_pipes_renders_as_html_table():
+    html = docs_import.markdown_to_html(
+        "# Example\n\nName | Role\n--- | ---\nAlice | Admin\nBob | Editor\n",
+        current_relative_path="pages/table.md",
+        doc_lookup={},
+        base_url="http://localhost/wordpress",
+    )
+    assert "<table>" in html
+    assert "<th>" in html
+    assert "<td>Alice</td>" in html
+    assert "<td>Admin</td>" in html
+
+
+def test_markdown_renderer_preserves_theme_compatible_lead_and_quote_classes():
+    html = docs_import.markdown_to_html(
+        "# Example\n\nThis is the cover paragraph.\n\n> This is a quote.\n",
+        current_relative_path="pages/theme_compat.md",
+        doc_lookup={},
+        base_url="http://localhost/wordpress",
+    )
+    assert 'class="tv3-article-lead"' in html
+    assert 'class="quote left kernthese"' in html
+    assert "This is a quote." in html
+
+
 def test_duplicate_leading_h1_is_removed_when_it_matches_title():
     html = '<div class="themisdb-formula-content"><h1>Example title</h1><p>Body text</p></div>'
     cleaned = docs_import.strip_duplicate_leading_h1(html, "Example title")

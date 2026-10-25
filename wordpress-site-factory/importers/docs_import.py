@@ -1126,6 +1126,13 @@ def build_frontmatter_block(metadata: Dict[str, Any]) -> str:
 def extract_markdown_assets(markdown: str) -> List[Dict[str, Any]]:
     text = markdown or ""
     assets: List[Dict[str, Any]] = []
+    reference_definitions: Dict[str, str] = {}
+
+    for match in re.finditer(r"(?m)^\s*\[([^\]]+)\]:\s*(\S+)(?:\s+\"([^\"]*)\")?\s*$", text):
+        key = match.group(1).strip().lower()
+        target = match.group(2).strip()
+        if key and target:
+            reference_definitions[key] = target
 
     for match in re.finditer(r"```\s*mermaid\s*\n(.*?)\n```", text, flags=re.IGNORECASE | re.DOTALL):
         payload = match.group(1).strip()
@@ -1134,11 +1141,27 @@ def extract_markdown_assets(markdown: str) -> List[Dict[str, Any]]:
 
     for match in re.finditer(r"!\[[^\]]*\]\(([^)]+)\)", text):
         raw_target = match.group(1).strip()
-        if not raw_target or raw_target.startswith(("http://", "https://", "data:", "#", "mailto:")):
+        cleaned = raw_target.split()[0].strip() if raw_target else ""
+        if not cleaned:
             continue
-        cleaned = raw_target.split()[0].strip()
-        if cleaned:
-            assets.append({"type": "image", "raw": match.group(0), "target": cleaned})
+        if cleaned.startswith(("http://", "https://", "data:", "#", "mailto:")):
+            if cleaned.startswith("data:"):
+                assets.append({"type": "image", "raw": match.group(0), "target": cleaned})
+            continue
+        assets.append({"type": "image", "raw": match.group(0), "target": cleaned})
+
+    for match in re.finditer(r"!\[(?:[^\]]*)\]\[([^\]]*)\]", text):
+        ref_name = match.group(1).strip()
+        if not ref_name:
+            continue
+        target = reference_definitions.get(ref_name.lower()) or reference_definitions.get(ref_name)
+        if not target:
+            continue
+        if target.startswith(("http://", "https://", "data:", "#", "mailto:")):
+            if target.startswith("data:"):
+                assets.append({"type": "image", "raw": match.group(0), "target": target})
+            continue
+        assets.append({"type": "image", "raw": match.group(0), "target": target})
 
     for match in re.finditer(r'<img\s+[^>]*src=["\']([^"\']+)["\'][^>]*>', text, flags=re.IGNORECASE | re.DOTALL):
         raw_target = match.group(1).strip()
@@ -1274,15 +1297,28 @@ def upload_media_asset_info(base_url: str, user: str, password: str, local_path:
 
 def resolve_article_image_dir(source_path: str) -> Path:
     article_file = Path(source_path)
-    if article_file.exists():
-        candidate = article_file.parent / "images"
-        if candidate.exists():
-            return candidate
+    direct = article_file.parent / "images" if article_file.parent.exists() else Path(source_path).parent / "images"
+    if direct.exists() and any(direct.iterdir()):
+        return direct
+
     page_root = ROOT.parent / "page-content-blog"
     candidate = page_root / "sources" / article_file.parent.name / "images"
-    if candidate.exists():
+    if candidate.exists() and any(candidate.iterdir()):
         return candidate
-    return article_file.parent / "images"
+
+    normalized_name = normalize_source_lookup_value(article_file.parent.name)
+    if normalized_name:
+        for src_dir in sorted((page_root / "sources").iterdir(), key=lambda p: p.name.lower()):
+            if not src_dir.is_dir():
+                continue
+            if normalize_source_lookup_value(src_dir.name) == normalized_name:
+                image_dir = src_dir / "images"
+                if image_dir.exists() and any(image_dir.iterdir()):
+                    return image_dir
+
+    if direct.exists() and direct.is_dir():
+        return direct
+    return candidate if candidate.exists() or candidate.parent.exists() else direct
 
 
 def resolve_article_media_paths(source_path: str) -> List[Path]:
@@ -1529,8 +1565,9 @@ def resolve_puppeteer_chrome_path() -> Optional[str]:
     return None
 
 
-def render_mermaid_to_svg(mermaid_source: str, output_path: Path) -> Path:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+def render_mermaid_to_image(mermaid_source: str, output_path: Path) -> Path:
+    target_path = output_path if output_path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"} else output_path.with_suffix(".png")
+    target_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile("w", suffix=".mmd", encoding="utf-8", delete=False) as handle:
         handle.write(mermaid_source)
         input_path = Path(handle.name)
@@ -1543,21 +1580,26 @@ def render_mermaid_to_svg(mermaid_source: str, output_path: Path) -> Path:
     commands: List[List[str]] = []
     mmdc_cmd = shutil.which("mmdc") or shutil.which("mmdc.cmd")
     if mmdc_cmd:
-        commands.append([mmdc_cmd, "-i", str(input_path), "-o", str(output_path), "-b", "transparent"])
+        commands.append([mmdc_cmd, "-i", str(input_path), "-o", str(target_path), "-b", "transparent"])
     npx_cmd = shutil.which("npx") or shutil.which("npx.cmd") or "npx"
-    commands.append([npx_cmd, "--yes", "@mermaid-js/mermaid-cli", "-i", str(input_path), "-o", str(output_path), "-b", "transparent"])
+    commands.append([npx_cmd, "--yes", "@mermaid-js/mermaid-cli", "-i", str(input_path), "-o", str(target_path), "-b", "transparent"])
 
     last_error = "Mermaid render failed"
     try:
         for command in commands:
             result = subprocess.run(command, capture_output=True, text=True, timeout=180, check=False, env=env)
-            if result.returncode == 0 and output_path.exists():
-                return output_path
+            if result.returncode == 0 and target_path.exists():
+                return target_path
             last_error = result.stderr.strip() or result.stdout.strip() or last_error
         raise RuntimeError(last_error)
     finally:
         if input_path.exists():
             input_path.unlink(missing_ok=True)
+
+
+def render_mermaid_to_svg(mermaid_source: str, output_path: Path) -> Path:
+    target_path = output_path if output_path.suffix.lower() == ".svg" else output_path.with_suffix(".svg")
+    return render_mermaid_to_image(mermaid_source, target_path)
 
 
 def convert_image_for_wordpress(image_path: Path) -> Path:
@@ -1588,23 +1630,27 @@ def rewrite_markdown_assets(markdown: str, current_relative_path: str = "", base
         target = asset["target"]
         if asset_type == "mermaid":
             try:
-                diagram_path = repo_root / "_tmp" / f"mermaid-{abs(hash(target))}.svg"
+                diagram_path = repo_root / "_tmp" / f"mermaid-{abs(hash(target))}.png"
                 diagram_path.parent.mkdir(parents=True, exist_ok=True)
-                render_mermaid_to_svg(target, diagram_path)
+                render_mermaid_to_image(target, diagram_path)
                 uploaded_url = upload_media_asset(base_url, user, password, str(diagram_path), "Mermaid diagram", "Mermaid diagram")
                 replacement = f'<figure class="themisdb-mermaid"><img src="{uploaded_url}" alt="Mermaid diagram" /></figure>'
             except Exception:
                 replacement = f'<pre class="themisdb-mermaid-fallback">{html_lib.escape(target)}</pre>'
         else:
-            resolved_path = resolve_local_asset_path(target, current_relative_path, repo_root)
-            if resolved_path is None:
-                replacement = raw
+            if target.startswith("data:"):
+                alt_text = "Embedded image"
+                replacement = f'<img src="{html_lib.escape(target, quote=True)}" alt="{html_lib.escape(alt_text, quote=True)}" />'
             else:
-                try:
-                    uploaded_url = upload_media_asset(base_url, user, password, str(resolved_path), resolved_path.name, resolved_path.stem)
-                    replacement = f'<img src="{uploaded_url}" alt="{html_lib.escape(resolved_path.stem, quote=True)}" />'
-                except Exception:
+                resolved_path = resolve_local_asset_path(target, current_relative_path, repo_root)
+                if resolved_path is None:
                     replacement = raw
+                else:
+                    try:
+                        uploaded_url = upload_media_asset(base_url, user, password, str(resolved_path), resolved_path.name, resolved_path.stem)
+                        replacement = f'<img src="{uploaded_url}" alt="{html_lib.escape(resolved_path.stem, quote=True)}" />'
+                    except Exception:
+                        replacement = raw
         replacements[raw] = replacement
 
     for raw, replacement in replacements.items():
@@ -1781,22 +1827,43 @@ def normalize_markdown_to_target_blocks(markdown: str, current_relative_path: st
             blocks.append({"type": "list", "ordered": ordered, "items": [item for item in items if item]})
             continue
 
-        if line.startswith("|") and i + 1 < len(lines):
-            table_lines = [line]
+        def split_table_row(raw_line: str) -> List[str]:
+            text = raw_line.strip()
+            if not text:
+                return []
+            if text.startswith("|"):
+                text = text[1:]
+            if text.endswith("|"):
+                text = text[:-1]
+            return [part.strip() for part in text.split("|")]
+
+        def is_table_separator_row(raw_line: str) -> bool:
+            cells = split_table_row(raw_line)
+            if not cells:
+                return False
+            return all(re.fullmatch(r":?-{3,}:?", str(cell).strip()) for cell in cells if cell.strip())
+
+        if ("|" in line or "\t" in line) and i + 1 < len(lines):
+            table_lines = [line.strip()]
             j = i + 1
-            while j < len(lines) and lines[j].strip().startswith("|"):
-                table_lines.append(lines[j].strip())
+            while j < len(lines):
+                candidate = lines[j].strip()
+                if not candidate or candidate.startswith("```"):
+                    break
+                if "|" not in candidate and "\t" not in candidate:
+                    break
+                table_lines.append(candidate)
                 j += 1
             if len(table_lines) >= 2:
                 rows = []
                 for row in table_lines:
-                    cells = [part.strip() for part in row.strip().strip("|").split("|")]
-                    if cells and any(cell for cell in cells):
+                    cells = split_table_row(row)
+                    if cells and any(cell.strip() for cell in cells):
                         rows.append(cells)
                 if len(rows) >= 2:
                     header = rows[0]
                     candidate_separator = rows[1] if len(rows) > 1 else []
-                    if candidate_separator and all(re.fullmatch(r":?-{3,}:?", str(cell).strip()) for cell in candidate_separator):
+                    if candidate_separator and is_table_separator_row("| " + " | ".join(candidate_separator) + " |"):
                         body_rows = rows[2:]
                         blocks.append({"type": "table", "headers": header, "rows": body_rows})
                         i = j
@@ -1960,7 +2027,7 @@ def render_target_blocks_to_html(blocks: Iterable[Dict[str, Any]], current_relat
         return text
 
     rendered: List[str] = []
-    for block in blocks:
+    for block_index, block in enumerate(blocks):
         if not isinstance(block, dict):
             continue
         block_type = str(block.get("type", "")).strip()
@@ -1968,7 +2035,16 @@ def render_target_blocks_to_html(blocks: Iterable[Dict[str, Any]], current_relat
             level = int(block.get("level") or 1)
             rendered.append(f"<h{level}>{inline_markup(str(block.get('text', '')))}</h{level}>")
         elif block_type == "paragraph":
-            rendered.append(f"<p>{inline_markup(str(block.get('text', '')))}</p>")
+            previous_types = [
+                str(prev.get("type", "")).strip()
+                for prev in blocks[:block_index]
+                if isinstance(prev, dict)
+            ]
+            is_lead = bool(block.get("lead")) or (
+                block_index > 0 and block_type == "paragraph" and previous_types and all(t == "heading" for t in previous_types)
+            )
+            lead_attr = ' class="tv3-article-lead"' if is_lead else ""
+            rendered.append(f"<p{lead_attr}>{inline_markup(str(block.get('text', '')))}</p>")
         elif block_type == "list":
             ordered = bool(block.get("ordered"))
             tag = "ol" if ordered else "ul"
@@ -2007,7 +2083,7 @@ def render_target_blocks_to_html(blocks: Iterable[Dict[str, Any]], current_relat
             code = str(block.get("code", "")).strip()
             rendered.append(f"<pre><code class=\"language-{escape_html(language)}\">{escape_html(code)}</code></pre>")
         elif block_type == "blockquote":
-            rendered.append(f"<blockquote><p>{inline_markup(str(block.get('text', '')))}</p></blockquote>")
+            rendered.append(f"<blockquote class=\"quote left kernthese\"><p>{inline_markup(str(block.get('text', '')))}</p></blockquote>")
         elif block_type == "callout":
             variant = str(block.get("variant", "note")).strip() or "note"
             title = str(block.get("title", "")).strip()
@@ -2023,13 +2099,24 @@ def render_target_blocks_to_html(blocks: Iterable[Dict[str, Any]], current_relat
 def strip_duplicate_leading_h1(html_content: str, title: str) -> str:
     if not html_content or not title:
         return html_content
-    normalized_title = re.sub(r"\s+", " ", html_lib.unescape(title).replace("&nbsp;", " ")).strip().lower()
+
+    def normalize_heading_value(value: str) -> str:
+        text = html_lib.unescape(value).replace("&nbsp;", " ")
+        text = re.sub(r"<[^>]+>", " ", text)
+        text = re.sub(r"[*_`#]+", " ", text)
+        text = text.replace("&mdash;", "-").replace("&ndash;", "-").replace("—", "-").replace("–", "-")
+        text = text.replace("&quot;", '"').replace("&amp;", "&")
+        text = re.sub(r"\s+", " ", text).strip().lower()
+        return text
+
+    normalized_title = normalize_heading_value(title)
+    if not normalized_title:
+        return html_content
+
     match = re.search(r"(?is)<h1\b[^>]*>(.*?)</h1>", html_content)
     if not match:
         return html_content
-    heading_text = re.sub(r"<[^>]+>", " ", match.group(1))
-    heading_text = html_lib.unescape(heading_text).replace("&nbsp;", " ")
-    heading_text = re.sub(r"\s+", " ", heading_text).strip().lower()
+    heading_text = normalize_heading_value(match.group(1))
     if heading_text and heading_text == normalized_title:
         return html_content[:match.start()] + html_content[match.end():]
     return html_content

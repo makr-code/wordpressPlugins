@@ -131,7 +131,7 @@ body:has(.themisdb-graph-v2-toggle--compact) .themisdb-graph-v2-overlay > .themi
         width: min(92vw, 420px) !important;
         height: min(72vh, 440px) !important;
         max-width: calc(100vw - 24px) !important;
-        max-height: calc(100vh - 24px) !important;
+        max-height: calc(100vh - 40px) !important;
     }
 }
 

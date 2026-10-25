@@ -379,6 +379,49 @@
         shell.style.setProperty('max-height', 'calc(100vh - ' + (safeGap * 2) + 'px)', 'important');
         shell.style.setProperty('width', Math.min(maxWidth, viewportWidth - (safeGap * 2)) + 'px', 'important');
         shell.style.setProperty('height', Math.min(maxHeight, viewportHeight - (safeGap * 2)) + 'px', 'important');
+
+        const canvas = shell.querySelector('[data-graph-v2-canvas]');
+        if (canvas) {
+            canvas.style.setProperty('max-width', '100%', 'important');
+            canvas.style.setProperty('max-height', '100%', 'important');
+            canvas.style.setProperty('overflow', 'auto', 'important');
+            canvas.style.setProperty('width', '100%', 'important');
+            canvas.style.setProperty('height', '100%', 'important');
+        }
+    }
+
+    function centerGraphViewport(container, state) {
+        if (!container || !state || !state.viewport) {
+            return;
+        }
+
+        const viewport = state.viewport;
+        const visibleWidth = Number(viewport.width || container.clientWidth || 0) || 0;
+        const visibleHeight = Number(viewport.height || container.clientHeight || 0) || 0;
+        const worldWidth = Number(viewport.worldWidth || container.scrollWidth || 0) || 0;
+        const worldHeight = Number(viewport.worldHeight || container.scrollHeight || 0) || 0;
+
+        if (!visibleWidth || !visibleHeight || !worldWidth || !worldHeight) {
+            return;
+        }
+
+        if (worldWidth <= visibleWidth) {
+            container.scrollLeft = 0;
+            viewport.panX = 0;
+        } else {
+            const nextLeft = Math.max(0, Math.round((worldWidth - visibleWidth) / 2));
+            container.scrollLeft = nextLeft;
+            viewport.panX = nextLeft;
+        }
+
+        if (worldHeight <= visibleHeight) {
+            container.scrollTop = 0;
+            viewport.panY = 0;
+        } else {
+            const nextTop = Math.max(0, Math.round((worldHeight - visibleHeight) / 2));
+            container.scrollTop = nextTop;
+            viewport.panY = nextTop;
+        }
     }
 
     function setGraphShellState(shell, shouldOpen, canvas) {
@@ -409,6 +452,9 @@
 
         requestAnimationFrame(() => {
             clampGraphShellToViewport(shell);
+            if (shouldOpen && canvas && window.ThemisDBGraphV2 && window.ThemisDBGraphV2.state) {
+                centerGraphViewport(canvas, window.ThemisDBGraphV2.state);
+            }
         });
     }
 
@@ -955,6 +1001,11 @@
 
     function bindInteraction(container, rawGraph, state) {
         syncViewportToContainer(container, state);
+
+        if (!container.dataset.themisdbInitialCentered) {
+            centerGraphViewport(container, state);
+            container.dataset.themisdbInitialCentered = 'true';
+        }
 
         const canvas = window.ThemisDBGraphV2.GraphView && window.ThemisDBGraphV2.GraphView.ensureCanvas
             ? window.ThemisDBGraphV2.GraphView.ensureCanvas(container)

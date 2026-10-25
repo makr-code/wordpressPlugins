@@ -61,6 +61,35 @@ class SiteFactoryBootstrapTests(unittest.TestCase):
         self.assertNotIn("template", payload)
         self.assertEqual(payload["parent"], 7)
 
+    def test_set_front_page_assigns_home_and_blog_pages(self):
+        with patch.object(pages, "find_page_by_slug", side_effect=[{"id": 42}, {"id": 77}]), \
+             patch.object(pages, "rest_request", return_value={"ok": True}) as mock_rest:
+            pages.set_front_page("https://example.test", "user", "secret", "home")
+
+        payload = mock_rest.call_args.kwargs["payload"]
+        self.assertEqual(payload["show_on_front"], "page")
+        self.assertEqual(payload["page_on_front"], 42)
+        self.assertEqual(payload["page_for_posts"], 77)
+
+    def test_sanitize_shortcode_payload_wraps_raw_shortcode_blocks(self):
+        raw = '<p>[themisdb_front_slider posts="5" filter="hero,featured"] [themisdb_v3_blog_section limit="9" category="blog"]</p>'
+
+        sanitized = pages.sanitize_shortcode_payload(raw)
+
+        self.assertIn("<!-- wp:shortcode -->[themisdb_front_slider", sanitized)
+        self.assertIn("<!-- wp:shortcode -->[themisdb_v3_blog_section", sanitized)
+        self.assertNotIn("<p>[themisdb_front_slider", sanitized)
+
+    def test_sanitize_shortcode_payload_preserves_surrounding_html(self):
+        raw = '<h2>Blog</h2><p class="subtitle">[themisdb_front_slider posts="5"] [themisdb_v3_blog_section limit="9" category="blog"]</p><p>Footer</p>'
+
+        sanitized = pages.sanitize_shortcode_payload(raw)
+
+        self.assertIn('<h2>Blog</h2>', sanitized)
+        self.assertIn('<!-- wp:shortcode -->[themisdb_front_slider posts="5"]', sanitized)
+        self.assertIn('<!-- wp:shortcode -->[themisdb_v3_blog_section limit="9" category="blog"]', sanitized)
+        self.assertIn('<p>Footer</p>', sanitized)
+
 
 if __name__ == "__main__":
     unittest.main()

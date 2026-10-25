@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('THEMISDB_GRAPH_NAV_V2_VERSION', '2.0.14');
+define('THEMISDB_GRAPH_NAV_V2_VERSION', '2.0.15');
 define('THEMISDB_GRAPH_NAV_V2_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_GRAPH_NAV_V2_URL', plugin_dir_url(__FILE__));
 

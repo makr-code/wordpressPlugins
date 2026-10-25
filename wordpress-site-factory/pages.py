@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import json
+import re
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -47,6 +51,32 @@ def resolve_parent_page_id(base_url: str, user: str, password: str, parent_value
     return None
 
 
+def sanitize_shortcode_payload(content: Any) -> Any:
+    if not isinstance(content, str):
+        return content
+    text = content.strip()
+    if not text or "themisdb_" not in text:
+        return text
+    if "<!-- wp:shortcode -->" in text:
+        return text
+
+    def wrap_shortcodes(raw: str) -> str:
+        matches = re.findall(r"\[[^\]]+\]", raw)
+        if not matches:
+            return raw
+        return "\n\n".join(f"<!-- wp:shortcode -->{match}<!-- /wp:shortcode -->" for match in matches)
+
+    text = re.sub(
+        r"(?is)<p\b[^>]*>\s*(\[[^\]]+\](?:\s+\[[^\]]+\])*)\s*</p>",
+        lambda match: wrap_shortcodes(match.group(1)),
+        text,
+    )
+
+    if re.fullmatch(r"(?is)\s*(?:\[[^\]]+\]\s*)+", text):
+        return wrap_shortcodes(text)
+    return text
+
+
 def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, Any]) -> Dict[str, Any]:
     slug = page_data["slug"]
     existing = find_page_by_slug(base_url, user, password, slug)
@@ -57,7 +87,7 @@ def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, An
         "slug": slug,
         "status": page_data.get("status", "publish"),
         "menu_order": page_data.get("menu_order", 0),
-        "content": page_data.get("content", ""),
+        "content": sanitize_shortcode_payload(page_data.get("content", "")),
     }
 
     template = page_data.get("template")
@@ -102,11 +132,45 @@ def set_front_page(base_url: str, user: str, password: str, slug: str = "home") 
     if not page:
         return None
 
+    blog_page = find_page_by_slug(base_url, user, password, "blog")
     payload = {
         "show_on_front": "page",
         "page_on_front": page["id"],
     }
+    if blog_page is not None:
+        payload["page_for_posts"] = blog_page["id"]
     return rest_request(base_url, "wp-json/wp/v2/settings", user, password, method="POST", payload=payload)
+
+
+def ensure_nav_menus(base_url: str, user: str, password: str, dry_run: bool = False) -> List[Dict[str, Any]]:
+    repo_root = ROOT.parent
+    script_path = repo_root / "tools" / "python" / "create_wordpress_pages.py"
+    if not script_path.exists():
+        raise FileNotFoundError(f"Navigation generator script not found: {script_path}")
+
+    python_executable = shutil.which("python") or shutil.which("python.exe") or sys.executable
+    cmd = [python_executable, str(script_path), "--url", base_url, "--user", user, "--password", password]
+    if dry_run:
+        cmd.append("--dry-run")
+
+    print("[pages] Ensuring WordPress primary/footer menus and site navigation")
+    result = subprocess.run(cmd, cwd=str(repo_root), capture_output=True, text=True)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "unknown error"
+        raise RuntimeError(f"Navigation bootstrap failed: {detail}")
+
+    stdout = result.stdout.strip()
+    if not stdout:
+        return []
+
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return [{"raw_output": stdout}]
+
+    if isinstance(payload, dict) and "pages" in payload:
+        return [{"created": payload.get("created", 0), "pages": payload.get("pages", [])}]
+    return [payload]
 
 
 def generate_pages(config: Dict[str, Any], dry_run: bool = False) -> List[Dict[str, Any]]:
@@ -128,6 +192,7 @@ def generate_pages(config: Dict[str, Any], dry_run: bool = False) -> List[Dict[s
     if dry_run:
         for page in page_map.values():
             print(f"[pages] Dry run: would create '{page['title']}' ({page['slug']})")
+        ensure_nav_menus(base_url, user, password, dry_run=True)
         return created
 
     for page in page_map.values():
@@ -137,8 +202,12 @@ def generate_pages(config: Dict[str, Any], dry_run: bool = False) -> List[Dict[s
 
     front_page = set_front_page(base_url, user, password, "home")
     if front_page is not None:
-        print("[pages] Front page assigned to 'home'")
+        print("[pages] Front page assigned to 'home' and blog page assigned to 'blog'")
     else:
         print("[pages] Front page could not be assigned because the 'home' page is missing")
+
+    menu_result = ensure_nav_menus(base_url, user, password, dry_run=False)
+    if menu_result:
+        print("[pages] Site navigation recreated and assigned to the active theme locations")
 
     return created

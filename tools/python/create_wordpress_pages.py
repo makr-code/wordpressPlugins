@@ -15,14 +15,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
 import requests
 
 
-ROOT = Path(__file__).resolve().parent
-TEMPLATE_ROOT = ROOT / "themisdb-pulse" / "templates"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ROOT = REPO_ROOT / "tools" / "python"
+TEMPLATE_ROOT = REPO_ROOT / "themisdb-pulse" / "templates"
 
 MAIN_MENU = [
     {
@@ -118,10 +120,64 @@ MAIN_MENU = [
         ],
     },
     {
+        "title": "Pricing",
+        "slug": "pricing",
+        "template_file": "themisdb-pulse/templates/page.html",
+        "menu_order": 35,
+        "shortcodes": [
+            "[themisdb_pricing_table]",
+        ],
+    },
+    {
+        "title": "Order",
+        "slug": "order",
+        "template_file": "themisdb-pulse/templates/page.html",
+        "menu_order": 40,
+        "shortcodes": [
+            "[themisdb_order_flow]",
+        ],
+    },
+    {
+        "title": "My Orders",
+        "slug": "my-orders",
+        "template_file": "themisdb-pulse/templates/page.html",
+        "menu_order": 45,
+        "shortcodes": [
+            "[themisdb_my_orders]",
+        ],
+    },
+    {
+        "title": "My Contracts",
+        "slug": "my-contracts",
+        "template_file": "themisdb-pulse/templates/page.html",
+        "menu_order": 46,
+        "shortcodes": [
+            "[themisdb_my_contracts]",
+        ],
+    },
+    {
+        "title": "Login",
+        "slug": "login",
+        "template_file": "themisdb-pulse/templates/page.html",
+        "menu_order": 47,
+        "shortcodes": [
+            "[themisdb_login]",
+        ],
+    },
+    {
+        "title": "License Upload",
+        "slug": "license-upload",
+        "template_file": "themisdb-pulse/templates/page.html",
+        "menu_order": 48,
+        "shortcodes": [
+            "[themisdb_license_upload]",
+        ],
+    },
+    {
         "title": "Benchmarks",
         "slug": "benchmarks",
         "template_file": "themisdb-pulse/templates/page.html",
-        "menu_order": 40,
+        "menu_order": 50,
         "shortcodes": [
             "[themisdb_benchmark_visualizer]",
         ],
@@ -237,16 +293,42 @@ def flatten_pages(pages: Iterable[dict], parent: Optional[str] = None) -> List[d
 
 
 def load_template(path: str) -> str:
-    file_path = ROOT / path
+    file_path = REPO_ROOT / path
     if not file_path.exists():
         raise FileNotFoundError(f"Template not found: {path}")
     return file_path.read_text(encoding="utf-8")
 
 
+def sanitize_shortcode_content(raw_content: str) -> str:
+    text = (raw_content or "").strip()
+    if not text or "themisdb_" not in text:
+        return text
+
+    if "<!-- wp:shortcode -->" in text:
+        return text
+
+    def wrap_shortcodes(value: str) -> str:
+        matches = re.findall(r"\[[^\]]+\]", value, flags=re.IGNORECASE)
+        if not matches:
+            return value
+        return "\n\n".join(f"<!-- wp:shortcode -->{match}<!-- /wp:shortcode -->" for match in matches)
+
+    text = re.sub(
+        r"(?is)<p\b[^>]*>\s*(\[[^\]]+\](?:\s+\[[^\]]+\])*)\s*</p>",
+        lambda match: wrap_shortcodes(match.group(1)),
+        text,
+    )
+
+    if re.fullmatch(r"(?is)\s*(?:\[[^\]]+\]\s*)+", text):
+        return wrap_shortcodes(text)
+    return text
+
+
 def render_page_content(page: dict) -> str:
     template_path = page.get("template_file")
     if not template_path:
-        return page.get("content") or ""
+        raw_content = page.get("content") or ""
+        return sanitize_shortcode_content(raw_content)
 
     base = load_template(template_path)
     shortcodes = page.get("shortcodes", [])
@@ -294,6 +376,96 @@ def find_page(session: requests.Session, url: str, slug: str) -> Optional[dict]:
     response.raise_for_status()
     pages = response.json()
     return pages[0] if pages else None
+
+
+def normalize_page_group_slug(value: str) -> str:
+    text = (value or '').strip().lower()
+    text = text.replace('ä', 'a').replace('ö', 'o').replace('ü', 'u').replace('ß', 'ss')
+    text = re.sub(r'[^a-z0-9]+', '-', text)
+    text = re.sub(r'-+', '-', text).strip('-')
+    return text
+
+
+def canonical_page_group_for(slug: Optional[str], title: Optional[str]) -> Optional[str]:
+    alias_map = {
+        'home': {'home', 'homepage', 'startseite', 'landing-page'},
+        'features': {'features', 'feature', 'feature-highlights'},
+        'documentation': {'documentation', 'dokumentation', 'docs', 'doc'},
+        'blog': {'blog', 'posts', 'beitraege', 'news'},
+        'downloads': {'downloads', 'download'},
+        'pricing': {'pricing', 'preis', 'preise'},
+        'order': {'order', 'bestellen', 'purchase', 'checkout'},
+        'my-orders': {'my-orders', 'orders', 'meine-bestellungen', 'bestellungen'},
+        'my-contracts': {'my-contracts', 'contracts', 'meine-vertraege', 'vertraege'},
+        'login': {'login', 'anmeldung', 'sign-in'},
+        'license-upload': {'license-upload', 'lizenz-upload', 'upload-license'},
+        'support': {'support', 'support-portal'},
+    }
+    candidates = [slug, title]
+    for value in candidates:
+        if not value:
+            continue
+        normalized = normalize_page_group_slug(value)
+        for canonical, aliases in alias_map.items():
+            if normalized in aliases or any(normalize_page_group_slug(alias) == normalized for alias in aliases):
+                return canonical
+    return None
+
+
+def cleanup_duplicate_pages(session: requests.Session, url: str, dry_run: bool = False) -> List[dict]:
+    response = session.get(f"{url.rstrip('/')}/wp-json/wp/v2/pages", params={"per_page": 100}, timeout=30)
+    response.raise_for_status()
+    pages = response.json()
+    if not isinstance(pages, list):
+        return []
+
+    groups: Dict[str, List[dict]] = {}
+    for page in pages:
+        slug = str(page.get('slug') or '').strip()
+        title = str(page.get('title', {}).get('rendered') or page.get('title') or '').strip()
+        group = canonical_page_group_for(slug, title)
+        if group is None:
+            continue
+        groups.setdefault(group, []).append(page)
+
+    deleted: List[dict] = []
+    for group_name, group_pages in groups.items():
+        if len(group_pages) <= 1:
+            continue
+        keep = group_pages[0]
+        preferred_slug = None
+        preferred_aliases = {
+            'home': {'home'},
+            'features': {'features'},
+            'documentation': {'docs', 'documentation', 'dokumentation'},
+            'blog': {'blog'},
+            'downloads': {'downloads', 'download'},
+            'pricing': {'pricing'},
+            'support': {'support'},
+        }.get(group_name, set())
+        for page in group_pages:
+            slug = str(page.get('slug') or '').strip().lower()
+            if slug in preferred_aliases:
+                preferred_slug = slug
+                keep = page
+                break
+        if preferred_slug is None:
+            keep = max(group_pages, key=lambda item: (item.get('status') == 'publish', int(item.get('id') or 0)))
+
+        for page in group_pages:
+            if int(page.get('id') or 0) == int(keep.get('id') or 0):
+                continue
+            if dry_run:
+                deleted.append({"id": page.get('id'), "slug": page.get('slug'), "title": page.get('title', {}).get('rendered'), "keep": keep.get('id')})
+                continue
+            delete_response = session.delete(
+                f"{url.rstrip('/')}/wp-json/wp/v2/pages/{page['id']}?force=true",
+                timeout=30,
+            )
+            delete_response.raise_for_status()
+            deleted.append({"id": page.get('id'), "slug": page.get('slug'), "deleted": True, "keep": keep.get('id')})
+
+    return deleted
 
 
 def upsert_page(session: requests.Session, url: str, page: dict, parent_id: Optional[int]) -> dict:
@@ -443,24 +615,67 @@ def build_menu_item_plan(pages: Iterable[dict]) -> List[dict]:
     return plan
 
 
-def ensure_primary_navigation(session: requests.Session, url: str, page_lookup: Dict[str, dict]) -> List[dict]:
+def find_or_create_menu(session: requests.Session, url: str, name: str, slug: Optional[str] = None) -> dict:
     menus_response = session.get(f"{url.rstrip('/')}/wp-json/wp/v2/menus", params={"per_page": 100}, timeout=30)
     menus_response.raise_for_status()
     menus = menus_response.json()
-    menu = next(
-        (entry for entry in menus if entry.get("slug") in {"primary-navigation", "primary-menu"}),
-        None,
-    )
-    if menu is None:
-        create_response = session.post(
-            f"{url.rstrip('/')}/wp-json/wp/v2/menus",
-            json={"name": "Primary Navigation", "locations": ["primary"]},
-            timeout=30,
-        )
-        create_response.raise_for_status()
-        menu = create_response.json()
+    menu = next((entry for entry in menus if str(entry.get("name", "")).lower() == name.lower() or (slug and str(entry.get("slug", "")).lower() == slug.lower())), None)
+    if menu is not None:
+        return menu
 
-    menu_id = menu["id"]
+    create_response = session.post(
+        f"{url.rstrip('/')}/wp-json/wp/v2/menus",
+        json={"name": name, "slug": slug or re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')},
+        timeout=30,
+    )
+    create_response.raise_for_status()
+    return create_response.json()
+
+
+def assign_menu_to_location(session: requests.Session, url: str, location: str, menu_id: int) -> dict:
+    location_candidates = [
+        f"{url.rstrip('/')}/wp-json/wp/v2/menu-locations/{location}",
+        f"{url.rstrip('/')}/wp-json/wp/v2/menu-locations",
+    ]
+
+    for endpoint in location_candidates:
+        try:
+            if endpoint.endswith("/menu-locations"):
+                response = session.get(endpoint, timeout=30)
+                response.raise_for_status()
+                payload = response.json()
+                if isinstance(payload, dict) and location in payload:
+                    return {"location": location, "menu_id": int(payload[location] or menu_id), "source": endpoint}
+                continue
+
+            response = session.post(endpoint, json={"menu": menu_id}, timeout=30)
+            if response.status_code in (200, 201, 202):
+                return response.json() if response.content else {"location": location, "menu_id": menu_id}
+        except requests.RequestException:
+            continue
+
+    settings_response = session.get(f"{url.rstrip('/')}/wp-json/wp/v2/settings", timeout=30)
+    if settings_response.status_code == 200:
+        settings = settings_response.json()
+        nav_locations = settings.get("nav_menu_locations") or {}
+        if isinstance(nav_locations, dict):
+            nav_locations[location] = menu_id
+            update_response = session.post(
+                f"{url.rstrip('/')}/wp-json/wp/v2/settings",
+                json={"nav_menu_locations": nav_locations},
+                timeout=30,
+            )
+            if update_response.status_code in (200, 201, 202):
+                return update_response.json()
+
+    raise RuntimeError(f"Could not assign menu {menu_id} to WordPress location '{location}'")
+
+
+def ensure_navigation_menu(session: requests.Session, url: str, page_lookup: Dict[str, dict], location: str, menu_name: str, menu_slug: str, page_plan: List[dict]) -> List[dict]:
+    menu = find_or_create_menu(session, url, menu_name, menu_slug)
+    menu_id = int(menu["id"])
+    assign_menu_to_location(session, url, location, menu_id)
+
     existing_response = session.get(
         f"{url.rstrip('/')}/wp-json/wp/v2/menu-items",
         params={"menus": menu_id, "per_page": 100},
@@ -468,25 +683,13 @@ def ensure_primary_navigation(session: requests.Session, url: str, page_lookup: 
     )
     existing_response.raise_for_status()
     menu_items = existing_response.json()
-    for stale_item in menu_items:
-        title = stale_item.get("title")
-        title_text = title.get("rendered") if isinstance(title, dict) else str(title)
-        if title_text == "Produkte":
-            delete_response = session.delete(
-                f"{url.rstrip('/')}/wp-json/wp/v2/menu-items/{stale_item['id']}",
-                params={"force": True},
-                timeout=30,
-            )
-            delete_response.raise_for_status()
     existing_by_page = {
         int(item.get("object_id")): item
         for item in menu_items
         if item.get("object") == "page" and item.get("object_id") is not None
     }
 
-    page_plan = build_menu_item_plan(build_page_tree())
     created: List[dict] = []
-
     for menu_item in page_plan:
         page = page_lookup.get(menu_item["slug"])
         if not page:
@@ -504,7 +707,7 @@ def ensure_primary_navigation(session: requests.Session, url: str, page_lookup: 
         existing_item = existing_by_page.get(int(page["id"]))
         payload = {
             "title": menu_item["title"],
-            "menu_order": int(menu_item["menu_order"]),
+            "menu_order": max(1, int(menu_item["menu_order"]) + 1),
             "object": "page",
             "object_id": int(page["id"]),
             "type": "post_type",
@@ -534,6 +737,42 @@ def ensure_primary_navigation(session: requests.Session, url: str, page_lookup: 
         created.append(create_response.json())
 
     return created
+
+
+def ensure_primary_navigation(session: requests.Session, url: str, page_lookup: Dict[str, dict]) -> List[dict]:
+    page_plan = build_menu_item_plan(build_page_tree())
+    return ensure_navigation_menu(
+        session,
+        url,
+        page_lookup,
+        location="primary",
+        menu_name="Primary Navigation",
+        menu_slug="primary-navigation",
+        page_plan=page_plan,
+    )
+
+
+def ensure_footer_navigation(session: requests.Session, url: str, page_lookup: Dict[str, dict]) -> List[dict]:
+    footer_pages = [
+        {"title": "Home", "slug": "home", "menu_order": 10, "parent": None},
+        {"title": "Features", "slug": "features", "menu_order": 20, "parent": None},
+        {"title": "Docs", "slug": "docs", "menu_order": 30, "parent": None},
+        {"title": "Pricing", "slug": "pricing", "menu_order": 35, "parent": None},
+        {"title": "Blog", "slug": "blog", "menu_order": 40, "parent": None},
+        {"title": "Downloads", "slug": "downloads", "menu_order": 50, "parent": None},
+        {"title": "Order", "slug": "order", "menu_order": 55, "parent": None},
+        {"title": "My Orders", "slug": "my-orders", "menu_order": 56, "parent": None},
+        {"title": "Support", "slug": "support", "menu_order": 60, "parent": None},
+    ]
+    return ensure_navigation_menu(
+        session,
+        url,
+        page_lookup,
+        location="footer",
+        menu_name="Footer Navigation",
+        menu_slug="footer-navigation",
+        page_plan=footer_pages,
+    )
 
 
 def ensure_pages(url: str, username: str, password: str, dry_run: bool = False) -> List[dict]:
@@ -571,6 +810,8 @@ def ensure_pages(url: str, username: str, password: str, dry_run: bool = False) 
     created.extend(artifact_pages)
 
     if not dry_run:
+        cleanup_duplicate_pages(session, url, dry_run=False)
+
         front = find_page(session, url, "home")
         posts = find_page(session, url, "blog")
         if front and posts:
@@ -587,6 +828,7 @@ def ensure_pages(url: str, username: str, password: str, dry_run: bool = False) 
 
         page_lookup = {page["slug"]: page for page in created if "slug" in page}
         ensure_primary_navigation(session, url, page_lookup)
+        ensure_footer_navigation(session, url, page_lookup)
 
     return created
 
