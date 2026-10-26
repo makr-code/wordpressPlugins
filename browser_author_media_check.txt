@@ -1,0 +1,79 @@
+Found 5 matches for /Gemini|SwarmUI|Google Gemini|wp-block-image|figure|featured/:
+
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e4]:
+    - main [ref=f1e51]:
+      - generic [ref=f1e52]:
+        - generic [ref=f1e53]:
+          ...
+          - generic [ref=f1e56]:
+            - generic [ref=f1e57]:
+              ...
+              - paragraph [ref=f1e70]:
+                - generic [ref=f1e71]: 5 Min. Lesezeit
+            - link "Artikel" [ref=f1e73] [cursor=pointer]:
+              - /url: http://localhost/wordpress/category/blog/artikel/
+        - figure [ref=f1e74]:
+          - img "2025-12-09 Die Architektur der digitalen Souveranitat Eine strategische und technische Anal" [ref=f1e75]
+      - navigation [ref=f1e76]:
+        - navigation "Breadcrumb-Navigation" [ref=f1e77]:
+
+----
+
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e4]:
+    - main [ref=f1e51]:
+      - generic [ref=f1e94]:
+        - paragraph [ref=f1e136]:
+          - text: "ThemisDB basiert auf einer fünfschichtigen Architektur, die eine klare Trennung der Verantwortlichkeiten („Separation of Concerns“) ermöglicht: vom Query Layer (AQL) über den Transaction Manager bis zum Storage Layer auf Basis von RocksDB."
+          - superscript [ref=f1e137]: "[1]"
+        - figure [ref=f1e138]:
+          - button "Bild in Grossansicht oeffnen" [ref=f1e139]
+        - paragraph [ref=f1e140]:
+          - text: Die Nutzung von RocksDB erlaubt die Optimierung für moderne NVMe-Hardware durch Log-Structured Merge Trees (LSM-Trees).
+
+----
+
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e4]:
+    - main [ref=f1e51]:
+      - generic [ref=f1e94]:
+        - paragraph [ref=f1e148]:
+          - text: ThemisDB nutzt ein natives Property Graph Modell, bei dem Traversierungen (z.B. Dijkstra für kürzeste Pfade oder PageRank) proportional zur Anzahl der besuchten Knoten skalieren, unabhängig von der Gesamtgröße der DB.
+          - superscript [ref=f1e149]: "[1]"
+        - figure [ref=f1e150]:
+          - button "Bild in Grossansicht oeffnen" [ref=f1e151]
+        - heading "3. Dokument-Speicherung und Schema-Flexibilität" [level=2] [ref=f1e152]
+        - paragraph [ref=f1e153]:
+
+----
+
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e4]:
+    - main [ref=f1e51]:
+      - generic [ref=f1e94]:
+        - paragraph [ref=f1e159]:
+          ...
+          - superscript [ref=f1e160]: "[1]"
+          - text: Die rollenbasierte Zugriffskontrolle (RBAC) erlaubt fein-granulare Berechtigungen auf API-Ebene, während ein integriertes Audit-Logging jede Änderung (CREATE, UPDATE, DELETE) für Compliance-Zwecke revisionssicher protokolliert.
+          - superscript [ref=f1e161]: "[1]"
+        - figure [ref=f1e162]:
+          - button "Bild in Grossansicht oeffnen" [ref=f1e163]
+        - paragraph [ref=f1e164]:
+          - text: ThemisDB unterstützt Change Data Capture (CDC), um Datenänderungen in Echtzeit zu verfolgen. Dies ermöglicht die Integration von WebSockets und Server-Sent Events (SSE) für kollaborative Anwendungen wie Kanban-Boards oder Realtime-Chats.
+
+----
+
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e4]:
+    - main [ref=f1e51]:
+      - generic [ref=f1e94]:
+        - paragraph [ref=f1e173]:
+          ...
+          - superscript [ref=f1e174]: "[1]"
+          - text: Im Bereich NLP bietet ThemisDB neben der Volltextsuche Funktionen für Highlighting und Snippet-Extraktion sowie Integrationen für Sentiment-Analyse und Named Entity Recognition (NER).
+          - superscript [ref=f1e175]: "[1]"
+        - figure [ref=f1e176]:
+          - button "Bild in Grossansicht oeffnen" [ref=f1e177]
+        - paragraph [ref=f1e178]:
+          - text: ThemisDB ist unter der MIT-Lizenz Open Source und vermeidet so den Vendor Lock-in.

@@ -40,8 +40,11 @@ final class ThemisDB_Graph_Runtime_Config {
 
     public static function build() {
         $graph = new ThemisDB_Graph_Data();
+        $graph_payload = $graph->get_graph_data();
         $config = array(
-            'graph' => $graph->get_graph_data(),
+            'graph' => $graph_payload,
+            'graphVersion' => md5(wp_json_encode($graph_payload) . '|' . home_url() . '|' . get_current_blog_id() . '|' . get_option('db_version') . '|' . THEMISDB_GRAPH_NAV_V2_VERSION),
+            'cacheKey' => md5(home_url() . '|' . get_current_blog_id() . '|' . get_option('db_version') . '|' . THEMISDB_GRAPH_NAV_V2_VERSION),
             'assetUrl' => THEMISDB_GRAPH_NAV_V2_URL,
             'renderer' => array(
                 'preferWebGPU' => false,
@@ -220,8 +223,24 @@ function themisdb_graph_nav_v2_append_frontpage_content($content) {
 }
 
 function themisdb_graph_nav_v2_render_footer_overlay() {
-    return;
+    if (is_admin()) {
+        return;
+    }
+
+    $should_render = apply_filters('themisdb_graph_nav_v2_enqueue_frontend', true);
+    if (!$should_render) {
+        return;
+    }
+
+    if (!empty($GLOBALS['themisdb_graph_nav_v2_rendered'])) {
+        return;
+    }
+
+    $GLOBALS['themisdb_graph_nav_v2_rendered'] = true;
+
+    echo do_shortcode('[themisdb_graph_navigation_v2 title="' . esc_attr__('Graph Navigation', 'themisdb-graph-navigation-v2') . '" button_text="' . esc_attr__('Graph anzeigen', 'themisdb-graph-navigation-v2') . '" compact="1" expanded="0"]');
 }
+add_action('wp_footer', 'themisdb_graph_nav_v2_render_footer_overlay', 20);
 
 class ThemisDB_Graph_Navigation_V2_Widget extends WP_Widget {
     public function __construct() {

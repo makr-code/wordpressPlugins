@@ -94,16 +94,58 @@ def test_poor_markdown_still_renders_and_is_safe():
     assert "<!--" not in html
 
 
-def test_mermaid_fence_is_preserved_as_code_block():
+def test_mermaid_fence_is_rendered_for_live_diagrams():
     html = docs_import.markdown_to_html(
         load_fixture("mermaid.md"),
         current_relative_path="pages/mermaid.md",
         doc_lookup={},
         base_url="http://localhost/wordpress",
     )
-    assert "<pre><code" in html
+    assert '<pre class="mermaid"' in html
     assert "flowchart TD" in html
-    assert "mermaid" in html.lower()
+    assert "mermaid.initialize" in html
+
+
+def test_mermaid_block_renders_with_live_client_side_class():
+    html = docs_import.markdown_to_html(
+        "```mermaid\nflowchart TD\nA-->B\n```\n",
+        current_relative_path="pages/mermaid_live.md",
+        doc_lookup={},
+        base_url="http://localhost/wordpress",
+    )
+    assert '<pre class="mermaid"' in html
+    assert 'mermaid.initialize' in html
+
+
+def test_build_blog_media_html_embeds_video_audio_and_document_players(monkeypatch, tmp_path):
+    article_dir = tmp_path / "article"
+    article_dir.mkdir()
+    article_file = article_dir / "article.md"
+    article_file.write_text("# Demo\n\nContent\n", encoding="utf-8")
+    (article_dir / "video-demo.mp4").write_bytes(b"video")
+    (article_dir / "audio-demo.mp3").write_bytes(b"audio")
+    (article_dir / "spec-sheet.pdf").write_bytes(b"pdf")
+    (article_dir / "diagram.svg").write_bytes(b'<svg xmlns="http://www.w3.org/2000/svg"></svg>')
+
+    def fake_upload(base_url, user, password, local_path, title, alt_text):
+        return {"id": 42, "url": f"https://example.test/{Path(local_path).name}"}
+
+    monkeypatch.setattr(docs_import, "upload_media_asset_info", fake_upload)
+
+    result = docs_import.build_blog_media_html(
+        {"source_path": str(article_file)},
+        "http://localhost/wordpress",
+        "user",
+        "pass",
+        dry_run=False,
+    )
+
+    assert 'themisdb-import-video-player' in result["html"]
+    assert 'themisdb-import-audio-player' in result["html"]
+    assert 'themisdb-import-document' in result["html"]
+    assert '<video' in result["html"]
+    assert '<audio' in result["html"]
+    assert '<a href="https://example.test/spec-sheet.pdf"' in result["html"]
 
 
 def test_nested_lists_render_without_breaking():

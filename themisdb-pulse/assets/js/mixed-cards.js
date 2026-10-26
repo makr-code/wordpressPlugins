@@ -318,12 +318,104 @@
         });
     }
 
-    function initAll() {
-        var roots = document.querySelectorAll("[data-tv3-mixed-cards]");
-        if (!roots.length) {
+    function initMatrixCards(root) {
+        if (!root || root.dataset.tv3MatrixBound === "1") {
             return;
         }
-        roots.forEach(initMixedCards);
+
+        root.dataset.tv3MatrixBound = "1";
+
+        root.addEventListener("click", function (event) {
+            var button = event.target.closest(".tv3-card-loadmore");
+            if (!button) {
+                return;
+            }
+
+            event.preventDefault();
+
+            var shortcode = button.getAttribute("data-tv3-matrix-shortcode") || "feature";
+            var ajaxUrl = button.getAttribute("data-tv3-matrix-ajax-url") || "";
+            var nonce = button.getAttribute("data-tv3-matrix-nonce") || "";
+            var argsJson = button.getAttribute("data-tv3-matrix-args") || "{}";
+            var page = parseInt(button.getAttribute("data-tv3-matrix-page") || "1", 10);
+
+            if (!ajaxUrl || !nonce || !shortcode) {
+                return;
+            }
+
+            var params = new URLSearchParams();
+            params.set("action", "themisdb_v3_matrix_cards");
+            params.set("nonce", nonce);
+            params.set("shortcode", shortcode);
+            params.set("page", String(page || 1));
+            params.set("args", argsJson);
+
+            fetch(ajaxUrl, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+                body: params.toString()
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("http_" + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function (payload) {
+                    if (!payload || !payload.success || !payload.data || !payload.data.html) {
+                        return;
+                    }
+
+                    var wrapper = document.createElement("div");
+                    wrapper.innerHTML = payload.data.html;
+                    var nextContainer = wrapper.querySelector("[data-tv3-matrix-container]");
+                    if (nextContainer) {
+                        var currentGrid = root.firstElementChild;
+                        var nextGrid = nextContainer.firstElementChild;
+
+                        if (currentGrid && nextGrid) {
+                            while (nextGrid.firstChild) {
+                                currentGrid.appendChild(nextGrid.firstChild);
+                            }
+                        } else {
+                            root.innerHTML = nextContainer.innerHTML;
+                        }
+
+                        var nextButton = nextContainer.querySelector(".tv3-card-loadmore");
+                        var currentButton = root.querySelector(".tv3-card-loadmore");
+                        if (nextButton) {
+                            if (currentButton) {
+                                currentButton.replaceWith(nextButton);
+                            } else {
+                                root.appendChild(nextButton);
+                            }
+                        } else if (currentButton) {
+                            currentButton.remove();
+                        }
+
+                        root.dataset.tv3MatrixPage = nextContainer.getAttribute("data-tv3-matrix-page") || root.dataset.tv3MatrixPage;
+                        root.dataset.tv3MatrixArgs = nextContainer.getAttribute("data-tv3-matrix-args") || root.dataset.tv3MatrixArgs;
+                        root.dataset.tv3MatrixNonce = nextContainer.getAttribute("data-tv3-matrix-nonce") || root.dataset.tv3MatrixNonce;
+                        root.dataset.tv3MatrixAjaxUrl = nextContainer.getAttribute("data-tv3-matrix-ajax-url") || root.dataset.tv3MatrixAjaxUrl;
+                    }
+                })
+                .catch(function () {
+                    return;
+                });
+        });
+    }
+
+    function initAll() {
+        var roots = document.querySelectorAll("[data-tv3-mixed-cards]");
+        if (roots.length) {
+            roots.forEach(initMixedCards);
+        }
+
+        var matrixRoots = document.querySelectorAll("[data-tv3-matrix-container]");
+        if (matrixRoots.length) {
+            matrixRoots.forEach(initMatrixCards);
+        }
     }
 
     if (document.readyState === "loading") {

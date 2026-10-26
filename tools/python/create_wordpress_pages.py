@@ -330,14 +330,10 @@ def render_page_content(page: dict) -> str:
         raw_content = page.get("content") or ""
         return sanitize_shortcode_content(raw_content)
 
-    base = load_template(template_path)
-    shortcodes = page.get("shortcodes", [])
-    if shortcodes:
-        plugin_block = "\n\n".join(
-            f"<!-- wp:shortcode -->{code}<!-- /wp:shortcode -->" for code in shortcodes
-        )
-        return f"{base}\n\n{plugin_block}".strip()
-    return base.strip()
+    # When a dedicated block template is assigned, the page body should stay empty.
+    # Otherwise WordPress renders the saved page body and the template content side by side,
+    # leading to duplicated sections such as repeated docs shells.
+    return ""
 
 
 def get_wordpress_session(url: str, username: str, password: str) -> requests.Session:
@@ -468,14 +464,25 @@ def cleanup_duplicate_pages(session: requests.Session, url: str, dry_run: bool =
     return deleted
 
 
+def normalize_template_name(template_file: Optional[str]) -> Optional[str]:
+    if not template_file:
+        return None
+    template_name = os.path.basename(template_file)
+    if not template_name:
+        return None
+    template_name = template_name.rsplit('.', 1)[0] if '.' in template_name else template_name
+    return template_name
+
+
 def upsert_page(session: requests.Session, url: str, page: dict, parent_id: Optional[int]) -> dict:
     slug = page["slug"]
     existing = find_page(session, url, slug)
+    template_name = normalize_template_name(page.get("template_file")) or page.get("template")
     body = {
         "title": page["title"],
         "slug": slug,
         "status": "publish",
-        "template": page.get("template"),
+        "template": template_name,
         "content": render_page_content(page),
         "menu_order": int(page.get("menu_order", 0)),
     }

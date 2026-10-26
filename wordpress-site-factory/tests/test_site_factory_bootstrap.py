@@ -90,6 +90,30 @@ class SiteFactoryBootstrapTests(unittest.TestCase):
         self.assertIn('<!-- wp:shortcode -->[themisdb_v3_blog_section limit="9" category="blog"]', sanitized)
         self.assertIn('<p>Footer</p>', sanitized)
 
+    def test_ensure_page_wraps_html_landing_pages_in_gutenberg_html_block(self):
+        page_data = {
+            "title": "Features",
+            "slug": "features",
+            "status": "publish",
+            "content": '<div class="hero"><h1>Features</h1><p>Detail</p></div>',
+        }
+
+        with patch.object(pages, "find_page_by_slug", return_value=None), \
+             patch.object(pages, "rest_request", return_value={"id": 11}) as mock_rest:
+            pages.ensure_page("https://example.test", "user", "secret", page_data)
+
+        payload = mock_rest.call_args.kwargs["payload"]
+        self.assertTrue(payload["content"].startswith("<!-- wp:html -->"))
+        self.assertIn("<div class=\"hero\">", payload["content"])
+        self.assertIn("<!-- /wp:html -->", payload["content"])
+
+    def test_load_html_page_content_reads_static_landing_pages(self):
+        pages_payload = pages.load_html_page_content()
+        slugs = {page["slug"] for page in pages_payload}
+        self.assertIn("features", slugs)
+        self.assertIn("community", slugs)
+        self.assertIn("download", slugs)
+
 
 if __name__ == "__main__":
     unittest.main()

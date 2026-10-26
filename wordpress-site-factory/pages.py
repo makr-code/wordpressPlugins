@@ -15,14 +15,14 @@ ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "config" / "pages.json"
 SITE_FACTORY_ROOT = ROOT.parent
 HTML_PAGE_SPECS = [
-    {"slug": "features", "title": "Features", "source": "page-content-blog/features.html"},
-    {"slug": "dokumentation", "title": "Dokumentation", "source": "page-content-blog/dokumentation.html"},
-    {"slug": "documentation", "title": "Documentation", "source": "page-content-blog/dokumentation.html"},
-    {"slug": "pricing", "title": "Pricing", "source": "page-content-blog/pricing.html"},
-    {"slug": "support", "title": "Support", "source": "page-content-blog/support.html"},
-    {"slug": "download", "title": "Downloads", "source": "page-content-blog/download.html"},
-    {"slug": "community", "title": "Community", "source": "page-content-blog/community.html"},
-    {"slug": "shop", "title": "Shop", "source": "page-content-blog/shop.html"},
+    {"slug": "features", "title": "Features", "source": "source-links/static-pages/features.html"},
+    {"slug": "dokumentation", "title": "Dokumentation", "source": "source-links/static-pages/dokumentation.html"},
+    {"slug": "documentation", "title": "Documentation", "source": "source-links/static-pages/dokumentation.html"},
+    {"slug": "pricing", "title": "Pricing", "source": "source-links/static-pages/pricing.html"},
+    {"slug": "support", "title": "Support", "source": "source-links/static-pages/support.html"},
+    {"slug": "download", "title": "Downloads", "source": "source-links/static-pages/download.html"},
+    {"slug": "community", "title": "Community", "source": "source-links/static-pages/community.html"},
+    {"slug": "shop", "title": "Shop", "source": "source-links/static-pages/shop.html"},
 ]
 
 
@@ -77,6 +77,19 @@ def sanitize_shortcode_payload(content: Any) -> Any:
     return text
 
 
+def wrap_html_in_gutenberg_block(content: Any) -> Any:
+    if not isinstance(content, str):
+        return content
+    text = content.strip()
+    if not text:
+        return ""
+    if "<!-- wp:" in text:
+        return text
+    if re.search(r"<\s*(?:[A-Za-z][A-Za-z0-9:-]*|\/?\s*(?:div|section|article|header|footer|main|nav|aside|figure|ul|ol|li|p|h[1-6]|table|thead|tbody|tr|td|th|img|a|span|form|button|code|pre|blockquote|style))\b", text, flags=re.IGNORECASE):
+        return f"<!-- wp:html -->\n{text}\n<!-- /wp:html -->"
+    return text
+
+
 def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, Any]) -> Dict[str, Any]:
     slug = page_data["slug"]
     existing = find_page_by_slug(base_url, user, password, slug)
@@ -87,7 +100,7 @@ def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, An
         "slug": slug,
         "status": page_data.get("status", "publish"),
         "menu_order": page_data.get("menu_order", 0),
-        "content": sanitize_shortcode_payload(page_data.get("content", "")),
+        "content": wrap_html_in_gutenberg_block(sanitize_shortcode_payload(page_data.get("content", ""))),
     }
 
     template = page_data.get("template")
@@ -111,8 +124,18 @@ def ensure_page(base_url: str, user: str, password: str, page_data: Dict[str, An
 def load_html_page_content() -> List[Dict[str, Any]]:
     pages: List[Dict[str, Any]] = []
     for spec in HTML_PAGE_SPECS:
-        source_path = SITE_FACTORY_ROOT / spec["source"]
-        if not source_path.exists():
+        source_candidates = [
+            SITE_FACTORY_ROOT / spec["source"],
+            (SITE_FACTORY_ROOT / spec["source"]).resolve(strict=False),
+        ]
+        source_path = next((candidate for candidate in source_candidates if candidate.exists()), None)
+        if source_path is None:
+            legacy_candidates = [
+                SITE_FACTORY_ROOT / spec["source"].replace("source-links/static-pages", "page-content-blog"),
+                SITE_FACTORY_ROOT / spec["source"].replace("source-links/static-pages", "source-links/static-pages"),
+            ]
+            source_path = next((candidate for candidate in legacy_candidates if candidate.exists()), None)
+        if source_path is None:
             continue
         content = source_path.read_text(encoding="utf-8", errors="replace").strip()
         if not content:

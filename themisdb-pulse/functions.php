@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'THEMISDB_PULSE_VERSION', '3.3.0' );
+define( 'THEMISDB_PULSE_VERSION', '3.4.0' );
 
 // Backward-compatibility alias for legacy references.
 if ( ! defined( 'THEMISDB_V3_VERSION' ) ) {
@@ -2489,6 +2489,58 @@ function themisdb_v3_get_feature_fallback_cards( $limit = 6 ) {
     return array_slice( $cards, 0, $limit );
 }
 
+function themisdb_v3_collect_frontpage_cards_page( array $post_types, $limit, array $category_slugs, array $priority_tag_slugs, array $ids = array(), $orderby = 'date', $order = 'DESC', $page = 1 ) {
+    $limit = max( 1, min( 12, absint( $limit ) ) );
+    $page  = max( 1, absint( $page ) );
+
+    $fetch_limit = ( $limit * $page ) + 1;
+    $posts       = themisdb_v3_collect_frontpage_cards( $post_types, $fetch_limit, $category_slugs, $priority_tag_slugs, $ids, $orderby, $order );
+    $visible     = array_slice( $posts, ( $page - 1 ) * $limit, $limit );
+
+    return array(
+        'posts'    => $visible,
+        'has_more' => count( $posts ) > ( $page * $limit ),
+    );
+}
+
+function themisdb_v3_render_matrix_cards_container( string $shortcode, string $cards_html, array $config = array(), bool $has_more = false ) {
+    wp_enqueue_script( 'themisdb-v3-mixed-cards' );
+
+    $page = max( 1, absint( $config['page'] ?? 1 ) );
+    $limit = max( 1, absint( $config['limit'] ?? 8 ) );
+    $matrix_config = array_merge(
+        array(
+            'shortcode'    => $shortcode,
+            'page'         => $page,
+            'limit'        => $limit,
+            'post_types'   => '',
+            'category'     => '',
+            'priority_tag' => '',
+            'ids'          => '',
+            'orderby'      => 'date',
+            'order'        => 'DESC',
+            'excerpt_words' => 24,
+        ),
+        $config
+    );
+    $matrix_config['shortcode'] = (string) $shortcode;
+    $matrix_config['page']      = $page;
+    $matrix_config['limit']     = $limit;
+
+    $args_json = wp_json_encode( $matrix_config );
+    if ( false === $args_json ) {
+        $args_json = '{}';
+    }
+
+    $next_page = $page + 1;
+    $button_html = '';
+    if ( $has_more ) {
+        $button_html = '<div class="tv3-card-loadmore-wrap" data-tv3-loadmore-wrap><button type="button" class="tv3-card-loadmore" data-tv3-matrix-shortcode="' . esc_attr( $shortcode ) . '" data-tv3-matrix-page="' . esc_attr( (string) $next_page ) . '" data-tv3-matrix-ajax-url="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-tv3-matrix-nonce="' . esc_attr( wp_create_nonce( 'themisdb_v3_matrix_cards' ) ) . '" data-tv3-matrix-args="' . esc_attr( $args_json ) . '">' . esc_html__( 'Weitere Beiträge laden', 'themisdb-v3' ) . '</button></div>';
+    }
+
+    return '<div class="tv3-matrix-grid-container" data-tv3-matrix-container data-tv3-matrix-shortcode="' . esc_attr( $shortcode ) . '" data-tv3-matrix-page="' . esc_attr( (string) $page ) . '" data-tv3-matrix-ajax-url="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-tv3-matrix-nonce="' . esc_attr( wp_create_nonce( 'themisdb_v3_matrix_cards' ) ) . '" data-tv3-matrix-args="' . esc_attr( $args_json ) . '">' . $cards_html . $button_html . '</div>';
+}
+
 function themisdb_v3_collect_frontpage_cards( array $post_types, $limit, array $category_slugs, array $priority_tag_slugs, array $ids = array(), $orderby = 'date', $order = 'DESC' ) {
     $limit = max( 1, min( 12, absint( $limit ) ) );
 
@@ -2650,12 +2702,14 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
             'orderby'       => 'date',
             'order'         => 'DESC',
             'excerpt_words' => 24,
+            'page'          => 1,
         ),
         $atts,
         'themisdb_v3_feature_cards'
     );
 
     $limit_value = max( 1, min( 12, absint( $atts['limit'] ) ) );
+    $page_value  = max( 1, absint( $atts['page'] ) );
     $words = max( 8, min( 60, absint( $atts['excerpt_words'] ) ) );
 
     $supported_types = themisdb_v3_get_supported_content_post_types();
@@ -2688,7 +2742,9 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
         )
     );
 
-    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+    $paged_posts = themisdb_v3_collect_frontpage_cards_page( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'], $page_value );
+    $posts       = $paged_posts['posts'];
+    $has_more    = $paged_posts['has_more'];
 
     if ( empty( $posts ) || count( $posts ) < min( 3, $limit_value ) ) {
         $feature_slugs = array( 'vector-search-hybrid-retrieval', 'graph-native-intelligence', 'operational-guardrails-observability' );
@@ -2803,7 +2859,22 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
     <?php
 
     $html = trim( (string) ob_get_clean() );
-    return (string) preg_replace( '/>\s+</', '><', $html );
+    return themisdb_v3_render_matrix_cards_container(
+        'feature',
+        (string) preg_replace( '/>\s+</', '><', $html ),
+        array(
+            'page'         => $page_value,
+            'limit'        => $limit_value,
+            'post_types'   => implode( ',', $post_types ),
+            'category'     => implode( ',', $category_slugs ),
+            'priority_tag' => implode( ',', $priority_tag_slugs ),
+            'ids'          => implode( ',', $ids ),
+            'orderby'      => $atts['orderby'],
+            'order'        => $atts['order'],
+            'excerpt_words' => $words,
+        ),
+        $has_more
+    );
 }
 
 function themisdb_v3_render_pricing_cards_shortcode( $atts = array() ) {
@@ -2817,12 +2888,14 @@ function themisdb_v3_render_pricing_cards_shortcode( $atts = array() ) {
             'orderby'       => 'menu_order',
             'order'         => 'ASC',
             'excerpt_words' => 18,
+            'page'          => 1,
         ),
         $atts,
         'themisdb_v3_pricing_cards'
     );
 
     $limit_value = max( 1, min( 6, absint( $atts['limit'] ) ) );
+    $page_value  = max( 1, absint( $atts['page'] ) );
     $words       = max( 8, min( 48, absint( $atts['excerpt_words'] ) ) );
 
     $supported_types = themisdb_v3_get_supported_content_post_types();
@@ -2855,7 +2928,9 @@ function themisdb_v3_render_pricing_cards_shortcode( $atts = array() ) {
         )
     );
 
-    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+    $paged_posts = themisdb_v3_collect_frontpage_cards_page( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'], $page_value );
+    $posts       = $paged_posts['posts'];
+    $has_more    = $paged_posts['has_more'];
 
     if ( empty( $posts ) ) {
         $pricing_page = get_page_by_path( 'pricing', OBJECT, $post_types );
@@ -2975,7 +3050,22 @@ function themisdb_v3_render_pricing_cards_shortcode( $atts = array() ) {
     <?php
 
     $html = trim( (string) ob_get_clean() );
-    return (string) preg_replace( '/>\s+</', '><', $html );
+    return themisdb_v3_render_matrix_cards_container(
+        'pricing',
+        (string) preg_replace( '/>\s+</', '><', $html ),
+        array(
+            'page'         => $page_value,
+            'limit'        => $limit_value,
+            'post_types'   => implode( ',', $post_types ),
+            'category'     => implode( ',', $category_slugs ),
+            'priority_tag' => implode( ',', $priority_tag_slugs ),
+            'ids'          => implode( ',', $ids ),
+            'orderby'      => $atts['orderby'],
+            'order'        => $atts['order'],
+            'excerpt_words' => $words,
+        ),
+        $has_more
+    );
 }
 
 /**
@@ -2995,12 +3085,14 @@ function themisdb_v3_render_download_cards_shortcode( $atts = array() ) {
             'orderby'       => 'menu_order',
             'order'         => 'ASC',
             'excerpt_words' => 22,
+            'page'          => 1,
         ),
         $atts,
         'themisdb_v3_download_cards'
     );
 
     $limit_value = max( 1, min( 6, absint( $atts['limit'] ) ) );
+    $page_value  = max( 1, absint( $atts['page'] ) );
     $words       = max( 8, min( 50, absint( $atts['excerpt_words'] ) ) );
 
     $supported_types = themisdb_v3_get_supported_content_post_types();
@@ -3033,7 +3125,9 @@ function themisdb_v3_render_download_cards_shortcode( $atts = array() ) {
         )
     );
 
-    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+    $paged_posts = themisdb_v3_collect_frontpage_cards_page( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'], $page_value );
+    $posts       = $paged_posts['posts'];
+    $has_more    = $paged_posts['has_more'];
 
     if ( empty( $posts ) ) {
         $fallback_paths = array( 'docker', 'downloads', 'compendium-download', 'downloads-compendium', 'compendium' );
@@ -3117,7 +3211,22 @@ function themisdb_v3_render_download_cards_shortcode( $atts = array() ) {
     <?php
 
     $html = trim( (string) ob_get_clean() );
-    return (string) preg_replace( '/>\s+</', '><', $html );
+    return themisdb_v3_render_matrix_cards_container(
+        'download',
+        (string) preg_replace( '/>\s+</', '><', $html ),
+        array(
+            'page'         => $page_value,
+            'limit'        => $limit_value,
+            'post_types'   => implode( ',', $post_types ),
+            'category'     => implode( ',', $category_slugs ),
+            'priority_tag' => implode( ',', $priority_tag_slugs ),
+            'ids'          => implode( ',', $ids ),
+            'orderby'      => $atts['orderby'],
+            'order'        => $atts['order'],
+            'excerpt_words' => $words,
+        ),
+        $has_more
+    );
 }
 
 /**
@@ -3137,12 +3246,14 @@ function themisdb_v3_render_docs_cards_shortcode( $atts = array() ) {
             'orderby'       => 'date',
             'order'         => 'DESC',
             'excerpt_words' => 30,
+            'page'          => 1,
         ),
         $atts,
         'themisdb_v3_docs_cards'
     );
 
     $limit_value = max( 1, min( 12, absint( $atts['limit'] ) ) );
+    $page_value  = max( 1, absint( $atts['page'] ) );
     $words = max( 8, min( 60, absint( $atts['excerpt_words'] ) ) );
 
     $supported_types = themisdb_v3_get_supported_content_post_types();
@@ -3175,7 +3286,9 @@ function themisdb_v3_render_docs_cards_shortcode( $atts = array() ) {
         )
     );
 
-    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+    $paged_posts = themisdb_v3_collect_frontpage_cards_page( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'], $page_value );
+    $posts       = $paged_posts['posts'];
+    $has_more    = $paged_posts['has_more'];
 
     if ( empty( $posts ) ) {
         $posts = themisdb_v3_get_frontpage_page_fallback(
@@ -3210,7 +3323,22 @@ function themisdb_v3_render_docs_cards_shortcode( $atts = array() ) {
     <?php
 
     $html = trim( (string) ob_get_clean() );
-    return (string) preg_replace( '/>\s+</', '><', $html );
+    return themisdb_v3_render_matrix_cards_container(
+        'docs',
+        (string) preg_replace( '/>\s+</', '><', $html ),
+        array(
+            'page'         => $page_value,
+            'limit'        => $limit_value,
+            'post_types'   => implode( ',', $post_types ),
+            'category'     => implode( ',', $category_slugs ),
+            'priority_tag' => implode( ',', $priority_tag_slugs ),
+            'ids'          => implode( ',', $ids ),
+            'orderby'      => $atts['orderby'],
+            'order'        => $atts['order'],
+            'excerpt_words' => $words,
+        ),
+        $has_more
+    );
 }
 
 /**
@@ -3230,12 +3358,14 @@ function themisdb_v3_render_blog_cards_shortcode( $atts = array() ) {
             'orderby'       => 'date',
             'order'         => 'DESC',
             'excerpt_words' => 24,
+            'page'          => 1,
         ),
         $atts,
         'themisdb_v3_blog_cards'
     );
 
     $limit_value = max( 1, min( 9, absint( $atts['limit'] ) ) );
+    $page_value  = max( 1, absint( $atts['page'] ) );
     $words       = max( 12, min( 80, absint( $atts['excerpt_words'] ) ) );
 
     $supported_types = themisdb_v3_get_supported_content_post_types();
@@ -3268,7 +3398,9 @@ function themisdb_v3_render_blog_cards_shortcode( $atts = array() ) {
         )
     );
 
-    $posts = themisdb_v3_collect_frontpage_cards( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'] );
+    $paged_posts = themisdb_v3_collect_frontpage_cards_page( $post_types, $limit_value, $category_slugs, $priority_tag_slugs, $ids, $atts['orderby'], $atts['order'], $page_value );
+    $posts       = $paged_posts['posts'];
+    $has_more    = $paged_posts['has_more'];
     if ( empty( $posts ) ) {
         $posts = get_posts(
             array(
@@ -3349,7 +3481,22 @@ function themisdb_v3_render_blog_cards_shortcode( $atts = array() ) {
     <?php
 
     $html = trim( (string) ob_get_clean() );
-    return (string) preg_replace( '/>\s+</', '><', $html );
+    return themisdb_v3_render_matrix_cards_container(
+        'blog',
+        (string) preg_replace( '/>\s+</', '><', $html ),
+        array(
+            'page'         => $page_value,
+            'limit'        => $limit_value,
+            'post_types'   => implode( ',', $post_types ),
+            'category'     => implode( ',', $category_slugs ),
+            'priority_tag' => implode( ',', $priority_tag_slugs ),
+            'ids'          => implode( ',', $ids ),
+            'orderby'      => $atts['orderby'],
+            'order'        => $atts['order'],
+            'excerpt_words' => $words,
+        ),
+        $has_more
+    );
 }
 
 /**
@@ -3378,8 +3525,8 @@ function themisdb_v3_render_blog_section_shortcode( $atts = array() ) {
         'blog',
         array(
             'kicker'   => __( 'Blog', 'themisdb-v3' ),
-            'title'    => __( 'Aktuelle Blog-Beitraege', 'themisdb-v3' ),
-            'subtitle' => __( 'Die letzten 9 Artikel als Kartenansicht. Lesenswerte Beitraege werden hervorgehoben.', 'themisdb-v3' ),
+            'title'    => __( 'Aktuelle Einblicke', 'themisdb-v3' ),
+            'subtitle' => __( 'Praxisbeispiele, Architektur-Entscheidungen und reale Anwendungsfälle für Teams, die mit ThemisDB produktiv werden wollen.', 'themisdb-v3' ),
         )
     );
 
@@ -6914,6 +7061,72 @@ function themisdb_v3_ajax_mixed_cards() {
 }
 add_action( 'wp_ajax_themisdb_v3_mixed_cards', 'themisdb_v3_ajax_mixed_cards' );
 add_action( 'wp_ajax_nopriv_themisdb_v3_mixed_cards', 'themisdb_v3_ajax_mixed_cards' );
+
+/**
+ * AJAX endpoint for generic matrix card pagination.
+ */
+function themisdb_v3_ajax_matrix_cards() {
+    check_ajax_referer( 'themisdb_v3_matrix_cards', 'nonce' );
+
+    $shortcode = sanitize_key( wp_unslash( (string) ( $_POST['shortcode'] ?? 'feature' ) ) );
+    $page      = max( 1, absint( wp_unslash( (string) ( $_POST['page'] ?? 1 ) ) ) );
+    $args      = wp_unslash( (string) ( $_POST['args'] ?? '{}' ) );
+    $config    = array();
+    if ( '' !== trim( $args ) ) {
+        $decoded = json_decode( $args, true );
+        if ( is_array( $decoded ) ) {
+            $config = $decoded;
+        }
+    }
+
+    $config['page'] = $page;
+
+    $renderer = null;
+    switch ( $shortcode ) {
+        case 'pricing':
+            $renderer = 'themisdb_v3_render_pricing_cards_shortcode';
+            break;
+        case 'download':
+            $renderer = 'themisdb_v3_render_download_cards_shortcode';
+            break;
+        case 'docs':
+            $renderer = 'themisdb_v3_render_docs_cards_shortcode';
+            break;
+        case 'blog':
+            $renderer = 'themisdb_v3_render_blog_cards_shortcode';
+            break;
+        case 'feature':
+        default:
+            $renderer = 'themisdb_v3_render_feature_cards_shortcode';
+            break;
+    }
+
+    $atts = array(
+        'limit'         => isset( $config['limit'] ) ? absint( $config['limit'] ) : 6,
+        'post_types'    => isset( $config['post_types'] ) ? (string) $config['post_types'] : '',
+        'category'      => isset( $config['category'] ) ? (string) $config['category'] : '',
+        'priority_tag'  => isset( $config['priority_tag'] ) ? (string) $config['priority_tag'] : '',
+        'ids'           => isset( $config['ids'] ) ? (string) $config['ids'] : '',
+        'orderby'       => isset( $config['orderby'] ) ? (string) $config['orderby'] : 'date',
+        'order'         => isset( $config['order'] ) ? (string) $config['order'] : 'DESC',
+        'excerpt_words' => isset( $config['excerpt_words'] ) ? absint( $config['excerpt_words'] ) : 24,
+        'page'          => $page,
+    );
+
+    $html = 'string' === gettype( $renderer ) && function_exists( $renderer ) ? call_user_func( $renderer, $atts ) : '';
+    $has_more = is_string( $html ) && false !== strpos( $html, 'tv3-card-loadmore' );
+
+    wp_send_json_success(
+        array(
+            'html'     => is_string( $html ) ? $html : '',
+            'shortcode' => $shortcode,
+            'page'     => $page,
+            'has_more' => $has_more,
+        )
+    );
+}
+add_action( 'wp_ajax_themisdb_v3_matrix_cards', 'themisdb_v3_ajax_matrix_cards' );
+add_action( 'wp_ajax_nopriv_themisdb_v3_matrix_cards', 'themisdb_v3_ajax_matrix_cards' );
 
 /**
  * Render callback for the dynamic mixed-cards block.

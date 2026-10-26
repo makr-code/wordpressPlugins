@@ -37,15 +37,33 @@ def _read_json_file(path: Path) -> Dict[str, Any]:
 def _resolve_profile(base_url: str, profile_name: Optional[str]) -> Dict[str, Any]:
     config = _read_json_file(DEFAULT_CONNECTIONS)
     profiles = config.get("profiles", {}) if isinstance(config.get("profiles", {}), dict) else {}
-    if profile_name and profile_name in profiles:
-        candidate = profiles[profile_name]
+    default_name = str(config.get("default") or "").strip()
+
+    if profile_name:
+        candidate = profiles.get(profile_name)
         if isinstance(candidate, dict):
             selected = {k: v for k, v in candidate.items() if v is not None}
             if selected.get("wp_base"):
                 return selected
+
+    if default_name and default_name in profiles:
+        candidate = profiles.get(default_name)
+        if isinstance(candidate, dict):
+            selected = {k: v for k, v in candidate.items() if v is not None}
+            if selected.get("wp_base"):
+                return selected
+
     if base_url:
         return {"wp_base": base_url}
     return {}
+
+
+def _api_url(base_url: str, endpoint: str, rest_route_style: str = "wp-json") -> str:
+    route = endpoint.lstrip("/")
+    normalized_style = (rest_route_style or "wp-json").strip().lower()
+    if normalized_style == "query":
+        return f"{base_url.rstrip('/')}/?rest_route=/wp/v2/{route}"
+    return f"{base_url.rstrip('/')}/wp-json/wp/v2/{route}"
 
 
 def _windows_to_posix(value: str) -> str:
@@ -93,12 +111,14 @@ def _url_without_query(raw_url: str) -> str:
     return urlunparse(parsed._replace(query=""))
 
 
-def fetch_wp_items(base_url: str, user: str, password: str, endpoint: str, page_size: int = 100) -> List[Dict[str, Any]]:
+def fetch_wp_items(base_url: str, user: str, password: str, endpoint: str, page_size: int = 100, rest_route_style: str = "wp-json") -> List[Dict[str, Any]]:
     headers = {"Accept": "application/json"}
     all_items: List[Dict[str, Any]] = []
     page = 1
     while True:
-        url = f"{base_url.rstrip('/')}/wp-json/wp/v2/{endpoint.lstrip('/')}?per_page={page_size}&page={page}&_fields=id,slug,title,link,content,featured_media,source_url,guid,media_details,media_type"
+        base = _api_url(base_url, endpoint, rest_route_style)
+        params = [f"per_page={page_size}", f"page={page}", "_fields=id,slug,title,link,content,featured_media,source_url,guid,media_details,media_type"]
+        url = f"{base}&{'&'.join(params)}" if rest_route_style == "query" else f"{base}?{'&'.join(params)}"
         response = requests.get(url, auth=(user, password), headers=headers, timeout=60)
         response.raise_for_status()
         data = response.json()
@@ -191,7 +211,7 @@ def resolve_replacement(raw_value: str, media_lookup: Dict[str, str], slug_looku
     return ""
 
 
-def update_wp_post(base_url: str, user: str, password: str, item: Dict[str, Any], media_lookup: Dict[str, str], slug_lookup: Dict[str, str], dry_run: bool = True) -> Dict[str, Any]:
+def update_wp_post(base_url: str, user: str, password: str, item: Dict[str, Any], media_lookup: Dict[str, str], slug_lookup: Dict[str, str], dry_run: bool = True, rest_route_style: str = "wp-json") -> Dict[str, Any]:
     post_id = item.get("id")
     if post_id is None:
         return {"id": None, "updated": False}
@@ -212,7 +232,7 @@ def update_wp_post(base_url: str, user: str, password: str, item: Dict[str, Any]
         if link and item_slug and item_slug in slug_lookup:
             payload["link"] = link
         response = requests.post(
-            f"{base_url.rstrip('/')}/wp-json/wp/v2/posts/{post_id}",
+            _api_url(base_url, f"posts/{post_id}", rest_route_style),
             auth=(user, password),
             json=payload,
             timeout=90,
@@ -223,12 +243,12 @@ def update_wp_post(base_url: str, user: str, password: str, item: Dict[str, Any]
     return {"id": post_id, "updated": changed, "content_changed": changed}
 
 
-def collect_replacements(base_url: str, user: str, password: str, post_types: List[str]) -> Dict[str, Any]:
-    media_items = fetch_wp_items(base_url, user, password, "media")
+def collect_replacements(base_url: str, user: str, password: str, post_types: List[str], rest_route_style: str = "wp-json") -> Dict[str, Any]:
+    media_items = fetch_wp_items(base_url, user, password, "media", rest_route_style=rest_route_style)
     media_lookup = build_media_lookup(media_items)
     posts = []
     for post_type in post_types:
-        posts.extend(fetch_wp_items(base_url, user, password, post_type))
+        posts.extend(fetch_wp_items(base_url, user, password, post_type, rest_route_style=rest_route_style))
     slug_lookup = build_post_lookup(posts)
     return {"media_lookup": media_lookup, "slug_lookup": slug_lookup, "posts": posts}
 
@@ -252,11 +272,12 @@ def main() -> int:
     base_url = profile.get("wp_base") or args.base_url
     user = profile.get("wp_user") or args.user
     password = profile.get("wp_app_password") or args.password
+    rest_route_style = str(profile.get("rest_route_style") or "wp-json").strip().lower() or "wp-json"
 
     if not password:
         raise SystemExit("No WordPress application password configured. Set WP_APP_PASSWORD or pass --password.")
 
-    replacements = collect_replacements(base_url, user, password, list(dict.fromkeys(args.post_type)))
+    replacements = collect_replacements(base_url, user, password, list(dict.fromkeys(args.post_type)), rest_route_style=rest_route_style)
     media_lookup = replacements["media_lookup"]
     slug_lookup = replacements["slug_lookup"]
     posts = replacements["posts"]
@@ -277,13 +298,13 @@ def main() -> int:
             print(f"POST {item.get('id')}: {item.get('slug')} -> content links updated")
             if not args.dry_run:
                 requests.post(
-                    f"{base_url.rstrip('/')}/wp-json/wp/v2/{item.get('type', 'posts') if isinstance(item.get('type'), str) and item.get('type') else 'posts'}/{item.get('id')}",
+                    _api_url(base_url, f"{item.get('type', 'posts') if isinstance(item.get('type'), str) and item.get('type') else 'posts'}/{item.get('id')}", rest_route_style),
                     auth=(user, password),
                     json={"content": updated},
                     timeout=90,
                 ).raise_for_status()
 
-    print(f"Scanned {len(posts)} items. Changes: {changed}. Dry run: {args.dry_run}")
+    print(f"Scanned {len(posts)} items. Changes: {changed}. Dry run: {args.dry_run}. Target: {base_url} ({rest_route_style})")
     return 0
 
 

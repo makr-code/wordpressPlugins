@@ -43,18 +43,36 @@ Call log:
             - paragraph [ref=e12]:
               - link "ThemisDB lokal" [ref=e13] [cursor=pointer]:
                 - /url: http://localhost/wordpress
-          - generic:
-            - navigation "Produktnavigation"
-          - generic [ref=e14]:
-            - search [ref=e15]:
-              - generic [ref=e16]: Suche
-              - generic [ref=e17]:
-                - searchbox "Suche" [ref=e18]
-                - button "Suchen" [ref=e19] [cursor=pointer]
-            - link "Anmelden" [ref=e23] [cursor=pointer]:
+          - navigation "Produktnavigation" [ref=e15]:
+            - list "Produktnavigation" [ref=e16]:
+              - listitem [ref=e17]:
+                - link "Home" [ref=e18] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/
+              - listitem [ref=e20]:
+                - link "Features" [ref=e21] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/features/
+              - listitem [ref=e23]:
+                - link "Docs" [ref=e24] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/docs/
+              - listitem [ref=e26]:
+                - link "Blog" [ref=e27] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/blog/
+              - listitem [ref=e29]:
+                - link "Downloads" [ref=e30] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/downloads/
+              - listitem [ref=e32]:
+                - link "Support" [ref=e33] [cursor=pointer]:
+                  - /url: http://localhost/wordpress/support/
+          - generic [ref=e35]:
+            - search [ref=e36]:
+              - generic [ref=e37]: Suche
+              - generic [ref=e38]:
+                - searchbox "Suche" [ref=e39]
+                - button "Suchen" [ref=e40] [cursor=pointer]
+            - link "Anmelden" [ref=e44] [cursor=pointer]:
               - /url: "#tv3-login-overlay"
-    - region "Beiträge" [ref=e25]:
-      - generic [ref=e27]:
+    - region "Beiträge" [ref=e46]:
+      - generic [ref=e48]:
         - group [aria-hidden]:
           - generic:
             - generic:
@@ -68,50 +86,48 @@ Call log:
                 - link:
                   - /url: http://localhost/wordpress/2026/10/18/timeseries-in-themisdb/
                   - text: Mehr erfahren
-        - group "Beitrag 2 von 3" [ref=e28]:
-          - generic [ref=e30]:
-            - list "Announcement-Labels" [ref=e31]:
-              - generic [ref=e32]: Announcement
-            - heading [level=2] [ref=e33]:
-              - link "Observability in ThemisDB" [ref=e34] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/observability-in-themisdb/
-            - 'link "Beitrag anzeigen: Observability in ThemisDB" [ref=e36] [cursor=pointer]':
-              - /url: http://localhost/wordpress/2026/10/18/observability-in-themisdb/
+        - group [aria-hidden]:
+          - generic:
+            - generic:
+              - list:
+                - generic: Announcement
+              - heading [level=2]:
+                - link:
+                  - /url: http://localhost/wordpress/2026/10/18/observability-in-themisdb/
+                  - text: Observability in ThemisDB
+              - generic:
+                - link:
+                  - /url: http://localhost/wordpress/2026/10/18/observability-in-themisdb/
+                  - text: Mehr erfahren
+        - group "Beitrag 3 von 3" [ref=e49]:
+          - generic [ref=e51]:
+            - list "Announcement-Labels" [ref=e52]:
+              - generic [ref=e53]: Announcement
+            - heading [level=2] [ref=e54]:
+              - link "Sharding in ThemisDB" [ref=e55] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/sharding-in-themisdb/
+            - 'link "Beitrag anzeigen: Sharding in ThemisDB" [ref=e57] [cursor=pointer]':
+              - /url: http://localhost/wordpress/2026/10/18/sharding-in-themisdb/
               - text: Mehr erfahren
-        - group [aria-hidden]:
-          - generic:
-            - generic:
-              - list:
-                - generic: Announcement
-              - heading [level=2]:
-                - link:
-                  - /url: http://localhost/wordpress/2026/10/18/sharding-in-themisdb/
-                  - text: Sharding in ThemisDB
-              - generic:
-                - link:
-                  - /url: http://localhost/wordpress/2026/10/18/sharding-in-themisdb/
-                  - text: Mehr erfahren
-    - region "Beiträge" [ref=e38]:
-      - generic [ref=e40]:
-        - group [aria-hidden]:
-          - generic:
-            - generic:
-              - list:
-                - listitem: feature
-                - listitem: Announcement
-                - listitem: architecture
-                - listitem: Benchmark
-                - listitem: diagram
-              - heading [level=2]:
-                - link:
-                  - /url: http://localhost/wordpress/2026/10/18/timeseries-in-themisdb/
-                  - text: Timeseries in ThemisDB
-              - paragraph: Timeseries in ThemisDB — feature, documentation, architecture
-              - generic:
-                - time: 18. Oktober 2026
-                - link:
-                  - /url: http://localhost/wordpress/2026/10/18/timeseries-in-themisdb/
-                  - text: Beitrag anzeigen
+    - region "Beiträge" [ref=e59]:
+      - generic [ref=e61]:
+        - group "Beitrag 1 von 5" [ref=e62]:
+          - generic [ref=e64]:
+            - list "Beitrags-Labels" [ref=e65]:
+              - listitem [ref=e66] [cursor=pointer]: feature
+              - listitem [ref=e67] [cursor=pointer]: Announcement
+              - listitem [ref=e68] [cursor=pointer]: architecture
+              - listitem [ref=e69] [cursor=pointer]: Benchmark
+              - listitem [ref=e70] [cursor=pointer]: diagram
+            - heading [level=2] [ref=e71]:
+              - link "Timeseries in ThemisDB" [ref=e72] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/timeseries-in-themisdb/
+            - paragraph [ref=e73]: Timeseries in ThemisDB — feature, documentation, architecture
+            - generic [ref=e74]:
+              - time [ref=e75]: 18. Oktober 2026
+              - 'link "Beitrag anzeigen: Timeseries in ThemisDB" [ref=e76] [cursor=pointer]':
+                - /url: http://localhost/wordpress/2026/10/18/timeseries-in-themisdb/
+                - text: Beitrag anzeigen
         - group [aria-hidden]:
           - generic:
             - generic:
@@ -169,138 +185,140 @@ Call log:
                 - link:
                   - /url: http://localhost/wordpress/2026/10/18/replication-in-themisdb/
                   - text: Beitrag anzeigen
-        - group "Beitrag 5 von 5" [ref=e41]:
-          - generic [ref=e43]:
-            - list "Beitrags-Labels" [ref=e44]:
-              - listitem [ref=e45] [cursor=pointer]: feature
-              - listitem [ref=e46] [cursor=pointer]: Announcement
-              - listitem [ref=e47] [cursor=pointer]: architecture
-              - listitem [ref=e48] [cursor=pointer]: Benchmark
-              - listitem [ref=e49] [cursor=pointer]: diagram
-            - heading [level=2] [ref=e50]:
-              - link "Query in ThemisDB" [ref=e51] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/query-in-themisdb/
-            - paragraph [ref=e52]: Query in ThemisDB — feature, documentation, architecture
-            - generic [ref=e53]:
-              - time [ref=e54]: 18. Oktober 2026
-              - 'link "Beitrag anzeigen: Query in ThemisDB" [ref=e55] [cursor=pointer]':
-                - /url: http://localhost/wordpress/2026/10/18/query-in-themisdb/
-                - text: Beitrag anzeigen
+        - group [aria-hidden]:
+          - generic:
+            - generic:
+              - list:
+                - listitem: feature
+                - listitem: Announcement
+                - listitem: architecture
+                - listitem: Benchmark
+                - listitem: diagram
+              - heading [level=2]:
+                - link:
+                  - /url: http://localhost/wordpress/2026/10/18/query-in-themisdb/
+                  - text: Query in ThemisDB
+              - paragraph: Query in ThemisDB — feature, documentation, architecture
+              - generic:
+                - time: 18. Oktober 2026
+                - link:
+                  - /url: http://localhost/wordpress/2026/10/18/query-in-themisdb/
+                  - text: Beitrag anzeigen
       - generic:
-        - button "Vorheriger Beitrag" [ref=e56] [cursor=pointer]
-        - button "Nächster Beitrag" [ref=e59] [cursor=pointer]
+        - button "Vorheriger Beitrag" [ref=e77] [cursor=pointer]
+        - button "Nächster Beitrag" [ref=e80] [cursor=pointer]
         - paragraph
-        - tablist "Navigation für Beiträge" [ref=e62]:
-          - tab "Beitrag 1 von 5" [ref=e63] [cursor=pointer]
-          - tab "Beitrag 2 von 5" [ref=e64] [cursor=pointer]
-          - tab "Beitrag 3 von 5" [ref=e65] [cursor=pointer]
-          - tab "Beitrag 4 von 5" [ref=e66] [cursor=pointer]
-          - tab "Beitrag 5 von 5" [selected] [ref=e67] [cursor=pointer]
-    - navigation "Breadcrumb-Navigation" [ref=e71]:
-      - list [ref=e72]:
-        - listitem [ref=e73]:
-          - link "Start" [ref=e74] [cursor=pointer]:
+        - tablist "Navigation für Beiträge" [ref=e83]:
+          - tab "Beitrag 1 von 5" [selected] [ref=e84] [cursor=pointer]
+          - tab "Beitrag 2 von 5" [ref=e85] [cursor=pointer]
+          - tab "Beitrag 3 von 5" [ref=e86] [cursor=pointer]
+          - tab "Beitrag 4 von 5" [ref=e87] [cursor=pointer]
+          - tab "Beitrag 5 von 5" [ref=e88] [cursor=pointer]
+    - navigation "Breadcrumb-Navigation" [ref=e92]:
+      - list [ref=e93]:
+        - listitem [ref=e94]:
+          - link "Start" [ref=e95] [cursor=pointer]:
             - /url: http://localhost/wordpress/
-        - listitem [ref=e76]:
-          - link "Everything you need in one database" [ref=e77] [cursor=pointer]:
+        - listitem [ref=e97]:
+          - link "Everything you need in one database" [ref=e98] [cursor=pointer]:
             - /url: "#everything-you-need-in-one-database"
-        - listitem [ref=e78]:
-          - link "Performance-Benchmarks" [ref=e79] [cursor=pointer]:
+        - listitem [ref=e99]:
+          - link "Performance-Benchmarks" [ref=e100] [cursor=pointer]:
             - /url: "#performance-benchmarks"
-        - listitem [ref=e80]:
-          - link "Dokumentation & Leitfaeden" [ref=e81] [cursor=pointer]:
+        - listitem [ref=e101]:
+          - link "Dokumentation & Leitfaeden" [ref=e102] [cursor=pointer]:
             - /url: "#dokumentation-leitfaeden"
-        - listitem [ref=e82]:
-          - link "Editionen & Preise" [ref=e83] [cursor=pointer]:
+        - listitem [ref=e103]:
+          - link "Editionen & Preise" [ref=e104] [cursor=pointer]:
             - /url: "#editionen-preise"
-        - listitem [ref=e84]:
-          - link "Pakete & Artefakte" [ref=e85] [cursor=pointer]:
+        - listitem [ref=e105]:
+          - link "Pakete & Artefakte" [ref=e106] [cursor=pointer]:
             - /url: "#pakete-artefakte"
-        - listitem [ref=e86]:
-          - link "Blog" [ref=e87] [cursor=pointer]:
+        - listitem [ref=e107]:
+          - link "Blog" [ref=e108] [cursor=pointer]:
             - /url: "#blog"
-        - listitem [ref=e88]:
-          - link "Global heatmap of ThemisDB instances" [ref=e89] [cursor=pointer]:
+        - listitem [ref=e109]:
+          - link "Global heatmap of ThemisDB instances" [ref=e110] [cursor=pointer]:
             - /url: "#global-heatmap-of-themisdb-instances"
-        - listitem [ref=e90]:
-          - generic [ref=e91]: 0% · 1 Min. uebrig
-    - main [ref=e92]:
-      - generic [ref=e93]:
-        - paragraph [ref=e94]:
-          - generic [ref=e95]: Features
-        - heading "Everything you need in one database" [level=2] [ref=e96]
-        - paragraph [ref=e97]: Designed from the ground up for modern applications that need speed, flexibility, and intelligence.
-        - generic [ref=e98]:
-          - generic [ref=e99]:
-            - paragraph [ref=e100]:
-              - img "📰" [ref=e101]
-            - generic [ref=e102]:
-              - heading "Timeseries in ThemisDB" [level=3] [ref=e103]
-              - paragraph [ref=e104]: Timeseries in ThemisDB — feature, documentation, architecture
-            - paragraph [ref=e105]:
-              - link "Beitrag lesen →" [ref=e106] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/timeseries-in-themisdb/
-          - generic [ref=e107]:
-            - paragraph [ref=e108]:
-              - img "🤖" [ref=e109]
-            - generic [ref=e110]:
-              - heading "Observability in ThemisDB" [level=3] [ref=e111]
-              - paragraph [ref=e112]: Observability in ThemisDB — feature, documentation, architecture
-            - paragraph [ref=e113]:
-              - link "Beitrag lesen →" [ref=e114] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/observability-in-themisdb/
-          - generic [ref=e115]:
-            - paragraph [ref=e116]:
-              - img "⚡" [ref=e117]
-            - generic [ref=e118]:
-              - heading "Sharding in ThemisDB" [level=3] [ref=e119]
-              - paragraph [ref=e120]: Sharding in ThemisDB — feature, documentation, architecture
+        - listitem [ref=e111]:
+          - generic [ref=e112]: 0% · 1 Min. uebrig
+    - main [ref=e113]:
+      - generic [ref=e114]:
+        - paragraph [ref=e115]:
+          - generic [ref=e116]: Features
+        - heading "Everything you need in one database" [level=2] [ref=e117]
+        - paragraph [ref=e118]: Designed from the ground up for modern applications that need speed, flexibility, and intelligence.
+        - generic [ref=e119]:
+          - generic [ref=e120]:
             - paragraph [ref=e121]:
-              - link "Beitrag lesen →" [ref=e122] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/sharding-in-themisdb/
-          - generic [ref=e123]:
-            - paragraph [ref=e124]:
-              - img "💻" [ref=e125]
-            - generic [ref=e126]:
-              - heading "Replication in ThemisDB" [level=3] [ref=e127]
-              - paragraph [ref=e128]: Replication in ThemisDB — feature, documentation, architecture
+              - img "📰" [ref=e122]
+            - generic [ref=e123]:
+              - heading "Timeseries in ThemisDB" [level=3] [ref=e124]
+              - paragraph [ref=e125]: Timeseries in ThemisDB — feature, documentation, architecture
+            - paragraph [ref=e126]:
+              - link "Beitrag lesen →" [ref=e127] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/timeseries-in-themisdb/
+          - generic [ref=e128]:
             - paragraph [ref=e129]:
-              - link "Beitrag lesen →" [ref=e130] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/replication-in-themisdb/
-          - generic [ref=e131]:
-            - paragraph [ref=e132]:
-              - img "🧩" [ref=e133]
-            - generic [ref=e134]:
-              - heading "Query in ThemisDB" [level=3] [ref=e135]
-              - paragraph [ref=e136]: Query in ThemisDB — feature, documentation, architecture
+              - img "🤖" [ref=e130]
+            - generic [ref=e131]:
+              - heading "Observability in ThemisDB" [level=3] [ref=e132]
+              - paragraph [ref=e133]: Observability in ThemisDB — feature, documentation, architecture
+            - paragraph [ref=e134]:
+              - link "Beitrag lesen →" [ref=e135] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/observability-in-themisdb/
+          - generic [ref=e136]:
             - paragraph [ref=e137]:
-              - link "Beitrag lesen →" [ref=e138] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/query-in-themisdb/
-          - generic [ref=e139]:
-            - paragraph [ref=e140]:
-              - img "📊" [ref=e141]
-            - generic [ref=e142]:
-              - heading "Storage in ThemisDB" [level=3] [ref=e143]
-              - paragraph [ref=e144]: Storage in ThemisDB — feature, documentation, architecture
+              - img "⚡" [ref=e138]
+            - generic [ref=e139]:
+              - heading "Sharding in ThemisDB" [level=3] [ref=e140]
+              - paragraph [ref=e141]: Sharding in ThemisDB — feature, documentation, architecture
+            - paragraph [ref=e142]:
+              - link "Beitrag lesen →" [ref=e143] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/sharding-in-themisdb/
+          - generic [ref=e144]:
             - paragraph [ref=e145]:
-              - link "Beitrag lesen →" [ref=e146] [cursor=pointer]:
+              - img "💻" [ref=e146]
+            - generic [ref=e147]:
+              - heading "Replication in ThemisDB" [level=3] [ref=e148]
+              - paragraph [ref=e149]: Replication in ThemisDB — feature, documentation, architecture
+            - paragraph [ref=e150]:
+              - link "Beitrag lesen →" [ref=e151] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/replication-in-themisdb/
+          - generic [ref=e152]:
+            - paragraph [ref=e153]:
+              - img "🧩" [ref=e154]
+            - generic [ref=e155]:
+              - heading "Query in ThemisDB" [level=3] [ref=e156]
+              - paragraph [ref=e157]: Query in ThemisDB — feature, documentation, architecture
+            - paragraph [ref=e158]:
+              - link "Beitrag lesen →" [ref=e159] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/query-in-themisdb/
+          - generic [ref=e160]:
+            - paragraph [ref=e161]:
+              - img "📊" [ref=e162]
+            - generic [ref=e163]:
+              - heading "Storage in ThemisDB" [level=3] [ref=e164]
+              - paragraph [ref=e165]: Storage in ThemisDB — feature, documentation, architecture
+            - paragraph [ref=e166]:
+              - link "Beitrag lesen →" [ref=e167] [cursor=pointer]:
                 - /url: http://localhost/wordpress/2026/10/18/storage-in-themisdb/
-      - generic [ref=e147]:
-        - paragraph [ref=e148]:
-          - generic [ref=e149]: Benchmarks
-        - heading "Performance-Benchmarks" [level=2] [ref=e150]
-        - paragraph [ref=e151]: Vergleiche der wichtigsten Betriebs- und Analyse-Workloads in einer interaktiven Übersicht.
-        - generic [ref=e152]:
-          - generic [ref=e153]:
-            - heading "Benchmarks" [level=2] [ref=e155]
+      - generic [ref=e168]:
+        - paragraph [ref=e169]:
+          - generic [ref=e170]: Benchmarks
+        - heading "Performance-Benchmarks" [level=2] [ref=e171]
+        - paragraph [ref=e172]: Vergleiche der wichtigsten Betriebs- und Analyse-Workloads in einer interaktiven Übersicht.
+        - generic [ref=e173]:
+          - generic [ref=e174]:
+            - heading "Benchmarks" [level=2] [ref=e176]
             - paragraph
-          - generic [ref=e156]:
-            - generic [ref=e157]:
-              - generic [ref=e163]: Benchmark Overview
-              - generic [ref=e164]:
-                - generic [ref=e165]:
-                  - generic [ref=e166]:
-                    - button "Diagramm-Optionen" [ref=e167] [cursor=pointer]
+          - generic [ref=e177]:
+            - generic [ref=e178]:
+              - generic [ref=e184]: Benchmark Overview
+              - generic [ref=e185]:
+                - generic [ref=e186]:
+                  - generic [ref=e187]:
+                    - button "Diagramm-Optionen" [ref=e188] [cursor=pointer]
                     - paragraph
                     - option "Vector Search" [selected]
                     - option "Graph Traversal"
@@ -323,225 +341,265 @@ Call log:
                     - option "Top 30" [selected]
                     - option "Top 50"
                     - paragraph
-                  - generic [ref=e170]: Benchmark Overview
-                - generic "Benchmark chart" [ref=e172]
-                - generic [ref=e173]:
-                  - button "Vorherige Engine" [ref=e174] [cursor=pointer]: ‹
+                  - generic [ref=e191]: Benchmark Overview
+                - generic "Benchmark chart" [ref=e193]
+                - generic [ref=e194]:
+                  - button "Vorherige Engine" [ref=e195] [cursor=pointer]: ‹
                   - paragraph
-                  - button "Show ThemisDB" [ref=e176] [cursor=pointer]
-                  - paragraph [ref=e177]:
-                    - button "Nächste Engine" [ref=e178] [cursor=pointer]: ›
+                  - button "Show ThemisDB" [ref=e197] [cursor=pointer]
+                  - paragraph [ref=e198]:
+                    - button "Nächste Engine" [ref=e199] [cursor=pointer]: ›
                 - paragraph
               - paragraph
             - paragraph
           - paragraph
-      - generic [ref=e179]:
-        - paragraph [ref=e180]:
-          - generic [ref=e181]: Docs
-        - heading "Dokumentation & Leitfaeden" [level=2] [ref=e182]
-        - paragraph [ref=e183]: Schneller Einstieg, Referenzen und praxisnahe Anleitungen fuer den produktiven Einsatz.
-        - generic [ref=e184]:
-          - generic [ref=e185]:
-            - paragraph [ref=e186]:
-              - img "📖" [ref=e187]
-            - heading "Utils in ThemisDB" [level=3] [ref=e188]
-            - paragraph [ref=e189]: UeberblickDas Modul utils stellt shared cross-cutting runtime building blocks for ThemisDB, including audit and structured logging, privacy utilities, key and checksum helpers, compression and…
-            - paragraph [ref=e190]:
-              - link "Read more →" [ref=e191] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/utils-in-themisdb/
-          - generic [ref=e192]:
-            - paragraph [ref=e193]:
-              - img "📖" [ref=e194]
-            - heading "Voice in ThemisDB" [level=3] [ref=e195]
-            - paragraph [ref=e196]: UeberblickDas Modul Voice stellt speech-driven interaction, session orchestration, and voice-runtime utilities for ThemisDB. Im Modulkontext werden Aussagen mit Architekturgrenzen, Release-Planung, Produktionsanforderungen abgeglichen. Im Betrieb…
-            - paragraph [ref=e197]:
-              - link "Read more →" [ref=e198] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/voice-in-themisdb/
-          - generic [ref=e199]:
-            - paragraph [ref=e200]:
-              - img "📖" [ref=e201]
-            - heading "Whisper in ThemisDB" [level=3] [ref=e202]
-            - paragraph [ref=e203]: UeberblickImplements real-time and batch audio transcription for ThemisDB. Provides a language-agnostic IAudioBackend interface with a production implementation (WhisperPlugin) backed by whisper.cpp and a zero-dependency…
-            - paragraph [ref=e204]:
-              - link "Read more →" [ref=e205] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/whisper-in-themisdb/
+      - generic [ref=e200]:
+        - paragraph [ref=e201]:
+          - generic [ref=e202]: Docs
+        - heading "Dokumentation & Leitfaeden" [level=2] [ref=e203]
+        - paragraph [ref=e204]: Schneller Einstieg, Referenzen und praxisnahe Anleitungen fuer den produktiven Einsatz.
+        - generic [ref=e205]:
           - generic [ref=e206]:
             - paragraph [ref=e207]:
               - img "📖" [ref=e208]
-            - heading "Content in ThemisDB" [level=3] [ref=e209]
-            - paragraph [ref=e210]: "UeberblickProduction-capable multi-format content ingestion, storage/retrieval, versioning, and metadata management for ThemisDB supporting concurrent access patterns. Batch 5 enhancement focus: Content integrity verification, versioning correctness,…"
+            - heading "Utils in ThemisDB" [level=3] [ref=e209]
+            - paragraph [ref=e210]: UeberblickDas Modul utils stellt shared cross-cutting runtime building blocks for ThemisDB, including audit and structured logging, privacy utilities, key and checksum helpers, compression and…
             - paragraph [ref=e211]:
               - link "Read more →" [ref=e212] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/content-in-themisdb/
+                - /url: http://localhost/wordpress/2026/10/18/utils-in-themisdb/
           - generic [ref=e213]:
             - paragraph [ref=e214]:
               - img "📖" [ref=e215]
-            - heading "Importers in ThemisDB" [level=3] [ref=e216]
-            - paragraph [ref=e217]: UeberblickProduction-capable source-to-ThemisDB ingestion capabilities for relational, document, stream, and file/object sources, including schema handling, conflict resolution, validation, auditability, and optional MDM/post-processing paths. Batch 5…
+            - heading "Voice in ThemisDB" [level=3] [ref=e216]
+            - paragraph [ref=e217]: UeberblickDas Modul Voice stellt speech-driven interaction, session orchestration, and voice-runtime utilities for ThemisDB. Im Modulkontext werden Aussagen mit Architekturgrenzen, Release-Planung, Produktionsanforderungen abgeglichen. Im Betrieb…
             - paragraph [ref=e218]:
               - link "Read more →" [ref=e219] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/importers-in-themisdb/
+                - /url: http://localhost/wordpress/2026/10/18/voice-in-themisdb/
           - generic [ref=e220]:
             - paragraph [ref=e221]:
               - img "📖" [ref=e222]
-            - heading "Stable-Diffusion in ThemisDB" [level=3] [ref=e223]
-            - paragraph [ref=e224]: UeberblickImplements text-to-image generation for ThemisDB. Provides a policy-safe IImageGenerationBackend interface with a production implementation (SDPlugin) backed by stable-diffusion.cpp and a zero-dependency stub mode for…
+            - heading "Whisper in ThemisDB" [level=3] [ref=e223]
+            - paragraph [ref=e224]: UeberblickImplements real-time and batch audio transcription for ThemisDB. Provides a language-agnostic IAudioBackend interface with a production implementation (WhisperPlugin) backed by whisper.cpp and a zero-dependency…
             - paragraph [ref=e225]:
               - link "Read more →" [ref=e226] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/stable-diffusion-in-themisdb/
+                - /url: http://localhost/wordpress/2026/10/18/whisper-in-themisdb/
           - generic [ref=e227]:
             - paragraph [ref=e228]:
               - img "📖" [ref=e229]
-            - heading "Index in ThemisDB" [level=3] [ref=e230]
-            - paragraph [ref=e231]: UeberblickDas Modul index stellt core indexing and retrieval acceleration for ThemisDB across vector, secondary, spatial, graph, and advanced index pathways, including GPU-aware execution, compression,…
+            - heading "Aql in ThemisDB" [level=3] [ref=e230]
+            - paragraph [ref=e231]: UeberblickDas Modul AQL stellt language-assistance and LLM-adjacent capabilities around ThemisDB AQL workflows, including NL-to-AQL translation support, query validation/linting support, assistant tooling, and related runtime…
             - paragraph [ref=e232]:
               - link "Read more →" [ref=e233] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/index-in-themisdb/
+                - /url: http://localhost/wordpress/2026/10/18/aql-in-themisdb/
           - generic [ref=e234]:
             - paragraph [ref=e235]:
               - img "📖" [ref=e236]
-            - heading "Temporal in ThemisDB" [level=3] [ref=e237]
-            - paragraph [ref=e238]: UeberblickDas Modul temporal stellt system-time and valid-time data behavior, time-travel querying, temporal joins/aggregation behavior, retention/snapshot handling, and temporal conflict/consistency behavior for ThemisDB. Phase 1-6…
+            - heading "Evaluation in ThemisDB" [level=3] [ref=e237]
+            - paragraph [ref=e238]: Ueberblicksrc/evaluation is the EPIC 2 surface for making retrieval decisions measurable, hardware-aware, and policy-governed. The hardware-profile component and the EPIC 2.5 hybrid query planner…
             - paragraph [ref=e239]:
               - link "Read more →" [ref=e240] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/18/temporal-in-themisdb/
-      - generic [ref=e241]:
-        - paragraph [ref=e242]:
-          - generic [ref=e243]: Pricing
-        - heading "Editionen & Preise" [level=2] [ref=e244]
-        - paragraph [ref=e245]: Vergleiche Community-, Cloud- und Enterprise-Optionen fuer dein Einsatzszenario.
-        - generic [ref=e247]:
-          - paragraph [ref=e248]: Community
-          - paragraph [ref=e249]: Details
-          - paragraph [ref=e250]: Demo excerpt for Pricing for Teams and Enterprise.
-          - list [ref=e251]:
-            - listitem [ref=e252]:
-              - generic [ref=e253]: ✓
-              - generic [ref=e254]: This page simulates a pricing or plan selection item on the front page.
-          - paragraph [ref=e255]:
-            - link "Details ansehen →" [ref=e256] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/evaluation-in-themisdb/
+          - generic [ref=e241]:
+            - paragraph [ref=e242]:
+              - img "📖" [ref=e243]
+            - heading "Performance in ThemisDB" [level=3] [ref=e244]
+            - paragraph [ref=e245]: UeberblickDas Modul performance stellt optimization, profiling, hardware-aware acceleration, and runtime performance-tuning infrastructure for ThemisDB. Im Modulkontext werden Aussagen mit Architekturgrenzen, Release-Planung, Produktionsanforderungen abgeglichen. Im…
+            - paragraph [ref=e246]:
+              - link "Read more →" [ref=e247] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/performance-in-themisdb/
+          - generic [ref=e248]:
+            - paragraph [ref=e249]:
+              - img "📖" [ref=e250]
+            - heading "Updates in ThemisDB" [level=3] [ref=e251]
+            - paragraph [ref=e252]: UeberblickProduction-capable release-manifest handling, state-machine-driven update orchestration, delta update behavior, cluster and tenant scheduling paths, and schema/update lifecycle control for ThemisDB. Batch 5 enhancement focus:…
+            - paragraph [ref=e253]:
+              - link "Read more →" [ref=e254] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/updates-in-themisdb/
+          - generic [ref=e255]:
+            - paragraph [ref=e256]:
+              - img "📖" [ref=e257]
+            - heading "Auth in ThemisDB" [level=3] [ref=e258]
+            - paragraph [ref=e259]: UeberblickDas Modul auth stellt authentication and authorization runtime surfaces for ThemisDB, including token validation, federated identity integration, MFA, session handling, and policy/verification support. Im…
+            - paragraph [ref=e260]:
+              - link "Read more →" [ref=e261] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/18/auth-in-themisdb/
+      - generic [ref=e262]:
+        - paragraph [ref=e263]:
+          - generic [ref=e264]: Pricing
+        - heading "Editionen & Preise" [level=2] [ref=e265]
+        - paragraph [ref=e266]: Vergleiche Community-, Cloud- und Enterprise-Optionen fuer dein Einsatzszenario.
+        - generic [ref=e268]:
+          - paragraph [ref=e269]: Community
+          - paragraph [ref=e270]: Details
+          - paragraph [ref=e271]: Demo excerpt for Pricing for Teams and Enterprise.
+          - list [ref=e272]:
+            - listitem [ref=e273]:
+              - generic [ref=e274]: ✓
+              - generic [ref=e275]: This page simulates a pricing or plan selection item on the front page.
+          - paragraph [ref=e276]:
+            - link "Details ansehen →" [ref=e277] [cursor=pointer]:
               - /url: http://localhost/wordpress/pricing-for-teams-and-enterprise/
-      - generic [ref=e257]:
-        - paragraph [ref=e258]:
-          - generic [ref=e259]: Downloads
-        - heading "Pakete & Artefakte" [level=2] [ref=e260]
-        - paragraph [ref=e261]: Finde passende Builds, Docker-Images und Begleitpakete fuer Entwicklung und Betrieb.
-        - generic [ref=e262]:
-          - generic [ref=e263]:
-            - paragraph [ref=e264]: Recommended
-            - paragraph [ref=e265]:
-              - img "🐳" [ref=e266]
-            - generic [ref=e267]:
-              - 'heading "Downloads: Docker and Binary Packages" [level=3] [ref=e268]'
-              - paragraph [ref=e269]: "Demo excerpt for Downloads: Docker and Binary Packages."
-            - paragraph [ref=e270]:
-              - link "Mehr erfahren →" [ref=e271] [cursor=pointer]:
-                - /url: http://localhost/wordpress/downloads-docker-and-binary-packages/
-          - generic [ref=e272]:
-            - paragraph [ref=e273]: Recommended
-            - paragraph [ref=e274]:
-              - img "📦" [ref=e275]
-            - generic [ref=e276]:
-              - heading "Trial Setup for New Teams" [level=3] [ref=e277]
-              - paragraph [ref=e278]: Demo excerpt for Trial Setup for New Teams.
-            - paragraph [ref=e279]:
-              - link "Mehr erfahren →" [ref=e280] [cursor=pointer]:
-                - /url: http://localhost/wordpress/trial-setup-for-new-teams/
-      - generic [ref=e281]:
-        - paragraph [ref=e282]:
-          - generic [ref=e283]: Blog
-        - heading "Blog" [level=2] [ref=e284]
-        - paragraph [ref=e285]: Die letzten 9 Artikel als Kartenansicht. Lesenswerte Beitraege werden hervorgehoben.
-        - generic [ref=e286]:
-          - generic [ref=e287]:
-            - paragraph [ref=e288]:
-              - img "📰" [ref=e289]
-            - heading "Übersicht der Einzelgutachten" [level=3] [ref=e290]
-            - paragraph [ref=e291]: Übersicht der Einzelgutachten — blog
-            - paragraph [ref=e292]:
-              - link "Beitrag lesen →" [ref=e293] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/24/bersicht-der-einzelgutachten/
-          - generic [ref=e294]:
+      - generic [ref=e278]:
+        - paragraph [ref=e279]:
+          - generic [ref=e280]: Downloads
+        - heading "Pakete & Artefakte" [level=2] [ref=e281]
+        - paragraph [ref=e282]: Finde passende Builds, Docker-Images und Begleitpakete fuer Entwicklung und Betrieb.
+        - generic [ref=e283]:
+          - generic [ref=e284]:
+            - paragraph [ref=e285]: Recommended
+            - paragraph [ref=e286]:
+              - img "📖" [ref=e287]
+            - generic [ref=e288]:
+              - heading "Compendium Bundles" [level=3] [ref=e289]
+              - paragraph [ref=e290]: Compendium Bundles Gebuendelte Dokumentation, Referenzen und Assets fuer Teams.
+            - paragraph [ref=e291]:
+              - link "Mehr erfahren →" [ref=e292] [cursor=pointer]:
+                - /url: http://localhost/wordpress/downloads/compendium-download/
+          - generic [ref=e293]:
+            - paragraph [ref=e294]: Recommended
             - paragraph [ref=e295]:
-              - img "📰" [ref=e296]
-            - heading "Einleitung (Introducing)" [level=3] [ref=e297]
-            - paragraph [ref=e298]: Einleitung (Introducing) — blog
-            - paragraph [ref=e299]:
-              - link "Beitrag lesen →" [ref=e300] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/24/einleitung-introducing-der-souver-nit-tsimperativ/
-          - generic [ref=e301]:
-            - paragraph [ref=e302]:
-              - img "📰" [ref=e303]
-            - heading "Konzept zur datenbankübergreifenden Konsistenz und Integration im RAG-System der öffentlichen Verwaltung" [level=3] [ref=e304]
-            - paragraph [ref=e305]: Konzept zur datenbankübergreifenden Konsistenz und Integration im RAG-System der öffentlichen Verwaltung — blog
-            - paragraph [ref=e306]:
-              - link "Beitrag lesen →" [ref=e307] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/24/konzept-zur-datenbank-bergreifenden-konsistenz-und-integration-im-rag-system-der-ffentlichen-verwaltung/
-          - generic [ref=e308]:
+              - img "📦" [ref=e296]
+            - generic [ref=e297]:
+              - heading "Binary Packages" [level=3] [ref=e298]
+              - paragraph [ref=e299]: Binary Packages Direkte Binary-Pakete fuer Linux, Windows und macOS.
+            - paragraph [ref=e300]:
+              - link "Mehr erfahren →" [ref=e301] [cursor=pointer]:
+                - /url: http://localhost/wordpress/downloads/binary-download/
+          - generic [ref=e302]:
+            - paragraph [ref=e303]: Recommended
+            - paragraph [ref=e304]:
+              - img "🐳" [ref=e305]
+            - generic [ref=e306]:
+              - heading "Docker Images" [level=3] [ref=e307]
+              - paragraph [ref=e308]: Docker Images Container-Images fuer lokale Entwicklung und produktionsnahe Deployments.
             - paragraph [ref=e309]:
-              - img "📰" [ref=e310]
-            - heading "Der Souveränitätsimperativ im VCC-Ökosystem" [level=3] [ref=e311]
-            - paragraph [ref=e312]: Der Souveränitätsimperativ im VCC-Ökosystem — blog
+              - link "Mehr erfahren →" [ref=e310] [cursor=pointer]:
+                - /url: http://localhost/wordpress/downloads/docker-download/
+          - generic [ref=e311]:
+            - paragraph [ref=e312]: Recommended
             - paragraph [ref=e313]:
-              - link "Beitrag lesen →" [ref=e314] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/24/der-souver-nit-tsimperativ-im-vcc-kosystem/
-          - generic [ref=e315]:
-            - paragraph [ref=e316]:
-              - img "📰" [ref=e317]
-            - 'heading "Validierung und Evaluation konvergenter Datenarchitekturen für souveräne KI-Systeme: Eine umfassende Analyse der ThemisDB im Kontext der bundesdeutschen Verwaltungsdigitalisierung" [level=3] [ref=e318]'
-            - paragraph [ref=e319]: "Validierung und Evaluation konvergenter Datenarchitekturen für souveräne KI-Systeme: Eine umfassende Analyse der ThemisDB im Kontext der bundesdeutschen Verwaltungsdigitalisierung — blog"
-            - paragraph [ref=e320]:
-              - link "Beitrag lesen →" [ref=e321] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/24/validierung-und-evaluation-konvergenter-datenarchitekturen-f-r-souver-ne-ki-systeme-eine-umfassende-analyse-der-themisdb-im-kontext-der-bundesdeutschen-verwaltungsdigitalisierung/
-          - generic [ref=e322]:
-            - paragraph [ref=e323]:
-              - img "📰" [ref=e324]
-            - 'heading "Technologische Analyse und Marktsegmentierung der ThemisDB: Wissenschaftlicher Deep-Dive in RAID-Sharding und GPU-beschleunigte Fairness-Architekturen" [level=3] [ref=e325]'
-            - paragraph [ref=e326]: "Technologische Analyse und Marktsegmentierung der ThemisDB: Wissenschaftlicher Deep-Dive in RAID-Sharding und GPU-beschleunigte Fairness-Architekturen — blog"
+              - img "📦" [ref=e314]
+            - generic [ref=e315]:
+              - heading "Downloads Overview" [level=3] [ref=e316]
+              - paragraph [ref=e317]: Downloads Overview Alle Build-Artefakte, Images und Bundles an einem Ort.
+            - paragraph [ref=e318]:
+              - link "Mehr erfahren →" [ref=e319] [cursor=pointer]:
+                - /url: http://localhost/wordpress/downloads/downloads-overview/
+          - generic [ref=e320]:
+            - paragraph [ref=e321]: Recommended
+            - paragraph [ref=e322]:
+              - img "🐳" [ref=e323]
+            - generic [ref=e324]:
+              - 'heading "Downloads: Docker and Binary Packages" [level=3] [ref=e325]'
+              - paragraph [ref=e326]: "Demo excerpt for Downloads: Docker and Binary Packages."
             - paragraph [ref=e327]:
-              - link "Beitrag lesen →" [ref=e328] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/24/technologische-analyse-und-marktsegmentierung-der-themisdb-wissenschaftlicher-deep-dive-in-raid-sharding-und-gpu-beschleunigte-fairness-architekturen/
+              - link "Mehr erfahren →" [ref=e328] [cursor=pointer]:
+                - /url: http://localhost/wordpress/downloads-docker-and-binary-packages/
           - generic [ref=e329]:
-            - figure [ref=e330]:
-              - 'img "Technischer Forschungsbericht: Architektur- und Implementierungsanalyse von ThemisDB" [ref=e331]'
-            - 'heading "Technischer Forschungsbericht: Architektur- und Implementierungsanalyse von ThemisDB" [level=3] [ref=e332]'
-            - paragraph [ref=e333]: "Technischer Forschungsbericht: Architektur- und Implementierungsanalyse von ThemisDB — blog"
-            - paragraph [ref=e334]:
-              - link "Beitrag lesen →" [ref=e335] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/24/technischer-forschungsbericht-architektur-und-implementierungsanalyse-von-themisdb/
-          - generic [ref=e336]:
-            - paragraph [ref=e337]:
-              - img "📰" [ref=e338]
-            - 'heading "Die Architektur von ThemisDB: Eine tiefgehende Analyse hybrider Datenverwaltung und GPU-beschleunigter Verarbeitung" [level=3] [ref=e339]'
-            - paragraph [ref=e340]: "Die Architektur von ThemisDB: Eine tiefgehende Analyse hybrider Datenverwaltung und GPU-beschleunigter Verarbeitung — blog"
-            - paragraph [ref=e341]:
-              - link "Beitrag lesen →" [ref=e342] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/24/die-architektur-von-themisdb-eine-tiefgehende-analyse-hybrider-datenverwaltung-und-gpu-beschleunigter-verarbeitung/
-          - generic [ref=e343]:
-            - paragraph [ref=e344]:
-              - img "📰" [ref=e345]
-            - heading "Technische Einordnung des ThemisDB Ethics AI Plugins im Kontext des deutschen Verwaltungsrechts" [level=3] [ref=e346]
-            - paragraph [ref=e347]: Technische Einordnung des ThemisDB Ethics AI Plugins im Kontext des deutschen Verwaltungsrechts — blog
-            - paragraph [ref=e348]:
-              - link "Beitrag lesen →" [ref=e349] [cursor=pointer]:
-                - /url: http://localhost/wordpress/2026/10/24/technische-einordnung-des-themisdb-ethics-ai-plugins-im-kontext-des-deutschen-verwaltungsrechts/
-      - generic [ref=e350]:
-        - paragraph [ref=e351]:
-          - generic [ref=e352]: Worldwide
-        - heading "Global heatmap of ThemisDB instances" [level=2] [ref=e353]
-        - generic [ref=e354]:
-          - generic [ref=e355]:
-            - generic "ThemisDB global network map" [ref=e356]
+            - paragraph [ref=e330]: Recommended
+            - paragraph [ref=e331]:
+              - img "📦" [ref=e332]
+            - generic [ref=e333]:
+              - heading "Trial Setup for New Teams" [level=3] [ref=e334]
+              - paragraph [ref=e335]: Demo excerpt for Trial Setup for New Teams.
+            - paragraph [ref=e336]:
+              - link "Mehr erfahren →" [ref=e337] [cursor=pointer]:
+                - /url: http://localhost/wordpress/trial-setup-for-new-teams/
+      - generic [ref=e338]:
+        - paragraph [ref=e339]:
+          - generic [ref=e340]: Blog
+        - heading "Blog" [level=2] [ref=e341]
+        - paragraph [ref=e342]: ◉ Graph Graph Navigation × ThemisDB lokal Home Features Docs Blog Downloads Support Suche Abmelden Announcement Timeseries in ThemisDB Timeseries in ThemisDB — feature, documentation, architecture Mehr erfahren Announcement Observability in ThemisDB Observability in ThemisDB — feature, documentation, architecture Mehr erfahren Announcement Sharding in ThemisDB Sharding in ThemisDB — feature, documentation, architecture Mehr erfahren featureAnnouncementarchitectureBenchmarkdiagram […]
+        - generic [ref=e343]:
+          - generic [ref=e344]:
+            - figure [ref=e345]:
+              - img "Analyse des Technologiestands_ Graph-RAG und LLMs für die brandenburgische Verwaltung" [ref=e346]
+            - heading "Analyse des Technologiestands_ Graph-RAG und LLMs für die brandenburgische Verwaltung" [level=3] [ref=e347]
+            - paragraph [ref=e348]: "Analyse des Technologiestands: Graph-RAG und LLMs als strategische Antwort auf die Herausforderungen der brandenburgischen Verwaltung."
+            - paragraph [ref=e349]:
+              - link "Beitrag lesen →" [ref=e350] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/25/analyse-des-technologiestands-graph-rag-und-llms-fuer-die-brandenburgische-verwa/
+          - generic [ref=e351]:
+            - figure [ref=e352]:
+              - img "2025-12-05 Architektur der verteilten Intelligenz Vorzuge des Themis-Sharding fur militaris" [ref=e353]
+            - heading "2025-12-05 Architektur der verteilten Intelligenz Vorzuge des Themis-Sharding fur militaris" [level=3] [ref=e354]
+            - paragraph [ref=e355]: In der modernen, datenzentrierten Kriegführung ist die Fähigkeit zur dezentralen Informationsverarbeitung und Entscheidungsfindung (OODA-Loop) der entscheidende Faktor für die technologische Überlegenheit. Das Framework von…
+            - paragraph [ref=e356]:
+              - link "Beitrag lesen →" [ref=e357] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/25/2025-12-05-architektur-der-verteilten-intelligenz-vorzuge-des-themis-sharding-fur-militaris/
+          - generic [ref=e358]:
+            - figure [ref=e359]:
+              - img "2025-12-09 Die Architektur der digitalen Souveranitat Eine strategische und technische Anal" [ref=e360]
+            - heading "2025-12-09 Die Architektur der digitalen Souveranitat Eine strategische und technische Anal" [level=3] [ref=e361]
+            - paragraph [ref=e362]: Der globale Datenmarkt des Jahres 2025 markiert einen entscheidenden Wendepunkt in der Evolution der Informationstechnologie. Mit einem geschätzten Datenvolumen von über 120 Zettabytes im…
+            - paragraph [ref=e363]:
+              - link "Beitrag lesen →" [ref=e364] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/25/2025-12-09-die-architektur-der-digitalen-souveranitat-eine-strategische-und-technische-anal/
+          - generic [ref=e365]:
+            - paragraph [ref=e366]:
+              - img "📰" [ref=e367]
+            - heading "2025-09-04 Azure RAG und UDS3 Integration Analyse" [level=3] [ref=e368]
+            - paragraph [ref=e369]: Analyse der Erweiterten RAG-Architektur von Microsoft Azure im Kontext des UDS3-Systems.
+            - paragraph [ref=e370]:
+              - link "Beitrag lesen →" [ref=e371] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/25/2025-09-04-azure-rag-und-uds3-integration-analyse/
+          - generic [ref=e372]:
+            - paragraph [ref=e373]:
+              - img "📰" [ref=e374]
+            - heading "Das Kernkonzept_ Der Meta-Agenten-Ansatz" [level=3] [ref=e375]
+            - paragraph [ref=e376]: Absolut. Das ist ein sehr fortschrittlicher und leistungsfähiger Ansatz. Sie bauen im Grunde ein selbst-optimierendes System, bei dem das LLM nicht nur der Ausführende,…
+            - paragraph [ref=e377]:
+              - link "Beitrag lesen →" [ref=e378] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/25/das-kernkonzept-der-meta-agenten-ansatz/
+          - generic [ref=e379]:
+            - paragraph [ref=e380]:
+              - img "📰" [ref=e381]
+            - heading "2025-09-11 Foderierte RAG-Systeme fur Datenverbund" [level=3] [ref=e382]
+            - paragraph [ref=e383]: Eine bahnbrechende Vision für die digitale Zukunft Deutschlands stellt sich vor, wie ein innovatives Konzept die föderalen Datenbestände der Bundesländer intelligent vernetzt, ohne die…
+            - paragraph [ref=e384]:
+              - link "Beitrag lesen →" [ref=e385] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/25/2025-09-11-foderierte-rag-systeme-fur-datenverbund/
+          - generic [ref=e386]:
+            - paragraph [ref=e387]:
+              - img "📰" [ref=e388]
+            - heading "2025-09-13 Globale RAG-Analyse VCC UDS3 im Vergleich mit Azure, AWS & GCP" [level=3] [ref=e389]
+            - paragraph [ref=e390]: "Globale RAG-Analyse: Das souveräne VCC/UDS3-Ökosystem im strategischen Vergleich mit den Hyperscaler-Plattformen von Microsoft Azure, AWS und Google Cloud."
+            - paragraph [ref=e391]:
+              - link "Beitrag lesen →" [ref=e392] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/25/2025-09-13-globale-rag-analyse-vcc-uds3-im-vergleich-mit-azure-aws-gcp/
+          - generic [ref=e393]:
+            - paragraph [ref=e394]:
+              - img "📰" [ref=e395]
+            - heading "2025-09-17 KI-Forschungsthemen fur Berliner Hochschulen" [level=3] [ref=e396]
+            - paragraph [ref=e397]: Die öffentliche Verwaltung in Deutschland steht vor erheblichen Herausforderungen. Bis 2030 könnte ein Fachkräftemangel von rund 840.000 Stellen entstehen, bedingt durch demografische Entwicklungen. Gleichzeitig…
+            - paragraph [ref=e398]:
+              - link "Beitrag lesen →" [ref=e399] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/25/2025-09-17-ki-forschungsthemen-fur-berliner-hochschulen/
+          - generic [ref=e400]:
+            - paragraph [ref=e401]:
+              - img "📰" [ref=e402]
+            - heading "2025-09-18 LLMs, RAG und Kybernetik verstehen" [level=3] [ref=e403]
+            - paragraph [ref=e404]: "Einleitung: Der konzeptionelle Bogen von intelligenten Systemen zu generativer KI."
+            - paragraph [ref=e405]:
+              - link "Beitrag lesen →" [ref=e406] [cursor=pointer]:
+                - /url: http://localhost/wordpress/2026/10/25/2025-09-18-llms-rag-und-kybernetik-verstehen/
+      - generic [ref=e407]:
+        - paragraph [ref=e408]:
+          - generic [ref=e409]: Worldwide
+        - heading "Global heatmap of ThemisDB instances" [level=2] [ref=e410]
+        - generic [ref=e411]:
+          - generic [ref=e412]:
+            - generic "ThemisDB global network map" [ref=e413]
             - paragraph
-            - generic "Map controls" [ref=e357]:
-              - generic [ref=e358]:
-                - button "Globe" [pressed] [ref=e359] [cursor=pointer]
-                - button "Region" [ref=e360] [cursor=pointer]
-                - button "Country" [ref=e361] [cursor=pointer]
-              - generic "Focus target" [ref=e362]:
-                - generic [ref=e363]: Target
-                - generic "Focus target selector" [ref=e364]:
-                  - combobox "Focus target selector" [ref=e365] [cursor=pointer]:
+            - generic "Map controls" [ref=e414]:
+              - generic [ref=e415]:
+                - button "Globe" [pressed] [ref=e416] [cursor=pointer]
+                - button "Region" [ref=e417] [cursor=pointer]
+                - button "Country" [ref=e418] [cursor=pointer]
+              - generic "Focus target" [ref=e419]:
+                - generic [ref=e420]: Target
+                - generic "Focus target selector" [ref=e421]:
+                  - combobox "Focus target selector" [ref=e422] [cursor=pointer]:
                     - option "Auto" [selected]
                     - option "North America"
                     - option "United States"
@@ -558,24 +616,24 @@ Call log:
                     - option "Japan"
                     - option "Oceania"
                     - option "Australia"
-              - paragraph [ref=e366]:
-                - generic "Map zoom" [ref=e367]:
-                  - generic [ref=e368]: Zoom
-                  - slider "Map zoom" [ref=e369] [cursor=pointer]: "1.1"
-              - paragraph [ref=e370]:
-                - generic "Rotation speed" [ref=e371]:
-                  - generic [ref=e372]: Spin
-                  - slider "Rotation speed" [ref=e373] [cursor=pointer]: "0.1"
-              - paragraph [ref=e374]:
-                - generic "Toggle automatic animation" [ref=e375] [cursor=pointer]:
-                  - checkbox "Toggle automatic animation" [checked] [ref=e376]
-                  - generic [ref=e377]: Auto rotate
-              - paragraph [ref=e378]:
-                - generic "Toggle mouse drag control" [ref=e379] [cursor=pointer]:
-                  - checkbox "Toggle mouse drag control" [checked] [ref=e380]
-                  - generic [ref=e381]: Mouse
-              - paragraph [ref=e382]:
-                - button "Reset view" [ref=e383] [cursor=pointer]: Reset
+              - paragraph [ref=e423]:
+                - generic "Map zoom" [ref=e424]:
+                  - generic [ref=e425]: Zoom
+                  - slider "Map zoom" [ref=e426] [cursor=pointer]: "1.1"
+              - paragraph [ref=e427]:
+                - generic "Rotation speed" [ref=e428]:
+                  - generic [ref=e429]: Spin
+                  - slider "Rotation speed" [ref=e430] [cursor=pointer]: "0.1"
+              - paragraph [ref=e431]:
+                - generic "Toggle automatic animation" [ref=e432] [cursor=pointer]:
+                  - checkbox "Toggle automatic animation" [checked] [ref=e433]
+                  - generic [ref=e434]: Auto rotate
+              - paragraph [ref=e435]:
+                - generic "Toggle mouse drag control" [ref=e436] [cursor=pointer]:
+                  - checkbox "Toggle mouse drag control" [checked] [ref=e437]
+                  - generic [ref=e438]: Mouse
+              - paragraph [ref=e439]:
+                - button "Reset view" [ref=e440] [cursor=pointer]: Reset
             - generic:
               - generic:
                 - text: "Overlay:"
@@ -590,32 +648,51 @@ Call log:
                 - text: "FPS:"
                 - strong: "0"
             - paragraph
-          - generic "Network heatmap legend" [ref=e384]:
-            - generic [ref=e385]: Low
-            - generic [ref=e387]: Active
-            - generic [ref=e389]: High
+          - generic "Network heatmap legend" [ref=e441]:
+            - generic [ref=e442]: Low
+            - generic [ref=e444]: Active
+            - generic [ref=e446]: High
           - paragraph
-    - contentinfo [ref=e391]:
-      - contentinfo [ref=e392]:
-        - generic [ref=e393]:
-          - generic [ref=e395]:
-            - paragraph [ref=e396]:
-              - link "ThemisDB lokal" [ref=e397] [cursor=pointer]:
+    - contentinfo [ref=e448]:
+      - contentinfo [ref=e449]:
+        - generic [ref=e450]:
+          - generic [ref=e452]:
+            - paragraph [ref=e453]:
+              - link "ThemisDB lokal" [ref=e454] [cursor=pointer]:
                 - /url: http://localhost/wordpress
-            - paragraph [ref=e398]: Datensouveränität, Vertrauen und produktive digitale Arbeit.
-          - generic [ref=e399]:
-            - heading "Navigation" [level=6] [ref=e400]
-            - navigation "Footer-Navigation"
-          - generic [ref=e401]:
-            - heading "Rechtliches" [level=6] [ref=e402]
-            - list [ref=e403]:
-              - listitem [ref=e404]:
-                - link "GitHub" [ref=e405] [cursor=pointer]:
+            - paragraph [ref=e455]: Datensouveränität, Vertrauen und produktive digitale Arbeit.
+          - generic [ref=e456]:
+            - heading "Navigation" [level=6] [ref=e457]
+            - navigation "Footer-Navigation" [ref=e458]:
+              - list "Footer-Navigation" [ref=e459]:
+                - listitem [ref=e460]:
+                  - link "Home" [ref=e461] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/
+                - listitem [ref=e462]:
+                  - link "Features" [ref=e463] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/features/
+                - listitem [ref=e464]:
+                  - link "Docs" [ref=e465] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/docs/
+                - listitem [ref=e466]:
+                  - link "Blog" [ref=e467] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/blog/
+                - listitem [ref=e468]:
+                  - link "Downloads" [ref=e469] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/downloads/
+                - listitem [ref=e470]:
+                  - link "Support" [ref=e471] [cursor=pointer]:
+                    - /url: http://localhost/wordpress/support/
+          - generic [ref=e472]:
+            - heading "Rechtliches" [level=6] [ref=e473]
+            - list [ref=e474]:
+              - listitem [ref=e475]:
+                - link "GitHub" [ref=e476] [cursor=pointer]:
                   - /url: "#"
-              - listitem [ref=e409]:
-                - link "LinkedIn" [ref=e410] [cursor=pointer]:
+              - listitem [ref=e480]:
+                - link "LinkedIn" [ref=e481] [cursor=pointer]:
                   - /url: "#"
-        - paragraph [ref=e414]: Powered by WordPress.
+        - paragraph [ref=e485]: Powered by WordPress.
 ```
 
 # Test source

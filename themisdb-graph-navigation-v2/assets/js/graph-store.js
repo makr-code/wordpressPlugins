@@ -3,6 +3,114 @@
 
     window.ThemisDBGraphV2 = window.ThemisDBGraphV2 || {};
 
+    const STORAGE_PREFIX = 'themisdbGraphV2';
+    const GRAPH_CACHE_TTL_MS = 30 * 60 * 1000;
+    const preparedGraphCache = new Map();
+
+    function getStorage() {
+        try {
+            if (!window.localStorage) {
+                return null;
+            }
+            const testKey = '__themisdb_graph_storage_test__';
+            window.localStorage.setItem(testKey, '1');
+            window.localStorage.removeItem(testKey);
+            return window.localStorage;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function getGraphCacheKey(rawGraph) {
+        const config = window.themisdbGraphV2 || {};
+        const graphFingerprint = rawGraph && rawGraph.nodes && rawGraph.nodes.length
+            ? `${rawGraph.nodes.length}:${rawGraph.links ? rawGraph.links.length : 0}`
+            : 'empty';
+        const versionKey = config.graphVersion || config.cacheKey || 'default';
+        const siteKey = (config.cacheKey || config.graphVersion || window.location.hostname || 'themisdb-graph') + ':' + versionKey + ':' + graphFingerprint;
+        return `${STORAGE_PREFIX}:graph:${siteKey}`;
+    }
+
+    function readGraphFromStorage(rawGraph) {
+        const storage = getStorage();
+        if (!storage) {
+            return rawGraph || null;
+        }
+
+        try {
+            const cacheKey = getGraphCacheKey(rawGraph || {});
+            const cached = storage.getItem(cacheKey);
+            if (!cached) {
+                return rawGraph || null;
+            }
+
+            const payload = JSON.parse(cached);
+            const hasValidPayload = payload && payload.graph && Array.isArray(payload.graph.nodes);
+            if (!hasValidPayload) {
+                return rawGraph || null;
+            }
+
+            const currentVersion = (window.themisdbGraphV2 && (window.themisdbGraphV2.graphVersion || window.themisdbGraphV2.cacheKey)) || null;
+            if (currentVersion && payload.version && String(payload.version) !== String(currentVersion)) {
+                storage.removeItem(cacheKey);
+                return rawGraph || null;
+            }
+
+            if (Number(payload.expiresAt || 0) < Date.now()) {
+                storage.removeItem(cacheKey);
+                return rawGraph || null;
+            }
+
+            return payload.graph;
+        } catch (error) {
+            return rawGraph || null;
+        }
+    }
+
+    function writeGraphToStorage(graph) {
+        const storage = getStorage();
+        if (!storage || !graph || !Array.isArray(graph.nodes)) {
+            return;
+        }
+
+        try {
+            storage.setItem(getGraphCacheKey(graph), JSON.stringify({
+                graph,
+                version: (window.themisdbGraphV2 && (window.themisdbGraphV2.graphVersion || window.themisdbGraphV2.cacheKey)) || null,
+                expiresAt: Date.now() + GRAPH_CACHE_TTL_MS,
+            }));
+        } catch (error) {
+            // Storage may be unavailable or full; fail silently and keep the runtime graph in memory.
+        }
+    }
+
+    function resolveRuntimeGraph(graph) {
+        if (!graph || !Array.isArray(graph.nodes)) {
+            return readGraphFromStorage(null) || { nodes: [], links: [] };
+        }
+
+        const cachedGraph = readGraphFromStorage(graph);
+        const activeGraph = cachedGraph || graph;
+        writeGraphToStorage(activeGraph);
+        return activeGraph;
+    }
+
+    function getPreparedGraph(graph, options) {
+        const cacheKey = JSON.stringify({
+            nodes: Array.isArray(graph && graph.nodes) ? graph.nodes.length : 0,
+            links: Array.isArray(graph && graph.links) ? graph.links.length : 0,
+            options: Object.assign({ maxVisibleNodes: 120, minDegree: 0, showExternal: true }, options || {}),
+        });
+
+        if (preparedGraphCache.has(cacheKey)) {
+            return preparedGraphCache.get(cacheKey);
+        }
+
+        const prepared = buildGraphModel(graph, options);
+        preparedGraphCache.set(cacheKey, prepared);
+        return prepared;
+    }
+
     function getReductionProfile(nodeCount, options) {
         const localOptions = Object.assign({
             maxVisibleNodes: 120,
@@ -94,13 +202,13 @@
             if (!localOptions.showExternal && isExternal) {
                 return false;
             }
+            if (selectedNodeId && preferred.has(nodeId)) {
+                return true;
+            }
             if ((node.degree || 0) < reduction.minDegree) {
                 return false;
             }
-            if (selectedNodeId) {
-                return preferred.has(nodeId);
-            }
-            return true;
+            return !selectedNodeId || preferred.has(nodeId);
         });
 
         const ranked = filtered
@@ -264,5 +372,9 @@
         calculateVisibleGraph,
         getReductionProfile,
         resolveHitNode,
+        resolveRuntimeGraph,
+        readGraphFromStorage,
+        writeGraphToStorage,
+        getPreparedGraph,
     };
 })();

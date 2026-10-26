@@ -2,7 +2,7 @@
 
 **WordPress Block Theme (Full Site Editing)** für ThemisDB — inspiriert von [postgresql.org](https://www.postgresql.org/) und [Microsoft Azure](https://azure.microsoft.com/de-de/).
 
-Version: **3.3.0** | Requires WordPress: **6.3+** | PHP: **7.4+**
+Version: **3.4.0** | Requires WordPress: **6.3+** | PHP: **7.4+**
 
 ---
 
@@ -52,6 +52,13 @@ Version: **3.3.0** | Requires WordPress: **6.3+** | PHP: **7.4+**
 | **Stat-Counter** | Statisch | Animiert (count-up via IntersectionObserver) |
 | **Scroll-Animationen** | – | Fade-in, Slide-up beim Scrollen |
 | **jQuery Tabs/Accordion** | – | `.themis-v3-tabs`, `.themis-v3-accordion` |
+
+### v3.4 – Zugänglichkeit & visuelle Verfeinerung
+
+- deutlich sichtbare `:focus-visible`-Ringe für Tastatur-Navigation
+- bessere Kontrastwerte für Buttons, Links, Formularfelder und Cards
+- reduzierter Motion-Fallback bei `prefers-reduced-motion`
+- weichere Schatten, klarere Card-Layouts und optische Einheiten für eine attraktivere Startseite und Inhaltsseiten
 
 ---
 

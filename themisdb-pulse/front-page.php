@@ -52,7 +52,7 @@ get_header();
         <div class="wp-block-group tv3-docs-grid-section has-global-padding is-layout-constrained">
             <p class="has-text-align-center tv3-docs-grid-kicker-wrap"><span class="tv3-docs-grid-kicker">Docs</span></p>
             <h2 class="wp-block-heading has-text-align-center tv3-docs-grid-title">Dokumentation &amp; Leitfaeden</h2>
-            <p class="has-text-align-center tv3-docs-grid-subtitle">Schneller Einstieg, Referenzen und praxisnahe Anleitungen fuer den produktiven Einsatz.</p>
+            <p class="has-text-align-center tv3-docs-grid-subtitle">Praxisbeispiele, Architektur-Entscheidungen und reale Anwendungsfälle für Teams, die mit ThemisDB produktiv werden wollen.</p>
             <?php echo do_shortcode( '[themisdb_v3_docs_cards limit="8" post_types="post,page" category="documentation" priority_tag="documentation,recommended,editor-pick" excerpt_words="24"]' ); ?>
         </div>
 

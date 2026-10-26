@@ -806,7 +806,131 @@
         });
     }
 
-    function layoutRadial(nodes, width, height) {
+    function normalizeNodeUrl(value) {
+        if (!value) {
+            return '';
+        }
+
+        const raw = String(value).trim();
+        if (!raw) {
+            return '';
+        }
+
+        try {
+            const parsed = new URL(raw, window.location.origin || 'http://localhost');
+            parsed.hash = '';
+            parsed.search = '';
+            if (parsed.origin && parsed.pathname) {
+                return (parsed.origin + parsed.pathname).replace(/\/+$/, '');
+            }
+            return raw.replace(/\/+$/, '');
+        } catch (error) {
+            return raw.replace(/\/+$/, '');
+        }
+    }
+
+    function resolveCurrentPageNodeId(graphData, state) {
+        if (!graphData || !Array.isArray(graphData.nodes) || !graphData.nodes.length) {
+            return null;
+        }
+
+        const currentUrl = normalizeNodeUrl(window.location.href);
+        const currentPath = normalizeNodeUrl(window.location.pathname || '/');
+        const currentOrigin = (window.location.origin || '').replace(/\/$/, '');
+        const candidateSet = new Set();
+
+        if (currentUrl) {
+            candidateSet.add(currentUrl);
+        }
+        if (currentPath) {
+            candidateSet.add(currentPath);
+            candidateSet.add(currentOrigin + currentPath);
+            candidateSet.add(currentPath.replace(/\/$/, ''));
+        }
+
+        const rootPath = currentPath ? currentPath.replace(/\/$/, '') : '';
+        const pathParts = rootPath ? rootPath.split('/').filter(Boolean) : [];
+        const slugCandidates = new Set();
+        if (pathParts.length) {
+            slugCandidates.add(pathParts[pathParts.length - 1]);
+            slugCandidates.add(pathParts.join('/'));
+        }
+
+        const matchesNode = (node) => {
+            const urls = [
+                node && node.url,
+                node && node.permalink,
+                node && node.href,
+                node && node.link,
+                node && node.linkUrl,
+                node && node.metadata && node.metadata.url,
+                node && node.metadata && node.metadata.permalink,
+                node && node.metadata && node.metadata.href,
+            ].filter(Boolean);
+
+            const slugs = [
+                node && node.slug,
+                node && node.post_name,
+                node && node.path,
+                node && node.pathname,
+                node && node.metadata && node.metadata.slug,
+                node && node.metadata && node.metadata.path,
+                node && node.metadata && node.metadata.pathname,
+            ].filter(Boolean);
+
+            for (const candidateUrl of urls) {
+                const normalized = normalizeNodeUrl(candidateUrl);
+                if (!normalized) {
+                    continue;
+                }
+
+                if (candidateSet.has(normalized)
+                    || candidateSet.has(normalized.replace(/\/$/, ''))
+                    || currentUrl.endsWith(normalized)
+                    || normalized.endsWith(currentPath)
+                    || (rootPath && normalized.endsWith('/' + rootPath))) {
+                    return true;
+                }
+            }
+
+            for (const slug of slugs) {
+                const normalizedSlug = String(slug).trim().replace(/^\//, '').replace(/\/$/, '');
+                if (!normalizedSlug) {
+                    continue;
+                }
+                if (slugCandidates.has(normalizedSlug)
+                    || slugCandidates.has(normalizedSlug.replace(/\/$/, ''))
+                    || currentPath.endsWith('/' + normalizedSlug)
+                    || currentUrl.endsWith('/' + normalizedSlug)) {
+                    return true;
+                }
+            }
+
+            const nodeLabel = String(node && (node.label || node.title || node.name) || '').trim();
+            if (nodeLabel && pathParts.length) {
+                const labelSlug = nodeLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                if (labelSlug && slugCandidates.has(labelSlug)) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        for (const node of graphData.nodes) {
+            if (matchesNode(node)) {
+                return String(node.id);
+            }
+        }
+
+        if (state && state.selection && state.selection.nodeId) {
+            return String(state.selection.nodeId);
+        }
+
+        return null;
+    }
+
+    function layoutRadial(nodes, width, height, selectedNodeId) {
         const centerX = width / 2;
         const centerY = height / 2;
         const minDimension = Math.max(180, Math.min(width, height));
@@ -829,6 +953,16 @@
         });
 
         const positioned = nodes.map((node) => ({ ...node }));
+        const selectedNode = selectedNodeId
+            ? positioned.find((node) => String(node.id) === String(selectedNodeId)) || null
+            : null;
+        if (selectedNode) {
+            selectedNode.x = centerX;
+            selectedNode.y = centerY;
+            selectedNode.tx = centerX;
+            selectedNode.ty = centerY;
+        }
+
         const homeNodes = bucketMap.get('home') || [];
         const taxonomyNodes = bucketMap.get('taxonomy') || [];
         const contentNodes = bucketMap.get('content') || [];
@@ -909,19 +1043,26 @@
 
     function buildVisibleGraph(graphData, state) {
         const effectiveState = getGraphState(state);
-        const model = window.ThemisDBGraphV2.GraphStore ? window.ThemisDBGraphV2.GraphStore.buildGraphModel(graphData) : graphData;
-        const visible = window.ThemisDBGraphV2.GraphStore
-            ? window.ThemisDBGraphV2.GraphStore.calculateVisibleGraph(model, {
+        const preparedGraph = window.ThemisDBGraphV2.GraphStore && typeof window.ThemisDBGraphV2.GraphStore.getPreparedGraph === 'function'
+            ? window.ThemisDBGraphV2.GraphStore.getPreparedGraph(graphData, {
                 selectedNodeId: effectiveState.selection.nodeId,
                 minDegree: effectiveState.filters.minDegree,
                 maxVisibleNodes: effectiveState.filters.maxVisibleNodes,
                 showExternal: effectiveState.filters.showExternal,
             })
-            : model;
+            : (window.ThemisDBGraphV2.GraphStore ? window.ThemisDBGraphV2.GraphStore.buildGraphModel(graphData) : graphData);
+        const visible = window.ThemisDBGraphV2.GraphStore
+            ? window.ThemisDBGraphV2.GraphStore.calculateVisibleGraph(preparedGraph, {
+                selectedNodeId: effectiveState.selection.nodeId,
+                minDegree: effectiveState.filters.minDegree,
+                maxVisibleNodes: effectiveState.filters.maxVisibleNodes,
+                showExternal: effectiveState.filters.showExternal,
+            })
+            : preparedGraph;
 
         const width = effectiveState.viewport.width || 800;
         const height = effectiveState.viewport.height || 420;
-        const positionedNodes = layoutRadial(visible.nodes, width, height);
+            const positionedNodes = layoutRadial(visible.nodes, width, height, effectiveState.selection.nodeId || resolveCurrentPageNodeId(graphData, effectiveState));
         return Object.assign({}, visible, { nodes: positionedNodes });
     }
 
@@ -1248,7 +1389,25 @@
 
         const state = window.ThemisDBGraphV2.state;
         const containers = getContainers();
-        const graphData = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] };
+        const rawGraphData = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] };
+        const graphData = window.ThemisDBGraphV2.GraphStore && typeof window.ThemisDBGraphV2.GraphStore.resolveRuntimeGraph === 'function'
+            ? window.ThemisDBGraphV2.GraphStore.resolveRuntimeGraph(rawGraphData)
+            : rawGraphData;
+        const activePageNodeId = resolveCurrentPageNodeId(graphData, state);
+        if (activePageNodeId) {
+            state.selection.nodeId = String(activePageNodeId);
+            state.selection.hoverNodeId = String(activePageNodeId);
+        }
+
+        const ensureFocusedNode = () => {
+            const currentFocusNodeId = resolveCurrentPageNodeId(graphData, state);
+            if (currentFocusNodeId) {
+                state.selection.nodeId = String(currentFocusNodeId);
+                state.selection.hoverNodeId = String(currentFocusNodeId);
+            }
+        };
+
+        ensureFocusedNode();
 
         const shells = Array.from(document.querySelectorAll('[data-graph-v2-shell]'));
         if (shells.length > 1) {

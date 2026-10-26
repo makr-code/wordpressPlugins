@@ -4,7 +4,7 @@ Theme URI: https://github.com/makr-code/wordpressPlugins
 Author: ThemisDB Team
 Author URI: https://github.com/makr-code
 Description: Moderne v3-Basis für redaktionelle Inhalte, lokale Qualitätssicherung und neue UI-Iterationen.
-Version: 3.3.0
+Version: 3.4.0
 Requires at least: 6.3
 Tested up to: 6.7
 Requires PHP: 7.4
@@ -24,6 +24,11 @@ Tags: full-site-editing, block-theme, custom-logo
     --tv3-azure: #4f7ea8;
     --tv3-azure-dark: #3a6387;
     --tv3-cyan: #90badb;
+    --tv3-focus-ring: #0f6bbd;
+    --tv3-focus-ring-soft: rgba(15, 107, 189, 0.18);
+    --tv3-card-surface: rgba(255, 255, 255, 0.86);
+    --tv3-card-surface-strong: rgba(255, 255, 255, 0.96);
+    --tv3-shadow-soft: 0 18px 42px rgba(21, 39, 60, 0.12);
 
     /* Extended palette aliases for block/editor parity */
     --tv3-navy-mid: #2d5496;
@@ -110,12 +115,25 @@ html {
 body {
     margin: 0;
     color: var(--tv3-text-primary);
-    background: linear-gradient(180deg, var(--tv3-page-bg-start) 0%, var(--tv3-page-bg-mid) 50%);
+    background:
+        radial-gradient(circle at top left, rgba(79, 126, 168, 0.12), transparent 30%),
+        linear-gradient(180deg, var(--tv3-page-bg-start) 0%, var(--tv3-page-bg-mid) 50%);
     font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: clamp(1rem, 0.96rem + 0.2vw, 1.08rem);
     line-height: 1.6;
     text-rendering: optimizeLegibility;
     animation: tv3-fade-up var(--tv3-motion-slow) var(--tv3-ease-entrance) backwards;
+}
+
+::selection {
+    background: rgba(79, 126, 168, 0.22);
+    color: var(--tv3-navy-deep);
+}
+
+:where(a, button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+    outline: 3px solid var(--tv3-focus-ring);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 6px var(--tv3-focus-ring-soft);
 }
 
 img {
@@ -130,7 +148,10 @@ figure {
 
 a {
     color: inherit;
-    text-decoration: none;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.16em;
+    transition: color var(--tv3-motion-fast) var(--tv3-ease-standard), opacity var(--tv3-motion-fast) var(--tv3-ease-standard), text-decoration-color var(--tv3-motion-fast) var(--tv3-ease-standard);
 }
 
 p,
@@ -145,6 +166,14 @@ h4,
 h5,
 h6 {
     margin-top: 0;
+}
+
+main a:not(.wp-block-button__link):hover,
+main a:not(.wp-block-button__link):focus-visible,
+.site-footer a:hover,
+.site-footer a:focus-visible {
+    color: var(--tv3-navy-deep);
+    text-decoration-color: var(--tv3-navy-deep);
 }
 
 .wp-block-group,
@@ -194,6 +223,181 @@ main :where(h1, h2, h3, h4) {
 main h1 { font-size: clamp(1.8rem, 1.3rem + 2vw, 2.75rem); }
 main h2 { font-size: clamp(1.45rem, 1.15rem + 1.2vw, 2.05rem); }
 main h3 { font-size: clamp(1.2rem, 1.05rem + 0.8vw, 1.55rem); }
+
+.tv3-frontpage-hero-shell {
+    position: relative;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+}
+
+.tv3-frontpage-hero-shell > .wp-block-group,
+.tv3-frontpage-hero-shell > .wp-block-query,
+.tv3-frontpage-hero-shell > .wp-block-cover,
+.tv3-frontpage-hero-shell > .wp-block-group > .wp-block-group,
+.tv3-frontpage-hero-shell > .themisdb-fs-wrapper {
+    border-radius: 0;
+    overflow: visible;
+}
+
+main > .wp-block-group,
+main .wp-block-post-content,
+main article,
+main section {
+    background: var(--tv3-card-surface);
+    border: 1px solid rgba(140, 166, 191, 0.2);
+    border-radius: 14px;
+    box-shadow: 0 8px 22px rgba(15, 31, 49, 0.05);
+}
+
+.wp-block-buttons .wp-block-button__link,
+.wp-block-button__link,
+button,
+input[type="submit"],
+input[type="button"],
+input[type="reset"] {
+    background: var(--tv3-navy);
+    border: 1px solid rgba(140, 166, 191, 0.32);
+    border-radius: 10px;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    min-height: 2.75rem;
+    padding: 0.7rem 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    box-shadow: none;
+    transition: background-color var(--tv3-motion-fast) var(--tv3-ease-standard), border-color var(--tv3-motion-fast) var(--tv3-ease-standard);
+    text-decoration: none;
+}
+
+.wp-block-buttons .wp-block-button__link:hover,
+.wp-block-button__link:hover,
+button:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover,
+input[type="reset"]:hover {
+    transform: none;
+    box-shadow: none;
+    background: #2a4466;
+    border-color: rgba(140, 166, 191, 0.46);
+}
+
+.wp-block-image img,
+.wp-block-gallery img,
+.wp-block-cover__image,
+.wp-block-media-text__media img,
+main figure img {
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 12px 28px rgba(15, 31, 49, 0.08);
+}
+
+.themisdb-fs-wrapper .themisdb-fs-btn,
+.themisdb-fs-wrapper .themisdb-fs-dot {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    box-shadow: none !important;
+    color: #fff !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    width: 0.55rem !important;
+    height: 0.55rem !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    text-decoration: none !important;
+    transform: none !important;
+}
+
+.themisdb-fs-wrapper .themisdb-fs-dot.is-active {
+    width: 1.6rem !important;
+    background: var(--tfs-accent, #123f59) !important;
+}
+
+blockquote {
+    margin: 1.5rem 0;
+    padding: 1.25rem 1.5rem;
+    border-left: 4px solid var(--tv3-accent-primary);
+    border-radius: 0 12px 12px 0;
+    background: linear-gradient(180deg, rgba(214, 232, 247, 0.5), rgba(255, 255, 255, 0.9));
+    color: var(--tv3-text-primary);
+    box-shadow: inset 0 0 0 1px rgba(140, 166, 191, 0.18);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 6px 16px rgba(15, 31, 49, 0.04);
+}
+
+th,
+td {
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid var(--tv3-border-soft);
+    text-align: left;
+}
+
+th {
+    background: rgba(214, 232, 247, 0.5);
+    color: var(--tv3-navy-deep);
+}
+
+.wp-block-image img,
+.wp-block-gallery img,
+.wp-block-cover__image,
+.wp-block-media-text__media img,
+main figure img {
+    border-radius: 16px;
+    box-shadow: 0 12px 28px rgba(15, 31, 49, 0.08);
+}
+
+.wp-block-search__input,
+.wp-block-search__button,
+.wp-block-search {
+    border-radius: 999px;
+}
+
+.wp-block-search__input {
+    padding: 0.8rem 1rem;
+    min-height: 2.75rem;
+    border: 1px solid var(--tv3-border-strong);
+}
+
+.wp-block-search__button {
+    padding-inline: 1.2rem;
+    min-height: 2.75rem;
+}
+
+input:not([type="submit"]):not([type="button"]),
+select,
+textarea {
+    border: 1px solid var(--tv3-border-strong);
+    border-radius: 12px;
+    padding: 0.75rem 0.9rem;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--tv3-text-primary);
+    transition: border-color var(--tv3-motion-fast) var(--tv3-ease-standard), box-shadow var(--tv3-motion-fast) var(--tv3-ease-standard);
+}
+
+input:not([type="submit"]):not([type="button"]):focus,
+select:focus,
+textarea:focus {
+    border-color: var(--tv3-focus-ring);
+    box-shadow: 0 0 0 4px var(--tv3-focus-ring-soft);
+    outline: none;
+}
 
 .site-header {
     position: sticky;
@@ -584,9 +788,12 @@ main pre.mermaid svg {
 
 /* ── Feature cards pattern (class-based, no inline styles) ── */
 .tv3-feature-section {
-    background: var(--tv3-surface-base);
-    padding-top: var(--wp--preset--spacing--20);
-    padding-bottom: var(--wp--preset--spacing--20);
+    background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+    padding-top: clamp(2rem, 3vw, 3rem);
+    padding-bottom: clamp(2.25rem, 4vw, 3.5rem);
+    border: 1px solid rgba(157, 181, 208, 0.28);
+    border-radius: 0;
+    box-shadow: none;
 }
 
 /* Frontpage section separation: keep block rhythm obvious while preserving
@@ -602,6 +809,9 @@ main pre.mermaid svg {
 
 .tv3-front-main > .tv3-feature-section {
     border-top: 0;
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
 }
 
 .tv3-front-main > .tv3-docs-grid-section {
@@ -658,23 +868,25 @@ main pre.mermaid svg {
 .tv3-product-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1.5rem;
+    gap: 1.25rem;
     margin-top: 1.5rem;
+    max-width: min(100%, 1220px);
+    margin-inline: auto;
 }
 
 .tv3-feature-card,
 .tv3-product-card {
     display: flex;
     flex-direction: column;
-    gap: 0.875rem;
-    padding: 1.8rem 1.5rem 1.5rem;
+    gap: 0.75rem;
+    padding: 1.4rem 1.35rem 1.25rem;
     border: 1px solid #dfe7f3;
-    border-top: 4px solid transparent;
-    border-radius: 18px;
+    border-top: 3px solid transparent;
+    border-radius: 14px;
     text-decoration: none;
     transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
     background: linear-gradient(180deg, #ffffff 0%, #f4f9ff 100%);
-    box-shadow: 0 10px 24px rgba(15, 39, 69, 0.05);
+    box-shadow: 0 8px 18px rgba(15, 39, 69, 0.04);
     position: relative;
     overflow: hidden;
 }
@@ -1870,6 +2082,19 @@ body.admin-bar .site-header {
 body.admin-bar .site-header .tv3-header-row,
 body.admin-bar .site-header .tv3-header-docs-row {
     padding-top: calc(0.6rem + 32px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 .wp-site-blocks > .wp-block-template-part:first-child {
@@ -5289,14 +5514,14 @@ body.tv3-lightbox-open {
 }
 
 .tv3-docs-page-shell {
-    padding-top: var(--wp--preset--spacing--10);
-    padding-bottom: var(--wp--preset--spacing--8);
-    margin-bottom: 0.5rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    margin-bottom: 0;
 }
 
 .tv3-docs-main-shell {
-    padding-top: var(--wp--preset--spacing--10);
-    padding-bottom: var(--wp--preset--spacing--20);
+    padding-top: 0.75rem;
+    padding-bottom: 2rem;
     max-width: 1200px;
     margin-left: auto;
     margin-right: auto;
@@ -8816,6 +9041,7 @@ body.admin-bar .tv3-reading-progress__label {
     width: 100%;
     height: 180px;
     object-fit: cover;
+    border-radius: 12px 12px 0 0;
 }
 
 /* Blog card module: pad only known content blocks to avoid styling collisions. */
@@ -8882,11 +9108,31 @@ body.admin-bar .tv3-reading-progress__label {
     font-size: 0.8125rem;
     color: #0078d4;
     font-weight: 600;
+    display: inline-flex;
+    align-items: center;
 }
 
 .tv3-docs-grid-card-link a {
-    color: inherit;
-    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.5rem;
+    padding: 0.65rem 1rem;
+    border: 1px solid rgba(140, 166, 191, 0.38);
+    border-radius: 12px;
+    background: var(--tv3-navy);
+    color: #fff !important;
+    text-decoration: none !important;
+    box-shadow: none;
+    transition: background-color var(--tv3-motion-fast) var(--tv3-ease-standard), border-color var(--tv3-motion-fast) var(--tv3-ease-standard);
+}
+
+.tv3-docs-grid-card-link a:hover,
+.tv3-docs-grid-card-link a:focus-visible {
+    background: #2a4466;
+    border-color: rgba(140, 166, 191, 0.5);
+    color: #fff !important;
+    text-decoration: none !important;
 }
 
 .tv3-download-section {

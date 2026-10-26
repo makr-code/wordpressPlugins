@@ -34,6 +34,11 @@ REST_RETRY_BACKOFF = float(os.environ.get("WP_REST_RETRY_BACKOFF", "2.0"))
 _IMPORT_MEDIA_CACHE: Dict[str, Any] = {}
 _IMPORT_IMAGE_CACHE: Dict[str, Any] = {}
 
+IMAGE_MEDIA_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".svg"}
+AUDIO_MEDIA_EXTENSIONS = {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".opus", ".m4b"}
+VIDEO_MEDIA_EXTENSIONS = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".wmv", ".flv", ".3gp"}
+DOCUMENT_MEDIA_EXTENSIONS = {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"}
+
 
 def load_site_config(required: bool = True) -> Dict[str, Any]:
     if not SITE_CONFIG_PATH.exists():
@@ -658,6 +663,25 @@ def primary_category_for_tags(tags: Iterable[str]) -> str:
     return "documentation"
 
 
+def _has_audio_or_podcast_signal(value: Any) -> bool:
+    normalized = str(value or "").lower()
+    if not normalized:
+        return False
+    tokens = (
+        "podcast",
+        "audio",
+        "episode",
+        "audio_url",
+        "podcast_files",
+        ".mp3",
+        ".wav",
+        ".m4a",
+        ".ogg",
+        "podcast episode",
+    )
+    return any(token in normalized for token in tokens)
+
+
 def resolve_document_category_names(doc: Dict[str, Any], tags: Iterable[str], explicit_category: str = "") -> List[str]:
     explicit = str(explicit_category or "").strip()
     if explicit:
@@ -668,7 +692,12 @@ def resolve_document_category_names(doc: Dict[str, Any], tags: Iterable[str], ex
     source_path = str(doc.get("source_path") or "").lower()
     title = str(doc.get("title") or "").lower()
     tag_values = [str(tag).strip().lower().replace("_", "-") for tag in coerce_term_list(tags) if str(tag).strip()]
-    route_text = " ".join([source_path, title, " ".join(tag_values)])
+    metadata_values = []
+    if isinstance(doc.get("metadata"), dict):
+        metadata_values.extend(str(value) for value in doc["metadata"].values())
+    metadata_text = " ".join(metadata_values)
+    source_text = read_source_text(doc) if callable(read_source_text) else ""
+    route_text = " ".join([source_path, title, source_text.lower(), metadata_text.lower(), " ".join(tag_values)])
     matched_categories: List[str] = []
 
     for rule in SOURCE_MATCH_TABLE:
@@ -682,7 +711,7 @@ def resolve_document_category_names(doc: Dict[str, Any], tags: Iterable[str], ex
 
     if "page-content-blog" in source_origin or "page-content-blog" in source_path or pipeline == "page-content-blog":
         matched_categories.append("blog")
-    if "podcast" in route_text or "audio" in route_text or "episode" in route_text:
+    if _has_audio_or_podcast_signal(route_text):
         matched_categories.append("podcast")
     if "help" in route_text or "hilfe" in route_text or "faq" in route_text or "anleitung" in route_text or "guide" in route_text:
         matched_categories.append("help")
@@ -1216,16 +1245,33 @@ def _prepare_wordpress_upload_file(path: Path) -> tuple[Path, str]:
         ".gif": "image/gif",
         ".svg": "image/svg+xml",
         ".webp": "image/webp",
+        ".bmp": "image/bmp",
+        ".tif": "image/tiff",
+        ".tiff": "image/tiff",
         ".pdf": "application/pdf",
+        ".doc": "application/msword",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".ppt": "application/vnd.ms-powerpoint",
+        ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ".xls": "application/vnd.ms-excel",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         ".mp3": "audio/mpeg",
         ".wav": "audio/wav",
         ".ogg": "audio/ogg",
         ".m4a": "audio/mp4",
+        ".m4b": "audio/mp4",
         ".aac": "audio/aac",
+        ".flac": "audio/flac",
+        ".opus": "audio/opus",
         ".mp4": "video/mp4",
         ".webm": "video/webm",
         ".mov": "video/quicktime",
         ".m4v": "video/x-m4v",
+        ".avi": "video/x-msvideo",
+        ".mkv": "video/x-matroska",
+        ".wmv": "video/x-ms-wmv",
+        ".flv": "video/x-flv",
+        ".3gp": "video/3gpp",
     }
 
     normalized = convert_image_for_wordpress(path)
@@ -1407,8 +1453,14 @@ def build_blog_media_html(doc: Dict[str, Any], base_url: str, user: str, passwor
         return {"html": "", "featured_media": None}
 
     manifest = load_image_manifest(doc)
-    featured_candidates = [image_dir / name for name in ("featured.png", "featured.jpg", "featured.jpeg", "featured.webp", "cover.png", "cover.jpg", "hero.png", "hero.jpg")]
+    featured_candidates = [image_dir / name for name in ("featured.png", "featured.jpg", "featured.jpeg", "featured.webp", "featured.svg", "cover.png", "cover.jpg", "cover.svg", "hero.png", "hero.jpg", "hero.svg")]
     featured_path = next((path for path in featured_candidates if path.exists()), None)
+    audio_feature_path: Optional[Path] = None
+    if featured_path is None:
+        for path in article_media_paths:
+            if path.suffix.lower() in AUDIO_MEDIA_EXTENSIONS:
+                audio_feature_path = path
+                break
     context_paths = [path for path in sorted(image_dir.glob("context-*.*")) if path.is_file()]
     diagram_paths = [path for path in sorted(image_dir.glob("diagram-*.*")) if path.is_file()]
     if not featured_path and isinstance(manifest, dict):
@@ -1417,6 +1469,16 @@ def build_blog_media_html(doc: Dict[str, Any], base_url: str, user: str, passwor
             if isinstance(candidate, str) and (image_dir / candidate).exists():
                 featured_path = image_dir / candidate
                 break
+    if not featured_path and context_paths:
+        featured_path = context_paths[0]
+        context_paths = [path for path in context_paths if path != featured_path]
+    if not featured_path:
+        for path in article_media_paths:
+            if path.suffix.lower() in IMAGE_MEDIA_EXTENSIONS:
+                featured_path = path
+                break
+    if featured_path is not None and featured_path.suffix.lower() in IMAGE_MEDIA_EXTENSIONS:
+        audio_feature_path = None
 
     article_dir_media = []
     if article_file.exists() and article_file.parent.exists():
@@ -1441,6 +1503,7 @@ def build_blog_media_html(doc: Dict[str, Any], base_url: str, user: str, passwor
 
     featured_media_id: Optional[int] = None
     featured_url = ""
+    featured_kind = "image"
     context_urls: List[str] = []
     extra_media: List[str] = []
 
@@ -1460,6 +1523,10 @@ def build_blog_media_html(doc: Dict[str, Any], base_url: str, user: str, passwor
 
     if featured_path:
         featured_url, featured_media_id = upload_media(featured_path)
+        featured_kind = "image"
+    elif audio_feature_path is not None:
+        featured_url, featured_media_id = upload_media(audio_feature_path)
+        featured_kind = "audio"
 
     for path in context_paths:
         url, _ = upload_media(path)
@@ -1473,25 +1540,35 @@ def build_blog_media_html(doc: Dict[str, Any], base_url: str, user: str, passwor
 
     for path in media_paths:
         lower = path.suffix.lower()
-        if lower in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"}:
+        if path == audio_feature_path:
+            continue
+        if lower in IMAGE_MEDIA_EXTENSIONS:
             url, _ = upload_media(path)
             if url:
                 extra_media.append(f'<figure class="themisdb-import-inline-image"><img src="{html_lib.escape(url, quote=True)}" alt="{html_lib.escape(path.stem, quote=True)}" /></figure>')
-        elif lower in {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"}:
+        elif lower in VIDEO_MEDIA_EXTENSIONS:
             url, _ = upload_media(path)
             if url:
-                extra_media.append(f'<video controls preload="metadata" src="{html_lib.escape(url, quote=True)}"></video>')
-        elif lower in {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"}:
+                extra_media.append(f'<figure class="themisdb-import-video"><video class="themisdb-import-video-player" controls preload="metadata" src="{html_lib.escape(url, quote=True)}"></video></figure>')
+        elif lower in AUDIO_MEDIA_EXTENSIONS:
             url, _ = upload_media(path)
             if url:
-                extra_media.append(f'<audio controls src="{html_lib.escape(url, quote=True)}"></audio>')
+                extra_media.append(f'<figure class="themisdb-import-audio"><audio class="themisdb-import-audio-player" controls src="{html_lib.escape(url, quote=True)}"></audio></figure>')
+        elif lower in DOCUMENT_MEDIA_EXTENSIONS:
+            url, _ = upload_media(path)
+            if url:
+                label = html_lib.escape(path.stem)
+                extra_media.append(f'<figure class="themisdb-import-document"><a href="{html_lib.escape(url, quote=True)}" target="_blank" rel="noopener">{label}</a></figure>')
 
     if not featured_url and not context_urls and not extra_media:
         return {"html": "", "featured_media": featured_media_id}
 
     parts: List[str] = ['<section class="themisdb-import-media">']
     if featured_url:
-        parts.append(f'<figure class="themisdb-import-media-featured"><img src="{html_lib.escape(featured_url, quote=True)}" alt="Featured image" /></figure>')
+        if featured_kind == "audio":
+            parts.append(f'<figure class="themisdb-import-audio"><audio class="themisdb-import-audio-player" controls preload="metadata" src="{html_lib.escape(featured_url, quote=True)}"></audio></figure>')
+        else:
+            parts.append(f'<figure class="themisdb-import-media-featured"><img src="{html_lib.escape(featured_url, quote=True)}" alt="Featured image" /></figure>')
     if context_urls:
         parts.append('<div class="themisdb-import-media-context">')
         for url in context_urls:
@@ -1751,6 +1828,17 @@ def normalize_markdown_to_target_blocks(markdown: str, current_relative_path: st
             i += 1
             continue
 
+        if re.match(r"^```\s*mermaid\s*$", line, flags=re.IGNORECASE):
+            i += 1
+            content_lines = []
+            while i < len(lines) and not lines[i].startswith("```"):
+                content_lines.append(lines[i])
+                i += 1
+            if i < len(lines):
+                i += 1
+            blocks.append({"type": "mermaid", "code": "\n".join(content_lines).strip(), "caption": None})
+            continue
+
         if line.startswith("```"):
             fence = line[3:].strip() or "text"
             i += 1
@@ -1761,17 +1849,6 @@ def normalize_markdown_to_target_blocks(markdown: str, current_relative_path: st
             if i < len(lines):
                 i += 1
             blocks.append({"type": "code", "language": fence, "code": "\n".join(content_lines)})
-            continue
-
-        if re.match(r"^```\s*mermaid\s*$", line, flags=re.IGNORECASE):
-            i += 1
-            content_lines = []
-            while i < len(lines) and not lines[i].startswith("```"):
-                content_lines.append(lines[i])
-                i += 1
-            if i < len(lines):
-                i += 1
-            blocks.append({"type": "mermaid", "code": "\n".join(content_lines).strip(), "caption": None})
             continue
 
         heading_match = re.match(r"^(#{1,6})\s+(.*)$", line)
@@ -2027,10 +2104,13 @@ def render_target_blocks_to_html(blocks: Iterable[Dict[str, Any]], current_relat
         return text
 
     rendered: List[str] = []
+    mermaid_seen = False
     for block_index, block in enumerate(blocks):
         if not isinstance(block, dict):
             continue
         block_type = str(block.get("type", "")).strip()
+        if block_type == "mermaid":
+            mermaid_seen = True
         if block_type == "heading":
             level = int(block.get("level") or 1)
             rendered.append(f"<h{level}>{inline_markup(str(block.get('text', '')))}</h{level}>")
@@ -2077,13 +2157,15 @@ def render_target_blocks_to_html(blocks: Iterable[Dict[str, Any]], current_relat
             code = str(block.get("code", "")).strip()
             caption = block.get("caption")
             caption_html = f"<figcaption>{inline_markup(str(caption))}</figcaption>" if caption else ""
-            rendered.append(f"<figure class=\"themisdb-mermaid\"><pre>{escape_html(code)}</pre>{caption_html}</figure>")
+            rendered.append(
+                f"<figure class=\"themisdb-mermaid\"><pre class=\"mermaid\" aria-label=\"Mermaid diagram\">{escape_html(code)}</pre>{caption_html}</figure>"
+            )
         elif block_type == "code":
             language = str(block.get("language", "text")).strip()
             code = str(block.get("code", "")).strip()
             rendered.append(f"<pre><code class=\"language-{escape_html(language)}\">{escape_html(code)}</code></pre>")
         elif block_type == "blockquote":
-            rendered.append(f"<blockquote class=\"quote left kernthese\"><p>{inline_markup(str(block.get('text', '')))}</p></blockquote>")
+            rendered.append(f"<blockquote><p class=\"quote left kernthese\">{inline_markup(str(block.get('text', '')))}</p></blockquote>")
         elif block_type == "callout":
             variant = str(block.get("variant", "note")).strip() or "note"
             title = str(block.get("title", "")).strip()
@@ -2093,7 +2175,15 @@ def render_target_blocks_to_html(blocks: Iterable[Dict[str, Any]], current_relat
         elif block_type == "html":
             rendered.append(str(block.get("html", "")))
 
-    return f'<div class="themisdb-formula-content">{"".join(rendered)}</div>' if rendered else ""
+    markup = f'<div class="themisdb-formula-content">{"".join(rendered)}</div>' if rendered else ""
+    if mermaid_seen and "mermaid.initialize" not in markup:
+        markup += (
+            '<script type="module">'
+            'import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";'
+            'mermaid.initialize({ startOnLoad: true, theme: "neutral" });'
+            '</script>'
+        )
+    return markup
 
 
 def strip_duplicate_leading_h1(html_content: str, title: str) -> str:
@@ -2489,28 +2579,28 @@ def guest_author_slug_for_name(name: str) -> str:
     if not name:
         return ""
     map_by_name = {
-        "Google Gemini": "cap-google-gemini",
-        "Gemini": "cap-google-gemini",
-        "GitHub": "cap-github-copilot",
-        "GitHub Copilot": "cap-github-copilot",
-        "Gemma4 (Lektor)": "cap-gemma4-lektor",
-        "SwarmUI (Grafiker)": "cap-swarmui-grafiker",
-        "Anthropic Claude": "cap-anthropic-claude",
-        "Claude": "cap-anthropic-claude",
-        "OpenAI GPT-4o": "cap-openai-gpt-4o",
-        "GPT-4o": "cap-openai-gpt-4o",
-        "Meta Llama 3": "cap-meta-llama-3",
-        "Llama": "cap-meta-llama-3",
-        "Mistral Large": "cap-mistral-large",
-        "Mistral": "cap-mistral-large",
-        "DeepSeek R1": "cap-deepseek-r1",
-        "DeepSeek": "cap-deepseek-r1",
-        "OpenAI DALL-E": "cap-openai-dall-e",
-        "DALL-E": "cap-openai-dall-e",
-        "Stable Diffusion": "cap-stable-diffusion",
-        "Midjourney": "cap-midjourney",
-        "Black Forest Labs Flux": "cap-blackforest-flux",
-        "Flux": "cap-blackforest-flux",
+        "Google Gemini": "google-gemini",
+        "Gemini": "google-gemini",
+        "GitHub": "github-copilot",
+        "GitHub Copilot": "github-copilot",
+        "Gemma4 (Lektor)": "gemma4-lektor",
+        "SwarmUI (Grafiker)": "swarmui-grafiker",
+        "Anthropic Claude": "anthropic-claude",
+        "Claude": "anthropic-claude",
+        "OpenAI GPT-4o": "openai-gpt-4o",
+        "GPT-4o": "openai-gpt-4o",
+        "Meta Llama 3": "meta-llama-3",
+        "Llama": "meta-llama-3",
+        "Mistral Large": "mistral-large",
+        "Mistral": "mistral-large",
+        "DeepSeek R1": "deepseek-r1",
+        "DeepSeek": "deepseek-r1",
+        "OpenAI DALL-E": "openai-dall-e",
+        "DALL-E": "openai-dall-e",
+        "Stable Diffusion": "stable-diffusion",
+        "Midjourney": "midjourney",
+        "Black Forest Labs Flux": "blackforest-flux",
+        "Flux": "blackforest-flux",
     }
     candidate = str(name).strip()
     if candidate in map_by_name:
@@ -2549,12 +2639,33 @@ def resolve_guest_author_ids(base_url: str, user: str, password: str, coauthor_n
     return ids
 
 
+def resolve_coauthor_assignment_values(values: Iterable[str]) -> List[str]:
+    normalized = normalize_coauthor_names(values or [])
+    resolved: List[str] = []
+    seen = set()
+    for name in normalized:
+        slug = guest_author_slug_for_name(name) or name.strip()
+        key = slug.lower()
+        if not slug or key in seen:
+            continue
+        seen.add(key)
+        resolved.append(slug)
+    return resolved
+
+
 def assign_post_coauthors(base_url: str, user: str, password: str, post_id: Any, coauthor_names: Iterable[str]) -> Optional[Dict[str, Any]]:
-    names = normalize_coauthor_names(coauthor_names or [])
-    if not post_id or not names:
+    assigned = resolve_coauthor_assignment_values(coauthor_names or [])
+    if not post_id or not assigned:
         return None
     try:
-        return rest_request(base_url, user, password, f"wp-json/coauthors/v1/authors/{post_id}", method="POST", payload={"new_authors": ", ".join(names)})
+        return rest_request(
+            base_url,
+            user,
+            password,
+            f"wp-json/coauthors/v1/authors/{post_id}",
+            method="POST",
+            payload={"new_authors": ", ".join(assigned)},
+        )
     except Exception:
         return None
 
