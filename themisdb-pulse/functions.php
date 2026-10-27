@@ -733,6 +733,51 @@ function themisdb_v3_ensure_default_nav_menus() {
         }
     }
 
+    $primary_menu_id = isset( $locations['primary'] ) ? absint( $locations['primary'] ) : 0;
+    if ( $primary_menu_id > 0 ) {
+        $menu_items = wp_get_nav_menu_items( $primary_menu_id );
+        $has_press_item = false;
+        foreach ( (array) $menu_items as $menu_item ) {
+            if ( ! $menu_item instanceof WP_Post ) {
+                continue;
+            }
+
+            if ( 'Presse' === trim( (string) $menu_item->title ) || 'Press' === trim( (string) $menu_item->title ) ) {
+                $has_press_item = true;
+                break;
+            }
+        }
+
+        if ( ! $has_press_item ) {
+            $press_term = get_term_by( 'slug', 'press', 'category' );
+            if ( ! $press_term || is_wp_error( $press_term ) ) {
+                $press_term = get_term_by( 'slug', 'presse', 'category' );
+            }
+            if ( ! $press_term || is_wp_error( $press_term ) ) {
+                $press_term = get_term_by( 'slug', 'press', 'post_tag' );
+            }
+            if ( ! $press_term || is_wp_error( $press_term ) ) {
+                $press_term = get_term_by( 'slug', 'presse', 'post_tag' );
+            }
+
+            $term_id = $press_term && ! is_wp_error( $press_term ) ? (int) $press_term->term_id : 0;
+            $taxonomy = $press_term && ! is_wp_error( $press_term ) ? (string) $press_term->taxonomy : 'category';
+            $menu_item_data = array(
+                'menu-item-title'     => 'Presse',
+                'menu-item-object'    => $taxonomy,
+                'menu-item-type'      => 'taxonomy',
+                'menu-item-object-id' => $term_id,
+                'menu-item-status'    => 'publish',
+            );
+
+            if ( $term_id > 0 ) {
+                wp_update_nav_menu_item( $primary_menu_id, 0, $menu_item_data );
+            } else {
+                wp_update_nav_menu_item( $primary_menu_id, 0, array_merge( $menu_item_data, array( 'menu-item-url' => home_url( '/press/' ) ) ) );
+            }
+        }
+    }
+
     if ( $locations !== get_theme_mod( 'nav_menu_locations', array() ) ) {
         set_theme_mod( 'nav_menu_locations', $locations );
     }
