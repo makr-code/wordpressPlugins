@@ -63,7 +63,7 @@
                 search: params.get("tv3_search") || "",
                 sort: params.get("tv3_sort") || "newest",
                 filter: params.get("tv3_object_type") || "",
-                page: parseIntSafe(params.get("tv3_page"), 1)
+                page: 1
             };
         }
 
@@ -98,7 +98,7 @@
                 search: params.get("tv3_search") || "",
                 sort: params.get("tv3_sort") || "newest",
                 filter: params.get("tv3_object_type") || "",
-                page: parseIntSafe(String(page || 1), 1),
+                page: 1,
                 section: sectionKey
             };
         }
@@ -116,9 +116,6 @@
             }
             if (state.filter) {
                 query.set("tv3_object_type", state.filter);
-            }
-            if (parseIntSafe(state.page, 1) > 1) {
-                query.set("tv3_page", String(parseIntSafe(state.page, 1)));
             }
             return query.toString();
         }
@@ -242,7 +239,7 @@
                 })
                 .then(function (payload) {
                     applyPayload(payload, append);
-                    syncBrowserHistory(page, historyMode || "push");
+                    syncBrowserHistory(page, append ? "replace" : (historyMode || "push"));
                 })
                 .catch(function () { showFeedback("Aktualisierung fehlgeschlagen."); })
                 .finally(function () {
@@ -313,7 +310,7 @@
             var loadMore = event.target.closest("[data-tv3-load-more]");
             if (loadMore) {
                 event.preventDefault();
-                request(parseInt(loadMore.getAttribute("data-tv3-load-more") || "1", 10), true, "push");
+                request(parseInt(loadMore.getAttribute("data-tv3-load-more") || "1", 10), true, "replace");
             }
         });
     }

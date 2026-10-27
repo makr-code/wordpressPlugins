@@ -99,6 +99,14 @@ function themisdb_v3_get_restricted_content_tags() {
             'label' => __( 'Blog', THEMISDB_PULSE_TEXT_DOMAIN ),
             'usage' => __( 'Latest blog and news selection.', THEMISDB_PULSE_TEXT_DOMAIN ),
         ),
+        'press' => array(
+            'label' => __( 'Press', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Press releases and newsroom updates.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'presse' => array(
+            'label' => __( 'Presse', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Pressemitteilungen und Newsroom-Updates.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
         'recommended' => array(
             'label' => __( 'Recommended', THEMISDB_PULSE_TEXT_DOMAIN ),
             'usage' => __( 'Editorial recommendation and promotion.', THEMISDB_PULSE_TEXT_DOMAIN ),
@@ -151,6 +159,14 @@ function themisdb_v3_get_selection_content_tags() {
         'blog' => array(
             'label' => __( 'Blog', THEMISDB_PULSE_TEXT_DOMAIN ),
             'usage' => __( 'Latest blog and news selection.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'press' => array(
+            'label' => __( 'Press', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Press releases and newsroom updates.', THEMISDB_PULSE_TEXT_DOMAIN ),
+        ),
+        'presse' => array(
+            'label' => __( 'Presse', THEMISDB_PULSE_TEXT_DOMAIN ),
+            'usage' => __( 'Pressemitteilungen und Newsroom-Updates.', THEMISDB_PULSE_TEXT_DOMAIN ),
         ),
         'support' => array(
             'label' => __( 'Support', THEMISDB_PULSE_TEXT_DOMAIN ),
@@ -235,12 +251,109 @@ function themisdb_v3_ensure_restricted_content_tags() {
     }
 }
 
+function themisdb_v3_ensure_press_taxonomy_terms() {
+    foreach ( array( 'category', 'post_tag' ) as $taxonomy ) {
+        if ( ! taxonomy_exists( $taxonomy ) ) {
+            continue;
+        }
+
+        foreach ( array( 'press' => 'Press', 'presse' => 'Presse' ) as $slug => $label ) {
+            $term = get_term_by( 'slug', $slug, $taxonomy );
+            if ( $term && ! is_wp_error( $term ) ) {
+                continue;
+            }
+
+            wp_insert_term( $label, $taxonomy, array( 'slug' => $slug ) );
+        }
+    }
+}
+
+function themisdb_v3_ensure_press_demo_posts() {
+    $press_terms = array( 'press', 'presse' );
+    $existing = get_posts(
+        array(
+            'post_type'      => array( 'post', 'page' ),
+            'post_status'    => array( 'publish', 'draft', 'pending' ),
+            'posts_per_page' => 1,
+            'tax_query'      => array(
+                'relation' => 'OR',
+                array(
+                    'taxonomy' => 'category',
+                    'field'    => 'slug',
+                    'terms'    => $press_terms,
+                ),
+                array(
+                    'taxonomy' => 'post_tag',
+                    'field'    => 'slug',
+                    'terms'    => $press_terms,
+                ),
+            ),
+            'fields'         => 'ids',
+            'no_found_rows'  => true,
+        )
+    );
+
+    if ( ! empty( $existing ) ) {
+        return;
+    }
+
+    $samples = array(
+        array(
+            'title' => 'ThemisDB erweitert die Automatisierung für WordPress-Release-Workflows',
+            'date'  => '2026-08-20 09:00:00',
+            'body'  => 'Mit der neuen Release-Infrastruktur lassen sich Updates, GitHub-Versionen und WordPress-Distributionen zentral und zuverlässig verwalten. Die neue Architektur reduziert manuelle Schritte und verbessert die Reproduzierbarkeit bei Deployment- und Support-Prozessen.',
+        ),
+        array(
+            'title' => 'Support-Portal und Theme-Shell vereinfachen die Produktpräsentation',
+            'date'  => '2026-08-19 14:30:00',
+            'body'  => 'Das neue Support-Portal stellt zentrale Inhalte, Navigation und Theme-Integrationen nun konsistent bereit. Dadurch wird die Produktpräsentation für Endkunden und technische Teams verständlicher und leichter pflegbar.',
+        ),
+        array(
+            'title' => 'ThemisDB setzt auf Benchmarking, Release-Management und Überblick',
+            'date'  => '2026-08-18 11:15:00',
+            'body'  => 'Die aktuelle Roadmap fokussiert sich auf Benchmark-Visualisierung, grafische Verknüpfung von Inhalten und eine robuste Grundlage für produktive Workflows. Damit wird die Plattform für technische Entscheidungsträger und Entwickler spürbar besser nutzbar.',
+        ),
+    );
+
+    foreach ( $samples as $sample ) {
+        $post_id = wp_insert_post(
+            array(
+                'post_type'      => 'post',
+                'post_status'    => 'publish',
+                'post_title'     => $sample['title'],
+                'post_content'   => wp_kses_post( $sample['body'] ),
+                'post_date'      => $sample['date'],
+                'post_date_gmt'  => gmdate( 'Y-m-d H:i:s', strtotime( $sample['date'] ) ),
+                'post_category'  => array( 0 ),
+                'tags_input'     => array( 'press', 'presse' ),
+            ),
+            true
+        );
+
+        if ( ! is_wp_error( $post_id ) && $post_id > 0 ) {
+            $categories = array();
+            foreach ( array( 'press', 'presse' ) as $slug ) {
+                $term = get_term_by( 'slug', $slug, 'category' );
+                if ( $term && ! is_wp_error( $term ) ) {
+                    $categories[] = (int) $term->term_id;
+                }
+            }
+            if ( ! empty( $categories ) ) {
+                wp_set_post_categories( $post_id, array_values( array_unique( $categories ) ), false );
+            }
+            wp_set_post_tags( $post_id, array( 'press', 'presse' ), false );
+        }
+    }
+}
+
 require_once get_template_directory() . '/includes/class-themisdb-v3-hero-context-nav.php';
 
 add_action( 'after_setup_theme', 'themisdb_v3_setup' );
 add_action( 'init', 'themisdb_v3_ensure_restricted_content_tags', 6 );
-add_action( 'init', 'themisdb_v3_register_announcement_post_type', 8 );
-add_action( 'init', 'themisdb_v3_register_announcement_post_meta', 9 );
+add_action( 'init', 'themisdb_v3_ensure_press_taxonomy_terms', 7 );
+add_action( 'init', 'themisdb_v3_ensure_press_demo_posts', 8 );
+add_action( 'init', 'themisdb_v3_register_announcement_post_type', 9 );
+add_action( 'init', 'themisdb_v3_register_announcement_post_meta', 10 );
 add_action( 'init', 'themisdb_v3_register_page_taxonomies', 5 );
 add_action( 'init', 'themisdb_v3_register_pattern_categories', 6 );
 add_action( 'add_meta_boxes', 'themisdb_v3_register_announcement_meta_box', 10, 2 );
@@ -789,6 +902,7 @@ function themisdb_v3_register_shortcodes() {
     add_shortcode( 'themisdb_v3_announcement_bar', 'themisdb_v3_render_announcement_bar_shortcode' );
     add_shortcode( 'themisdb_v3_breadcrumbs', 'themisdb_v3_render_breadcrumbs_shortcode' );
     add_shortcode( 'themisdb_v3_hero_context_nav', 'themisdb_v3_render_hero_context_nav_shortcode' );
+    add_shortcode( 'themisdb_v3_press_list', 'themisdb_v3_render_press_list_shortcode' );
     add_shortcode( 'themisdb_v3_feature_cards', 'themisdb_v3_render_feature_cards_shortcode' );
     add_shortcode( 'themisdb_v3_docs_cards', 'themisdb_v3_render_docs_cards_shortcode' );
     add_shortcode( 'themisdb_v3_download_cards', 'themisdb_v3_render_download_cards_shortcode' );
@@ -2490,7 +2604,7 @@ function themisdb_v3_get_feature_fallback_cards( $limit = 6 ) {
 }
 
 function themisdb_v3_collect_frontpage_cards_page( array $post_types, $limit, array $category_slugs, array $priority_tag_slugs, array $ids = array(), $orderby = 'date', $order = 'DESC', $page = 1 ) {
-    $limit = max( 1, min( 12, absint( $limit ) ) );
+    $limit = max( 1, absint( $limit ) );
     $page  = max( 1, absint( $page ) );
 
     $fetch_limit = ( $limit * $page ) + 1;
@@ -2501,6 +2615,50 @@ function themisdb_v3_collect_frontpage_cards_page( array $post_types, $limit, ar
         'posts'    => $visible,
         'has_more' => count( $posts ) > ( $page * $limit ),
     );
+}
+
+function themisdb_v3_get_image_attr_src( $url ) {
+    if ( ! is_string( $url ) ) {
+        return '';
+    }
+
+    if ( 0 === stripos( $url, 'data:image/' ) ) {
+        return esc_attr( $url );
+    }
+
+    return esc_url( $url );
+}
+
+function themisdb_v3_get_post_placeholder_image_url( $post_id = 0, $title = '', $section = 'blog' ) {
+    $section_key = sanitize_key( (string) $section );
+    $section_map = array(
+        'blog'     => 'blog',
+        'feature'  => 'feature',
+        'docs'     => 'docs',
+        'download' => 'download',
+        'pricing'  => 'pricing',
+    );
+
+    if ( ! isset( $section_map[ $section_key ] ) ) {
+        $section_key = 'blog';
+    }
+
+    return get_stylesheet_directory_uri() . '/assets/images/placeholders/' . $section_map[ $section_key ] . '.svg';
+}
+
+function themisdb_v3_get_card_placeholder_media_markup( $post_id = 0, $title = '', $section = 'blog' ) {
+    $placeholder_url = themisdb_v3_get_post_placeholder_image_url( $post_id, $title, $section );
+    if ( '' === trim( (string) $placeholder_url ) ) {
+        return '';
+    }
+
+    $section_key = sanitize_key( (string) $section );
+    $card_title  = wp_strip_all_tags( (string) $title );
+    if ( '' === $card_title ) {
+        $card_title = __( 'Placeholder', 'themisdb-v3' );
+    }
+
+    return '<figure class="tv3-card-placeholder-media tv3-card-placeholder-media--' . esc_attr( $section_key ) . '"><img src="' . themisdb_v3_get_image_attr_src( $placeholder_url ) . '" alt="' . esc_attr( $card_title ) . '" loading="lazy" decoding="async"></figure>';
 }
 
 function themisdb_v3_render_matrix_cards_container( string $shortcode, string $cards_html, array $config = array(), bool $has_more = false ) {
@@ -2542,7 +2700,7 @@ function themisdb_v3_render_matrix_cards_container( string $shortcode, string $c
 }
 
 function themisdb_v3_collect_frontpage_cards( array $post_types, $limit, array $category_slugs, array $priority_tag_slugs, array $ids = array(), $orderby = 'date', $order = 'DESC' ) {
-    $limit = max( 1, min( 12, absint( $limit ) ) );
+    $limit = max( 1, absint( $limit ) );
 
     $query_args = array(
         'post_type'           => $post_types,
@@ -2847,6 +3005,7 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
             ?>
             <div class="wp-block-group tv3-feature-card">
                 <div class="wp-block-group tv3-feature-card__top <?php echo esc_attr( $tone['border'] ); ?>"></div>
+                <?php echo themisdb_v3_get_card_placeholder_media_markup( $post_id, $title, 'feature' ); ?>
                 <p class="tv3-feature-card__icon <?php echo esc_attr( $tone['icon'] ); ?>"><?php echo wp_kses_post( $tone['glyph'] ); ?></p>
                 <div class="wp-block-group tv3-feature-card__body">
                     <h3 class="wp-block-heading tv3-feature-card__title"><?php echo esc_html( $title ); ?></h3>
@@ -2875,6 +3034,92 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
         ),
         $has_more
     );
+}
+
+function themisdb_v3_render_press_list_shortcode( $atts = array() ) {
+    $atts = shortcode_atts(
+        array(
+            'limit'      => 5,
+            'title'      => __( 'Pressemitteilungen', 'themisdb-v3' ),
+            'post_types' => 'post,page',
+            'category'   => 'press,presse',
+            'tag'        => 'press,presse',
+        ),
+        $atts,
+        'themisdb_v3_press_list'
+    );
+
+    $limit = max( 1, min( 10, absint( $atts['limit'] ) ) );
+
+    $post_types = array_values(
+        array_unique(
+            array_filter(
+                array_map( 'sanitize_key', array_map( 'trim', explode( ',', (string) $atts['post_types'] ) ) )
+            )
+        )
+    );
+    if ( empty( $post_types ) ) {
+        $post_types = array( 'post', 'page' );
+    }
+
+    $taxonomy_terms = array_values(
+        array_unique(
+            array_filter(
+                array_map( 'sanitize_title', array_map( 'trim', explode( ',', (string) $atts['category'] . ',' . (string) $atts['tag'] ) ) )
+            )
+        )
+    );
+    if ( empty( $taxonomy_terms ) ) {
+        $taxonomy_terms = array( 'press', 'presse' );
+    }
+
+    $tax_query = array(
+        'relation' => 'OR',
+        array(
+            'taxonomy' => 'category',
+            'field'    => 'slug',
+            'terms'    => $taxonomy_terms,
+        ),
+        array(
+            'taxonomy' => 'post_tag',
+            'field'    => 'slug',
+            'terms'    => $taxonomy_terms,
+        ),
+    );
+
+    $posts = get_posts(
+        array(
+            'post_type'      => $post_types,
+            'post_status'    => 'publish',
+            'posts_per_page' => $limit,
+            'orderby'        => 'date',
+            'order'          => 'DESC',
+            'tax_query'      => $tax_query,
+            'no_found_rows'  => true,
+        )
+    );
+
+    if ( empty( $posts ) ) {
+        return '';
+    }
+
+    $items = array();
+    foreach ( $posts as $post ) {
+        if ( ! $post instanceof WP_Post ) {
+            continue;
+        }
+
+        $date = get_the_date( 'd.m.Y', $post );
+        $title = get_the_title( $post );
+        $link = get_permalink( $post );
+        $items[] = '<li class="tv3-press-list__item"><time class="tv3-press-list__date" datetime="' . esc_attr( get_the_date( 'c', $post ) ) . '">' . esc_html( $date ) . '</time><a href="' . esc_url( $link ) . '" class="tv3-press-list__link">' . esc_html( $title ) . '</a></li>';
+    }
+
+    if ( empty( $items ) ) {
+        return '';
+    }
+
+    return '<div class="tv3-press-list-wrap"><p class="tv3-press-list__label">' . esc_html( $atts['title'] ) . '</p><ol class="tv3-press-list">' . implode( '', $items ) . '</ol></div>';
 }
 
 function themisdb_v3_render_pricing_cards_shortcode( $atts = array() ) {
@@ -3196,6 +3441,7 @@ function themisdb_v3_render_download_cards_shortcode( $atts = array() ) {
             }
             ?>
             <div class="<?php echo esc_attr( implode( ' ', array_filter( $card_classes ) ) ); ?>">
+                <?php echo themisdb_v3_get_card_placeholder_media_markup( $post_id, $title, 'download' ); ?>
                 <?php if ( $is_priority ) : ?>
                     <p class="tv3-download-pill"><?php esc_html_e( 'Recommended', 'themisdb-v3' ); ?></p>
                 <?php endif; ?>
@@ -3313,6 +3559,7 @@ function themisdb_v3_render_docs_cards_shortcode( $atts = array() ) {
 
             ?>
             <div class="wp-block-group tv3-docs-grid-card">
+                <?php echo themisdb_v3_get_card_placeholder_media_markup( $post->ID, $title, 'docs' ); ?>
                 <p class="tv3-docs-grid-icon">📖</p>
                 <h3 class="wp-block-heading tv3-docs-grid-card-title"><?php echo esc_html( $title ); ?></h3>
                 <p class="tv3-docs-grid-card-text"><?php echo esc_html( $description ); ?></p>
@@ -3451,6 +3698,9 @@ function themisdb_v3_render_blog_cards_shortcode( $atts = array() ) {
             $is_priority = ! empty( array_intersect( (array) $post_tags, array_keys( $priority_tag_lookup ) ) );
             $card_class  = 'wp-block-group tv3-docs-grid-card' . ( $is_priority ? ' is-priority' : '' );
             $thumb_url   = get_the_post_thumbnail_url( $post_id, 'medium_large' );
+            if ( empty( $thumb_url ) ) {
+                $thumb_url = themisdb_v3_get_post_placeholder_image_url( $post_id, $title, 'blog' );
+            }
             ?>
             <div class="<?php echo esc_attr( $card_class ); ?>">
                 <?php if ( $is_priority ) : ?>
@@ -3458,7 +3708,7 @@ function themisdb_v3_render_blog_cards_shortcode( $atts = array() ) {
                 <?php endif; ?>
                 <?php if ( ! empty( $thumb_url ) ) : ?>
                     <figure class="tv3-blog-grid-card-media<?php echo esc_attr( $is_priority ? ' is-priority' : '' ); ?>">
-                        <img src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( wp_strip_all_tags( get_the_title( $post_id ) ) ); ?>" loading="lazy" decoding="async">
+                        <img src="<?php echo themisdb_v3_get_image_attr_src( $thumb_url ); ?>" alt="<?php echo esc_attr( wp_strip_all_tags( get_the_title( $post_id ) ) ); ?>" loading="lazy" decoding="async">
                     </figure>
                 <?php else : ?>
                     <p class="tv3-docs-grid-icon">📰</p>

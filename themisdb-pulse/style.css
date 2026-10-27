@@ -787,6 +787,59 @@ main pre.mermaid svg {
 }
 
 /* ── Feature cards pattern (class-based, no inline styles) ── */
+.tv3-press-list-wrap {
+    max-width: min(100%, 1200px);
+    margin: 1.5rem auto 0;
+    padding: 1.25rem 1.5rem 1rem;
+    background: linear-gradient(180deg, #f7fbff 0%, #eef7ff 100%);
+    border: 1px solid rgba(157, 181, 208, 0.35);
+    border-radius: 16px;
+}
+
+.tv3-press-list__label {
+    margin: 0 0 0.75rem;
+    color: #0f4d8d;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.tv3-press-list {
+    margin: 0;
+    padding-left: 1.5rem;
+    display: grid;
+    gap: 0.6rem;
+}
+
+.tv3-press-list__item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.9rem;
+    color: #1d3557;
+    line-height: 1.5;
+}
+
+.tv3-press-list__date {
+    color: #5d728d;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.tv3-press-list__link {
+    color: #0f2d4d;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.tv3-press-list__link:hover,
+.tv3-press-list__link:focus-visible {
+    color: #0078d4;
+    text-decoration: underline;
+}
+
 .tv3-feature-section {
     background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
     padding-top: clamp(2rem, 3vw, 3rem);
@@ -998,6 +1051,63 @@ main pre.mermaid svg {
     text-decoration: none;
 }
 
+.tv3-card-placeholder-media {
+    margin: 0;
+    overflow: hidden;
+    border-radius: 12px 12px 0 0;
+    border: 1px solid rgba(157, 180, 205, 0.55);
+    background: linear-gradient(135deg, #eaf3ff 0%, #dfeaf9 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.tv3-card-placeholder-media img {
+    display: block;
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: inherit;
+}
+
+.tv3-card-placeholder-media--blog {
+    background: linear-gradient(135deg, #dfeefc 0%, #b9d9ff 100%);
+}
+
+.tv3-card-placeholder-media--feature {
+    background: linear-gradient(135deg, #101827 0%, #1d4ed8 48%, #4cc9f0 100%);
+}
+
+.tv3-card-placeholder-media--docs {
+    background: linear-gradient(135deg, #1d2431 0%, #0f766e 52%, #34d399 100%);
+}
+
+.tv3-card-placeholder-media--download {
+    background: linear-gradient(135deg, #111827 0%, #0f172a 22%, #2563eb 58%, #38bdf8 100%);
+}
+
+.tv3-feature-card .tv3-card-placeholder-media {
+    margin: -1.4rem -1.35rem 0;
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+    border-radius: 14px 14px 0 0;
+}
+
+.tv3-docs-grid-card .tv3-card-placeholder-media {
+    margin: -1.5rem -1.5rem 0;
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+    border-radius: 12px 12px 0 0;
+}
+
+.tv3-download-card .tv3-card-placeholder-media {
+    margin: -2rem -2rem 0;
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+    border-radius: 12px 12px 0 0;
+}
+
 @media (max-width: 1024px) {
     .tv3-feature-grid,
     .tv3-product-grid {
@@ -1070,6 +1180,7 @@ main pre.mermaid svg {
     display: grid;
     grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) auto;
     grid-template-areas:
+        "media media media"
         "tier subline cta"
         "price features cta";
     align-items: start;

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Feature placeholder">
+  <defs>
+    <linearGradient id="tv3PlaceholderFeature" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#101827"/>
+      <stop offset="58%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#4cc9f0"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#tv3PlaceholderFeature)"/>
+  <circle cx="650" cy="140" r="110" fill="rgba(255,255,255,0.08)"/>
+  <circle cx="715" cy="205" r="70" fill="rgba(255,255,255,0.12)"/>
+  <path d="M0 415C120 365 180 330 260 365C330 390 420 452 500 442C620 424 700 335 800 340V500H0Z" fill="rgba(255,255,255,0.12)"/>
+  <rect x="54" y="60" width="170" height="38" rx="19" fill="rgba(255,255,255,0.14)"/>
+  <text x="72" y="86" font-size="22" font-family="Arial, Helvetica, sans-serif" font-weight="700" fill="#edf6ff">FEATURE</text>
+  <text x="56" y="250" font-size="50" font-family="Arial, Helvetica, sans-serif" font-weight="800" fill="#edf6ff">CAPABILITIES</text>
+  <text x="56" y="320" font-size="28" font-family="Arial, Helvetica, sans-serif" letter-spacing="2" fill="rgba(255,255,255,0.82)">THEMISDB</text>
+</svg>
