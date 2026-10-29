@@ -226,10 +226,10 @@ class ThemisDB_Support_Admin {
 
         $agents = array();
         foreach ((array) $users as $user) {
-            if (!($user instanceof WP_User)) {
+            if (!is_object($user) || empty($user->ID)) {
                 continue;
             }
-            if (!user_can($user, 'edit_posts')) {
+            if (!user_can((int) $user->ID, 'edit_posts')) {
                 continue;
             }
 
@@ -1469,6 +1469,10 @@ class ThemisDB_Support_Admin {
         }
 
         $result = ThemisDB_Contract_Termination_Engine::run_scheduler_now();
+        if (is_wp_error($result)) {
+            wp_safe_redirect(add_query_arg('tr_error', $result->get_error_message(), $redirect));
+            exit;
+        }
         wp_safe_redirect(add_query_arg(array(
             'tr_run_done'      => '1',
             'tr_executed'      => intval($result['executed']),

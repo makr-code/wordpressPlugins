@@ -112,7 +112,11 @@ class ThemisDB_Order_Shortcodes {
                 $target_step = 2;
             }
 
-            $this->bootstrap_preset_order($preset_product, $target_step, $preset_modules, $preset_training);
+            $prepared = $this->bootstrap_preset_order($preset_product, $target_step, $preset_modules, $preset_training);
+            if (is_wp_error($prepared)) {
+                error_log('ThemisDB checkout: ' . $prepared->get_error_message());
+                return '<div class="themisdb-order-error" role="alert">' . esc_html($prepared->get_error_message()) . '</div>';
+            }
         }
 
         $payload = array_merge($payload, array(
@@ -169,7 +173,11 @@ class ThemisDB_Order_Shortcodes {
             $available_trainings = ThemisDB_Order_Manager::get_training_modules();
             $preset_modules = $this->get_requested_code_list(array('modules', 'module'), array_column($available_modules, 'module_code'));
             $preset_training = $this->get_requested_code_list(array('training', 'trainings'), array_column($available_trainings, 'training_code'));
-            $this->bootstrap_preset_order($preset_product, 4, $preset_modules, $preset_training);
+            $prepared = $this->bootstrap_preset_order($preset_product, 4, $preset_modules, $preset_training);
+            if (is_wp_error($prepared)) {
+                error_log('ThemisDB express checkout: ' . $prepared->get_error_message());
+                return '<div class="themisdb-order-error" role="alert">' . esc_html($prepared->get_error_message()) . '</div>';
+            }
         } else {
             $preset_modules = array();
             $preset_training = array();
@@ -200,6 +208,15 @@ class ThemisDB_Order_Shortcodes {
         return $this->finalize_shortcode_html('themisdb_express_checkout', ob_get_clean(), $payload, $atts);
     }
 
+    public function prepare_license_cart($edition) {
+        $product = ThemisDB_Order_Manager::get_product_by_edition($edition);
+        if (!$product || $product['product_type'] !== 'database') {
+            return new WP_Error('invalid_license_product', __('Dieses Lizenzprodukt ist nicht verfügbar.', 'themisdb-order-request'));
+        }
+        $modules = $this->get_requested_code_list(array('modules', 'module'), array_column(ThemisDB_Order_Manager::get_modules(), 'module_code'));
+        return $this->bootstrap_preset_order($edition, 4, $modules, array());
+    }
+
     /**
      * Ensure a draft session order exists for express checkout and apply an optional preset product.
      */
@@ -210,14 +227,14 @@ class ThemisDB_Order_Shortcodes {
 
         $preset_product = sanitize_key((string) $preset_product);
         if ($preset_product === '') {
-            return;
+            return new WP_Error('invalid_product', __('Bitte wählen Sie ein Produkt.', 'themisdb-order-request'));
         }
 
         $target_step = max(1, intval($target_step));
 
         $product = ThemisDB_Order_Manager::get_product_by_edition($preset_product);
         if (!$product) {
-            return;
+            return new WP_Error('invalid_product', __('Dieses Produkt ist nicht verfügbar.', 'themisdb-order-request'));
         }
 
         $order_id = isset($_SESSION['themisdb_order_id']) ? intval($_SESSION['themisdb_order_id']) : 0;
@@ -225,11 +242,13 @@ class ThemisDB_Order_Shortcodes {
 
         if (!$order || !in_array(($order['status'] ?? 'draft'), array('draft', 'pending'), true)) {
             $order_id = ThemisDB_Order_Manager::create_order(array(
+                'customer_name' => '',
+                'customer_email' => '',
                 'product_edition' => $preset_product,
                 'product_type' => $product['product_type'] ?? 'database',
             ));
             if (!$order_id) {
-                return;
+                return new WP_Error('cart_create_failed', __('Der Warenkorb konnte nicht angelegt werden. Bitte erneut versuchen.', 'themisdb-order-request'));
             }
             $_SESSION['themisdb_order_id'] = $order_id;
         }
@@ -238,7 +257,7 @@ class ThemisDB_Order_Shortcodes {
         $preset_training = is_array($preset_training) ? array_values(array_unique(array_map('sanitize_text_field', $preset_training))) : array();
 
         $total = ThemisDB_Order_Manager::calculate_total($preset_product, $preset_modules, $preset_training);
-        ThemisDB_Order_Manager::update_order($order_id, array(
+        $saved = ThemisDB_Order_Manager::update_order($order_id, array(
             'product_edition' => $preset_product,
             'product_type' => $product['product_type'] ?? 'database',
             'modules' => $preset_modules,
@@ -246,6 +265,10 @@ class ThemisDB_Order_Shortcodes {
             'total_amount' => $total,
             'step' => $target_step,
         ));
+        if (!$saved) {
+            return new WP_Error('cart_update_failed', __('Die Produktauswahl konnte nicht gespeichert werden. Bitte erneut versuchen.', 'themisdb-order-request'));
+        }
+        return true;
     }
 
     /**
@@ -305,7 +328,7 @@ class ThemisDB_Order_Shortcodes {
             if ($sanitized_code === '') {
                 continue;
             }
-            if (!empty($allowed_lookup) && !isset($allowed_lookup[$sanitized_code])) {
+            if (!isset($allowed_lookup[$sanitized_code])) {
                 continue;
             }
             $codes[] = $sanitized_code;
@@ -1016,7 +1039,7 @@ class ThemisDB_Order_Shortcodes {
                     </label>
 
                     <p style="margin:.6rem 0 0;color:#64748b;font-size:.9em;">
-                        <?php esc_html_e('Stripe/PayPal werden als Sofortzahlung verarbeitet. Bei Banküberweisung bleibt der Status auf ausstehend, bis der Zahlungseingang verifiziert ist.', 'themisdb-order-request'); ?>
+                        <?php esc_html_e('Die Auswahl einer Zahlungsmethode bestätigt keinen Zahlungseingang. Alle Zahlungen bleiben bis zur gesonderten Bestätigung ausstehend. Stripe/PayPal sind hier noch nicht an einen Zahlungsanbieter angebunden; es erfolgt keine automatische Abbuchung.', 'themisdb-order-request'); ?>
                     </p>
                 </div>
             </div>
@@ -1510,7 +1533,6 @@ class ThemisDB_Order_Shortcodes {
 
         // Merchandise flow: no contract/license creation, only payment + invoice.
         $created_payment_id = 0;
-        $instant_methods = array('stripe', 'paypal');
 
         if ($order['product_type'] === 'merchandise') {
             $payment_data = array(
@@ -1520,7 +1542,7 @@ class ThemisDB_Order_Shortcodes {
                 'payment_method' => $payment_method,
                 'metadata' => array(
                     'source' => 'frontend_checkout',
-                    'is_instant' => in_array($payment_method, $instant_methods, true),
+                    'is_instant' => false,
                 ),
             );
             $created_payment_id = intval(ThemisDB_Payment_Manager::create_payment($payment_data));
@@ -1574,7 +1596,7 @@ class ThemisDB_Order_Shortcodes {
                         'payment_method' => $payment_method,
                         'metadata' => array(
                             'source' => 'frontend_checkout',
-                            'is_instant' => in_array($payment_method, $instant_methods, true),
+                            'is_instant' => false,
                         ),
                     );
                     $created_payment_id = intval(ThemisDB_Payment_Manager::create_payment($payment_data));
@@ -1594,11 +1616,6 @@ class ThemisDB_Order_Shortcodes {
                     ThemisDB_License_Manager::create_license($license_data);
                 }
             }
-        }
-
-        // Instant methods are auto-verified for the current phase (full provider callbacks can be added via webhook handlers).
-        if ($created_payment_id > 0 && in_array($payment_method, $instant_methods, true)) {
-            ThemisDB_Payment_Manager::verify_payment($created_payment_id);
         }
 
         // Notify integrations (e.g., affiliate conversion tracking).
@@ -1773,7 +1790,7 @@ class ThemisDB_Order_Shortcodes {
                 border: 1px solid #e0e0e0;
                 border-radius: 8px;
                 padding: 30px;
-                background: #fff;
+                background: var(--tds-panel);
                 display: flex;
                 flex-direction: column;
                 transition: transform 0.3s, box-shadow 0.3s;
@@ -2003,15 +2020,9 @@ class ThemisDB_Order_Shortcodes {
 
         $requested_edition = $this->get_requested_product_edition($atts['edition']);
 
-        $theme_controls_presentation =
-            wp_style_is('themisdb-style', 'enqueued') ||
-            wp_style_is('themisdb-style', 'registered') ||
-            wp_style_is('lis-a-style', 'enqueued') ||
-            wp_style_is('lis-a-style', 'registered');
-
         $should_enqueue_product_detail_style = apply_filters(
             'themisdb_product_detail_enqueue_frontend_style',
-            ! $theme_controls_presentation,
+            true,
             $atts
         );
 
@@ -2033,9 +2044,11 @@ class ThemisDB_Order_Shortcodes {
         );
 
         // Build data for JS.
-        $products_raw  = ThemisDB_Order_Manager::get_products();
+        $products_raw  = array_values(array_filter(ThemisDB_Order_Manager::get_products(), function($product) {
+            return $product['product_type'] === 'database';
+        }));
         $modules_raw   = ThemisDB_Order_Manager::get_modules();
-        $trainings_raw = ThemisDB_Order_Manager::get_training_modules();
+        $trainings_raw = array();
 
         $products_map = array();
         foreach ($products_raw as $p) {
@@ -2067,14 +2080,10 @@ class ThemisDB_Order_Shortcodes {
         $default_modules = $this->get_requested_code_list(array('modules', 'module'), array_keys($modules_map));
         $default_training = $this->get_requested_code_list(array('training', 'trainings'), array_keys($trainings_map));
 
-        // Fallback order URL: use a page with [themisdb_order_flow] if none given.
+        // Product selection stays on the page and opens the plugin checkout dialog.
         $order_url = esc_url_raw($atts['order_url']);
         if ($order_url === '') {
-            $order_url = $this->resolve_frontend_page_url(
-                'themisdb_order_page_url',
-                array('bestellung', 'checkout'),
-                'themisdb_order_flow'
-            );
+            $order_url = class_exists('ThemisDB_Checkout_Overlay') ? ThemisDB_Checkout_Overlay::url() : '#themisdb-checkout-dialog';
         }
 
         $payload = array_merge($payload, array(
@@ -2395,7 +2404,7 @@ class ThemisDB_Order_Shortcodes {
         if ($product_url === '') {
             $product_url = $this->resolve_frontend_page_url(
                 'themisdb_product_page_url',
-                array('produkte', 'produkt', 'konfigurator'),
+                array('products', 'produkte', 'produkt', 'konfigurator'),
                 'themisdb_product_detail'
             );
             if ($product_url === '') {
@@ -2535,13 +2544,13 @@ class ThemisDB_Order_Shortcodes {
         <div class="themisdb-shop-page">
             <style>
                 .themisdb-shop-page {
-                    --tds-navy: #0b1e3d;
-                    --tds-blue: #1e6fba;
-                    --tds-cyan: #1ab5c8;
-                    --tds-panel: #ffffff;
-                    --tds-border: rgba(11, 30, 61, 0.1);
-                    --tds-text: #10233f;
-                    --tds-text-soft: #5d6f84;
+                    --tds-navy: var(--themisdb-ui-heading, #0b1e3d);
+                    --tds-blue: var(--themisdb-ui-primary, #1e6fba);
+                    --tds-cyan: var(--themisdb-ui-accent, #1ab5c8);
+                    --tds-panel: var(--themisdb-ui-surface, #ffffff);
+                    --tds-border: var(--themisdb-ui-border, rgba(11, 30, 61, 0.1));
+                    --tds-text: var(--themisdb-ui-text, #10233f);
+                    --tds-text-soft: var(--themisdb-ui-muted, #5d6f84);
                     --tds-shadow: 0 18px 38px rgba(11, 30, 61, 0.12);
                     color: var(--tds-text);
                 }
@@ -2580,7 +2589,7 @@ class ThemisDB_Order_Shortcodes {
                 .tds-chip {
                     padding: 0.6rem 1rem;
                     border: 1px solid var(--tds-border);
-                    background: #fff;
+                    background: var(--tds-panel);
                     color: var(--tds-text);
                 }
                 .tds-btn {
@@ -2618,7 +2627,7 @@ class ThemisDB_Order_Shortcodes {
                     min-height: 100%;
                 }
                 .tds-card--featured {
-                    background: linear-gradient(160deg, var(--tds-navy) 0%, #173a6b 100%);
+                    background: linear-gradient(160deg, var(--tds-navy) 0%, var(--tds-blue) 100%);
                     color: #fff;
                     border-color: rgba(255,255,255,0.12);
                 }
@@ -3451,7 +3460,7 @@ class ThemisDB_Order_Shortcodes {
                 <?php
                 $product_page_url = $this->resolve_frontend_page_url(
                     'themisdb_product_page_url',
-                    array('produkte', 'produkt', 'konfigurator'),
+                    array('products', 'produkte', 'produkt', 'konfigurator'),
                     'themisdb_product_detail'
                 );
                 if ($product_page_url) :
@@ -3654,4 +3663,3 @@ class ThemisDB_Order_Shortcodes {
         wp_send_json_success(array('cleared' => true));
     }
 }
-

@@ -273,11 +273,11 @@ class ThemisDB_Contract_Termination_Engine {
     /**
      * Sofortige manuelle Ausführung aller fälligen Kündigungen (Admin-Trigger).
      *
-     * @return array{processed:int, executed:int, failed:int}
+     * @return array{processed:int, executed:int, failed:int}|WP_Error
      */
     public static function run_scheduler_now() {
         if (!class_exists('ThemisDB_Contract_Lifecycle')) {
-            return array('processed' => 0, 'executed' => 0, 'failed' => 0);
+            return new WP_Error('lifecycle_missing', __('Vertragsverwaltung nicht verfuegbar.', 'themisdb-support-portal'));
         }
 
         return ThemisDB_Contract_Lifecycle::execute_due_terminations();

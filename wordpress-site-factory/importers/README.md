@@ -80,6 +80,62 @@ Behavior:
 - extracts normalized latency/throughput metrics with category inference from file names
 - skips malformed files without aborting the full run and reports them in `errors`
 
+### Standard-oriented vector publication gate
+
+The importer preserves an explicit per-record `publication` object. The shared
+contract lives in
+[benchmark-publication-contract.json](../../themisdb-benchmark-visualizer/includes/benchmark-publication-contract.json);
+keep the plugin and factory directories together when using this importer.
+The full field definitions and methodology requirements are documented in the
+[Visualizer README](../../themisdb-benchmark-visualizer/README.md#vector-publication-contract-v1).
+
+The catalog adds `publication_contract_version` and `publication_issues`, including
+record indexes, source basenames and missing/invalid fields. Legacy measurements
+remain measurements, not automatically certified End-to-End comparisons.
+The PHP consumer validates independently, even if a catalog bypasses this builder.
+
+For a publication candidate use a **separate directory** of normalized vector
+records with explicit protocol metadata:
+
+```powershell
+python .\wordpress-site-factory\importers\build_benchmark_catalog.py `
+  --source-dir C:\benchmarks\publication-candidate `
+  --output C:\benchmarks\publication-candidate-catalog.json `
+  --require-publication --summary
+```
+
+`--require-publication` exits nonzero before writing if there are file errors,
+ineligible records or no records. Existing output stays unchanged. It checks
+individual record eligibility, not whether two engines were actually measured;
+the visualizer separately requires matching protocol/run metadata across engines.
+The default import mode retains reference data and reports its eligibility issues.
+
+Malformed, missing, negative and non-finite numeric measurements are no longer
+silently converted into zero. Such a source file is reported in `errors`.
+Unknown units are rejected for supported metrics. Google Benchmark error and
+aggregate rows are omitted; bandwidth is not classified as memory usage.
+The legacy Mermaid helper lists engines without declaring a fabricated winner.
+
+This step changes publication semantics only. It does **not** modify runners in
+the junction-linked ThemisDB repository, regenerate its current catalog, run a new
+VectorDBBench experiment or import third-party benchmark reports.
+
+Recommended separation of the test strategy:
+
+1. **Correctness:** deterministic unit/integration tests; a failed correctness
+   check blocks the associated benchmark's release regardless of speed.
+2. **Internal performance:** Google Benchmark microbenchmarks, smoke checks and
+   synthetic proxy workloads for regression detection, explicitly labeled as such.
+3. **Comparative End-to-End:** actual database requests through a pinned common
+   harness. Start with VectorDBBench, documented datasets/ground truth and a common
+   recall target. Only comparable configurations enter shared task groups.
+4. **Publication:** preserve raw artifacts and manifests, review methodology and
+   reuse rights, run the publication gate, then display results with provenance.
+
+Do not infer standards compliance from a comment in a runner configuration.
+YCSB and LDBC-SNB can later receive separate versioned workload contracts rather
+than being forced into the vector schema.
+
 ### Benchmark docs manifest
 
 Benchmark reports from `source-links/benchmarks/docs` are indexed separately so

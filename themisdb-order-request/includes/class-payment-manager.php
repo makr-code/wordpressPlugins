@@ -119,6 +119,20 @@ class ThemisDB_Payment_Manager {
         global $wpdb;
         
         $table_payments = $wpdb->prefix . 'themisdb_payments';
+        $payment = self::get_payment($payment_id);
+        if (!$payment) {
+            return self::verification_failed($payment_id, 'Payment not found');
+        }
+        if ($payment['payment_status'] === 'verified') {
+            return true;
+        }
+        if (!self::can_transition_payment_status($payment['payment_status'], 'verified')) {
+            return self::verification_failed($payment_id, 'Payment status does not allow verification');
+        }
+        $order = ThemisDB_Order_Manager::get_order($payment['order_id']);
+        if (!$order || in_array($order['status'] ?? '', array('cancelled', 'ended', 'failed'), true)) {
+            return self::verification_failed($payment_id, 'Associated order is missing or closed');
+        }
         
         $update_data = array(
             'payment_status' => 'verified',
@@ -129,17 +143,26 @@ class ThemisDB_Payment_Manager {
         $result = $wpdb->update(
             $table_payments,
             $update_data,
-            array('id' => $payment_id),
+            array('id' => $payment_id, 'payment_status' => $payment['payment_status']),
             null,
-            array('%d')
+            array('%d', '%s')
         );
+        if ($result === false || $result === 0) {
+            return self::verification_failed($payment_id, 'Payment verification could not be persisted or was superseded');
+        }
         
         if ($result !== false) {
             // Get payment details
             $payment = self::get_payment($payment_id);
+            if (!$payment) {
+                return self::verification_failed($payment_id, 'Verified payment could not be reloaded; manual reconciliation required');
+            }
             
             if ($payment) {
                 $order = ThemisDB_Order_Manager::get_order($payment['order_id']);
+                if (!$order || in_array($order['status'] ?? '', array('cancelled', 'ended', 'failed'), true)) {
+                    return self::verification_failed($payment_id, 'Order became unavailable after verification; manual reconciliation required');
+                }
                 $is_consumer = $order && (($order['customer_type'] ?? 'consumer') === 'consumer');
                 $has_withdrawal_waiver = $order && !empty($order['legal_withdrawal_waiver']);
 
@@ -160,12 +183,13 @@ class ThemisDB_Payment_Manager {
                             'target_status' => $target_order_status,
                         ));
                     }
+                    return false;
                 }
                 
                 // Activate license if exists
                 if ($payment['contract_id']) {
                     $license = ThemisDB_License_Manager::get_license_by_contract($payment['contract_id']);
-                    if ($license) {
+                    if ($license && $license['license_status'] !== 'active') {
                         $allow_license_activation = true;
                         if ($is_consumer && !$has_withdrawal_waiver) {
                             $allow_license_activation = false;
@@ -179,6 +203,9 @@ class ThemisDB_Payment_Manager {
                         }
 
                         $activated = $allow_license_activation ? ThemisDB_License_Manager::activate_license($license['id']) : false;
+                        if ($allow_license_activation && !$activated) {
+                            return self::verification_failed($payment_id, 'License activation failed after payment verification; manual reconciliation required');
+                        }
 
                         if ($activated) {
                             try {
@@ -201,6 +228,14 @@ class ThemisDB_Payment_Manager {
         
         return $result !== false;
     }
+
+    private static function verification_failed($payment_id, $message) {
+        error_log('ThemisDB Payment Verification Error (' . intval($payment_id) . '): ' . $message);
+        if (class_exists('ThemisDB_Error_Handler')) {
+            ThemisDB_Error_Handler::log('error', $message, array('payment_id' => intval($payment_id)));
+        }
+        return false;
+    }
     
     /**
      * Mark payment as failed
@@ -209,19 +244,27 @@ class ThemisDB_Payment_Manager {
         global $wpdb;
         
         $table_payments = $wpdb->prefix . 'themisdb_payments';
+        $payment = self::get_payment($payment_id);
+        if (!$payment || !self::can_transition_payment_status($payment['payment_status'], 'failed')) {
+            return self::verification_failed($payment_id, 'Payment status does not allow marking failed');
+        }
+        if ($payment['payment_status'] === 'failed') {
+            return true;
+        }
         
         $update_data = array(
             'payment_status' => 'failed',
             'notes' => $reason
         );
         
-        return $wpdb->update(
+        $result = $wpdb->update(
             $table_payments,
             $update_data,
-            array('id' => $payment_id),
+            array('id' => $payment_id, 'payment_status' => $payment['payment_status']),
             null,
-            array('%d')
-        ) !== false;
+            array('%d', '%s')
+        );
+        return $result === 1 ? true : self::verification_failed($payment_id, 'Failed payment status could not be persisted or was superseded');
     }
 
     /**
@@ -234,23 +277,29 @@ class ThemisDB_Payment_Manager {
         $payment = self::get_payment($payment_id);
 
         if (!$payment) {
-            return false;
+            return self::verification_failed($payment_id, 'Payment not found while marking overdue');
         }
 
-        if (in_array($payment['payment_status'], array('verified', 'failed'), true)) {
-            return false;
+        if (!self::can_transition_payment_status($payment['payment_status'], 'overdue')) {
+            return self::verification_failed($payment_id, 'Payment status does not allow marking overdue');
         }
 
-        return $wpdb->update(
+        $result = $wpdb->update(
             $table_payments,
             array(
                 'payment_status' => 'overdue',
                 'notes' => $reason !== '' ? sanitize_textarea_field($reason) : $payment['notes']
             ),
-            array('id' => $payment_id),
+            array('id' => $payment_id, 'payment_status' => $payment['payment_status']),
             null,
-            array('%d')
-        ) !== false;
+            array('%d', '%s')
+        );
+        if ($result === 0) {
+            $current = self::get_payment($payment_id);
+            return $current && $current['payment_status'] === 'overdue'
+                ? true : self::verification_failed($payment_id, 'Overdue status update was superseded');
+        }
+        return $result !== false ? true : self::verification_failed($payment_id, 'Overdue status could not be persisted');
     }
 
     /**
@@ -263,23 +312,24 @@ class ThemisDB_Payment_Manager {
         $payment = self::get_payment($payment_id);
 
         if (!$payment) {
-            return false;
+            return self::verification_failed($payment_id, 'Payment not found while editing');
         }
 
         $update_data = array();
+        $verify = false;
 
         if (isset($data['payment_status'])) {
             $next_status = self::normalize_payment_status($data['payment_status']);
             if ($next_status === null) {
-                return false;
+                return self::verification_failed($payment_id, 'Invalid payment status');
             }
             if (!self::can_transition_payment_status($payment['payment_status'], $next_status)) {
-                return false;
+                return self::verification_failed($payment_id, 'Payment edit would violate status transition rules');
             }
 
-            $update_data['payment_status'] = $next_status;
-            if ($next_status === 'verified' && empty($payment['verified_at'])) {
-                $update_data['verified_at'] = current_time('mysql');
+            $verify = $next_status === 'verified';
+            if (!$verify) {
+                $update_data['payment_status'] = $next_status;
             }
         }
         if (isset($data['order_id'])) {
@@ -311,16 +361,26 @@ class ThemisDB_Payment_Manager {
         }
 
         if (empty($update_data)) {
-            return true;
+            return $verify ? self::verify_payment($payment_id) : true;
         }
 
-        return $wpdb->update(
+        $result = $wpdb->update(
             $table_payments,
             $update_data,
-            array('id' => intval($payment_id)),
+            array('id' => intval($payment_id), 'payment_status' => $payment['payment_status']),
             null,
-            array('%d')
-        ) !== false;
+            array('%d', '%s')
+        );
+        if ($result === false) {
+            return self::verification_failed($payment_id, 'Payment edit could not be persisted');
+        }
+        if ($result === 0) {
+            $current = self::get_payment($payment_id);
+            if (!$current || $current['payment_status'] !== $payment['payment_status']) {
+                return self::verification_failed($payment_id, 'Payment edit was superseded');
+            }
+        }
+        return $verify ? self::verify_payment($payment_id) : true;
     }
 
     /**
@@ -482,13 +542,9 @@ class ThemisDB_Payment_Manager {
         $response = ThemisDB_EPServer_API::check_payment_status($payment['epserver_payment_id']);
         
         if ($response && isset($response['status'])) {
-            // Update payment status based on epServer response
-            global $wpdb;
-            $table_payments = $wpdb->prefix . 'themisdb_payments';
-
             $next_status = self::normalize_payment_status($response['status']);
             if ($next_status === null || !self::can_transition_payment_status($payment['payment_status'], $next_status)) {
-                return $response;
+                return self::verification_failed($payment_id, 'epServer returned an invalid payment transition');
             }
 
             $update_data = array(
@@ -496,17 +552,11 @@ class ThemisDB_Payment_Manager {
             );
 
             if ($next_status === 'verified') {
-                $update_data['verified_at'] = current_time('mysql');
                 $update_data['payment_date'] = isset($response['payment_date']) ? $response['payment_date'] : current_time('mysql');
             }
-            
-            $wpdb->update(
-                $table_payments,
-                $update_data,
-                array('id' => $payment_id),
-                null,
-                array('%d')
-            );
+            if (!self::update_payment($payment_id, $update_data)) {
+                return false;
+            }
             
             return $response;
         }
@@ -613,4 +663,3 @@ class ThemisDB_Payment_Manager {
         return $stats;
     }
 }
-

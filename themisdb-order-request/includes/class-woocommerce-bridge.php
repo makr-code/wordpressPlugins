@@ -61,7 +61,7 @@ class ThemisDB_WooCommerce_Bridge {
      * @param int $woo_order_id
      */
     public function on_order_completed($woo_order_id) {
-        $this->sync_order($woo_order_id, 'completed', 'confirmed');
+        $this->apply_status_sync($woo_order_id, 'completed', 'completed');
     }
 
     /**
@@ -70,7 +70,10 @@ class ThemisDB_WooCommerce_Bridge {
      * @param int $woo_order_id
      */
     public function on_payment_complete($woo_order_id) {
-        $this->sync_order($woo_order_id, 'payment_complete', 'confirmed');
+        $woo_order = wc_get_order(intval($woo_order_id));
+        if ($woo_order) {
+            $this->apply_status_sync($woo_order_id, $woo_order->get_status(), 'payment_complete');
+        }
     }
 
     /**
@@ -119,10 +122,13 @@ class ThemisDB_WooCommerce_Bridge {
             return false;
         }
 
-        $existing_themis_order_id = intval(get_post_meta($woo_order->get_id(), '_themisdb_order_id', true));
+        $existing_themis_order_id = intval($woo_order->get_meta('_themisdb_order_id', true));
         if ($existing_themis_order_id > 0) {
             // Keep mapped orders aligned with the paid/confirmed state.
-            ThemisDB_Order_Manager::set_order_status($existing_themis_order_id, $target_status);
+            if (!ThemisDB_Order_Manager::set_order_status($existing_themis_order_id, $target_status)) {
+                $this->log_sync_failure($woo_order_id, 'Mapped order status update failed');
+                return false;
+            }
             return $existing_themis_order_id;
         }
 
@@ -153,11 +159,18 @@ class ThemisDB_WooCommerce_Bridge {
         }
 
         if (!empty($mapping['line_items']) && method_exists('ThemisDB_Order_Manager', 'set_order_items')) {
-            ThemisDB_Order_Manager::set_order_items($themis_order_id, $mapping['line_items'], $mapped_data['currency']);
+            if (!ThemisDB_Order_Manager::set_order_items($themis_order_id, $mapping['line_items'], $mapped_data['currency'])) {
+                $this->log_sync_failure($woo_order_id, 'Imported order items could not be saved');
+                return false;
+            }
         }
 
-        update_post_meta($woo_order->get_id(), '_themisdb_order_id', $themis_order_id);
-        update_post_meta($woo_order->get_id(), '_themisdb_sync_trigger', sanitize_text_field($trigger));
+        $woo_order->update_meta_data('_themisdb_order_id', $themis_order_id);
+        $woo_order->update_meta_data('_themisdb_sync_trigger', sanitize_text_field($trigger));
+        if (!$woo_order->save()) {
+            $this->log_sync_failure($woo_order_id, 'Imported order link could not be saved');
+            return false;
+        }
 
         $woo_order->add_order_note(sprintf(
             'ThemisDB order synced (ID %d) via trigger "%s".',
@@ -198,16 +211,34 @@ class ThemisDB_WooCommerce_Bridge {
             return;
         }
 
-        $themis_order_id = intval(get_post_meta($woo_order_id, '_themisdb_order_id', true));
+        $themis_order_id = intval($woo_order->get_meta('_themisdb_order_id', true));
+
+        if (in_array($woo_status, array('processing', 'completed', 'partially-refunded'), true)) {
+            $linked_order = $themis_order_id > 0 ? ThemisDB_Order_Manager::get_order($themis_order_id) : null;
+            if ($linked_order && in_array($linked_order['status'], array('cancelled', 'ended', 'failed'), true)) {
+                $this->log_sync_failure($woo_order_id, 'Closed ThemisDB order cannot be reopened by a paid callback');
+                return;
+            }
+            if (!$woo_order->is_paid() && in_array($target_themis_status, array('confirmed', 'signed', 'active'), true)) {
+                $target_themis_status = 'pending';
+            }
+        }
 
         if ($themis_order_id <= 0 && in_array($woo_status, array('processing', 'completed'), true)) {
             $themis_order_id = $this->sync_order($woo_order_id, $trigger . ':' . $woo_status, $target_themis_status);
+            if (!$themis_order_id) {
+                return;
+            }
         } elseif ($themis_order_id > 0) {
-            ThemisDB_Order_Manager::set_order_status($themis_order_id, $target_themis_status);
+            if (!ThemisDB_Order_Manager::set_order_status($themis_order_id, $target_themis_status)) {
+                $this->log_sync_failure($woo_order_id, 'Order status synchronization failed; license processing stopped');
+                return;
+            }
         }
 
         if ($themis_order_id > 0 && $woo_status === 'completed') {
             do_action('themisdb_woocommerce_license_generation_requested', $themis_order_id, $woo_order_id);
+            return;
         }
 
         $this->sync_existing_license_status_from_woo($woo_order_id, $woo_status, $woo_order);
@@ -304,13 +335,23 @@ class ThemisDB_WooCommerce_Bridge {
             return;
         }
 
-        $license_id = intval(get_post_meta($woo_order_id, '_themisdb_license_id', true));
+        $woo_order = $woo_order ?: wc_get_order(intval($woo_order_id));
+        if (!$woo_order) {
+            return;
+        }
+        $license_id = intval($woo_order->get_meta('_themisdb_license_id', true));
         if ($license_id <= 0) {
             return;
         }
 
         $license = ThemisDB_License_Manager::get_license($license_id);
         if (!$license) {
+            $this->log_sync_failure($woo_order_id, 'Linked license not found');
+            return;
+        }
+        $themis_order_id = intval($woo_order->get_meta('_themisdb_order_id', true));
+        if ($themis_order_id <= 0 || intval($license['order_id']) !== $themis_order_id) {
+            $this->log_sync_failure($woo_order_id, 'Linked license does not belong to the mapped order');
             return;
         }
 
@@ -334,22 +375,29 @@ class ThemisDB_WooCommerce_Bridge {
         );
 
         if ($license_action === 'activate') {
-            if ($status !== 'active' && $status !== 'cancelled') {
-                ThemisDB_License_Manager::activate_license($license_id);
+            if ($status !== 'active' && $status !== 'cancelled'
+                && $this->can_activate_woo_license($woo_order, $themis_order_id)) {
+                if (!ThemisDB_License_Manager::activate_license($license_id)) {
+                    $this->log_sync_failure($woo_order_id, 'Linked license activation failed');
+                }
             }
             return;
         }
 
         if ($license_action === 'suspend') {
             if ($status === 'active') {
-                ThemisDB_License_Manager::suspend_license($license_id, 'WooCommerce status changed to ' . $woo_status);
+                if (!ThemisDB_License_Manager::suspend_license($license_id, 'WooCommerce status changed to ' . $woo_status)) {
+                    $this->log_sync_failure($woo_order_id, 'Linked license suspension failed');
+                }
             }
             return;
         }
 
         if ($license_action === 'cancel') {
             if ($status !== 'cancelled') {
-                ThemisDB_License_Manager::cancel_license($license_id, 'WooCommerce status changed to ' . $woo_status, 0);
+                if (!ThemisDB_License_Manager::cancel_license($license_id, 'WooCommerce status changed to ' . $woo_status, 0)) {
+                    $this->log_sync_failure($woo_order_id, 'Linked license cancellation failed');
+                }
             }
         }
     }
@@ -365,8 +413,12 @@ class ThemisDB_WooCommerce_Bridge {
             return;
         }
 
-        $themis_order_id = intval(get_post_meta($woo_order_id, '_themisdb_order_id', true));
-        if ($themis_order_id <= 0) {
+        $woo_order = wc_get_order($woo_order_id);
+        if (!$woo_order) {
+            return;
+        }
+        $themis_order_id = intval($woo_order->get_meta('_themisdb_order_id', true));
+        if ($themis_order_id <= 0 || !$this->can_activate_woo_license($woo_order, $themis_order_id)) {
             return;
         }
 
@@ -390,11 +442,21 @@ class ThemisDB_WooCommerce_Bridge {
             return;
         }
 
-        $existing_license_id = intval(get_post_meta($woo_order_id, '_themisdb_license_id', true));
+        $woo_order = wc_get_order($woo_order_id);
+        if (!$woo_order || !$this->can_activate_woo_license($woo_order, $themis_order_id)) {
+            return;
+        }
+        $existing_license_id = intval($woo_order->get_meta('_themisdb_license_id', true));
         if ($existing_license_id > 0) {
             $existing_license = ThemisDB_License_Manager::get_license($existing_license_id);
-            if ($existing_license && $existing_license['license_status'] !== 'active') {
-                ThemisDB_License_Manager::activate_license($existing_license_id);
+            if (!$existing_license || intval($existing_license['order_id']) !== $themis_order_id) {
+                $this->log_sync_failure($woo_order_id, 'Linked license does not belong to the mapped order');
+                return;
+            }
+            if (!in_array($existing_license['license_status'], array('active', 'cancelled'), true)) {
+                if (!ThemisDB_License_Manager::activate_license($existing_license_id)) {
+                    $this->log_sync_failure($woo_order_id, 'Existing license activation failed');
+                }
             }
             return;
         }
@@ -448,7 +510,8 @@ class ThemisDB_WooCommerce_Bridge {
             $license = ThemisDB_License_Manager::get_license($license_id);
         }
 
-        if (!$license) {
+        if (!$license || intval($license['order_id']) !== $themis_order_id || $license['license_status'] === 'cancelled') {
+            $this->log_sync_failure($woo_order_id, 'Generated license is unavailable, cancelled or belongs to another order');
             return;
         }
 
@@ -472,7 +535,11 @@ class ThemisDB_WooCommerce_Bridge {
             $should_send_license_email = true;
         }
 
-        update_post_meta($woo_order_id, '_themisdb_license_id', $license_id);
+        $woo_order->update_meta_data('_themisdb_license_id', $license_id);
+        if (!$woo_order->save()) {
+            $this->log_sync_failure($woo_order_id, 'License activated but Woo link could not be saved; manual reconciliation required');
+            return;
+        }
 
         $woo_order = wc_get_order($woo_order_id);
         if ($woo_order) {
@@ -496,6 +563,35 @@ class ThemisDB_WooCommerce_Bridge {
                     'exception' => $e->getMessage(),
                 ));
             }
+        }
+    }
+
+    private function can_activate_woo_license($woo_order, $themis_order_id) {
+        if ($themis_order_id <= 0 || intval($woo_order->get_meta('_themisdb_order_id', true)) !== $themis_order_id) {
+            return false;
+        }
+        $target = $this->map_woo_status_to_themis_status($woo_order->get_status(), $woo_order);
+        if (!$woo_order->is_paid() || !in_array($target, array('confirmed', 'signed', 'active'), true)) {
+            return false;
+        }
+        $order = ThemisDB_Order_Manager::get_order($themis_order_id);
+        if (!$order || !in_array($order['status'], array('confirmed', 'signed', 'active'), true)
+            || ($order['product_type'] ?? '') === 'merchandise'
+            || (($order['customer_type'] ?? 'consumer') === 'consumer' && empty($order['legal_withdrawal_waiver']))) {
+            return false;
+        }
+        // Reuse the central regulatory checks, including on direct/thank-you hooks.
+        if (!ThemisDB_Order_Manager::set_order_status($themis_order_id, $order['status'])) {
+            $this->log_sync_failure($woo_order->get_id(), 'License activation blocked by order compliance or persistence failure');
+            return false;
+        }
+        return true;
+    }
+
+    private function log_sync_failure($woo_order_id, $message) {
+        error_log('ThemisDB Woo Bridge (' . intval($woo_order_id) . '): ' . $message);
+        if (class_exists('ThemisDB_Error_Handler')) {
+            ThemisDB_Error_Handler::log('error', $message, array('woo_order_id' => intval($woo_order_id)));
         }
     }
 
@@ -1183,4 +1279,3 @@ class ThemisDB_WooCommerce_Bridge {
         }
     }
 }
-

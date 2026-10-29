@@ -238,8 +238,6 @@ class ThemisDB_Contract_Lifecycle {
     }
 
     public static function review_request($request_id, $approve, $review_note = '', $reviewed_by = 0) {
-        global $wpdb;
-
         $request_id = intval($request_id);
         $request = self::get_request($request_id);
         if (!$request) {
@@ -267,18 +265,18 @@ class ThemisDB_Contract_Lifecycle {
             $update_formats[] = '%s';
         }
 
-        $wpdb->update(
-            self::get_table_name(),
-            $update_data,
-            array('id' => $request_id),
-            $update_formats,
-            array('%d')
-        );
+        $saved = self::save_review_transition($request_id, self::STATUS_REQUESTED, $update_data, $update_formats);
+        if (is_wp_error($saved)) {
+            return $saved;
+        }
 
         if ($approve) {
             self::add_log($request_id, 'approved', $reviewed_by, (string) ($review_note ?: __('Antrag genehmigt.', 'themisdb-order-request')));
             if ($request['request_type'] === self::TYPE_CHANGE) {
-                self::execute_change_request($request_id);
+                $executed = self::execute_change_request($request_id);
+                if (is_wp_error($executed)) {
+                    return $executed;
+                }
                 do_action('contract.change.approved', $request_id, intval($request['license_id']));
             } else {
                 do_action('contract.termination.confirmed', $request_id, intval($request['license_id']));
@@ -308,8 +306,6 @@ class ThemisDB_Contract_Lifecycle {
      * @return true|WP_Error
      */
     public static function review_request_ops($request_id, $approve, $review_note = '', $reviewed_by = 0) {
-        global $wpdb;
-
         $request_id = intval($request_id);
         $request = self::get_request($request_id);
         if (!$request) {
@@ -325,11 +321,9 @@ class ThemisDB_Contract_Lifecycle {
         if ($approve) {
             // Ops approved: move to pending-finance state
             $new_status = 'pending_finance';
-            self::add_log($request_id, 'ops_approved', $reviewed_by, (string) ($review_note ?: __('Operationale Genehmigung erteilt.', 'themisdb-order-request')));
         } else {
             // Ops rejected: move to rejected state
             $new_status = self::STATUS_REJECTED;
-            self::add_log($request_id, 'ops_rejected', $reviewed_by, (string) ($review_note ?: __('Operationale Genehmigung abgelehnt.', 'themisdb-order-request')));
         }
 
         $update_data = array(
@@ -340,12 +334,18 @@ class ThemisDB_Contract_Lifecycle {
         );
         $update_formats = array('%s', '%d', '%s', '%s');
 
-        $wpdb->update(
-            self::get_table_name(),
-            $update_data,
-            array('id' => $request_id),
-            $update_formats,
-            array('%d')
+        $saved = self::save_review_transition($request_id, self::STATUS_REQUESTED, $update_data, $update_formats);
+        if (is_wp_error($saved)) {
+            return $saved;
+        }
+
+        self::add_log(
+            $request_id,
+            $approve ? 'ops_approved' : 'ops_rejected',
+            $reviewed_by,
+            (string) ($review_note ?: ($approve
+                ? __('Operationale Genehmigung erteilt.', 'themisdb-order-request')
+                : __('Operationale Genehmigung abgelehnt.', 'themisdb-order-request')))
         );
 
         if (!$approve) {
@@ -371,8 +371,6 @@ class ThemisDB_Contract_Lifecycle {
      * @return true|WP_Error
      */
     public static function review_request_finance($request_id, $approve, $review_note = '', $reviewed_by = 0) {
-        global $wpdb;
-
         $request_id = intval($request_id);
         $request = self::get_request($request_id);
         if (!$request) {
@@ -388,11 +386,9 @@ class ThemisDB_Contract_Lifecycle {
         if ($approve) {
             // Finance approved: move to confirmed state
             $new_status = self::STATUS_CONFIRMED;
-            self::add_log($request_id, 'finance_approved', $reviewed_by, (string) ($review_note ?: __('Finanziell genehmigt.', 'themisdb-order-request')));
         } else {
             // Finance rejected: move to rejected state
             $new_status = self::STATUS_REJECTED;
-            self::add_log($request_id, 'finance_rejected', $reviewed_by, (string) ($review_note ?: __('Finanzielle Genehmigung abgelehnt.', 'themisdb-order-request')));
         }
 
         $update_data = array(
@@ -409,18 +405,27 @@ class ThemisDB_Contract_Lifecycle {
             $update_formats[] = '%s';
         }
 
-        $wpdb->update(
-            self::get_table_name(),
-            $update_data,
-            array('id' => $request_id),
-            $update_formats,
-            array('%d')
+        $saved = self::save_review_transition($request_id, 'pending_finance', $update_data, $update_formats);
+        if (is_wp_error($saved)) {
+            return $saved;
+        }
+
+        self::add_log(
+            $request_id,
+            $approve ? 'finance_approved' : 'finance_rejected',
+            $reviewed_by,
+            (string) ($review_note ?: ($approve
+                ? __('Finanziell genehmigt.', 'themisdb-order-request')
+                : __('Finanzielle Genehmigung abgelehnt.', 'themisdb-order-request')))
         );
 
         if ($approve) {
             // Execute change immediately after both reviews pass
             if ($request['request_type'] === self::TYPE_CHANGE) {
-                self::execute_change_request($request_id);
+                $executed = self::execute_change_request($request_id);
+                if (is_wp_error($executed)) {
+                    return $executed;
+                }
                 do_action('contract.change.approved', $request_id, intval($request['license_id']));
             } else {
                 do_action('contract.termination.confirmed', $request_id, intval($request['license_id']));
@@ -434,6 +439,31 @@ class ThemisDB_Contract_Lifecycle {
         }
 
         self::notify_customer_review_result($request_id, $new_status);
+
+        return true;
+    }
+
+    /**
+     * Persist only if another reviewer has not already changed the state.
+     *
+     * @return true|WP_Error
+     */
+    private static function save_review_transition($request_id, $expected_status, $data, $formats) {
+        global $wpdb;
+
+        $updated = $wpdb->update(
+            self::get_table_name(),
+            $data,
+            array('id' => $request_id, 'status' => $expected_status),
+            $formats,
+            array('%d', '%s')
+        );
+        if ($updated === false) {
+            return new WP_Error('review_update_failed', __('Die Pruefung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.', 'themisdb-order-request'));
+        }
+        if ($updated === 0) {
+            return new WP_Error('review_conflict', __('Der Antrag wurde inzwischen geaendert. Bitte laden Sie die Seite neu.', 'themisdb-order-request'));
+        }
 
         return true;
     }
@@ -476,6 +506,9 @@ class ThemisDB_Contract_Lifecycle {
         return $wpdb->get_results($wpdb->prepare($sql, $params), ARRAY_A);
     }
 
+    /**
+     * @return array{processed:int,executed:int,failed:int}|WP_Error
+     */
     public static function execute_due_terminations() {
         global $wpdb;
 
@@ -497,6 +530,11 @@ class ThemisDB_Contract_Lifecycle {
             ARRAY_A
         );
 
+        if ($wpdb->last_error !== '') {
+            error_log('ThemisDB: Failed to load due termination requests.');
+            return new WP_Error('termination_query_failed', __('Faellige Kuendigungsantraege konnten nicht geladen werden. Bitte versuchen Sie es erneut.', 'themisdb-order-request'));
+        }
+
         if (empty($rows)) {
             return array('processed' => 0, 'executed' => 0, 'failed' => 0);
         }
@@ -508,21 +546,37 @@ class ThemisDB_Contract_Lifecycle {
             $license_id = intval($row['license_id']);
             $reason = (string) ($row['reason'] ?? 'Scheduled termination');
 
-            $cancelled = class_exists('ThemisDB_License_Manager')
-                ? ThemisDB_License_Manager::cancel_license($license_id, $reason, 0)
-                : false;
+            $license = class_exists('ThemisDB_License_Manager')
+                ? ThemisDB_License_Manager::get_license($license_id)
+                : null;
+            $cancelled = $license && (
+                ($license['license_status'] ?? '') === 'cancelled' ||
+                ThemisDB_License_Manager::cancel_license($license_id, $reason, 0)
+            );
 
             if ($cancelled) {
-                $wpdb->update(
+                $saved = $wpdb->update(
                     $table,
                     array(
                         'status' => self::STATUS_EXECUTED,
                         'executed_at' => current_time('mysql'),
                     ),
-                    array('id' => intval($row['id'])),
+                    array('id' => intval($row['id']), 'status' => self::STATUS_CONFIRMED),
                     array('%s', '%s'),
-                    array('%d')
+                    array('%d', '%s')
                 );
+
+                if ($saved === false || $saved === 0) {
+                    self::add_log(
+                        intval($row['id']),
+                        'execute_failed',
+                        0,
+                        __('Lizenz ist gekuendigt, aber der Ausfuehrungsstatus konnte nicht gespeichert werden. Bitte pruefen Sie den Antrag.', 'themisdb-order-request'),
+                        array('error_code' => $saved === false ? 'termination_update_failed' : 'termination_update_conflict')
+                    );
+                    $result['failed']++;
+                    continue;
+                }
 
                 self::add_log(intval($row['id']), 'executed', 0, __('Lizenz durch Scheduler gekuendigt.', 'themisdb-order-request'));
                 do_action('contract.termination.executed', intval($row['id']), $license_id);
@@ -562,8 +616,8 @@ class ThemisDB_Contract_Lifecycle {
         global $wpdb;
         $existing = $wpdb->get_var(
             $wpdb->prepare(
-                'SELECT COUNT(*) FROM ' . self::get_table_name() . ' WHERE license_id = %d AND request_type = %s AND status IN (%s, %s)',
-                intval($license_id), self::TYPE_TERMINATION, self::STATUS_REQUESTED, self::STATUS_CONFIRMED
+                'SELECT COUNT(*) FROM ' . self::get_table_name() . ' WHERE license_id = %d AND request_type = %s AND status IN (%s, %s, %s)',
+                intval($license_id), self::TYPE_TERMINATION, self::STATUS_REQUESTED, 'pending_finance', self::STATUS_CONFIRMED
             )
         );
         if (intval($existing) > 0) {
@@ -765,7 +819,7 @@ class ThemisDB_Contract_Lifecycle {
             return;
         }
 
-        $subject = sprintf('[ThemisDB] Ihre Lizenz wurde kuendigt (Antrag #%d)', intval($request_id));
+        $subject = sprintf('[ThemisDB] Ihre Lizenz wurde gekuendigt (Antrag #%d)', intval($request_id));
         $body    = self::render_mail_template(
             __('Kuendigung ausgefuehrt', 'themisdb-order-request'),
             sprintf(
@@ -789,15 +843,22 @@ class ThemisDB_Contract_Lifecycle {
         $pdf_path = self::generate_termination_pdf($request);
         if ($pdf_path && file_exists($pdf_path)) {
             $attachments[] = $pdf_path;
+        } else {
+            self::add_log(intval($request_id), 'document_failed', 0, __('Das Kuendigungsdokument konnte nicht erzeugt werden. Die Abschlussmail wird ohne Anhang versendet.', 'themisdb-order-request'));
         }
 
+        $sent = false;
         add_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
-        wp_mail($to, $subject, $body, array(), $attachments);
-        remove_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
-
-        // Clean up temp PDF file
-        if ($pdf_path && file_exists($pdf_path)) {
-            @unlink($pdf_path);
+        try {
+            $sent = wp_mail($to, $subject, $body, array(), $attachments);
+        } finally {
+            remove_filter('wp_mail_content_type', array(__CLASS__, '_mail_html_type'));
+            if ($pdf_path && file_exists($pdf_path) && !unlink($pdf_path)) {
+                self::add_log(intval($request_id), 'document_cleanup_failed', 0, __('Das temporaere Kuendigungsdokument konnte nicht entfernt werden.', 'themisdb-order-request'));
+            }
+            if (!$sent) {
+                self::add_log(intval($request_id), 'notification_failed', 0, __('Die Abschlussmail zur Kuendigung konnte nicht an den Mailtransport uebergeben werden. Bitte pruefen Sie den Versand manuell.', 'themisdb-order-request'));
+            }
         }
     }
 
@@ -1016,7 +1077,6 @@ class ThemisDB_Contract_Lifecycle {
                 $orientation = defined('PDF_PAGE_ORIENTATION') ? PDF_PAGE_ORIENTATION : 'P';
                 $unit = defined('PDF_UNIT') ? PDF_UNIT : 'mm';
                 $format = defined('PDF_PAGE_FORMAT') ? PDF_PAGE_FORMAT : 'A4';
-                $unicode = defined('PDF_FONT_MONOSPACED') ? PDF_FONT_MONOSPACED : 'courier';
 
                 $pdf = new TCPDF($orientation, $unit, $format, true, 'UTF-8', false);
                 $pdf->SetMargins(15, 15, 15);
@@ -1025,46 +1085,86 @@ class ThemisDB_Contract_Lifecycle {
                 $pdf->SetFont('dejavusans', '', 10);
                 $pdf->writeHTML($html_content, true, false, true, false, '');
 
-                $pdf_filename = sprintf('termination_%d_%d.pdf', $request_id, time());
-                $upload_dir = wp_upload_dir();
-                $pdf_path = $upload_dir['basedir'] . '/' . $pdf_filename;
-                $pdf->Output($pdf_path, 'F');
-
-                return file_exists($pdf_path) ? $pdf_path : false;
+                $pdf_content = $pdf->Output('', 'S');
+                if (!is_string($pdf_content) || $pdf_content === '') {
+                    error_log('ThemisDB: TCPDF returned an empty termination document.');
+                    return false;
+                }
+                return self::write_termination_document($request_id, 'pdf', $pdf_content);
             } catch (Exception $e) {
                 // Fallback if TCPDF fails
                 error_log('TCPDF PDF generation failed: ' . $e->getMessage());
             }
         }
 
-        // Fallback: Save as temporary HTML (printable)
-        $html_filename = sprintf('termination_%d_%d.html', $request_id, time());
-        $upload_dir = wp_upload_dir();
-        $html_path = $upload_dir['basedir'] . '/' . $html_filename;
-        $result = file_put_contents($html_path, $html_content);
-
-        return ($result && file_exists($html_path)) ? $html_path : false;
+        return self::write_termination_document($request_id, 'html', $html_content);
     }
 
-    private static function execute_change_request($request_id) {
-        $request = self::get_request($request_id);
-        if (!$request || $request['request_type'] !== self::TYPE_CHANGE) {
+    /**
+     * Reserve a unique temporary attachment without exposing it in uploads.
+     *
+     * @return string|false
+     */
+    private static function write_termination_document($request_id, $extension, $content) {
+        $path = get_temp_dir() . sprintf('themisdb-termination-%d-%s.%s', $request_id, wp_generate_uuid4(), $extension);
+        $stream = fopen($path, 'xb');
+        if ($stream === false) {
+            error_log('ThemisDB: Could not create temporary termination document.');
             return false;
         }
 
+        $complete = false;
+        try {
+            $length = strlen($content);
+            $offset = 0;
+            while ($offset < $length) {
+                $written = fwrite($stream, substr($content, $offset));
+                if ($written === false || $written === 0) {
+                    error_log('ThemisDB: Could not write complete termination document.');
+                    return false;
+                }
+                $offset += $written;
+            }
+            if (!fflush($stream)) {
+                error_log('ThemisDB: Could not flush termination document.');
+                return false;
+            }
+            $complete = true;
+        } finally {
+            fclose($stream);
+            if (!$complete && file_exists($path) && !unlink($path)) {
+                error_log('ThemisDB: Could not remove incomplete termination document.');
+            }
+        }
+
+        return $path;
+    }
+
+    /**
+     * @return true|WP_Error
+     */
+    private static function execute_change_request($request_id) {
+        $request = self::get_request($request_id);
+        if (!$request || $request['request_type'] !== self::TYPE_CHANGE) {
+            return self::change_execution_error($request_id, 'change_request_invalid', __('Aenderungsantrag nicht gefunden.', 'themisdb-order-request'));
+        }
+
         $payload = json_decode((string) $request['payload'], true);
-        if (!is_array($payload) || empty($payload)) {
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($payload)) {
+            return self::change_execution_error($request_id, 'change_payload_invalid', __('Die gespeicherten Aenderungsdaten sind ungueltig.', 'themisdb-order-request'));
+        }
+        if (empty($payload)) {
             return true;
         }
 
         if (!class_exists('ThemisDB_License_Manager')) {
-            return false;
+            return self::change_execution_error($request_id, 'license_manager_missing', __('License Manager nicht verfuegbar.', 'themisdb-order-request'));
         }
 
         $license_id = intval($request['license_id']);
         $license = ThemisDB_License_Manager::get_license($license_id);
         if (!$license) {
-            return false;
+            return self::change_execution_error($request_id, 'license_not_found', __('Lizenz wurde nicht gefunden.', 'themisdb-order-request'));
         }
 
         global $wpdb;
@@ -1079,6 +1179,9 @@ class ThemisDB_Contract_Lifecycle {
                 continue;
             }
             $value = $payload[$field];
+            if (!is_scalar($value) && $value !== null) {
+                return self::change_execution_error($request_id, 'change_payload_invalid', __('Die gespeicherten Aenderungsdaten sind ungueltig.', 'themisdb-order-request'));
+            }
             if (in_array($field, array('max_nodes', 'max_cores', 'max_storage_gb'), true)) {
                 $update_data[$field] = intval($value);
                 $update_format[] = '%d';
@@ -1100,13 +1203,25 @@ class ThemisDB_Contract_Lifecycle {
             array('%d')
         );
 
-        if ($result !== false) {
-            self::add_log(intval($request_id), 'executed', 0, __('Lizenzaenderungen angewendet.', 'themisdb-order-request'), $update_data);
-            self::notify_customer_change_executed($request_id);
-            do_action('contract.change.executed', intval($request_id), $license_id);
+        if ($result === false) {
+            return self::change_execution_error($request_id, 'change_update_failed', __('Die Lizenzdaten konnten nicht gespeichert werden.', 'themisdb-order-request'));
         }
 
-        return $result !== false;
+        self::add_log(intval($request_id), 'executed', 0, __('Lizenzaenderungen angewendet.', 'themisdb-order-request'), $update_data);
+        self::notify_customer_change_executed($request_id);
+        do_action('contract.change.executed', intval($request_id), $license_id);
+
+        return true;
+    }
+
+    private static function change_execution_error($request_id, $code, $reason) {
+        $message = sprintf(
+            __('Die Freigabe wurde gespeichert, aber die Lizenzaenderung nicht angewendet: %s Bitte pruefen Sie den Antrag manuell; eine erneute Freigabe wird nicht automatisch ausgefuehrt.', 'themisdb-order-request'),
+            $reason
+        );
+        self::add_log(intval($request_id), 'execute_failed', 0, $message, array('error_code' => $code));
+
+        return new WP_Error($code, $message);
     }
 
     private static function get_customer_email_by_license_id($license_id) {

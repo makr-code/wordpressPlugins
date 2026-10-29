@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Plugin for ThemisDB.
- * Version: 1.0.5
+ * Version: 1.5.0
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -47,12 +47,12 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('THEMISDB_BV_VERSION', '1.0.6');
+define('THEMISDB_BV_VERSION', '1.5.0');
 define('THEMISDB_BV_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_BV_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_BV_PLUGIN_FILE', __FILE__);
 define('THEMISDB_BV_GITHUB_REPO', 'makr-code/wordpressPlugins');
-define('THEMISDB_BV_GITHUB_PATH', 'tools/benchmark-visualizer-wordpress');
+define('THEMISDB_BV_GITHUB_PATH', 'themisdb-benchmark-visualizer');
 
 // Load updater class
 $themisdb_updater_local = THEMISDB_BV_PLUGIN_DIR . 'includes/class-themisdb-plugin-updater.php';
@@ -105,7 +105,6 @@ class ThemisDB_Benchmark_Visualizer {
         // Initialize plugin
         add_action('init', array($this, 'init'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
-            add_filter('script_loader_tag', array($this, 'add_crossorigin_to_cdn_scripts'), 10, 3);
         
         // Register shortcode
         add_shortcode('themisdb_benchmark_visualizer', array($this, 'render_visualizer'));
@@ -185,32 +184,21 @@ class ThemisDB_Benchmark_Visualizer {
             return;
         }
 
-        $theme_controls_presentation =
-            wp_style_is('themisdb-style', 'enqueued') ||
-            wp_style_is('themisdb-style', 'registered') ||
-            wp_style_is('lis-a-style', 'enqueued') ||
-            wp_style_is('lis-a-style', 'registered');
-        
-        // Chart.js from CDN (same version as TCO Calculator)
+        $this->enqueue_frontend_assets();
+    }
+
+    private function enqueue_frontend_assets() {
         wp_enqueue_script(
-            'chartjs',
-            'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+            'themisdb-bv-chart',
+            THEMISDB_BV_PLUGIN_URL . 'assets/vendor/chart.umd.min.js',
             array(),
             '4.4.0',
             true
         );
 
-        wp_enqueue_script(
-            'mermaidjs',
-            'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js',
-            array(),
-            '10.9.1',
-            true
-        );
-        
         $should_enqueue_frontend_style = apply_filters(
             'themisdb_benchmark_visualizer_enqueue_frontend_style',
-            ! $theme_controls_presentation
+            true
         );
 
         if ($should_enqueue_frontend_style) {
@@ -226,41 +214,65 @@ class ThemisDB_Benchmark_Visualizer {
         wp_enqueue_script(
             'themisdb-bv-script',
             THEMISDB_BV_PLUGIN_URL . 'assets/js/benchmark-visualizer.js',
-            array('jquery', 'chartjs', 'mermaidjs'),
+            array('themisdb-bv-chart'),
             THEMISDB_BV_VERSION,
             true
         );
         
-        // Localize script with AJAX URL and settings
-        wp_localize_script('themisdb-bv-script', 'themisdbBV', array(
+    }
+
+    private function get_frontend_config($atts) {
+        return array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('themisdb_bv_nonce'),
             'plugin_url' => THEMISDB_BV_PLUGIN_URL,
             'settings' => array(
                 'chart_theme' => get_option('themisdb_bv_chart_theme', 'light'),
-                'default_metric' => get_option('themisdb_bv_default_metric', 'latency'),
-                'default_category' => get_option('themisdb_bv_default_category', $this->get_default_category_key()),
-                'default_chart_type' => get_option('themisdb_bv_default_chart_type', 'bar'),
-                'default_top_n' => get_option('themisdb_bv_default_top_n', '30'),
+                'default_metric' => $atts['metric'],
+                'default_category' => $atts['category'],
+                'default_chart_type' => $atts['chart_type'],
+                'default_top_n' => $this->sanitize_top_n_option(get_option('themisdb_bv_default_top_n', '30')),
                 'category_labels' => $this->get_category_display_labels(),
             ),
-        ));
+            'compare' => $atts['compare'],
+            'demo' => get_option('themisdb_bv_data_source', 'catalog') === 'demo',
+            'labels' => array(
+                'loading' => __('Messdaten werden geladen ...', 'themisdb-benchmark-visualizer'),
+                'empty' => __('Keine passenden Messdaten vorhanden.', 'themisdb-benchmark-visualizer'),
+                'error' => __('Messdaten konnten nicht geladen werden. Bitte erneut versuchen.', 'themisdb-benchmark-visualizer'),
+                'single' => __('Einzel-Engine-Messung, kein Datenbankvergleich.', 'themisdb-benchmark-visualizer'),
+                'disjoint' => __('Keine gemeinsamen Vergleichsmessungen fuer die sichtbaren Engines.', 'themisdb-benchmark-visualizer'),
+                'excluded' => __('Nicht vergleichbare Testaufgaben ausgeblendet: %s.', 'themisdb-benchmark-visualizer'),
+                'comparison' => __('Vergleich mit uebereinstimmenden Protokollfeldern und erreichtem Recall-Ziel. Quellenangaben sind zu pruefen; keine externe Zertifizierung.', 'themisdb-benchmark-visualizer'),
+                'unverified' => __('Referenz-/Altdaten: Vergleichsprotokoll fehlt oder ist unvollstaendig. Kein freigegebener Datenbankvergleich.', 'themisdb-benchmark-visualizer'),
+                'protocol' => __('Vergleichsprotokoll', 'themisdb-benchmark-visualizer'),
+                'demo' => __('DEMO: Synthetische Testdaten fuer erfundene Datenbanken. Keine realen Messungen und kein Leistungsnachweis.', 'themisdb-benchmark-visualizer'),
+                'automatic' => __('Automatisch', 'themisdb-benchmark-visualizer'),
+                'factor' => __('Leistungsfaktor zu', 'themisdb-benchmark-visualizer'),
+                'factor_note' => __('Faktor: 1 = Referenz, groesser als 1 = besser. Nur bei passenden Vergleichsprotokollen oder Demo; fehlende Werte und Nullwerte ergeben keinen Faktor.', 'themisdb-benchmark-visualizer'),
+                'log_note' => __('Logarithmische Skala: Nullwerte werden nur im Diagramm ausgelassen; Tabelle und CSV behalten die Originalwerte.', 'themisdb-benchmark-visualizer'),
+                'radar_linear' => __('Radar unterstuetzt hier nur die lineare Skala; die logarithmische Auswahl gilt wieder beim Wechsel zu einem kartesischen Diagramm.', 'themisdb-benchmark-visualizer'),
+                'chart_error' => __('Das Diagramm konnte nicht erzeugt werden. Die Messwerte stehen in der Tabelle bereit.', 'themisdb-benchmark-visualizer'),
+                'metrics' => array('latency' => __('Latenz', 'themisdb-benchmark-visualizer'), 'throughput' => __('Durchsatz', 'themisdb-benchmark-visualizer'), 'memory' => __('Speicherbelegung', 'themisdb-benchmark-visualizer')),
+                'all_engines' => __('Alle Engines', 'themisdb-benchmark-visualizer'),
+                'tasks' => __('Testaufgaben', 'themisdb-benchmark-visualizer'),
+                'task' => __('Testaufgabe', 'themisdb-benchmark-visualizer'),
+                'variants' => __('Quellmessungen', 'themisdb-benchmark-visualizer'),
+                'measured' => __('Gemessene Aufgaben', 'themisdb-benchmark-visualizer'),
+                'mean' => __('Mittelwert der sichtbaren Aufgaben', 'themisdb-benchmark-visualizer'),
+                'best' => __('Bestwert', 'themisdb-benchmark-visualizer'),
+                'missing' => __('Nicht gemessen', 'themisdb-benchmark-visualizer'),
+                'lower' => __('Kleinere Werte sind besser.', 'themisdb-benchmark-visualizer'),
+                'higher' => __('Groessere Werte sind besser.', 'themisdb-benchmark-visualizer'),
+            ),
+        );
     }
     
-    /**
-     * Add crossorigin attribute to CDN scripts for SRI readiness.
-     */
-    public function add_crossorigin_to_cdn_scripts($tag, $handle, $src) {
-        if (in_array($handle, array('chartjs', 'mermaidjs'), true)) {
-            return str_replace('<script ', '<script crossorigin="anonymous" ', $tag);
-        }
-        return $tag;
-    }
-
     /**
      * Render benchmark visualizer
      */
     public function render_visualizer($atts) {
+        $this->enqueue_frontend_assets();
 		$raw_atts = (array) $atts;
 		$normalize_bool = static function ($value, $default = false) {
 			if (is_bool($value)) {
@@ -297,6 +309,9 @@ class ThemisDB_Benchmark_Visualizer {
         ), $raw_atts, 'themisdb_benchmark_visualizer');
 
 		$atts = apply_filters('themisdb_benchmark_visualizer_shortcode_atts', $atts, $raw_atts);
+        $atts['category'] = $this->normalize_category_key($atts['category']);
+        $atts['metric'] = in_array($atts['metric'], array('latency', 'throughput', 'memory'), true) ? $atts['metric'] : 'latency';
+        $atts['chart_type'] = $this->sanitize_chart_type_option($atts['chart_type']);
 
 		$atts['show_header'] = $normalize_bool($atts['show_header'] ?? false, false);
 		$atts['show_controls'] = $normalize_bool($atts['show_controls'] ?? false, false);
@@ -312,9 +327,10 @@ class ThemisDB_Benchmark_Visualizer {
 		$atts['show_table'] = $normalize_bool($atts['show_table'] ?? false, false);
 		$atts['aspect_ratio'] = isset($atts['aspect_ratio']) ? sanitize_text_field($atts['aspect_ratio']) : '4:3';
 		$chart_ratio_css = preg_replace('/\s*:\s*/', ' / ', $atts['aspect_ratio']);
-		if (!preg_match('/^\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?$/', $chart_ratio_css)) {
+		if (!preg_match('/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/', $chart_ratio_css, $ratio_parts) || (float) $ratio_parts[1] <= 0 || (float) $ratio_parts[2] <= 0) {
 			$chart_ratio_css = '4 / 3';
 		}
+        $atts['aspect_ratio'] = $chart_ratio_css;
 
 		$payload = array(
 			'category' => isset($atts['category']) ? sanitize_key($atts['category']) : $default_category,
@@ -343,6 +359,8 @@ class ThemisDB_Benchmark_Visualizer {
         ob_start();
         include THEMISDB_BV_PLUGIN_DIR . 'templates/visualizer.php';
         $html = ob_get_clean();
+        // Block templates can apply wpautop after shortcode rendering.
+        $html = preg_replace('/>\s+</', '><', trim($html));
 
         return apply_filters('themisdb_benchmark_visualizer_shortcode_html_output', $html, $payload, $atts);
     }
@@ -462,8 +480,22 @@ class ThemisDB_Benchmark_Visualizer {
         return wp_json_encode($normalized, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
 
+    public function get_chart_type_labels() {
+        return array(
+            'bar' => __('Balken (automatisch)', 'themisdb-benchmark-visualizer'),
+            'bar-horizontal' => __('Balken horizontal', 'themisdb-benchmark-visualizer'),
+            'bar-vertical' => __('Saeulen vertikal', 'themisdb-benchmark-visualizer'),
+            'bar-isometric' => __('Saeulen isometrisch (2.5D)', 'themisdb-benchmark-visualizer'),
+            'line' => __('Linie', 'themisdb-benchmark-visualizer'),
+            'line-dot' => __('Linie mit Punkten', 'themisdb-benchmark-visualizer'),
+            'stepped' => __('Stufenlinie', 'themisdb-benchmark-visualizer'),
+            'area' => __('Flaeche', 'themisdb-benchmark-visualizer'),
+            'radar' => __('Radar', 'themisdb-benchmark-visualizer'),
+        );
+    }
+
     public function sanitize_chart_type_option($value) {
-        $allowed = array('bar', 'line', 'area', 'radar');
+        $allowed = array_keys($this->get_chart_type_labels());
         $candidate = sanitize_key((string) $value);
         return in_array($candidate, $allowed, true) ? $candidate : 'bar';
     }
@@ -506,11 +538,22 @@ class ThemisDB_Benchmark_Visualizer {
     public function ajax_get_data() {
         check_ajax_referer('themisdb_bv_nonce', 'nonce');
         
-        $category = isset($_POST['category']) ? sanitize_text_field($_POST['category']) : 'all';
-        $metric = isset($_POST['metric']) ? sanitize_text_field($_POST['metric']) : 'latency';
+        $category = isset($_POST['category']) && is_string($_POST['category']) ? $this->normalize_category_key(wp_unslash($_POST['category'])) : 'all';
+        $metric = isset($_POST['metric']) && is_string($_POST['metric']) ? sanitize_key($_POST['metric']) : 'latency';
+        if (!in_array($metric, array('latency', 'throughput', 'memory'), true) || ($category !== 'all' && !array_key_exists($category, $this->get_category_display_labels()))) {
+            wp_send_json_error(array('message' => __('Ungueltige Benchmark-Filter.', 'themisdb-benchmark-visualizer')), 400);
+        }
         
-        // Check cache first
-        $cache_key = 'themisdb_bv_data_' . md5($category . '_' . $metric);
+        $source = get_option('themisdb_bv_data_source', 'catalog');
+        $directory = $source === 'local' ? $this->find_benchmark_directory() : false;
+        $files = $directory ? $this->get_benchmark_files($directory, $category) : array_filter(array($this->find_catalog_path()));
+        $versions = array();
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                $versions[] = array($file, filemtime($file), filesize($file));
+            }
+        }
+        $cache_key = 'themisdb_bv_data_' . md5(wp_json_encode(array(THEMISDB_BV_VERSION, $category, $metric, $source, get_option('themisdb_bv_catalog_path', ''), $this->get_category_keyword_map(), $this->require_comparable_tasks(), $versions)));
         $cached_data = get_transient($cache_key);
         
         if ($cached_data !== false) {
@@ -520,9 +563,12 @@ class ThemisDB_Benchmark_Visualizer {
         
         // Load data
         $data = $this->load_benchmark_data($category, $metric);
+        if (is_wp_error($data)) {
+            wp_send_json_error(array('message' => $data->get_error_message()), 503);
+        }
         
         // Cache data
-        $cache_duration = get_option('themisdb_bv_auto_update_interval', 86400);
+        $cache_duration = max(60, min(DAY_IN_SECONDS * 7, (int) get_option('themisdb_bv_auto_update_interval', 86400)));
         set_transient($cache_key, $data, $cache_duration);
         
         wp_send_json_success($data);
@@ -544,7 +590,15 @@ class ThemisDB_Benchmark_Visualizer {
         if ($data_source === 'github') {
             return $this->load_github_benchmark_data($normalized_category, $metric);
         }
-        return $this->load_catalog_benchmark_data($normalized_category, $metric);
+        if ($data_source === 'demo') {
+            require_once THEMISDB_BV_PLUGIN_DIR . 'includes/demo-data.php';
+            $data = $this->parse_catalog_records(themisdb_bv_demo_records(), $metric, $normalized_category, true);
+            $data['metric'] = $metric;
+            $data['category'] = $normalized_category;
+            $data['source'] = array('type' => 'demo', 'file' => 'synthetic-demo-v1');
+            return $data;
+        }
+        return new WP_Error('invalid_source', __('Ungueltige Benchmark-Datenquelle. Plugin-Einstellungen pruefen.', 'themisdb-benchmark-visualizer'));
     }
 
     private function normalize_category_key($category) {
@@ -562,7 +616,7 @@ class ThemisDB_Benchmark_Visualizer {
     private function find_catalog_path() {
         $configured_path = trim((string) get_option('themisdb_bv_catalog_path', ''));
         if ($configured_path !== '') {
-            if (file_exists($configured_path)) {
+            if (is_file($configured_path)) {
                 return $configured_path;
             }
             return false;
@@ -586,7 +640,7 @@ class ThemisDB_Benchmark_Visualizer {
         }
 
         foreach ($possible_paths as $path) {
-            if (is_string($path) && file_exists($path)) {
+            if (is_string($path) && is_file($path)) {
                 return $path;
             }
         }
@@ -596,20 +650,19 @@ class ThemisDB_Benchmark_Visualizer {
     private function load_catalog_benchmark_data($category, $metric) {
         $catalog_path = $this->find_catalog_path();
         if (!$catalog_path || !is_readable($catalog_path)) {
-            return $this->get_fallback_data($category, $metric);
+            return new WP_Error('missing_catalog', __('Benchmark-Katalog nicht gefunden oder nicht lesbar. Datenquelle in den Plugin-Einstellungen pruefen.', 'themisdb-benchmark-visualizer'));
         }
 
         $payload = json_decode((string) file_get_contents($catalog_path), true);
         if (!is_array($payload) || !isset($payload['records']) || !is_array($payload['records'])) {
-            return $this->get_fallback_data($category, $metric);
+            return new WP_Error('invalid_catalog', __('Benchmark-Katalog enthaelt keine gueltige records-Liste.', 'themisdb-benchmark-visualizer'));
         }
 
         $parsed_data = $this->parse_catalog_records($payload['records'], $metric, $category);
-        if (empty($parsed_data['labels'])) {
-            return $this->get_fallback_data($category, $metric);
+        if (is_wp_error($parsed_data)) {
+            return $parsed_data;
         }
-
-        $description = $this->get_category_description($category, $parsed_data['summary'], $metric);
+        $description = array('title' => $category, 'unit' => $metric === 'memory' ? 'MiB' : ($metric === 'latency' ? 'ms' : 'ops/s'));
         return array(
             'labels' => $parsed_data['labels'],
             'datasets' => $parsed_data['datasets'],
@@ -617,6 +670,7 @@ class ThemisDB_Benchmark_Visualizer {
             'category' => $category,
             'summary' => $parsed_data['summary'],
             'description' => $description,
+            'source' => array('type' => 'catalog', 'file' => basename($catalog_path), 'modified' => gmdate('c', filemtime($catalog_path))),
         );
     }
 
@@ -702,36 +756,9 @@ class ThemisDB_Benchmark_Visualizer {
     }
 
     private function normalize_benchmark_label($name) {
-        $task = $this->extract_test_task_label((string) $name);
-        $label = $this->format_benchmark_name($task);
-        $label = preg_replace('/\s+/', ' ', (string) $label);
+        $label = preg_replace('/^BM_/', '', trim((string) $name));
+        $label = preg_replace('/\s+/', ' ', str_replace('_', ' ', $label));
         return trim((string) $label);
-    }
-
-    private function extract_test_task_label($name) {
-        $raw = trim((string) $name);
-        if ($raw === '') {
-            return 'benchmark';
-        }
-
-        $segments = array_values(array_filter(explode('/', $raw), function ($segment) {
-            return trim((string) $segment) !== '';
-        }));
-        if (empty($segments)) {
-            return $raw;
-        }
-
-        $skip_pattern = '/^(threads:\d+|manual_time|real_time|cpu_time|iteration|aggregate|mean|median|stddev|cv|p99|p95|\d+)$/i';
-        $candidates = count($segments) > 1 ? array_slice($segments, 1) : $segments;
-        foreach ($candidates as $segment) {
-            $token = trim((string) $segment);
-            if ($token === '' || preg_match($skip_pattern, $token)) {
-                continue;
-            }
-            return $token;
-        }
-
-        return $segments[count($segments) - 1];
     }
 
     private function infer_category_from_text($text) {
@@ -749,28 +776,75 @@ class ThemisDB_Benchmark_Visualizer {
     }
 
     private function infer_workload_for_row($row) {
-        $raw_workload = sanitize_key((string) ($row['workload'] ?? ''));
+        $raw_workload = isset($row['workload']) && is_string($row['workload']) ? $this->normalize_category_key($row['workload']) : '';
         if ($raw_workload !== '' && $raw_workload !== 'all') {
             return $raw_workload;
         }
 
         $name = (string) ($row['benchmark_name'] ?? '');
-        $source = (string) ($row['source_file'] ?? '');
-        $notes = (string) ($row['notes'] ?? '');
+        $source = isset($row['source_file']) && is_string($row['source_file']) ? $row['source_file'] : '';
+        $notes = isset($row['notes']) && is_string($row['notes']) ? $row['notes'] : '';
         $inferred = $this->infer_category_from_text($name . ' ' . $source . ' ' . $notes);
         return sanitize_key((string) $inferred ?: 'all');
     }
 
-    private function parse_catalog_records($records, $metric, $category) {
+    private function publication_errors($publication, $metric) {
+        if (!is_array($publication)) {
+            return array('publication metadata missing');
+        }
+        static $contract = null;
+        if ($contract === null) {
+            $contract = json_decode(file_get_contents(THEMISDB_BV_PLUGIN_DIR . 'includes/benchmark-publication-contract.json'), true);
+        }
+        $errors = array();
+        foreach ($contract['fields'] as $name => $rule) {
+            $value = $publication[$name] ?? null;
+            $valid = $rule['type'] === 'string' ? is_string($value) && trim($value) !== '' :
+                ($rule['type'] === 'integer' ? is_int($value) : (is_int($value) || is_float($value)) && is_finite((float) $value));
+            if (!$valid) {
+                $errors[] = $name;
+                continue;
+            }
+            if ((isset($rule['enum']) && !in_array($value, $rule['enum'], true)) ||
+                (isset($rule['minimum']) && $value < $rule['minimum']) ||
+                (isset($rule['maximum']) && $value > $rule['maximum']) ||
+                (isset($rule['pattern']) && !preg_match('~' . $rule['pattern'] . '~', $value))) {
+                $errors[] = $name;
+            }
+        }
+        if ($errors) {
+            return $errors;
+        }
+        $statistics = array('latency' => array('mean', 'p50', 'p95', 'p99'), 'throughput' => array('qps'), 'memory' => array('peak'));
+        if (!in_array($publication['statistic'], $statistics[$metric] ?? array(), true)) {
+            $errors[] = 'statistic does not match metric';
+        }
+        if ($publication['recall_achieved'] < $publication['recall_target']) {
+            $errors[] = 'recall below target';
+        }
+        if ($publication['top_k'] > $publication['vectors']) {
+            $errors[] = 'top_k exceeds vector count';
+        }
+        return $errors;
+    }
+
+    private function parse_catalog_records($records, $metric, $category, $demo = false) {
         $metric = sanitize_key((string) $metric);
         $higher_is_better = $this->is_higher_better($metric);
         $label_values = array();
         $label_sources = array();
         $engines = array();
         $task_engine_counts = array();
+        $task_protocols = array();
+        $task_verified = array();
+        $unverified_records = 0;
+        $contract = json_decode(file_get_contents(THEMISDB_BV_PLUGIN_DIR . 'includes/benchmark-publication-contract.json'), true);
 
         foreach ($records as $row) {
-            if (!is_array($row)) {
+            if (!is_array($row) || !isset($row['benchmark_name'], $row['engine'], $row['metric_name']) ||
+                !is_string($row['benchmark_name']) || !is_string($row['engine']) || !is_string($row['metric_name']) ||
+                (isset($row['source_file']) && !is_string($row['source_file'])) ||
+                !empty($row['error_occurred']) || ($row['run_type'] ?? '') === 'aggregate') {
                 continue;
             }
 
@@ -785,11 +859,47 @@ class ThemisDB_Benchmark_Visualizer {
             }
 
             $label = $this->normalize_benchmark_label((string) ($row['benchmark_name'] ?? 'benchmark'));
-            $engine = (string) ($row['engine'] ?? 'ThemisDB');
-            $value = is_numeric($row['metric_value'] ?? null) ? (float) $row['metric_value'] : null;
-            if ($label === '' || $value === null) {
+            $engine = trim($row['engine']);
+            $value = $this->normalize_metric_value($row['metric_value'] ?? null, $row['metric_unit'] ?? '', $metric);
+            if ($label === '' || $value === null || $engine === '') {
                 continue;
             }
+            $context = array();
+            foreach (array('dataset_size', 'environment', 'threads') as $key) {
+                if (isset($row[$key]) && is_scalar($row[$key]) && (string) $row[$key] !== '' && (string) $row[$key] !== 'n/a' && (string) $row[$key] !== '0') {
+                    $context[] = $key . '=' . (string) $row[$key];
+                }
+            }
+            if ($context) {
+                $label .= ' [' . implode(', ', $context) . ']';
+            }
+            $publication = $row['publication'] ?? null;
+            $issues = $this->publication_errors($publication, $metric);
+            $verified = !$issues && $row_category === 'vector_search';
+            if ($verified) {
+                $identity = array();
+                foreach ($contract['comparison_fields'] as $field) {
+                    $identity[$field] = $publication[$field];
+                }
+                // A run identifies one measurement block, not an average of percentiles.
+                $identity['run_id'] = $publication['run_id'];
+                $identity['recall_target'] = (float) $identity['recall_target'];
+                $label .= ' [' . $publication['statistic'] . '; protocol=' . hash('sha256', wp_json_encode($identity)) . ']';
+            } elseif (!$demo) {
+                ++$unverified_records;
+                $label .= ' [reference: ' . $engine . '; ' . basename(str_replace('\\', '/', (string) ($row['source_file'] ?? 'unknown'))) . ']';
+                if ($publication !== null) {
+                    $label .= ' [' . hash('sha256', wp_json_encode($publication)) . ']';
+                }
+            }
+            if (isset($label_values[$label][$engine]) && $verified) {
+                return new WP_Error('duplicate_measurement', __('Doppelter Messwert fuer denselben Protokoll-Lauf und dieselbe Engine. Perzentile und Laufstatistiken duerfen nicht gemittelt werden.', 'themisdb-benchmark-visualizer'));
+            }
+            $task_verified[$label] = $verified;
+            $task_protocols[$label][$engine] = $verified ? $publication : array(
+                'issues' => $issues ?: array('workload is not vector_search'),
+                'publication' => $publication,
+            );
 
             if (!isset($label_values[$label])) {
                 $label_values[$label] = array();
@@ -801,6 +911,9 @@ class ThemisDB_Benchmark_Visualizer {
             $label_values[$label][$engine][] = $value;
             $task_engine_counts[$label] = count($label_values[$label]);
             $source_name = trim((string) ($row['benchmark_name'] ?? ''));
+            if (isset($row['source_file']) && is_string($row['source_file']) && $row['source_file'] !== '') {
+                $source_name .= ' | ' . basename(str_replace('\\', '/', $row['source_file']));
+            }
             if ($source_name !== '' && !in_array($source_name, $label_sources[$label], true)) {
                 $label_sources[$label][] = $source_name;
             }
@@ -815,12 +928,12 @@ class ThemisDB_Benchmark_Visualizer {
 
         $comparable_labels = array();
         foreach ($label_values as $label => $engine_map) {
-            if (count($engine_map) >= 2) {
+            if (count($engine_map) >= 2 && $task_verified[$label]) {
                 $comparable_labels[] = $label;
             }
         }
         $enforce_comparable = $this->require_comparable_tasks();
-        $eligible_labels = ($enforce_comparable && !empty($comparable_labels)) ? $comparable_labels : array_keys($label_values);
+        $eligible_labels = (!$demo && $enforce_comparable && !empty($comparable_labels)) ? $comparable_labels : array_keys($label_values);
         $excluded_non_comparable = max(0, count($label_values) - count($eligible_labels));
 
         $label_scores = array();
@@ -861,17 +974,12 @@ class ThemisDB_Benchmark_Visualizer {
             return ($lv <=> $rv);
         });
 
-        $max_points = 30;
-        if (count($labels) > $max_points) {
-            $labels = array_slice($labels, 0, $max_points);
-        }
-
         $datasets = array();
         foreach ($engines as $engine) {
             $data = array();
             foreach ($labels as $label) {
                 $points = $label_values[$label][$engine] ?? array();
-                $data[] = empty($points) ? null : round(array_sum($points) / count($points), 3);
+                $data[] = empty($points) ? null : array_sum($points) / count($points);
             }
             $datasets[] = array(
                 'label' => $engine,
@@ -907,12 +1015,16 @@ class ThemisDB_Benchmark_Visualizer {
             'higher_is_better' => $higher_is_better,
             'task_sources' => $label_sources,
             'task_engine_counts' => $task_engine_counts,
+            'task_comparison_verified' => $task_verified,
+            'task_protocols' => $task_protocols,
+            'unverified_records' => $unverified_records,
+            'synthetic' => $demo,
             'comparison_mode' => $enforce_comparable ? (!empty($comparable_labels) ? 'cross_engine' : 'single_engine_fallback') : 'all_tasks',
             'enforce_comparable_tasks' => $enforce_comparable,
         );
 
         return array(
-            'labels' => $labels,
+            'labels' => array_map('strval', $labels),
             'datasets' => $datasets,
             'summary' => $summary,
         );
@@ -927,21 +1039,23 @@ class ThemisDB_Benchmark_Visualizer {
         $benchmark_dir = $this->find_benchmark_directory();
         
         if (!$benchmark_dir || !is_dir($benchmark_dir)) {
-            return $this->get_fallback_data($category, $metric);
+            return new WP_Error('missing_benchmarks', __('Kein lokales Benchmark-Verzeichnis gefunden.', 'themisdb-benchmark-visualizer'));
         }
         
         // Get available benchmark files
         $benchmark_files = $this->get_benchmark_files($benchmark_dir, $category);
         
         if (empty($benchmark_files)) {
-            return $this->get_fallback_data($category, $metric);
+            return new WP_Error('missing_benchmarks', __('Keine Benchmark-Dateien fuer diese Kategorie gefunden.', 'themisdb-benchmark-visualizer'));
         }
         
         // Parse benchmark data
         $parsed_data = $this->parse_benchmark_files($benchmark_files, $metric);
+        if (is_wp_error($parsed_data)) {
+            return $parsed_data;
+        }
         
-        // Get detailed description for this category
-        $description = $this->get_category_description($category, $parsed_data['summary'], $metric);
+        $description = array('title' => $category, 'unit' => $metric === 'memory' ? 'MiB' : ($metric === 'latency' ? 'ms' : 'ops/s'));
         
         return array(
             'labels' => $parsed_data['labels'],
@@ -950,6 +1064,7 @@ class ThemisDB_Benchmark_Visualizer {
             'category' => $category,
             'summary' => $parsed_data['summary'],
             'description' => $description,
+            'source' => array('type' => 'local', 'file' => basename($benchmark_dir)),
         );
     }
     
@@ -959,6 +1074,7 @@ class ThemisDB_Benchmark_Visualizer {
     private function find_benchmark_directory() {
         // Try multiple possible locations
         $possible_paths = array();
+        $possible_paths[] = THEMISDB_BV_PLUGIN_DIR . '../source-links/benchmarks/benchmark_results';
         
         // Relative to plugin directory (common WordPress installations)
         $possible_paths[] = THEMISDB_BV_PLUGIN_DIR . '../../benchmarks/benchmark_results';
@@ -980,6 +1096,9 @@ class ThemisDB_Benchmark_Visualizer {
         foreach ($possible_paths as $base_path) {
             if (!is_dir($base_path)) {
                 continue;
+            }
+            if (glob($base_path . '/bench_*.json')) {
+                return $base_path;
             }
             
             // Find latest dated directory (format: YYYYMMDD_HHMMSS)
@@ -1062,199 +1181,6 @@ class ThemisDB_Benchmark_Visualizer {
     }
     
     /**
-     * Get detailed category description based on actual benchmark data
-     */
-    private function get_category_description($category, $summary_stats, $metric = 'latency') {
-        $descriptions = array(
-            'all' => array(
-                'title' => 'Umfassende Multi-Model-Performance',
-                'tests' => 'Misst die vereinheitlichte Programmschicht von ThemisDB über Vector-, Graph-, Relational- und Transaktionsoperationen hinweg.',
-                'results' => 'Zeigt die Performance der einheitlichen Storage-Architektur basierend auf RocksDB (LSM-Tree) mit spezialisierten Indizes.',
-                'conclusions' => array(
-                    'valid' => array(
-                        'ThemisDB bietet eine unified Multi-Model-Architektur ohne separate "Query-Engine" und "LLM-Engine"',
-                        'Die abstrakte Programmschicht vereint alle Datenmodelle in einem konsistenten System',
-                        'Performance-Metriken reflektieren die tatsächliche Unified-Storage-Performance',
-                    ),
-                    'invalid' => array(
-                        'NICHT: Separate APIs für unterschiedliche Datenmodelle',
-                        'NICHT: Vergleichbarkeit mit Polyglot-Persistence-Systemen (mehrere separate Datenbanken)',
-                        'NICHT: Isolierte Engine-Performance ohne Storage-Layer-Overhead',
-                    ),
-                ),
-            ),
-            'vector_search' => array(
-                'title' => 'Vector Search & Embeddings (HNSW)',
-                'tests' => 'bench_comprehensive.json: RGB-Vektoren (3D), 384D-Embeddings, 1536D LLM-Vektoren. bench_gnn_embeddings.json: Graph Neural Network Embeddings mit verschiedenen Dimensionen.',
-                'results' => 'Insert-Performance: 100K-351K ops/sec. KNN-Search: <1ms für 1M Vektoren. Metriken: Cosine, Euclidean, Dot Product.',
-                'conclusions' => array(
-                    'valid' => array(
-                        'Native HNSW-Implementierung mit GPU-Beschleunigung (10 Backends)',
-                        'Zero-Copy-Architektur für direkte Speicher-Integration',
-                        'Unified Memory Space für DB und AI-Operationen',
-                    ),
-                    'invalid' => array(
-                        'NICHT: Separate Vector-DB neben relationaler DB',
-                        'NICHT: Externes Vector-Engine-API',
-                        'NICHT: Client-seitige Embedding-Berechnung erforderlich',
-                    ),
-                ),
-            ),
-            'graph_traversal' => array(
-                'title' => 'Graph-Traversierung & Analytics',
-                'tests' => 'BFS/DFS-Traversierung mit 100-10K Knoten, PageRank-Algorithmus, verschiedene Konnektivitätsgrade (4-20 Edges pro Knoten).',
-                'results' => 'BFS: 0.18-20ms je nach Graphgröße. PageRank: Skaliert mit Knotenzahl. Throughput: 50-540K nodes/sec.',
-                'conclusions' => array(
-                    'valid' => array(
-                        'Native Graph-Operationen auf demselben LSM-Tree wie alle anderen Modelle',
-                        'Keine separate Graph-DB oder Graph-Engine',
-                        'Unified Query-Interface für Graph + Relational + Vector',
-                    ),
-                    'invalid' => array(
-                        'NICHT: Separate Graph-Datenbank',
-                        'NICHT: Cypher als isolierte Query-Sprache',
-                        'NICHT: Graph-only Performance ohne Multi-Model-Kontext',
-                    ),
-                ),
-            ),
-            'encryption' => array(
-                'title' => 'Verschlüsselung & HSM-Integration',
-                'tests' => 'Field-Level-Encryption, HSM-Provider-Integration, verschiedene Verschlüsselungsalgorithmen und Key-Management.',
-                'results' => 'Encryption-Overhead: typisch <10% für Field-Level. HSM-Operationen: abhängig von Hardware-Provider.',
-                'conclusions' => array(
-                    'valid' => array(
-                        'Unified BaseEntity-Storage stellt konsistente Verschlüsselung über alle Modelle sicher',
-                        'Field-Level-Encryption ohne Modell-spezifische Implementierungen',
-                        'Enterprise-grade PKI/HSM-Integration in die unified Architektur',
-                    ),
-                    'invalid' => array(
-                        'NICHT: Modell-spezifische Verschlüsselungslösungen',
-                        'NICHT: Separate Encryption-APIs pro Datenmodell',
-                    ),
-                ),
-            ),
-            'compression' => array(
-                'title' => 'Datenkompression (ZSTD, LZ4)',
-                'tests' => 'Verschiedene Kompressionsalgorithmen (ZSTD, LZ4), Kompressionsraten und Geschwindigkeitstests.',
-                'results' => 'Kompressionsrate: 3-5x typisch. Geschwindigkeit: Balance zwischen Ratio und Latenz.',
-                'conclusions' => array(
-                    'valid' => array(
-                        'Unified Storage-Layer mit transparenter Kompression',
-                        'Gleiche Kompression für alle Datenmodelle',
-                    ),
-                    'invalid' => array(
-                        'NICHT: Unterschiedliche Kompression je Datenmodell',
-                    ),
-                ),
-            ),
-            'transaction' => array(
-                'title' => 'MVCC & Transaktionsverarbeitung',
-                'tests' => 'MVCC-Operationen, Lock Contention unter Last, Snapshot Isolation, Distributed 2PC.',
-                'results' => 'Transaction Throughput: 525K-637K ops/sec. Lock Contention: Performance-Degradation unter hoher Parallelität messbar.',
-                'conclusions' => array(
-                    'valid' => array(
-                        'ACID-Garantien über alle Datenmodelle (unified Transaction-Layer)',
-                        'MVCC mit Snapshot Isolation über den gesamten Multi-Model-Storage',
-                        'Distributed SAGA-Patterns für Sharding',
-                    ),
-                    'invalid' => array(
-                        'NICHT: Unterschiedliche Transaktionssemantik je Modell',
-                        'NICHT: Separate Transaction-Manager',
-                        'NICHT: Eventual-Consistency als Standard',
-                    ),
-                ),
-            ),
-            'image_analysis' => array(
-                'title' => 'AI-Image-Processing & Vision',
-                'tests' => 'Image-Caption-Generation, Vision-Embeddings, kombinierte LLM+Vision-Queries.',
-                'results' => 'Latenz: variiert je nach Modellgröße. Unified LLM+Vision-Architektur: 1.56x schneller als separate Systeme.',
-                'conclusions' => array(
-                    'valid' => array(
-                        'Unified Stack für Text- und Vision-Modelle',
-                        'Native Integration ohne separate Vision-API',
-                    ),
-                    'invalid' => array(
-                        'NICHT: Separate Vision-Engine',
-                        'NICHT: Client-seitige Bildverarbeitung erforderlich',
-                    ),
-                ),
-            ),
-            'advanced' => array(
-                'title' => 'Advanced Patterns, AQL & Changefeeds',
-                'tests' => 'Komplexe AQL-Queries, Hybrid-Queries (Vector+Graph+Relational), Changefeed-Throughput, Performance-Hotspots.',
-                'results' => 'Hybrid-Search: 450 q/s. CTE-Expressions: 850M-950M ops/sec (non-recursive). Changefeed: Echtzeit-Änderungsströme.',
-                'conclusions' => array(
-                    'valid' => array(
-                        'Eine unified Query-Sprache (AQL) für alle Modelle',
-                        'Abstrakte Programmschicht kombiniert Vector-, Graph-, Relational-Queries nahtlos',
-                        'Keine separate "Query-Engine" vs. "LLM-Engine" – alles ist vereint',
-                    ),
-                    'invalid' => array(
-                        'NICHT: Mehrere Query-Sprachen für verschiedene Modelle',
-                        'NICHT: Separate Engines die koordiniert werden müssen',
-                    ),
-                ),
-            ),
-            'gpu' => array(
-                'title' => 'GPU-Beschleunigung (10 Backends)',
-                'tests' => 'GPU-Backend-Performance: CUDA, ROCm, Vulkan, Metal, OpenCL, etc.',
-                'results' => 'GPU-Acceleration: bis zu 10x für rechenintensive Operationen (Vector-Distance, Matrix-Ops).',
-                'conclusions' => array(
-                    'valid' => array(
-                        'Unified VRAM Pool für DB + AI',
-                        'Hardware-Acceleration transparent in die vereinheitlichte Architektur integriert',
-                    ),
-                    'invalid' => array(
-                        'NICHT: GPU nur für AI/LLM',
-                        'NICHT: Separate GPU-Memory-Spaces',
-                    ),
-                ),
-            ),
-            'content' => array(
-                'title' => 'Content Versioning & Index-Maintenance',
-                'tests' => 'Content-Versioning-Operationen, Index-Rebuild-Performance.',
-                'results' => 'Versionsverwaltung über unified BaseEntity-Storage. Index-Rebuild: abhängig von Datenmenge.',
-                'conclusions' => array(
-                    'valid' => array(
-                        'Unified Ingestion Pipeline für alle Content-Typen',
-                        'Konsistente Versionierung über alle Modelle',
-                    ),
-                    'invalid' => array(
-                        'NICHT: Modell-spezifische Versioning-Strategien',
-                    ),
-                ),
-            ),
-        );
-        
-        $desc = isset($descriptions[$category]) ? $descriptions[$category] : $descriptions['all'];
-        
-        // Add summary statistics to description
-        if ($summary_stats && isset($summary_stats['total_benchmarks'])) {
-            $metric_key = sanitize_key((string) $metric);
-            $unit = $metric_key === 'throughput' ? 'ops/s' : ($metric_key === 'memory' ? 'MB' : 'ms');
-            $best_label = $metric_key === 'throughput' ? 'Höchster Durchsatz' : 'Niedrigste Latenz';
-            $worst_label = $metric_key === 'throughput' ? 'Niedrigster Durchsatz' : 'Höchste Latenz';
-            $best_value = isset($summary_stats['best_value']) ? (float) $summary_stats['best_value'] : (float) ($summary_stats['fastest'] ?? 0);
-            $worst_value = isset($summary_stats['worst_value']) ? (float) $summary_stats['worst_value'] : (float) ($summary_stats['slowest'] ?? 0);
-            $task_count = isset($summary_stats['task_count']) ? (int) $summary_stats['task_count'] : (int) $summary_stats['total_benchmarks'];
-            $desc['stats_summary'] = sprintf(
-                '%d Testaufgaben. Durchschnitt: %.2f %s. %s: %.2f %s. %s: %.2f %s.',
-                $task_count,
-                $summary_stats['avg_time'],
-                $unit,
-                $best_label,
-                $best_value,
-                $unit,
-                $worst_label,
-                $worst_value,
-                $unit
-            );
-        }
-        
-        return $desc;
-    }
-    
-    /**
      * Parse benchmark JSON files
      */
     private function parse_benchmark_files($files, $metric) {
@@ -1274,16 +1200,22 @@ class ThemisDB_Benchmark_Visualizer {
         );
         
         foreach ($files as $file) {
+            if (!is_readable($file)) {
+                return new WP_Error('unreadable_benchmark', __('Eine Benchmark-Datei ist nicht lesbar.', 'themisdb-benchmark-visualizer'));
+            }
             $content = file_get_contents($file);
             $json = json_decode($content, true);
             
-            if (!$json || !isset($json['benchmarks'])) {
-                continue;
+            if (!is_array($json) || !isset($json['benchmarks']) || !is_array($json['benchmarks'])) {
+                return new WP_Error('invalid_benchmark', __('Eine Benchmark-Datei enthaelt ungueltiges JSON oder keine Messungen.', 'themisdb-benchmark-visualizer'));
             }
             
             $summary_stats['files_parsed']++;
             
             foreach ($json['benchmarks'] as $bench) {
+                if (!is_array($bench) || empty($bench['name']) || !is_string($bench['name']) || !empty($bench['error_occurred']) || (isset($bench['run_type']) && $bench['run_type'] === 'aggregate')) {
+                    continue;
+                }
                 $name = $this->normalize_benchmark_label($bench['name']);
                 
                 // Extract metric value
@@ -1295,7 +1227,7 @@ class ThemisDB_Benchmark_Visualizer {
                         $label_sources[$name] = array();
                     }
                     $label_values[$name][] = $value;
-                    $source_name = trim((string) ($bench['name'] ?? ''));
+                    $source_name = trim($bench['name']) . ' | ' . basename($file);
                     if ($source_name !== '' && !in_array($source_name, $label_sources[$name], true)) {
                         $label_sources[$name][] = $source_name;
                     }
@@ -1330,37 +1262,8 @@ class ThemisDB_Benchmark_Visualizer {
             $summary_stats['task_sources'] = $label_sources;
         }
         
-        // Limit the number of data points for better visualization (show top N by performance)
-        $max_points = 30;
-        if (count($data_points) > $max_points) {
-            // Create array of indices sorted by performance
-            $indexed_data = array();
-            foreach ($data_points as $idx => $value) {
-                $indexed_data[] = array('index' => $idx, 'value' => $value, 'label' => $labels[$idx]);
-            }
-            
-            // Sort by value (best performers first)
-            usort($indexed_data, function($a, $b) use ($higher_is_better) {
-                if ($a['value'] == $b['value']) {
-                    return 0;
-                }
-                if ($higher_is_better) {
-                    return ($b['value'] <=> $a['value']);
-                }
-                return ($a['value'] <=> $b['value']);
-            });
-            
-            // Take top N performers
-            $indexed_data = array_slice($indexed_data, 0, $max_points);
-            
-            // Extract labels and values
-            $labels = array_map(function($item) { return $item['label']; }, $indexed_data);
-            $data_points = array_map(function($item) { return $item['value']; }, $indexed_data);
-            
-            $summary_stats['displayed_benchmarks'] = $max_points;
-        } else {
-            $summary_stats['displayed_benchmarks'] = count($data_points);
-        }
+        $summary_stats['displayed_benchmarks'] = count($data_points);
+        $summary_stats['unverified_records'] = count($data_points);
         
         // Build datasets
         $datasets = array(
@@ -1383,89 +1286,48 @@ class ThemisDB_Benchmark_Visualizer {
     }
     
     /**
-     * Format benchmark name for display
-     */
-    private function format_benchmark_name($name) {
-        // Remove benchmark fixture prefix
-        $name = preg_replace('/^[^\/]+\//', '', $name);
-        
-        // Replace underscores with spaces
-        $name = str_replace('_', ' ', $name);
-        
-        // Remove repetitive prefixes
-        $name = preg_replace('/^(Bench|Test|Benchmark)\s+/i', '', $name);
-        
-        // Truncate if too long
-        if (strlen($name) > 60) {
-            $name = substr($name, 0, 57) . '...';
-        }
-        
-        return $name;
-    }
-    
-    /**
      * Extract metric value from benchmark data
      */
     private function extract_metric_value($bench, $metric) {
         switch ($metric) {
             case 'latency':
                 // Convert time to milliseconds
-                $time = isset($bench['real_time']) ? $bench['real_time'] : $bench['cpu_time'];
+                $time = $bench['real_time'] ?? $bench['cpu_time'] ?? null;
                 $unit = isset($bench['time_unit']) ? $bench['time_unit'] : 'ms';
                 
-                if ($unit === 'ns') {
-                    return $time / 1000000; // ns to ms
-                } elseif ($unit === 'us') {
-                    return $time / 1000; // us to ms
-                } elseif ($unit === 's') {
-                    return $time * 1000; // s to ms
-                }
-                return $time; // already in ms
+                return $this->normalize_metric_value($time, $unit, 'latency');
                 
             case 'throughput':
-                return isset($bench['items_per_second']) ? $bench['items_per_second'] : null;
+                return $this->normalize_metric_value($bench['items_per_second'] ?? null, 'ops/s', 'throughput');
                 
             case 'memory':
                 // Memory metrics might not be available in all benchmarks
-                return isset($bench['bytes_per_second']) ? $bench['bytes_per_second'] / (1024 * 1024) : null;
+                return $this->normalize_metric_value($bench['memory_usage'] ?? $bench['bytes_used'] ?? null, 'bytes', 'memory');
                 
             default:
-                return isset($bench['real_time']) ? $bench['real_time'] : null;
+                return null;
         }
+
     }
-    
-    /**
-     * Get fallback data when real benchmarks aren't available
-     */
-    private function get_fallback_data($category, $metric) {
-        return array(
-            'labels' => array('Vector Search', 'AQL Query', 'Graph Traversal', 'Document Insert', 'Transaction'),
-            'datasets' => array(
-                array(
-                    'label' => 'ThemisDB',
-                    'data' => array(2.3, 1.5, 3.1, 0.8, 4.2),
-                    'backgroundColor' => 'rgba(46, 164, 79, 0.8)',
-                    'borderColor' => 'rgba(46, 164, 79, 1)',
-                    'borderWidth' => 1,
-                ),
-            ),
-            'metric' => $metric,
-            'category' => $category,
-            'summary' => array(
-                'total_benchmarks' => 5,
-                'avg_time' => 2.38,
-                'fastest' => 0.8,
-                'slowest' => 4.2,
-            ),
+
+    private function normalize_metric_value($value, $unit, $metric) {
+        if (!is_numeric($value) || !is_finite((float) $value) || (float) $value < 0 || !is_string($unit) || !is_string($metric)) {
+            return null;
+        }
+        $units = array(
+            'latency' => array('ns' => 0.000001, 'us' => 0.001, 'ms' => 1, 's' => 1000),
+            'throughput' => array('ops/s' => 1, 'ops/sec' => 1, 'items/s' => 1, 'items_per_second' => 1),
+            'memory' => array('bytes' => 1 / 1048576, 'B' => 1 / 1048576, 'KiB' => 1 / 1024, 'MiB' => 1, 'MB' => 1000000 / 1048576, 'GB' => 1000000000 / 1048576, 'GiB' => 1024),
         );
+        $normalized = isset($units[$metric][$unit]) ? (float) $value * $units[$metric][$unit] : null;
+        return $normalized !== null && is_finite($normalized) ? $normalized : null;
     }
     
     /**
      * Load GitHub benchmark data
      */
     private function load_github_benchmark_data($category, $metric) {
-        // This would fetch data from GitHub in a production environment
-        return $this->load_local_benchmark_data($category, $metric);
+        return new WP_Error('unsupported_source', __('Die GitHub-Datenquelle ist nicht implementiert. Bitte einen lokalen Katalog oder lokale Messdateien konfigurieren.', 'themisdb-benchmark-visualizer'));
     }
 }
 

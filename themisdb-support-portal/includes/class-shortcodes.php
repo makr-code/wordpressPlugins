@@ -130,9 +130,14 @@ class ThemisDB_Support_Shortcodes {
     private function get_visible_hub_areas() {
         $policy = $this->get_hub_access_policy();
         $areas = array();
+        $available = array(
+            'licenses' => shortcode_exists('themisdb_license_portal'),
+            'orders' => shortcode_exists('themisdb_order_flow') || shortcode_exists('themisdb_my_orders') || shortcode_exists('themisdb_my_contracts'),
+            'b2b' => shortcode_exists('themisdb_b2b_portal'),
+        );
 
         foreach ($policy as $area_key => $config) {
-            if (empty($config['visible'])) {
+            if (empty($config['visible']) || (isset($available[$area_key]) && !$available[$area_key])) {
                 continue;
             }
 
@@ -158,7 +163,7 @@ class ThemisDB_Support_Shortcodes {
             return 'themisdb-hub';
         }
 
-        return 'themisdb-hub-' . $area_key;
+        return 'themisdb-support-hub-tab-' . $area_key;
     }
 
     /**
@@ -388,22 +393,22 @@ class ThemisDB_Support_Shortcodes {
         $tabs = array(
             array('key' => 'overview', 'label' => __('Übersicht', 'themisdb-support-portal'), 'visible' => true),
             array('key' => 'support', 'label' => __('Support', 'themisdb-support-portal'), 'visible' => $can_view_support),
-            array('key' => 'licenses', 'label' => __('Lizenzen', 'themisdb-support-portal'), 'visible' => $can_view_license_portal),
-            array('key' => 'orders', 'label' => __('Aufträge', 'themisdb-support-portal'), 'visible' => $can_view_orders),
-            array('key' => 'b2b', 'label' => __('B2B', 'themisdb-support-portal'), 'visible' => $can_view_b2b),
+            array('key' => 'licenses', 'label' => __('Lizenzen', 'themisdb-support-portal'), 'visible' => $can_view_license_portal && shortcode_exists('themisdb_license_portal')),
+            array('key' => 'orders', 'label' => __('Aufträge', 'themisdb-support-portal'), 'visible' => $can_view_orders && (shortcode_exists('themisdb_order_flow') || shortcode_exists('themisdb_my_orders') || shortcode_exists('themisdb_my_contracts'))),
+            array('key' => 'b2b', 'label' => __('B2B', 'themisdb-support-portal'), 'visible' => $can_view_b2b && shortcode_exists('themisdb_b2b_portal')),
             array('key' => 'admin', 'label' => __('Administration', 'themisdb-support-portal'), 'visible' => $can_manage),
         );
         $visible_tabs = array_values(array_filter($tabs, static function ($tab) {
             return !empty($tab['visible']);
         }));
-        $default_tab = !empty($visible_tabs[0]['key']) ? $visible_tabs[0]['key'] : 'overview';
+        ob_start();
         ?>
         <div class="themisdb-support-hub-wrap">
             <div class="themisdb-support-hub-breadcrumbs">
                 <div class="wp-block-group alignfull tv3-breadcrumbs-shell" data-tv3-breadcrumbs-shell="true">
                     <div class="tv3-breadcrumbs-inner" data-tv3-breadcrumbs-inner="true">
-                        <?php echo do_shortcode('[themisdb_v3_breadcrumbs]'); ?>
-                        <?php echo do_shortcode('[themisdb_v3_hero_context_nav limit="8"]'); ?>
+                        <?php if (shortcode_exists('themisdb_v3_breadcrumbs')) { echo do_shortcode('[themisdb_v3_breadcrumbs]'); } ?>
+                        <?php if (shortcode_exists('themisdb_v3_hero_context_nav')) { echo do_shortcode('[themisdb_v3_hero_context_nav limit="8"]'); } ?>
                     </div>
                 </div>
             </div>
@@ -424,17 +429,11 @@ class ThemisDB_Support_Shortcodes {
                 </div>
 
                 <div class="themisdb-support-hub-tabs__tabs">
-                    <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-support-hub-tab-radio-overview"<?php checked($default_tab, 'overview'); ?> />
-                    <?php foreach ($visible_tabs as $tab) : ?>
-                        <?php if ('overview' === $tab['key']) { continue; } ?>
-                        <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-support-hub-tab-radio-<?php echo esc_attr($tab['key']); ?>"<?php checked($default_tab, $tab['key']); ?> />
-                    <?php endforeach; ?>
-
                     <nav class="tv3-feature-tabs__nav" role="tablist" aria-label="<?php echo esc_attr__('Support-Bereiche', 'themisdb-support-portal'); ?>">
-                        <label id="themisdb-support-hub-tab-overview" class="tv3-feature-tabs__link" role="tab" aria-selected="<?php echo esc_attr('overview' === $default_tab ? 'true' : 'false'); ?>" aria-controls="themisdb-support-hub-panel-overview" for="themisdb-support-hub-tab-radio-overview"><?php esc_html_e('Übersicht', 'themisdb-support-portal'); ?></label>
+                        <button type="button" id="themisdb-support-hub-tab-overview" class="tv3-feature-tabs__link tv3-feature-tabs__link--active" role="tab" aria-selected="true" aria-controls="themisdb-support-hub-panel-overview"><?php esc_html_e('Übersicht', 'themisdb-support-portal'); ?></button>
                         <?php foreach ($visible_tabs as $tab) : ?>
                             <?php if ('overview' === $tab['key']) { continue; } ?>
-                            <label id="themisdb-support-hub-tab-<?php echo esc_attr($tab['key']); ?>" class="tv3-feature-tabs__link" role="tab" aria-selected="false" aria-controls="themisdb-support-hub-panel-<?php echo esc_attr($tab['key']); ?>" for="themisdb-support-hub-tab-radio-<?php echo esc_attr($tab['key']); ?>"><?php echo esc_html($tab['label']); ?></label>
+                            <button type="button" id="themisdb-support-hub-tab-<?php echo esc_attr($tab['key']); ?>" class="tv3-feature-tabs__link" role="tab" aria-selected="false" tabindex="-1" aria-controls="themisdb-support-hub-panel-<?php echo esc_attr($tab['key']); ?>"><?php echo esc_html($tab['label']); ?></button>
                         <?php endforeach; ?>
                     </nav>
 
@@ -502,7 +501,7 @@ class ThemisDB_Support_Shortcodes {
                                         <div class="wp-block-buttons">
                                             <?php if (shortcode_exists('themisdb_order_flow')) : ?>
                                                 <div class="wp-block-button">
-                                                    <button type="button" class="wp-block-button__link wp-element-button themisdb-hub-open-order-overlay" data-themisdb-open-order-overlay><?php esc_html_e('Neuer Auftrag', 'themisdb-support-portal'); ?></button>
+                                                    <button type="button" class="wp-block-button__link wp-element-button themisdb-hub-open-order-overlay" <?php echo shortcode_exists('themisdb_cart_button') ? 'data-themisdb-open-cart' : 'data-themisdb-open-order-overlay'; ?>><?php esc_html_e('Warenkorb und Kasse', 'themisdb-support-portal'); ?></button>
                                                 </div>
                                             <?php endif; ?>
                                         </div>
@@ -519,7 +518,7 @@ class ThemisDB_Support_Shortcodes {
                                     </div>
                                 </div>
 
-                                <?php if (shortcode_exists('themisdb_order_flow')) : ?>
+                                <?php if (shortcode_exists('themisdb_order_flow') && !shortcode_exists('themisdb_cart_button')) : ?>
                                     <div class="themisdb-support-modal themisdb-order-overlay" id="themisdb-order-overlay" hidden aria-hidden="true">
                                         <div class="themisdb-support-modal-backdrop" data-themisdb-close-order-overlay></div>
                                         <div class="themisdb-support-modal-content themisdb-order-overlay-content" role="dialog" aria-modal="true" aria-label="<?php echo esc_attr__('Neuer Auftrag', 'themisdb-support-portal'); ?>">
@@ -569,6 +568,7 @@ class ThemisDB_Support_Shortcodes {
                     </div>
                 </div>
             </article>
+        </div>
         <?php
 
         $html = ob_get_clean();
@@ -724,7 +724,7 @@ class ThemisDB_Support_Shortcodes {
                         <p class="themisdb-support-upload-hint">
                             <?php esc_html_e('Nur .json Dateien werden akzeptiert', 'themisdb-support-portal'); ?>
                         </p>
-                        <input type="file" id="themisdb-support-license-file" name="license_file" accept=".json" class="themisdb-support-file-input">
+                        <input type="file" id="themisdb-support-license-file" name="license_file" accept=".json" class="themisdb-support-file-input" aria-label="<?php esc_attr_e('Lizenzdatei auswählen', 'themisdb-support-portal'); ?>">
                         <p class="themisdb-support-file-name" id="themisdb-support-file-name" style="display:none;"></p>
                     </div>
 
@@ -734,7 +734,7 @@ class ThemisDB_Support_Shortcodes {
                         </button>
                     </div>
 
-                    <div class="themisdb-support-messages" id="themisdb-support-login-messages"></div>
+                    <div class="themisdb-support-messages" id="themisdb-support-login-messages" role="status" aria-live="polite"></div>
                 </form>
 
                 <div class="themisdb-support-login-footer">
@@ -1804,6 +1804,8 @@ class ThemisDB_Support_Shortcodes {
      * @return string
      */
     private function render_hub_profile_card(array $context, $license_info = null, $support_benefit_info = null, $status_summary = null, $is_authenticated = false) {
+        $can_manage = current_user_can('manage_options');
+        $visible_areas = $this->get_visible_hub_areas();
         $license_info = is_array($license_info) ? $license_info : array();
         $support_benefit_info = is_array($support_benefit_info) ? $support_benefit_info : array();
         $status_summary = is_array($status_summary) ? $status_summary : array();
@@ -1959,16 +1961,11 @@ class ThemisDB_Support_Shortcodes {
         ob_start();
         ?>
         <article class="tv3-feature-tabs themisdb-support-hub-dashboard" data-themisdb-dashboard-tabs>
-            <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-dashboard-tab-radio-overview" checked />
-            <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-dashboard-tab-radio-profile" />
-            <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-dashboard-tab-radio-activity" />
-            <input class="themisdb-support-hub-dashboard-radio" type="radio" name="themisdb-support-dashboard-tab" id="themisdb-dashboard-tab-radio-access" />
-
             <nav class="tv3-feature-tabs__nav" role="tablist" aria-label="<?php echo esc_attr__('Dashboard', 'themisdb-support-portal'); ?>">
-                <label class="tv3-feature-tabs__link tv3-feature-tabs__link--active" role="tab" aria-selected="true" aria-controls="themisdb-dashboard-panel-overview" for="themisdb-dashboard-tab-radio-overview"><?php esc_html_e('Übersicht', 'themisdb-support-portal'); ?></label>
-                <label class="tv3-feature-tabs__link" role="tab" aria-selected="false" aria-controls="themisdb-dashboard-panel-profile" for="themisdb-dashboard-tab-radio-profile"><?php esc_html_e('Profil', 'themisdb-support-portal'); ?></label>
-                <label class="tv3-feature-tabs__link" role="tab" aria-selected="false" aria-controls="themisdb-dashboard-panel-activity" for="themisdb-dashboard-tab-radio-activity"><?php esc_html_e('Aktivität', 'themisdb-support-portal'); ?></label>
-                <label class="tv3-feature-tabs__link" role="tab" aria-selected="false" aria-controls="themisdb-dashboard-panel-access" for="themisdb-dashboard-tab-radio-access"><?php esc_html_e('Zugriff', 'themisdb-support-portal'); ?></label>
+                <button type="button" id="themisdb-dashboard-tab-overview" class="tv3-feature-tabs__link tv3-feature-tabs__link--active" role="tab" aria-selected="true" aria-controls="themisdb-dashboard-panel-overview"><?php esc_html_e('Übersicht', 'themisdb-support-portal'); ?></button>
+                <button type="button" id="themisdb-dashboard-tab-profile" class="tv3-feature-tabs__link" role="tab" aria-selected="false" aria-controls="themisdb-dashboard-panel-profile" tabindex="-1"><?php esc_html_e('Profil', 'themisdb-support-portal'); ?></button>
+                <button type="button" id="themisdb-dashboard-tab-activity" class="tv3-feature-tabs__link" role="tab" aria-selected="false" aria-controls="themisdb-dashboard-panel-activity" tabindex="-1"><?php esc_html_e('Aktivität', 'themisdb-support-portal'); ?></button>
+                <button type="button" id="themisdb-dashboard-tab-access" class="tv3-feature-tabs__link" role="tab" aria-selected="false" aria-controls="themisdb-dashboard-panel-access" tabindex="-1"><?php esc_html_e('Zugriff', 'themisdb-support-portal'); ?></button>
             </nav>
 
             <div class="themisdb-support-hub-dashboard-panels">
@@ -2055,7 +2052,7 @@ class ThemisDB_Support_Shortcodes {
                         <?php if (shortcode_exists('themisdb_support_login')) : ?>
                             <div class="tv3-feature-tabs__benchmark-box">
                                 <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Support-Anmeldung', 'themisdb-support-portal'); ?></div>
-                                <?php echo do_shortcode('[themisdb_support_login]'); ?>
+                                <a href="#themisdb-dashboard-tab-access"><?php esc_html_e('Zur Support-Anmeldung', 'themisdb-support-portal'); ?></a>
                             </div>
                         <?php endif; ?>
 
@@ -2158,15 +2155,11 @@ class ThemisDB_Support_Shortcodes {
                     <div class="tv3-feature-tabs__benchmark-box">
                         <div class="tv3-feature-tabs__benchmark-title"><?php esc_html_e('Schnellzugriff', 'themisdb-support-portal'); ?></div>
                         <div class="wp-block-buttons">
+                            <?php foreach ($visible_areas as $area) : ?>
                             <div class="wp-block-button">
-                                <a class="wp-block-button__link wp-element-button" href="#<?php echo esc_attr($this->get_hub_area_anchor('support')); ?>"><?php esc_html_e('Support öffnen', 'themisdb-support-portal'); ?></a>
+                                <a class="wp-block-button__link wp-element-button" href="#<?php echo esc_attr($this->get_hub_area_anchor($area['key'])); ?>"><?php echo esc_html($area['label']); ?></a>
                             </div>
-                            <div class="wp-block-button">
-                                <a class="wp-block-button__link wp-element-button" href="#<?php echo esc_attr($this->get_hub_area_anchor('orders')); ?>"><?php esc_html_e('Aufträge öffnen', 'themisdb-support-portal'); ?></a>
-                            </div>
-                            <div class="wp-block-button">
-                                <a class="wp-block-button__link wp-element-button" href="#<?php echo esc_attr($this->get_hub_area_anchor('b2b')); ?>"><?php esc_html_e('B2B öffnen', 'themisdb-support-portal'); ?></a>
-                            </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 </div>

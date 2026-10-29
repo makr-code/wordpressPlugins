@@ -4798,45 +4798,11 @@ function themisdb_v3_enqueue_assets() {
             )
         );
 
-        if ( $should_boot_support_ui && defined( 'THEMISDB_SUPPORT_PLUGIN_URL' ) ) {
-            wp_enqueue_style(
-                'themisdb-support-portal-style',
-                THEMISDB_SUPPORT_PLUGIN_URL . 'assets/css/support-portal.css',
-                array(),
-                defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_PULSE_VERSION
-            );
-
-            wp_enqueue_script(
-                'themisdb-support-portal-script',
-                THEMISDB_SUPPORT_PLUGIN_URL . 'assets/js/support-portal.js',
-                array( 'jquery' ),
-                defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_PULSE_VERSION,
-                true
-            );
-
-            wp_localize_script(
-                'themisdb-support-portal-script',
-                'themisdbSupport',
-                array(
-                    'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-                    'nonce'   => wp_create_nonce( 'themisdb_support_nonce' ),
-                    'strings' => array(
-                        'loading'               => __( 'Laedt...', 'themisdb-support-portal' ),
-                        'error'                 => __( 'Ein Fehler ist aufgetreten', 'themisdb-support-portal' ),
-                        'success'               => __( 'Erfolgreich gespeichert', 'themisdb-support-portal' ),
-                        'verifying'             => __( 'Lizenz wird verifiziert...', 'themisdb-support-portal' ),
-                        'submitting'            => __( 'Ticket wird uebermittelt...', 'themisdb-support-portal' ),
-                        'select_file'           => __( 'Bitte waehlen Sie eine Lizenzdatei aus', 'themisdb-support-portal' ),
-                        'auth_with_license'     => __( 'Mit Lizenz anmelden', 'themisdb-support-portal' ),
-                        'submit_ticket'         => __( 'Ticket senden', 'themisdb-support-portal' ),
-                        'fill_required_fields'  => __( 'Bitte fuellen Sie Betreff und Nachricht aus.', 'themisdb-support-portal' ),
-                    ),
-                )
-            );
-        }
     }
 
-    if ( $should_boot_support_ui && ! wp_script_is( 'themisdb-support-portal-script', 'enqueued' ) && defined( 'THEMISDB_SUPPORT_PLUGIN_URL' ) ) {
+    if ( $should_boot_support_ui && function_exists( 'themisdb_support_enqueue_frontend_assets' ) ) {
+        themisdb_support_enqueue_frontend_assets();
+    } elseif ( $should_boot_support_ui && ! wp_script_is( 'themisdb-support-portal-script', 'enqueued' ) && defined( 'THEMISDB_SUPPORT_PLUGIN_URL' ) ) {
         wp_enqueue_style(
             'themisdb-support-portal-style',
             THEMISDB_SUPPORT_PLUGIN_URL . 'assets/css/support-portal.css',
@@ -5002,6 +4968,10 @@ add_filter( 'the_content', 'themisdb_v3_inject_support_portal_on_support_page', 
  */
 function themisdb_v3_inject_support_portal_on_support_page( $content ) {
     $content = (string) $content;
+    if ( function_exists( 'themisdb_support_maybe_embed_portal_into_page' ) ) {
+        return $content;
+    }
+
     if ( is_admin() || ! themisdb_v3_is_support_page_bridge() ) {
         return $content;
     }

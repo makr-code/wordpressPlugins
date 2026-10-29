@@ -113,12 +113,16 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                         <option value="local" <?php selected(get_option('themisdb_bv_data_source'), 'local'); ?>>
                             <?php _e('Local Files', 'themisdb-benchmark-visualizer'); ?>
                         </option>
+                        <option value="demo" <?php selected(get_option('themisdb_bv_data_source'), 'demo'); ?>>
+                            <?php _e('DEMO - synthetic data, fictional databases', 'themisdb-benchmark-visualizer'); ?>
+                        </option>
                         <option value="github" <?php selected(get_option('themisdb_bv_data_source'), 'github'); ?>>
-                            <?php _e('GitHub Repository', 'themisdb-benchmark-visualizer'); ?>
+                            <?php _e('GitHub Repository (not implemented)', 'themisdb-benchmark-visualizer'); ?>
                         </option>
                     </select>
                     <p class="description">
-                        <?php _e('Choose whether to load benchmark data from the normalized catalog (recommended), legacy local files, or GitHub repository.', 'themisdb-benchmark-visualizer'); ?>
+                        <?php esc_html_e('Demo mode uses only fictional engines and bypasses the default comparison-engine list. It never substitutes real measurements automatically.', 'themisdb-benchmark-visualizer'); ?>
+                        <?php _e('Choose the normalized catalog (recommended) or legacy local files. The GitHub adapter is not implemented and reports an error instead of substituting local data.', 'themisdb-benchmark-visualizer'); ?>
                     </p>
                 </td>
             </tr>
@@ -151,7 +155,7 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                            value="<?php echo esc_attr(get_option('themisdb_bv_github_data_url')); ?>" 
                            class="regular-text" />
                     <p class="description">
-                        <?php _e('Base URL for benchmark data in GitHub repository.', 'themisdb-benchmark-visualizer'); ?>
+                        <?php _e('Reserved for a future GitHub adapter. This URL is currently not fetched.', 'themisdb-benchmark-visualizer'); ?>
                     </p>
                 </td>
             </tr>
@@ -185,7 +189,7 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                                id="themisdb_bv_require_comparable_tasks"
                                value="1"
                                <?php checked(get_option('themisdb_bv_require_comparable_tasks', '1'), '1'); ?> />
-                        <?php _e('Only include tasks with at least two engines in cross-engine comparisons', 'themisdb-benchmark-visualizer'); ?>
+                        <?php _e('Prefer tasks with at least two engines and a matching vector publication protocol. Legacy/reference data never becomes comparable by disabling this filter.', 'themisdb-benchmark-visualizer'); ?>
                     </label>
                     <p class="description">
                         <?php _e('Disable this to include all tasks even when only one engine has data.', 'themisdb-benchmark-visualizer'); ?>
@@ -287,10 +291,9 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
                 </th>
                 <td>
                     <select name="themisdb_bv_default_chart_type" id="themisdb_bv_default_chart_type">
-                        <option value="bar" <?php selected(get_option('themisdb_bv_default_chart_type', 'bar'), 'bar'); ?>><?php _e('Bar', 'themisdb-benchmark-visualizer'); ?></option>
-                        <option value="line" <?php selected(get_option('themisdb_bv_default_chart_type', 'bar'), 'line'); ?>><?php _e('Line', 'themisdb-benchmark-visualizer'); ?></option>
-                        <option value="area" <?php selected(get_option('themisdb_bv_default_chart_type', 'bar'), 'area'); ?>><?php _e('Area', 'themisdb-benchmark-visualizer'); ?></option>
-                        <option value="radar" <?php selected(get_option('themisdb_bv_default_chart_type', 'bar'), 'radar'); ?>><?php _e('Radar', 'themisdb-benchmark-visualizer'); ?></option>
+                        <?php foreach ($this->get_chart_type_labels() as $type => $label) : ?>
+                        <option value="<?php echo esc_attr($type); ?>" <?php selected(get_option('themisdb_bv_default_chart_type', 'bar'), $type); ?>><?php echo esc_html($label); ?></option>
+                        <?php endforeach; ?>
                     </select>
                     <p class="description">
                         <?php _e('Initial chart type for the frontend visualizer.', 'themisdb-benchmark-visualizer'); ?>
@@ -415,7 +418,7 @@ $_tbv_url = function ( $tab ) use ( $_tbv_page ) {
             </tr>
             <tr>
                 <td><code>[themisdb_benchmark_visualizer chart_type="line"]</code></td>
-                <td><?php _e( 'Diagrammtyp setzen (bar, line, radar)', 'themisdb-benchmark-visualizer' ); ?></td>
+                <td><?php _e( 'Diagrammtyp setzen (bar, bar-horizontal, bar-vertical, bar-isometric, line, line-dot, stepped, area, radar)', 'themisdb-benchmark-visualizer' ); ?></td>
             </tr>
             <tr>
                 <td><code>[themisdb_benchmark_visualizer category="vector_search" metric="latency" chart_type="bar"]</code></td>

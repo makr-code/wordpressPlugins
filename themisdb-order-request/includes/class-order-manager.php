@@ -800,7 +800,7 @@ class ThemisDB_Order_Manager {
                     'sku' => sanitize_text_field($product['product_code'] ?? ''),
                     'item_name' => sanitize_text_field($product['product_name'] ?? $edition),
                     'quantity' => 1,
-                    'unit_price' => floatval($product['base_price'] ?? 0),
+                    'unit_price' => floatval($product['price']),
                     'variant_data' => array(
                         'edition' => $edition,
                     ),
@@ -811,19 +811,19 @@ class ThemisDB_Order_Manager {
         $selected_modules = is_array($order['modules'] ?? null) ? $order['modules'] : array();
         if (!empty($selected_modules)) {
             foreach (self::get_modules(null, true) as $module) {
-                if (!in_array($module['module_key'], $selected_modules, true)) {
+                if (!in_array($module['module_code'], $selected_modules, true)) {
                     continue;
                 }
 
                 $items[] = array(
                     'item_type' => 'module',
                     'product_id' => intval($module['id']),
-                    'sku' => sanitize_text_field($module['module_key'] ?? ''),
+                    'sku' => sanitize_text_field($module['module_code']),
                     'item_name' => sanitize_text_field($module['module_name'] ?? ''),
                     'quantity' => 1,
-                    'unit_price' => floatval($module['module_price'] ?? 0),
+                    'unit_price' => floatval($module['price']),
                     'variant_data' => array(
-                        'module_key' => sanitize_text_field($module['module_key'] ?? ''),
+                        'module_code' => sanitize_text_field($module['module_code']),
                     ),
                 );
             }
@@ -832,19 +832,19 @@ class ThemisDB_Order_Manager {
         $selected_training = is_array($order['training_modules'] ?? null) ? $order['training_modules'] : array();
         if (!empty($selected_training)) {
             foreach (self::get_training_modules(null, true) as $training) {
-                if (!in_array($training['training_key'], $selected_training, true)) {
+                if (!in_array($training['training_code'], $selected_training, true)) {
                     continue;
                 }
 
                 $items[] = array(
                     'item_type' => 'training',
                     'product_id' => intval($training['id']),
-                    'sku' => sanitize_text_field($training['training_key'] ?? ''),
+                    'sku' => sanitize_text_field($training['training_code']),
                     'item_name' => sanitize_text_field($training['training_name'] ?? ''),
                     'quantity' => 1,
-                    'unit_price' => floatval($training['training_price'] ?? 0),
+                    'unit_price' => floatval($training['price']),
                     'variant_data' => array(
-                        'training_key' => sanitize_text_field($training['training_key'] ?? ''),
+                        'training_code' => sanitize_text_field($training['training_code']),
                     ),
                 );
             }
@@ -2394,4 +2394,3 @@ class ThemisDB_Order_Manager {
         );
     }
 }
-

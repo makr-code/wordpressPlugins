@@ -82,7 +82,7 @@ jQuery(document).ready(function($) {
         
         saveOrderStep(step, data, function(response) {
             if (response.success) {
-                loadStep(nextStep);
+                loadStep(nextStep, true);
             }
         });
     });
@@ -116,10 +116,13 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     clearFieldErrors();
                     showSuccessMessage(response.data.message);
+                    document.dispatchEvent(new CustomEvent('themisdb-order-submitted'));
                     // Redirect or show confirmation
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 2000);
+                    if (!document.body.classList.contains('themisdb-checkout-frame')) {
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 2000);
+                    }
                 } else {
                     showErrorMessage(response.data.message);
                     if (response.data && response.data.field_errors) {
@@ -308,7 +311,7 @@ jQuery(document).ready(function($) {
     /**
      * Load step
      */
-    function loadStep(step) {
+    function loadStep(step, persisted) {
         // Hide all steps
         $('.order-step-content').hide();
         
@@ -329,6 +332,7 @@ jQuery(document).ready(function($) {
         });
         
         currentStep = step;
+        document.dispatchEvent(new CustomEvent('themisdb-order-step', { detail: { step: step, persisted: persisted === true } }));
         
         // Scroll to top
         $('html, body').animate({
@@ -434,6 +438,11 @@ jQuery(document).ready(function($) {
      */
     function showSuccessMessage(message) {
         var $notice = $('<div class="themisdb-success-message"></div>').text(message);
+        if (document.body.classList.contains('themisdb-checkout-frame')) {
+            $notice.attr('role', 'status');
+            $('.themisdb-order-flow').prepend($notice);
+            return;
+        }
         $('.order-step-content:visible').prepend($notice);
 
         setTimeout(function() {

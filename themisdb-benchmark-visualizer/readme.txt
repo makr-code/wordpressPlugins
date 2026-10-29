@@ -4,111 +4,113 @@ Tags: benchmarks, charts, performance, visualization, themisdb
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.5.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
-Interactive visualization of ThemisDB performance benchmarks with Chart.js. Compare against PostgreSQL, MongoDB, and Neo4j.
+Interactive charts and accessible tables for measured benchmark data. No fabricated comparison datasets.
 
 == Description ==
 
-ThemisDB Benchmark Visualizer provides interactive performance benchmark visualizations comparing ThemisDB against other popular databases including PostgreSQL, MongoDB, and Neo4j using Chart.js.
+Display benchmark measurements using [themisdb_benchmark_visualizer].
+The plugin supplies its own PHP template, scoped CSS, JavaScript and locally
+bundled Chart.js 4.4.0. It works independently of ThemisDB Pulse.
 
-**Key Features:**
+* Independent shortcode instances with category, metric, engine, task-search and Top-N controls
+* Bar, line, area and radar charts with reduced-motion support
+* Latency in ms, throughput in ops/s and actual memory occupancy in MiB
+* Full operation/parameter identity, missing-value handling and preserved tiny measurements
+* Explicit single-engine notices and configurable cross-engine task filtering
+* Accessible measurement table, source references, CSV and browser print/PDF
+* Responsive light/dark presentation and manual engine emphasis
+* WordPress Settings API, nonce-checked AJAX and source-aware caching
 
-* Chart.js-powered interactive charts
-* 19+ benchmark scenarios
-* Real-time data visualization
-* Performance comparison across databases
-* Multiple chart types (line, bar, radar)
-* Metric filtering (latency, throughput, memory)
-* Category filtering (OLTP, OLAP, Graph queries)
-* Dark mode support
-* Responsive design
-* Conditional asset loading
-* AJAX data loading
-* GitHub integration for benchmark data
-
-**Benchmark Categories:**
-
-* OLTP (Online Transaction Processing)
-* OLAP (Online Analytical Processing)
-* Graph Queries
-* Document Operations
-* Key-Value Operations
-* Mixed Workloads
-
-**Compared Databases:**
-
-* ThemisDB (Multi-Model)
-* PostgreSQL (Relational)
-* MongoDB (Document Store)
-* Neo4j (Graph Database)
-
-**Perfect for:**
-
-* Performance documentation
-* Marketing comparison pages
-* Technical benchmarks
-* Developer resources
-* Product demonstrations
+Configure a local benchmark_catalog.json or legacy Google Benchmark files.
+The GitHub data adapter is not implemented and reports an explicit error.
+Missing or invalid source files never produce demonstration measurements.
+Database comparisons require actual matching measurements in the supplied data.
 
 == Installation ==
 
-1. Upload the `themisdb-benchmark-visualizer` folder to the `/wp-content/plugins/` directory
-2. Activate the plugin through the 'Plugins' menu in WordPress
-3. Use the shortcode `[themisdb_benchmark_visualizer]` in any post or page
-4. Configure display options in Settings → ThemisDB Benchmarks
+1. Install the themisdb-benchmark-visualizer directory under wp-content/plugins.
+2. Activate the plugin.
+3. Open Settings > Benchmark Visualizer and configure a local data source.
+4. Insert [themisdb_benchmark_visualizer] in a page or template.
 
 == Frequently Asked Questions ==
 
-= Where does the benchmark data come from? =
+= Where does the data come from? =
 
-The plugin loads benchmark data from the ThemisDB GitHub repository, ensuring you always have the latest performance metrics.
+A locally configured catalog or legacy benchmark files. There is no remote
+synchronization or automatic polling. See README.md for the catalog schema.
 
-= Can I customize the charts? =
+= Why are other databases missing? =
 
-Yes! Go to Settings → ThemisDB Benchmarks to configure chart theme, default metrics, and display categories.
+Only engines present in your measurements can be shown. An available ThemisDB
+measurement is not turned into a fabricated PostgreSQL or MongoDB comparison.
 
-= Is Chart.js loaded on every page? =
+= Why is memory empty? =
 
-No! The plugin uses conditional loading - Chart.js is only loaded on pages containing the shortcode.
+The source must contain actual memory occupancy. Bandwidth is not memory usage.
 
-= Can I export the benchmark data? =
+= Can I use several shortcodes? =
 
-The data is displayed in interactive charts. For raw data, refer to the ThemisDB GitHub repository.
+Yes. Their settings, controls, requests and charts are independent.
 
-= Does it work on mobile devices? =
+= Can I export data? =
 
-Yes! The visualizations are fully responsive and optimized for mobile viewing with touch interactions.
+CSV exports the visible filtered measurements. Print/PDF opens the browser print
+dialog. Full task names and missing measurements are available in the table.
 
-= Can I add custom benchmarks? =
+= Is the chart library loaded from a CDN? =
 
-The current version loads data from the official ThemisDB repository. Custom benchmarks would require modifying the data source.
-
-== Screenshots ==
-
-1. Interactive benchmark charts
-2. Metric comparison view
-3. Category filtering
-4. Dark mode visualization
-5. Mobile responsive layout
-6. Admin settings panel
+No. Chart.js and its MIT license are bundled in assets/vendor.
+Assets are enqueued for shortcode content, the front page and explicit shortcode rendering.
 
 == Changelog ==
 
+= 1.5.0 =
+* Add linear/logarithmic scales, explicit sorting and selectable reference engines.
+* Show eligible per-task performance factors in tables, tooltips and CSV.
+* Preserve original zero values outside log plots and explain linear radar fallback.
+
+= 1.4.0 =
+* Add explicit horizontal, vertical and isometric 2.5D bar views.
+* Separate plain lines, line-dot and stepped lines.
+* Share chart choices between admin settings and shortcode controls.
+
+= 1.3.0 =
+* Add an opt-in synthetic demo source with three fictional databases.
+* Label demo views, tables and CSV exports; never activate demo as an error fallback.
+
+= 1.2.0 =
+* Require matching vector End-to-End publication protocols for cross-engine comparisons.
+* Isolate historical/external measurements and show missing protocol fields.
+* Reject duplicate controlled-run statistics instead of averaging percentiles.
+
+= 1.1.2 =
+* Hide chart task labels by default with a per-instance option to show them.
+* Preserve full names in tooltips and measurement tables.
+
+= 1.1.1 =
+* Add inheritable theme tokens for all component and canvas colors.
+* Keep standalone light/dark defaults while allowing explicit theme palettes to override them.
+* Integrate Pulse branding without replacing plugin markup, layout or behavior.
+
+= 1.1.0 =
+* Fix operation grouping, unit conversion, missing-value handling and small-value precision.
+* Replace global state with independent shortcode components and race-safe loading.
+* Add truthful source/error states, accessible tables and reliable CSV export.
+* Bundle Chart.js locally and remove theme, jQuery and Mermaid dependencies.
+* Replace automatic engine rotation with manual emphasis.
+* Add parser, WordPress integration and standalone browser regression tests.
+
 = 1.0.0 =
-* Initial release
-* Chart.js integration
-* 19 benchmark scenarios
-* Multi-database comparison
-* Interactive filtering
-* Dark mode support
-* Conditional asset loading
-* GitHub data integration
-* Responsive design
+* Initial release.
 
 == Upgrade Notice ==
 
-= 1.0.0 =
-Initial release of ThemisDB Benchmark Visualizer.
+= 1.1.0 =
+Corrects measurement semantics and removes fabricated fallback data. Configure a
+valid local source. Legacy decorative overlays and generated architecture diagrams
+are no longer rendered; existing shortcode parameters remain accepted.

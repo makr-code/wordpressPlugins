@@ -216,13 +216,13 @@ class ThemisDB_Bank_Import {
                 ), ARRAY_A );
 
                 if ( $payment ) {
-                    self::apply_match( $tx, $payment, $table_tx, $amount );
+                    self::apply_match( $tx, $payment, $table_tx );
                     continue;
                 }
             }
 
-            // 2. Match by ORD-YYYYMMDD-XXXXXX in Verwendungszweck (fallback)
-            if ( preg_match( '/ORD-\d{8}-[A-Z0-9]{6}/i', $purpose, $m ) ) {
+            // Current order numbers use TDB; retain legacy ORD references.
+            if ( preg_match( '/(?:TDB|ORD)-\d{8}-[A-Z0-9]{6}/i', $purpose, $m ) ) {
                 $order_number = strtoupper( $m[0] );
                 $order = $wpdb->get_row( $wpdb->prepare(
                     "SELECT * FROM $table_orders WHERE order_number = %s",
@@ -232,13 +232,13 @@ class ThemisDB_Bank_Import {
                 if ( $order ) {
                     $payment = $wpdb->get_row( $wpdb->prepare(
                         "SELECT * FROM $table_payments
-                         WHERE order_id = %d AND payment_status = 'pending'
+                         WHERE order_id = %d AND payment_status IN ('pending', 'overdue')
                          ORDER BY created_at DESC LIMIT 1",
                         $order['id']
                     ), ARRAY_A );
 
                     if ( $payment ) {
-                        self::apply_match( $tx, $payment, $table_tx, $amount );
+                        self::apply_match( $tx, $payment, $table_tx );
                         continue;
                     }
                 }
@@ -255,7 +255,7 @@ class ThemisDB_Bank_Import {
      *
      * @param  array      $import_meta  Keys: filename, bank_format, notes.
      * @param  array      $transactions Output of match_transactions().
-     * @return int|false  New import ID, or false on DB error.
+     * @return int|WP_Error New import ID, or error with partial import context.
      */
     public static function save_import( array $import_meta, array $transactions ) {
         global $wpdb;
@@ -269,16 +269,11 @@ class ThemisDB_Bank_Import {
             self::STATUS_DUPLICATE => 0,
             self::STATUS_SKIPPED   => 0,
         );
-        foreach ( $transactions as $tx ) {
-            $s = isset( $counts[ $tx['match_status'] ] ) ? $tx['match_status'] : self::STATUS_UNMATCHED;
-            $counts[ $s ]++;
-        }
-
         $result = $wpdb->insert( $table_imports, array(
             'import_uuid'    => wp_generate_uuid4(),
             'filename'       => sanitize_file_name( $import_meta['filename'] ),
             'bank_format'    => sanitize_text_field( $import_meta['bank_format'] ),
-            'rows_total'     => count( $transactions ),
+            'rows_total'     => 0,
             'rows_matched'   => $counts[ self::STATUS_MATCHED ],
             'rows_unmatched' => $counts[ self::STATUS_UNMATCHED ],
             'rows_duplicate' => $counts[ self::STATUS_DUPLICATE ],
@@ -290,13 +285,17 @@ class ThemisDB_Bank_Import {
         ) );
 
         if ( ! $result ) {
-            return false;
+            return self::processing_error( 'bank_import_insert_failed', 'Bank import header could not be saved' );
         }
 
-        $import_id = $wpdb->insert_id;
+        $import_id = intval( $wpdb->insert_id );
+        $failed = array();
 
         foreach ( $transactions as $tx ) {
-            $wpdb->insert( $table_tx, array(
+            $candidate = $tx['match_status'] === self::STATUS_MATCHED && ! empty( $tx['matched_payment_id'] );
+            $status = isset( $counts[ $tx['match_status'] ] ) && $tx['match_status'] !== self::STATUS_MATCHED
+                ? $tx['match_status'] : self::STATUS_UNMATCHED;
+            $saved = $wpdb->insert( $table_tx, array(
                 'import_id'          => $import_id,
                 'booking_date'       => $tx['booking_date'] ?: null,
                 'value_date'         => $tx['value_date']   ?: null,
@@ -317,18 +316,53 @@ class ThemisDB_Bank_Import {
                                             ? sanitize_textarea_field( $tx['purpose'] )
                                             : null,
                 'matched_payment_id' => $tx['matched_payment_id'] ?: null,
-                'match_status'       => $tx['match_status'],
-                'match_confidence'   => $tx['match_confidence'] ?: null,
+                'match_status'       => $status,
+                'match_confidence'   => $candidate ? null : ( $tx['match_confidence'] ?: null ),
                 'raw_data'           => wp_json_encode( $tx['raw'] ?? array() ),
             ) );
+            if ( ! $saved ) {
+                $failed[] = 'transaction_insert';
+                continue;
+            }
+            $transaction_id = intval( $wpdb->insert_id );
+            $counts[ $status ]++;
 
-            // Auto-verify matched payments
-            if ( $tx['match_status'] === self::STATUS_MATCHED
-                && ! empty( $tx['matched_payment_id'] ) ) {
-                self::apply_matched_payment( $tx['matched_payment_id'], $tx );
+            if ( $candidate ) {
+                $applied = self::apply_matched_payment( $tx['matched_payment_id'], $tx );
+                if ( is_wp_error( $applied ) ) {
+                    $failed[] = $transaction_id;
+                    continue;
+                }
+                $marked = $wpdb->update(
+                    $table_tx,
+                    array( 'match_status' => self::STATUS_MATCHED, 'match_confidence' => self::CONF_AUTO ),
+                    array( 'id' => $transaction_id, 'match_status' => self::STATUS_UNMATCHED ),
+                    null,
+                    array( '%d', '%s' )
+                );
+                if ( $marked !== 1 ) {
+                    $failed[] = $transaction_id;
+                    continue;
+                }
+                $counts[ self::STATUS_UNMATCHED ]--;
+                $counts[ self::STATUS_MATCHED ]++;
             }
         }
 
+        $summary = $wpdb->update( $table_imports, array(
+            'rows_total' => array_sum( $counts ),
+            'rows_matched' => $counts[ self::STATUS_MATCHED ],
+            'rows_unmatched' => $counts[ self::STATUS_UNMATCHED ],
+            'rows_duplicate' => $counts[ self::STATUS_DUPLICATE ],
+            'rows_skipped' => $counts[ self::STATUS_SKIPPED ],
+        ), array( 'id' => $import_id ) );
+        if ( $summary === false || ! empty( $failed ) ) {
+            return self::processing_error( 'bank_import_incomplete', 'Bank import only partially processed; manual reconciliation required', array(
+                'import_id' => $import_id,
+                'failed_transactions' => $failed,
+                'summary_failed' => $summary === false,
+            ) );
+        }
         return $import_id;
     }
 
@@ -337,7 +371,7 @@ class ThemisDB_Bank_Import {
      *
      * @param  int      $transaction_id  Bank-transaction row ID.
      * @param  int      $payment_id      Payment record ID.
-     * @return bool
+     * @return true|WP_Error
      */
     public static function assign_transaction( $transaction_id, $payment_id ) {
         global $wpdb;
@@ -350,27 +384,75 @@ class ThemisDB_Bank_Import {
         ), ARRAY_A );
 
         if ( ! $tx ) {
-            return false;
+            return self::processing_error( 'bank_transaction_missing', 'Bank transaction not found', array( 'transaction_id' => $transaction_id ) );
         }
-
-        $wpdb->update(
+        if ( $tx['match_status'] !== self::STATUS_UNMATCHED ) {
+            return self::processing_error( 'bank_transaction_not_open', 'Bank transaction is not open for assignment', array( 'transaction_id' => $transaction_id ) );
+        }
+        $validation = self::validate_payment_match( $payment_id, $tx );
+        if ( is_wp_error( $validation ) ) {
+            return $validation;
+        }
+        $saved = $wpdb->update(
             $table_tx,
             array(
                 'matched_payment_id' => $payment_id,
-                'match_status'       => self::STATUS_MANUAL,
-                'match_confidence'   => self::CONF_MANUAL,
+                'match_confidence'   => null,
             ),
-            array( 'id' => $transaction_id ),
+            array( 'id' => $transaction_id, 'match_status' => self::STATUS_UNMATCHED ),
             null,
-            array( '%d' )
+            array( '%d', '%s' )
         );
-
-        self::apply_matched_payment( $payment_id, array(
-            'purpose'      => $tx['purpose'],
-            'booking_date' => $tx['booking_date'],
-        ) );
-
+        if ( $saved === false ) {
+            return self::processing_error( 'bank_assignment_save_failed', 'Bank assignment could not be saved', array( 'transaction_id' => $transaction_id ) );
+        }
+        if ( $saved === 0 ) {
+            $current = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_tx WHERE id = %d", $transaction_id ), ARRAY_A );
+            if ( ! $current || $current['match_status'] !== self::STATUS_UNMATCHED
+                || intval( $current['matched_payment_id'] ) !== intval( $payment_id ) ) {
+                return self::processing_error( 'bank_assignment_conflict', 'Bank assignment was superseded', array( 'transaction_id' => $transaction_id ) );
+            }
+        }
+        $applied = self::apply_matched_payment( $payment_id, $tx );
+        if ( is_wp_error( $applied ) ) {
+            return $applied;
+        }
+        $marked = $wpdb->update(
+            $table_tx,
+            array( 'match_status' => self::STATUS_MANUAL, 'match_confidence' => self::CONF_MANUAL ),
+            array( 'id' => $transaction_id, 'match_status' => self::STATUS_UNMATCHED, 'matched_payment_id' => $payment_id ),
+            null,
+            array( '%d', '%s', '%d' )
+        );
+        if ( $marked !== 1 ) {
+            return self::processing_error( 'bank_assignment_completion_failed', 'Payment processed but bank assignment completion failed; manual reconciliation required', array( 'transaction_id' => $transaction_id ) );
+        }
+        if ( ! self::refresh_import_summary( intval( $tx['import_id'] ) ) ) {
+            return self::processing_error( 'bank_assignment_summary_failed', 'Assignment processed but import summary could not be saved', array( 'transaction_id' => $transaction_id ) );
+        }
         return true;
+    }
+
+    private static function refresh_import_summary( $import_id ) {
+        global $wpdb;
+        $table_tx = $wpdb->prefix . 'themisdb_bank_transactions';
+        $counts = $wpdb->get_results( $wpdb->prepare(
+            "SELECT match_status, COUNT(*) AS row_count FROM $table_tx WHERE import_id = %d GROUP BY match_status",
+            $import_id
+        ), ARRAY_A );
+        if ( ! is_array( $counts ) || $wpdb->last_error !== '' ) {
+            return false;
+        }
+        $summary = array( 'rows_total' => 0, 'rows_matched' => 0, 'rows_unmatched' => 0, 'rows_duplicate' => 0, 'rows_skipped' => 0 );
+        foreach ( $counts as $row ) {
+            $count = intval( $row['row_count'] );
+            $summary['rows_total'] += $count;
+            $key = $row['match_status'] === self::STATUS_MANUAL ? 'rows_matched' : 'rows_' . $row['match_status'];
+            if ( isset( $summary[ $key ] ) ) {
+                $summary[ $key ] += $count;
+            }
+        }
+        return $wpdb->update( $wpdb->prefix . 'themisdb_bank_imports', $summary, array( 'id' => $import_id ) ) !== false;
     }
 
     /**
@@ -448,9 +530,8 @@ class ThemisDB_Bank_Import {
      * @param  array  $tx          Transaction row (by reference, already a &$tx in loop).
      * @param  array  $payment     Payment DB row.
      * @param  string $table_tx    Full table name of bank_transactions.
-     * @param  float  $tx_amount   Amount from CSV.
      */
-    private static function apply_match( array &$tx, array $payment, $table_tx, $tx_amount ) {
+    private static function apply_match( array &$tx, array $payment, $table_tx ) {
         global $wpdb;
 
         // Duplicate check: was this payment already matched in a previous import?
@@ -470,15 +551,9 @@ class ThemisDB_Bank_Import {
             return;
         }
 
-        // Amount check (tolerance ±0.01 €)
-        if ( abs( floatval( $payment['amount'] ) - $tx_amount ) > 0.01 ) {
+        if ( ! self::payment_matches_transaction( $payment, $tx ) ) {
             $tx['match_status'] = self::STATUS_UNMATCHED;
-            $tx['match_note']   = sprintf(
-                /* translators: 1: expected amount, 2: received amount */
-                __( 'Betrag weicht ab: erwartet %s €, erhalten %s €. Bitte manuell prüfen.', 'themisdb-order-request' ),
-                number_format( floatval( $payment['amount'] ), 2, ',', '.' ),
-                number_format( $tx_amount, 2, ',', '.' )
-            );
+            $tx['match_note']   = __( 'Betrag, Waehrung oder Zahlungsstatus passen nicht. Nur positive, betragsgleiche Buchungen in derselben Waehrung fuer offene Zahlungen koennen verarbeitet werden.', 'themisdb-order-request' );
             $tx['matched_payment_id'] = $payment['id']; // pre-fill for manual review
             return;
         }
@@ -492,12 +567,17 @@ class ThemisDB_Bank_Import {
      * Update the payment record with bank reference data and auto-verify it.
      *
      * @param  int    $payment_id
-     * @param  array  $tx  Keys used: purpose, booking_date.
+     * @param  array  $tx  Keys used: purpose, booking_date, amount, currency.
+     * @return true|WP_Error
      */
     private static function apply_matched_payment( $payment_id, array $tx ) {
         global $wpdb;
 
         $table_payments = $wpdb->prefix . 'themisdb_payments';
+        $validation = self::validate_payment_match( $payment_id, $tx );
+        if ( is_wp_error( $validation ) ) {
+            return $validation;
+        }
 
         $update = array();
         if ( ! empty( $tx['purpose'] ) ) {
@@ -508,11 +588,49 @@ class ThemisDB_Bank_Import {
         }
 
         if ( ! empty( $update ) ) {
-            $wpdb->update( $table_payments, $update, array( 'id' => $payment_id ), null, array( '%d' ) );
+            $saved = $wpdb->update( $table_payments, $update, array( 'id' => $payment_id ), null, array( '%d' ) );
+            if ( $saved === false ) {
+                return self::processing_error( 'bank_payment_save_failed', 'Bank payment reference could not be saved', array( 'payment_id' => $payment_id ) );
+            }
         }
 
-        // Auto-verify payment (triggers order-status update + license activation)
-        ThemisDB_Payment_Manager::verify_payment( $payment_id, get_current_user_id() );
+        if ( ! ThemisDB_Payment_Manager::verify_payment( $payment_id, get_current_user_id() ) ) {
+            return self::processing_error( 'bank_payment_verification_failed', 'Bank payment processing failed; inspect payment, order and license manually', array( 'payment_id' => $payment_id ) );
+        }
+        return true;
+    }
+
+    private static function validate_payment_match( $payment_id, array $tx ) {
+        $payment = ThemisDB_Payment_Manager::get_payment( $payment_id );
+        if ( ! $payment ) {
+            return self::processing_error( 'bank_payment_missing', 'Referenced payment not found', array( 'payment_id' => $payment_id ) );
+        }
+        if ( ! self::payment_matches_transaction( $payment, $tx ) ) {
+            return self::processing_error( 'bank_payment_mismatch', 'Bank amount, currency or payment status does not match', array( 'payment_id' => $payment_id ) );
+        }
+        return true;
+    }
+
+    private static function payment_matches_transaction( array $payment, array $tx ) {
+        $amount = floatval( $tx['amount'] ?? 0 );
+        $expected = floatval( $payment['amount'] );
+        $currency = strtoupper( trim( (string) ( $tx['currency'] ?? '' ) ) );
+        return is_finite( $amount ) && is_finite( $expected ) && $amount > 0 && $expected > 0
+            && abs( round( $expected * 100 ) - round( $amount * 100 ) ) <= 1
+            && $currency !== '' && $currency === strtoupper( trim( (string) $payment['currency'] ) )
+            && in_array( $payment['payment_status'], array( 'pending', 'overdue' ), true );
+    }
+
+    private static function processing_error( $code, $message, array $context = array() ) {
+        error_log( 'ThemisDB Bank Import Error: ' . $code );
+        if ( class_exists( 'ThemisDB_Error_Handler' ) ) {
+            ThemisDB_Error_Handler::log( 'error', $message, $context );
+        }
+        return new WP_Error(
+            $code,
+            __( 'Bankverarbeitung nicht abgeschlossen. Bitte Import, Buchungszuordnung, Zahlungsbetrag/-waehrung, Bestellstatus und Lizenz manuell pruefen. Bereits gespeicherte Daten bleiben erhalten.', 'themisdb-order-request' ),
+            $context
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -796,4 +914,3 @@ class ThemisDB_Bank_Import {
         return null;
     }
 }
-

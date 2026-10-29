@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Plugin for ThemisDB.
- * Version: 1.0.1
+ * Version: 1.1.1
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -103,8 +103,8 @@ require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-advanced-reporting.php'
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-epserver-api.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-error-handler.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-privacy.php';
-require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-woocommerce-bridge.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-bank-import.php';
+require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-checkout-overlay.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-admin.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-admin-dashboard.php';
 require_once THEMISDB_ORDER_PLUGIN_DIR . 'includes/class-notification-manager.php';
@@ -176,8 +176,7 @@ function themisdb_order_request_init() {
         ThemisDB_Advanced_Reporting::init();
     }
 
-    // Initialize WooCommerce bridge (no-op when WooCommerce is not active)
-    new ThemisDB_WooCommerce_Bridge();
+    new ThemisDB_Checkout_Overlay();
 
     // Initialize license REST API and customer portal
     new ThemisDB_License_API();
@@ -489,16 +488,9 @@ function themisdb_order_request_on_bridge_issue_created($source_plugin, $source_
  * Enqueue frontend scripts and styles
  */
 function themisdb_order_request_enqueue_scripts() {
-    // Theme-first presentation: ThemisDB themes own frontend visuals.
-    $theme_controls_presentation =
-        wp_style_is('themisdb-style', 'enqueued') ||
-        wp_style_is('themisdb-style', 'registered') ||
-        wp_style_is('lis-a-style', 'enqueued') ||
-        wp_style_is('lis-a-style', 'registered');
-
     $should_enqueue_plugin_style = apply_filters(
         'themisdb_order_request_enqueue_frontend_style',
-        ! $theme_controls_presentation
+        true
     );
 
     if ($should_enqueue_plugin_style) {
@@ -542,5 +534,3 @@ function themisdb_order_request_admin_enqueue_scripts($hook) {
     wp_enqueue_script('themisdb-order-admin-script', THEMISDB_ORDER_PLUGIN_URL . 'assets/js/admin.js', array('jquery'), THEMISDB_ORDER_VERSION, true);
 }
 add_action('admin_enqueue_scripts', 'themisdb_order_request_admin_enqueue_scripts');
-
-

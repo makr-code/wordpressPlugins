@@ -10,19 +10,38 @@ Das Plugin stellt folgende **Shortcodes** zur Verfügung:
 |-----------|-------|-----------|
 | `[themisdb_support_login]` | Login-Gate | Öffentlich → Kunden |
 | `[themisdb_support_portal]` | Haupt-Ticket-Portal | Eingeloggte Kunden |
+| `[themisdb_support_hub]` | Support, Profil und optionale Order-/Lizenzbereiche als Tabs | Besucher und Kunden |
 | `[themisdb_lifecycle_portal]` | Vertragsänderungs-/Kündigungsportal | Eingeloggte Kunden |
 | `[themisdb_cockpit]` | Unified-Status-Dashboard (Lizenz, Tickets, Builds) | Eingeloggte Kunden |
 
 ## Empfohlenes Seiten-Layout
 
+### Gemeinsame Einbindung mit dem eigenen Shop
+
+WooCommerce ist keine Voraussetzung und kein vorgesehener Integrationspartner.
+Der eigene Lizenzshop wird ueber `/products/` bereitgestellt; Warenkorb
+und Kasse erscheinen in einem gemeinsamen Plugin-Overlay, erreichbar
+ueber das Header-Warenkorbsymbol. `/support/` dient als Kundenportal.
+Ein einzelner `[themisdb_support_hub]`-Block verbindet dort Support,
+Bestellungen und Vertraege, soweit die zugehoerigen Pluginmodule verfuegbar sind.
+Bereits eingebettete Portale nicht doppeln. Der Hub verwendet bei aktivem
+Checkoutmodul denselben Warenkorbdialog statt eines zweiten Bestelloverlays.
+Separate Warenkorb- und Bestellseiten sind nicht erforderlich.
+
+Layout, Login und Interaktion gehoeren dem Plugin. Das Theme passt die
+Palette ueber `--themisdb-ui-primary`, `--themisdb-ui-primary-hover`,
+`--themisdb-ui-text`, `--themisdb-ui-muted`, `--themisdb-ui-border`,
+`--themisdb-ui-surface` und `--themisdb-ui-surface-alt` auf den
+Support-Wrappers an. Ohne Theme-Werte bleiben die bisherigen Plugin-Defaults
+aktiv. Pulse belegt diese Schnittstelle mit seinen Farbvarianten.
+
 ### 1. Kundenportal (`/kundenportal`)
 - **Sichtbar für:** Alle
 - **Inhalt:**
   ```
-  [themisdb_support_login]
   [themisdb_support_portal]
   ```
-- **Beschreibung:** Öffentlich sichtbare Seite. Das Login-Shortcode zeigt ein Anmeldeformular. Nach dem Login wird das Ticket-Portal angezeigt.
+- **Beschreibung:** Öffentlich sichtbare Seite. Das Portal zeigt unangemeldeten Besuchern bereits das Anmeldeformular. Nach dem Login wird das Ticket-Portal angezeigt. Nicht zusätzlich das Login-Shortcode einbetten, da sonst dasselbe Formular doppelt erscheint.
 - **Einrichtung:** Siehe [Automated Setup](#automated-setup) oder manuell unten.
 
 ### 2. Mein Cockpit (`/mein-cockpit`)
@@ -43,6 +62,29 @@ Das Plugin stellt folgende **Shortcodes** zur Verfügung:
 - **Beschreibung:** Verwaltung von Vertragsänderungsanträgen und Kündigungen (§8.6 & §8.7 ARCHITECTUR.md).
 
 ---
+
+## Theme-unabhaengige Integration (1.1.1)
+
+- Auf Seiten mit den Slugs `support`, `kundenportal` und `support-portal` ergaenzt
+  der Content-Filter das Portal, sofern kein Support-Shortcode im Editorinhalt
+  vorhanden ist. Das Theme muss den Seiteninhalt ausgeben. Weitere Slugs sind
+  ueber `themisdb_support_embed_page_slugs` moeglich.
+- Explizite Support-Shortcodes in einzelnen Beitraegen erhalten ebenfalls die
+  Plugin-Assets. Fuer direkt in Templates erzeugte UI koennen Themes waehrend
+  `wp_enqueue_scripts` `themisdb_support_enqueue_frontend_assets()` aufrufen.
+  Diese Funktion liefert Skript, Icons und dieselbe lokalisierte Konfiguration;
+  Themes sollen keine eigene Kopie der Konfiguration pflegen.
+- Der Hub puffert ausschliesslich sein eigenes HTML. Tabs, verschachteltes
+  Profil-Dashboard und Auftragsdialog funktionieren mit den Plugin-Assets ohne
+  Pulse. Pfeiltasten, Home/End und Escape werden unterstuetzt; beim Schliessen
+  des Auftragsdialogs geht der Fokus zum Ausloeser zurueck.
+- Nicht verfuegbare Order-/Lizenzmodule erhalten keine leeren Tabs. Pulse-
+  Breadcrumbs erscheinen nur, wenn deren Shortcodes registriert sind.
+- Der Auftragsdialog wird vom Plugin gesteuert. Pulse behaelt seinen Handler
+  nur als Fallback fuer aeltere Plugin-Versionen. Seine bestehenden speziellen
+  Support-Seitenvorlagen und Login-Overlays bleiben erhalten.
+- Hub-CSS fuer gemeinsame `tv3-*`-Klassennamen ist auf den Hub begrenzt und
+  veraendert keine gleichnamigen Theme-Komponenten ausserhalb des Plugins.
 
 ## Automated Setup
 
@@ -204,4 +246,3 @@ Zusätzlich zu den Kunden-Seiten bietet das Plugin folgende **Admin-Seiten** im 
 - **class-shortcodes.php:** Implementierung der Shortcodes
 - **class-admin.php:** Admin-Dashboard-Seiten
 - **class-mail-orchestrator.php:** E-Mail-Integration (§8.4)
-

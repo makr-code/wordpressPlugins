@@ -1,1281 +1,441 @@
-/**
- * ThemisDB Benchmark Visualizer JavaScript
- * Based on TCO Calculator pattern with Chart.js integration
- */
-
-(function($) {
+(function () {
     'use strict';
 
-    // Global namespace
-    window.ThemisDBBenchmarks = {
-        chart: null,
-        rawData: null,
-        currentData: null,
-        settings: {},
-        currentSlideIndex: 0,
-        autoRotateTimer: null,
-        autoRotatePaused: false,
-        renderQueueToken: 0,
+    const finite = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+    const format = value => finite(value) ? new Intl.NumberFormat(undefined, { maximumSignificantDigits: 5 }).format(value) : '\u2014';
+    const unit = metric => ({ latency: 'ms', throughput: 'ops/s', memory: 'MiB' })[metric];
+    const csvCell = value => '"' + String(value ?? '').replace(/^[=+@\-\t\r]/, "'$&").replace(/"/g, '""') + '"';
 
-        /**
-         * Initialize the visualizer
-         */
-        init: function() {
-            // Store settings from PHP
-            this.settings = themisdbBV.settings || {};
-            this.currentSlideIndex = 0;
-            this.rebuildCategoryOptions();
-            if ($('#bv-chart-type').length && this.settings.default_chart_type) {
-                $('#bv-chart-type').val(this.settings.default_chart_type);
-            }
-            if ($('#bv-top-n').length && this.settings.default_top_n) {
-                $('#bv-top-n').val(String(this.settings.default_top_n));
-            }
+    function prismFaces(bar) {
+        const { x, y, base, width } = bar;
+        if (![x, y, base, width].every(Number.isFinite) || width <= 0 || y >= base) return [];
+        const depth = Math.min(8, width * 0.3);
+        const lift = depth * Math.tan(Math.PI / 6);
+        const left = x - width / 2, right = x + width / 2;
+        return [
+            [[right, y], [right + depth, y - lift], [right + depth, base - lift], [right, base]],
+            [[left, y], [left + depth, y - lift], [right + depth, y - lift], [right, y]],
+        ];
+    }
 
-            // Set up event listeners
-            this.setupEventListeners();
-
-            // Load initial data
-            this.loadData();
-        },
-
-        getDefaultCategoryKey: function() {
-            const labels = (this.settings && this.settings.category_labels) ? this.settings.category_labels : {};
-            const keys = Object.keys(labels).filter(function(key) {
-                return String(key) !== 'all';
-            });
-            if (this.settings && this.settings.default_category && String(this.settings.default_category) !== 'all') {
-                return String(this.settings.default_category);
-            }
-            return keys[0] || 'all';
-        },
-
-        rebuildCategoryOptions: function() {
-            const $category = $('#bv-category-filter');
-            if (!$category.length) return;
-            const labels = (this.settings && this.settings.category_labels) ? this.settings.category_labels : {};
-            const keys = Object.keys(labels).filter(function(key) {
-                return String(key) !== 'all';
-            });
-            const defaultKey = this.getDefaultCategoryKey();
-            const current = $category.val() || defaultKey;
-            if (!keys.length) return;
-            let html = '';
-            keys.forEach(function(key) {
-                html += '<option value="' + String(key).replace(/"/g, '&quot;') + '">' + String(labels[key]) + '</option>';
-            });
-            if (current && current !== 'all' && keys.indexOf(current) === -1) {
-                html += '<option value="' + String(current).replace(/"/g, '&quot;') + '">' + String(current) + '</option>';
-            }
-            $category.html(html);
-            if ($category.find('option[value="' + String(current).replace(/"/g, '\\"') + '"]').length) {
-                $category.val(current);
-            } else if (keys.length) {
-                $category.val(keys[0]);
-            }
-        },
-
-        /**
-         * Setup event listeners
-         */
-        closeControlPanels: function() {
-            $('.themisdb-benchmark-menu').removeClass('is-open');
-            $('.themisdb-benchmark-menu-toggle').attr('aria-expanded', 'false');
-            $('.themisdb-split-button').removeClass('is-open');
-            $('.themisdb-split-button__toggle').attr('aria-expanded', 'false');
-        },
-
-        setupEventListeners: function() {
-            const self = this;
-
-            $('.themisdb-benchmark-menu-toggle').on('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                const $menu = $(this).closest('.themisdb-benchmark-menu');
-                const isOpen = $menu.hasClass('is-open');
-                self.closeControlPanels();
-                if (!isOpen) {
-                    $menu.addClass('is-open');
-                    $(this).attr('aria-expanded', 'true');
-                    $(this).attr('aria-label', $(this).attr('aria-label') || 'Diagramm-Optionen');
-                    self.pauseAutoRotate();
-                } else {
-                    self.startAutoRotate();
-                }
-            });
-
-            $(document).on('click', function(event) {
-                if (!$(event.target).closest('.themisdb-benchmark-menu, .themisdb-split-button').length) {
-                    self.closeControlPanels();
-                    self.startAutoRotate();
-                }
-            });
-
-            $(document).on('keydown', function(event) {
-                if (event.key === 'Escape' || event.key === 'Esc') {
-                    self.closeControlPanels();
-                    self.startAutoRotate();
-                }
-            });
-
-            $('.themisdb-split-button__toggle').on('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                const $group = $(this).closest('.themisdb-split-button');
-                const willOpen = !$group.hasClass('is-open');
-                self.closeControlPanels();
-                if (willOpen) {
-                    $group.addClass('is-open');
-                    $(this).attr('aria-expanded', 'true');
-                    self.pauseAutoRotate();
-                } else {
-                    self.startAutoRotate();
-                }
-            });
-
-            $('.themisdb-benchmark-panel').on('mouseenter focusin', function() {
-                self.pauseAutoRotate();
-            }).on('mouseleave focusout', function(event) {
-                const hasOpenControl = $('.themisdb-benchmark-menu.is-open, .themisdb-split-button.is-open').length > 0;
-                if (!$(event.currentTarget).find(':focus').length && !hasOpenControl) {
-                    self.startAutoRotate();
-                }
-            });
-
-            // Filter changes
-            $('#bv-category-filter, #bv-metric-filter, #bv-chart-type').on('change', function() {
-                self.loadData();
-            });
-
-            $('#bv-top-n, #bv-engine-filter').on('change', function() {
-                self.applyClientFiltersAndRender();
-            });
-
-            $('#bv-task-search').on('input', function() {
-                self.applyClientFiltersAndRender();
-            });
-
-            $('.themisdb-benchmark-arrow').on('click', function() {
-                const dir = $(this).data('bv-dir') === 'prev' ? -1 : 1;
-                self.changeSlide(dir);
-            });
-
-            // Refresh button
-            $('#bv-refresh-data').on('click', function(e) {
-                e.preventDefault();
-                self.refreshData();
-            });
-
-            // Export buttons
-            $('#bv-export-csv').on('click', function(e) {
-                e.preventDefault();
-                self.exportCSV();
-            });
-
-            $('#bv-export-pdf').on('click', function(e) {
-                e.preventDefault();
-                self.exportPDF();
-            });
-
-            $('#bv-print').on('click', function(e) {
-                e.preventDefault();
-                window.print();
-            });
-        },
-
-        /**
-         * Load benchmark data via AJAX
-         */
-        loadData: function() {
-            const self = this;
-            const category = $('#bv-category-filter').val() || this.getDefaultCategoryKey();
-            const metric = $('#bv-metric-filter').val() || 'latency';
-
-            // Show loading state
-            this.showLoading();
-
-            $.ajax({
-                url: themisdbBV.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'themisdb_bv_get_data',
-                    nonce: themisdbBV.nonce,
-                    category: category,
-                    metric: metric
-                },
-                success: function(response) {
-                    if (response.success && response.data) {
-                        self.rawData = response.data;
-                        self.currentSlideIndex = 0;
-                        self.rebuildEngineFilterOptions();
-                        self.applyClientFiltersAndRender();
-                    } else {
-                        self.rawData = null;
-                        self.currentData = null;
-                        self.showFallbackChartState('No benchmark data is available for the current filters.');
-                        self.showError('Failed to load benchmark data');
-                    }
-                    self.hideLoading();
-                },
-                error: function() {
-                    self.showError('Error loading benchmark data');
-                    self.hideLoading();
-                }
-            });
-        },
-
-        rebuildEngineFilterOptions: function() {
-            const $engineFilter = $('#bv-engine-filter');
-            if (!$engineFilter.length || !this.rawData || !Array.isArray(this.rawData.datasets)) {
-                return;
-            }
-            const currentValue = $engineFilter.val() || 'all';
-            let html = '<option value="all">Alle Engines</option>';
-            this.rawData.datasets.forEach(function(dataset) {
-                const label = String(dataset.label || '').trim();
-                if (label) {
-                    html += '<option value="' + label.replace(/"/g, '&quot;') + '">' + label + '</option>';
-                }
-            });
-            $engineFilter.html(html);
-            if ($engineFilter.find('option[value="' + currentValue.replace(/"/g, '\\"') + '"]').length) {
-                $engineFilter.val(currentValue);
-            }
-        },
-
-        applyClientFiltersAndRender: function() {
-            if (!this.rawData) {
-                this.showFallbackChartState('No benchmark data is available.');
-                return;
-            }
-            try {
-                this.currentData = this.buildFilteredData(this.rawData);
-                if (!this.currentData || !Array.isArray(this.currentData.labels) || !this.currentData.labels.length || !Array.isArray(this.currentData.datasets) || !this.currentData.datasets.length) {
-                    this.showFallbackChartState('No benchmark data matches the selected filters.');
-                    return;
-                }
-                this.currentSlideIndex = 0;
-                this.renderChart();
-                this.renderSliderMeta();
-                this.queueSecondaryRender();
-            } catch (error) {
-                console.error('ThemisDB benchmark rendering failed:', error);
-                this.hideLoading();
-                this.showFallbackChartState('The benchmark chart could not be rendered. Please try a different filter combination.');
-            }
-        },
-
-        queueSecondaryRender: function() {
-            const token = ++this.renderQueueToken;
-            const self = this;
-
-            if (typeof window.requestAnimationFrame === 'function') {
-                window.requestAnimationFrame(function() {
-                    if (token !== self.renderQueueToken || !self.currentData) return;
-                    self.renderMermaidDiagram();
-                    self.renderResultsTable();
-                    self.generateInsights();
-                    self.startAutoRotate();
+    const isometricBars = {
+        id: 'themisdbIsometricBars',
+        afterDatasetDraw(chart, { meta, index }) {
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(chart.chartArea.left, chart.chartArea.top - 8,
+                chart.chartArea.width + 8, chart.chartArea.height + 8);
+            ctx.clip();
+            meta.data.forEach((bar, point) => {
+                if (!finite(chart.data.datasets[index].data[point])) return;
+                const faces = prismFaces(bar.getProps(['x', 'y', 'base', 'width']));
+                faces.forEach((vertices, face) => {
+                    ctx.beginPath();
+                    vertices.forEach(([x, y], vertex) => vertex ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+                    ctx.closePath();
+                    const color = Chart.helpers.color(bar.options.borderColor);
+                    ctx.fillStyle = (face ? color.lighten(0.25) : color.darken(0.22)).rgbString();
+                    ctx.fill();
                 });
-                return;
-            }
-
-            this.renderMermaidDiagram();
-            this.renderResultsTable();
-            this.generateInsights();
-            this.startAutoRotate();
-        },
-
-        buildFilteredData: function(sourceData) {
-            const labels = Array.isArray(sourceData.labels) ? sourceData.labels.slice() : [];
-            const datasets = Array.isArray(sourceData.datasets)
-                ? sourceData.datasets.map(function(ds) {
-                    return Object.assign({}, ds, { data: Array.isArray(ds.data) ? ds.data.slice() : [] });
-                })
-                : [];
-            const summary = Object.assign({}, sourceData.summary || {});
-            const search = String($('#bv-task-search').val() || '').trim().toLowerCase();
-            const engineFilter = String($('#bv-engine-filter').val() || 'all').trim();
-            const topNRaw = String($('#bv-top-n').val() || '').trim();
-            const defaultTopN = Number(this.settings.default_top_n) || 10;
-            const topN = topNRaw === 'all' ? -1 : Math.max(1, Number(topNRaw) || defaultTopN);
-
-            let selectedDatasets = datasets;
-            if (engineFilter !== 'all') {
-                selectedDatasets = datasets.filter(function(ds) { return String(ds.label || '') === engineFilter; });
-            }
-
-            let indexSet = labels.map(function(_, idx) { return idx; });
-            if (search) {
-                indexSet = indexSet.filter(function(idx) {
-                    return String(labels[idx] || '').toLowerCase().includes(search);
-                });
-            }
-
-            const metric = $('#bv-metric-filter').val() || 'latency';
-            const higherIsBetter = metric === 'throughput';
-            if (topN > 0 && indexSet.length > topN) {
-                const primaryDataset = selectedDatasets.find(function(ds) { return String(ds.label || '').toLowerCase().includes('themisdb'); }) || selectedDatasets[0];
-                if (primaryDataset && Array.isArray(primaryDataset.data)) {
-                    indexSet = indexSet
-                        .map(function(idx) { return { idx: idx, val: Number(primaryDataset.data[idx] ?? Number.POSITIVE_INFINITY) }; })
-                        .sort(function(a, b) { return higherIsBetter ? b.val - a.val : a.val - b.val; })
-                        .slice(0, topN)
-                        .map(function(entry) { return entry.idx; });
-                } else {
-                    indexSet = indexSet.slice(0, topN);
-                }
-            }
-
-            const filteredLabels = indexSet.map(function(idx) { return labels[idx]; });
-            const filteredDatasets = selectedDatasets.map(function(ds) {
-                return Object.assign({}, ds, { data: indexSet.map(function(idx) { return ds.data[idx]; }) });
             });
-
-            summary.total_benchmarks = labels.length;
-            summary.displayed_benchmarks = filteredLabels.length;
-
-            return {
-                labels: filteredLabels,
-                datasets: filteredDatasets,
-                metric: sourceData.metric,
-                category: sourceData.category,
-                description: sourceData.description,
-                summary: summary
-            };
+            ctx.restore();
         },
-
-        formatTaskLabel: function(value, maxLength) {
-            const input = String(value || '').trim();
-            const limit = Math.max(8, Number(maxLength) || 26);
-            if (input.length <= limit) {
-                return input;
-            }
-            return input.slice(0, limit - 1) + '…';
-        },
-
-        /**
-         * Refresh data (clear cache)
-         */
-        refreshData: function() {
-            // In production, this would make an AJAX call to clear the cache
-            this.loadData();
-        },
-
-        getMetricUnit: function(metric) {
-            const units = {
-                latency: 'ms',
-                throughput: 'ops/s',
-                memory: 'MB'
-            };
-            return units[metric] || '';
-        },
-
-        clearAutoRotate: function() {
-            if (this.autoRotateTimer) {
-                clearInterval(this.autoRotateTimer);
-                this.autoRotateTimer = null;
-            }
-        },
-
-        pauseAutoRotate: function() {
-            this.autoRotatePaused = true;
-            this.clearAutoRotate();
-        },
-
-        startAutoRotate: function() {
-            this.autoRotatePaused = false;
-            this.clearAutoRotate();
-
-            if (!this.currentData || !Array.isArray(this.currentData.datasets) || this.currentData.datasets.length < 2) {
-                return;
-            }
-
-            const self = this;
-            this.autoRotateTimer = setInterval(function() {
-                if (!self.currentData || !Array.isArray(self.currentData.datasets) || self.autoRotatePaused) {
-                    return;
-                }
-
-                self.currentSlideIndex = (self.currentSlideIndex + 1) % self.currentData.datasets.length;
-                self.renderSliderMeta();
-            }, 5000);
-        },
-
-        changeSlide: function(direction) {
-            if (!this.currentData || !Array.isArray(this.currentData.datasets) || !this.currentData.datasets.length) {
-                return;
-            }
-
-            const total = this.currentData.datasets.length;
-            this.currentSlideIndex = (this.currentSlideIndex + direction + total) % total;
-            this.renderSliderMeta();
-            this.startAutoRotate();
-        },
-
-        renderSliderMeta: function() {
-            if (!this.currentData || !Array.isArray(this.currentData.datasets) || !this.currentData.datasets.length) {
-                return;
-            }
-
-            const datasetIndex = ((this.currentSlideIndex % this.currentData.datasets.length) + this.currentData.datasets.length) % this.currentData.datasets.length;
-            const dataset = this.currentData.datasets[datasetIndex];
-            const metric = $('#bv-metric-filter').val() || 'latency';
-            const unit = this.getMetricUnit(metric);
-            const values = Array.isArray(dataset.data) ? dataset.data : [];
-            const avg = values.length ? values.reduce(function(sum, value) {
-                const numeric = Number(value) || 0;
-                return sum + numeric;
-            }, 0) / values.length : 0;
-            const bestValue = values.length
-                ? (metric === 'throughput'
-                    ? Math.max.apply(null, values.map(function(value) { return Number(value) || 0; }))
-                    : Math.min.apply(null, values.map(function(value) { return Number(value) || 0; })))
-                : 0;
-
-            $('#bv-slide-title').text(dataset.label || 'Benchmark');
-
-            const $slideValue = $('#bv-slide-value');
-            if ($slideValue.length) {
-                $slideValue.text(avg.toFixed(2));
-            }
-
-            const $slideUnit = $('#bv-slide-unit');
-            if ($slideUnit.length) {
-                $slideUnit.text(unit);
-            }
-
-            const $slideSummary = $('#bv-slide-summary');
-            if ($slideSummary.length) {
-                $slideSummary.text(
-                    metric === 'throughput'
-                        ? 'Higher throughput indicates better sustained capacity under demand.'
-                        : metric === 'memory'
-                            ? 'Lower memory footprint reduces overhead and improves efficiency.'
-                            : 'Lower is better for latency-sensitive reads and retrieval workloads.'
-                );
-            }
-
-            $('#bv-summary-avg').text(avg.toFixed(2) + ' ' + unit);
-            $('#bv-summary-fastest').text(bestValue.toFixed(2) + ' ' + unit);
-            $('#bv-summary-count').text(String(this.currentData.labels ? this.currentData.labels.length : values.length));
-
-            const dots = this.currentData.datasets.map(function(item, index) {
-                const activeClass = index === datasetIndex ? ' is-active' : '';
-                return '<button class="themisdb-benchmark-dot' + activeClass + '" type="button" data-bv-index="' + index + '" aria-label="Show ' + (item.label || 'benchmark') + '"></button>';
-            }).join('');
-            $('#bv-slider-dots').html(dots);
-
-            const self = this;
-            $('#bv-slider-dots .themisdb-benchmark-dot').on('click', function() {
-                const idx = Number($(this).data('bv-index'));
-                if (!isNaN(idx)) {
-                    self.currentSlideIndex = idx;
-                    self.renderSliderMeta();
-                    self.startAutoRotate();
-                }
-            });
-        },
-
-        /**
-         * Render chart using Chart.js
-         */
-        updateFocusState: function(activeIndex) {
-            if (!this.currentData || !Array.isArray(this.currentData.labels) || !Array.isArray(this.currentData.datasets)) {
-                return;
-            }
-
-            const panel = document.querySelector('.themisdb-benchmark-panel');
-            if (panel) {
-                panel.classList.add('chart-hovered');
-            }
-        },
-
-        hideFocusState: function() {
-            const panel = document.querySelector('.themisdb-benchmark-panel');
-            if (panel) {
-                panel.classList.remove('chart-hovered');
-            }
-        },
-
-        renderChart: function() {
-            if (!this.currentData || !Array.isArray(this.currentData.labels) || !this.currentData.labels.length || !Array.isArray(this.currentData.datasets) || !this.currentData.datasets.length) {
-                this.showFallbackChartState('No benchmark data is available for the selected view.');
-                return;
-            }
-            const ctx = document.getElementById('themisdb-benchmark-chart');
-            if (!ctx) return;
-
-            const chartType = $('#bv-chart-type').val() || 'bar';
-            const metric = $('#bv-metric-filter').val() || 'latency';
-            const normalizedChartType = chartType === 'area' ? 'line' : chartType;
-            const labelCount = Array.isArray(this.currentData.labels) ? this.currentData.labels.length : 0;
-            const isDense = labelCount > 14;
-            const isHorizontalBar = normalizedChartType === 'bar' && isDense;
-
-            // Destroy existing chart
-            if (this.chart) {
-                this.chart.destroy();
-            }
-
-            const self = this;
-            const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-            const baseStyle = {
-                borderWidth: 0,
-                borderRadius: 6,
-                borderSkipped: false,
-                borderAlign: 'center',
-                pointRadius: chartType === 'line' ? 3 : 0,
-                pointHoverRadius: chartType === 'line' ? 5 : 0,
-                pointBackgroundColor: 'rgba(255, 255, 255, 0.95)',
-                pointBorderWidth: 2,
-                pointBorderColor: 'rgba(59, 130, 246, 0.9)',
-                hoverBorderWidth: 2,
-                hoverBorderColor: 'rgba(15, 23, 42, 0.9)',
-                hoverBackgroundColor: 'rgba(147, 197, 253, 0.95)'
-            };
-
-            const axisLabelColor = '#475569';
-            const gridColor = 'rgba(15, 23, 42, 0.08)';
-
-            const config = {
-                type: normalizedChartType,
-                data: {
-                    labels: this.currentData.labels,
-                    datasets: this.currentData.datasets.map(function(dataset) {
-                        const normalized = Object.assign({}, dataset, baseStyle);
-                        normalized.backgroundColor = dataset.backgroundColor || 'rgba(59, 130, 246, 0.72)';
-                        normalized.borderColor = dataset.borderColor || 'rgba(37, 99, 235, 0.95)';
-                        return normalized;
-                    })
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: prefersReducedMotion ? false : {
-                        duration: 220,
-                        easing: 'easeOutCubic',
-                        delay: function(context) {
-                            return context.type === 'data' ? Math.min(context.dataIndex * 8 + context.datasetIndex * 4, 32) : 0;
-                        }
-                    },
-                    interaction: {
-                        mode: 'nearest',
-                        intersect: false,
-                    },
-                    onHover: function(event, activeElements) {
-                        if (!activeElements || !activeElements.length) {
-                            self.hideFocusState();
-                            return;
-                        }
-                        const activeIndex = activeElements[0].index;
-                        if (typeof activeIndex === 'number') {
-                            self.updateFocusState(activeIndex);
-                        }
-                    },
-                    onClick: function(event, activeElements) {
-                        if (!activeElements || !activeElements.length) {
-                            self.hideFocusState();
-                            return;
-                        }
-                        const activeIndex = activeElements[0].index;
-                        if (typeof activeIndex === 'number') {
-                            self.updateFocusState(activeIndex);
-                        }
-                    },
-                    layout: {
-                        padding: {
-                            left: 12,
-                            right: 12,
-                            top: 12,
-                            bottom: 8
-                        }
-                    },
-                    plugins: {
-                        title: {
-                            display: false
-                        },
-                        legend: {
-                            display: this.currentData && Array.isArray(this.currentData.datasets) && this.currentData.datasets.length > 1 && this.currentData.datasets.length <= 5,
-                            position: 'bottom',
-                            labels: {
-                                color: '#334155',
-                                boxWidth: 10,
-                                usePointStyle: true,
-                                pointStyle: 'circle',
-                                padding: 10
-                            }
-                        },
-                        tooltip: {
-                            enabled: true,
-                            mode: 'index',
-                            intersect: false,
-                            backgroundColor: 'rgba(15, 23, 42, 0.92)',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
-                            padding: 10,
-                            displayColors: false,
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    const parsedValue = typeof context.parsed.y === 'number'
-                                        ? context.parsed.y
-                                        : (typeof context.parsed.x === 'number' ? context.parsed.x : (typeof context.parsed.r === 'number' ? context.parsed.r : Number(context.raw)));
-                                    label += Number(parsedValue || 0).toFixed(2);
-                                    label += ' ' + (metric === 'latency' ? 'ms' :
-                                                   metric === 'throughput' ? 'ops/sec' : 'MB');
-                                    return label;
-                                }
-                            }
-                        }
-                    },
-                    scales: normalizedChartType === 'radar' ? {} : {
-                        x: {
-                            beginAtZero: false,
-                            grid: {
-                                display: !isHorizontalBar,
-                                color: gridColor,
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: axisLabelColor,
-                                maxRotation: 0,
-                                autoSkip: true,
-                                maxTicksLimit: isHorizontalBar ? 8 : 12,
-                                callback: function(value, index) {
-                                    if (isHorizontalBar) {
-                                        return value;
-                                    }
-                                    const labels = self.currentData && Array.isArray(self.currentData.labels) ? self.currentData.labels : [];
-                                    return self.formatTaskLabel(labels[index] || '', 18);
-                                }
-                            },
-                            border: {
-                                display: false
-                            },
-                            title: {
-                                display: true,
-                                text: 'Tasks',
-                                color: axisLabelColor,
-                                font: {
-                                    size: 11,
-                                    weight: 600
-                                }
-                            }
-                        },
-                        y: {
-                            beginAtZero: false,
-                            grid: {
-                                color: gridColor,
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: axisLabelColor,
-                                maxTicksLimit: 6,
-                                callback: function(value) {
-                                    return value;
-                                }
-                            },
-                            display: true,
-                            border: {
-                                display: false
-                            },
-                            title: {
-                                display: true,
-                                text: metric === 'latency' ? 'Latency (ms)' : metric === 'throughput' ? 'Throughput (ops/s)' : 'Memory (MB)',
-                                color: axisLabelColor,
-                                font: {
-                                    size: 11,
-                                    weight: 600
-                                }
-                            }
-                        }
-                    },
-                    elements: {
-                        bar: {
-                            borderRadius: 6,
-                            borderSkipped: false,
-                            borderWidth: 0,
-                            hoverBorderWidth: 2,
-                            hoverBorderColor: 'rgba(15, 23, 42, 0.9)'
-                        },
-                        line: {
-                            borderWidth: 3,
-                            tension: 0.3,
-                            pointRadius: normalizedChartType === 'line' || normalizedChartType === 'radar' ? 4 : 0,
-                            pointHoverRadius: 7
-                        },
-                        point: {
-                            radius: 4,
-                            hoverRadius: 7,
-                            hitRadius: 12
-                        }
-                    }
-                }
-            };
-
-            if (isHorizontalBar) {
-                config.options.indexAxis = 'y';
-                config.options.scales.x.title.text = 'Tasks';
-                config.options.scales.y.title.text = metric === 'latency' ? 'Latency (ms)' : metric === 'throughput' ? 'Throughput (ops/s)' : 'Memory (MB)';
-                config.options.scales.x.ticks.callback = function(value, index) {
-                    return self.formatTaskLabel((self.currentData && Array.isArray(self.currentData.labels) ? self.currentData.labels[index] : '') || '', 18);
-                };
-                config.options.scales.y.ticks.callback = function(value) {
-                    return value;
-                };
-            }
-
-            if (chartType === 'area') {
-                config.data.datasets = config.data.datasets.map(function(dataset) {
-                    return Object.assign({}, dataset, {
-                        fill: true,
-                        backgroundColor: dataset.backgroundColor || 'rgba(103, 189, 255, 0.28)',
-                    });
-                });
-            }
-            if (isHorizontalBar) {
-                config.options.indexAxis = 'y';
-            }
-            // Create chart
-            this.chart = new Chart(ctx, config);
-            this.hideFocusState();
-        },
-
-        /**
-         * Build a compact Mermaid architecture overview from the loaded benchmark data.
-         */
-        renderMermaidDiagram: function() {
-            if (!this.currentData || !this.currentData.datasets) {
-                return;
-            }
-
-            const target = document.getElementById('themisdb-benchmark-mermaid');
-            if (!target) {
-                return;
-            }
-
-            if (!window.mermaid) {
-                target.innerHTML = '<p class="themisdb-mermaid-error">Mermaid is not available yet.</p>';
-                return;
-            }
-
-            const graph = this.buildMermaidGraph(this.currentData);
-            if (!graph) {
-                return;
-            }
-
-            target.innerHTML = '<pre class="mermaid">' + graph + '</pre>';
-            try {
-                const nodes = target.querySelectorAll('.mermaid');
-                if (nodes.length) {
-                    window.mermaid.initialize({ startOnLoad: false, theme: 'default' });
-                    window.mermaid.run({ nodes: Array.from(nodes) });
-                }
-            } catch (error) {
-                target.innerHTML = '<pre class="mermaid">' + graph + '</pre><p class="themisdb-mermaid-error">Mermaid rendering failed.</p>';
-            }
-        },
-
-        buildMermaidGraph: function(data) {
-            const datasets = Array.isArray(data.datasets) ? data.datasets : [];
-            if (!datasets.length) {
-                return '';
-            }
-
-            const metric = $('#bv-metric-filter').val() || 'latency';
-            const unit = metric === 'latency' ? 'ms' : (metric === 'throughput' ? 'ops/s' : 'MB');
-            const tops = datasets.slice(0, 4);
-
-            const lines = [
-                'flowchart LR',
-                '    A["Benchmark overview"]',
-            ];
-
-            tops.forEach(function(dataset, index) {
-                const average = Array.isArray(dataset.data) && dataset.data.length
-                    ? dataset.data.reduce(function(sum, value) { return sum + Number(value || 0); }, 0) / dataset.data.length
-                    : 0;
-                const label = dataset.label || 'Engine';
-                const nodeId = 'n' + index;
-                lines.push('    ' + nodeId + '["' + label + ': ' + average.toFixed(2) + ' ' + unit + '"]');
-                if (index === 0) {
-                    lines.push('    A --> ' + nodeId);
-                }
-            });
-
-            if (tops.length > 1) {
-                for (let i = 1; i < tops.length; i++) {
-                    lines.push('    n0 --> n' + i);
-                }
-            }
-
-            return lines.join('\n');
-        },
-
-        /**
-         * Get chart title based on metric
-         */
-        getChartTitle: function(metric) {
-            const titles = {
-                latency: 'Performance Comparison: Latency (Lower is Better)',
-                throughput: 'Performance Comparison: Throughput (Higher is Better)',
-                memory: 'Performance Comparison: Memory Usage'
-            };
-            return titles[metric] || 'Performance Comparison';
-        },
-
-        /**
-         * Get Y-axis label based on metric
-         */
-        getYAxisLabel: function(metric) {
-            const labels = {
-                latency: 'Latency (ms)',
-                throughput: 'Throughput (operations/second)',
-                memory: 'Memory Usage (MB)'
-            };
-            return labels[metric] || 'Value';
-        },
-
-        escapeHtml: function(value) {
-            return String(value === undefined || value === null ? '' : value)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        },
-
-        /**
-         * Render results table
-         */
-        renderResultsTable: function() {
-            if (!this.currentData) return;
-
-            const $tableContainer = $('#bv-results-table');
-            const metric = $('#bv-metric-filter').val() || 'latency';
-
-            // Render statistics summary first
-            this.renderStatsSummary();
-
-            let html = '<table>';
-            html += '<thead><tr>';
-            html += '<th>Testaufgabe</th>';
-
-            // Add column for each dataset (database)
-            this.currentData.datasets.forEach(function(dataset) {
-                html += '<th>' + dataset.label + '</th>';
-            });
-
-            html += '</tr></thead><tbody>';
-
-            // Add rows for each label (operation)
-            this.currentData.labels.forEach(function(label, index) {
-                const summary = this.currentData.summary || {};
-                const sourcesByTask = summary.task_sources || {};
-                const taskSources = Array.isArray(sourcesByTask[label]) ? sourcesByTask[label] : [];
-
-                html += '<tr>';
-                html += '<td><strong>' + this.escapeHtml(label) + '</strong>';
-                if (taskSources.length) {
-                    html += '<details class="themisdb-task-sources">';
-                    html += '<summary>' + taskSources.length + ' Rohlauf' + (taskSources.length === 1 ? '' : 'e') + '</summary>';
-                    html += '<ul>';
-                    taskSources.slice(0, 10).forEach(function(source) {
-                        html += '<li><code>' + this.escapeHtml(source) + '</code></li>';
-                    }.bind(this));
-                    if (taskSources.length > 10) {
-                        html += '<li>… +' + (taskSources.length - 10) + ' weitere</li>';
-                    }
-                    html += '</ul></details>';
-                }
-                html += '</td>';
-
-                // Add data for each dataset
-                this.currentData.datasets.forEach(function(dataset) {
-                    const value = dataset.data[index];
-                    const unit = metric === 'latency' ? ' ms' : 
-                                metric === 'throughput' ? ' ops/s' : ' MB';
-                    if (value === null || value === undefined || Number.isNaN(Number(value))) {
-                        html += '<td class="value-cell">—</td>';
-                    } else {
-                        html += '<td class="value-cell">' + Number(value).toFixed(2) + unit + '</td>';
-                    }
-                });
-
-                html += '</tr>';
-            }.bind(this));
-
-            html += '</tbody></table>';
-            $tableContainer.html(html);
-        },
-
-        /**
-         * Render statistics summary
-         */
-        renderStatsSummary: function() {
-            if (!this.currentData || !this.currentData.summary) return;
-
-            const $summaryContainer = $('#bv-stats-summary');
-            const summary = this.currentData.summary;
-            const metric = $('#bv-metric-filter').val() || 'latency';
-            
-            let html = '<div class="themisdb-stats-grid">';
-            
-            // Total benchmarks
-            html += '<div class="themisdb-stat-card">';
-            html += '<div class="stat-icon">📊</div>';
-            const totalTasks = summary.task_count || summary.total_benchmarks || 0;
-            html += '<div class="stat-value">' + totalTasks + '</div>';
-            html += '<div class="stat-label">Testaufgaben';
-            if (summary.displayed_benchmarks && summary.displayed_benchmarks < summary.total_benchmarks) {
-                html += ' (' + summary.displayed_benchmarks + ' sichtbar)';
-            }
-            html += '</div>';
-            html += '</div>';
-
-            if (summary.comparable_task_count !== undefined) {
-                html += '<div class="themisdb-stat-card">';
-                html += '<div class="stat-icon">⚖️</div>';
-                html += '<div class="stat-value">' + Number(summary.comparable_task_count) + '</div>';
-                html += '<div class="stat-label">Direkt vergleichbar</div>';
-                html += '</div>';
-            }
-            
-            // Files parsed
-            if (summary.files_parsed) {
-                html += '<div class="themisdb-stat-card">';
-                html += '<div class="stat-icon">📁</div>';
-                html += '<div class="stat-value">' + summary.files_parsed + '</div>';
-                html += '<div class="stat-label">Benchmark Files</div>';
-                html += '</div>';
-            }
-            
-            // Average time
-            if (summary.avg_time) {
-                html += '<div class="themisdb-stat-card">';
-                html += '<div class="stat-icon">⏱️</div>';
-                html += '<div class="stat-value">' + summary.avg_time.toFixed(2) + '</div>';
-                html += '<div class="stat-label">Average ' + (metric === 'latency' ? 'Latency (ms)' : 
-                                                             metric === 'throughput' ? 'Throughput (ops/sec)' : 'Value') + '</div>';
-                html += '</div>';
-            }
-            
-            // Fastest / Best performance
-            const bestValue = summary.best_value !== undefined ? summary.best_value : summary.fastest;
-            const worstValue = summary.worst_value !== undefined ? summary.worst_value : summary.slowest;
-
-            if (bestValue !== null && bestValue !== undefined) {
-                html += '<div class="themisdb-stat-card success">';
-                html += '<div class="stat-icon">🚀</div>';
-                html += '<div class="stat-value">' + Number(bestValue).toFixed(2) + '</div>';
-                html += '<div class="stat-label">';
-                if (metric === 'throughput') {
-                    html += 'Peak Throughput';
-                } else {
-                    html += 'Best Performance';
-                }
-                html += '</div>';
-                html += '</div>';
-            }
-            
-            // Slowest / Worst performance or Peak
-            if (worstValue !== null && worstValue !== undefined) {
-                html += '<div class="themisdb-stat-card warning">';
-                html += '<div class="stat-icon">🐌</div>';
-                html += '<div class="stat-value">' + Number(worstValue).toFixed(2) + '</div>';
-                html += '<div class="stat-label">';
-                if (metric === 'throughput') {
-                    html += 'Lowest Throughput';
-                } else {
-                    html += 'Slowest Operation';
-                }
-                html += '</div>';
-                html += '</div>';
-            }
-            
-            html += '</div>';
-            
-            // Add note if data is limited
-            const hasDisplayLimit = summary.displayed_benchmarks && summary.displayed_benchmarks < summary.total_benchmarks;
-            const hasComparableExclusions = summary.excluded_non_comparable_tasks && Number(summary.excluded_non_comparable_tasks) > 0;
-            const isFallbackMode = summary.comparison_mode === 'single_engine_fallback';
-            if (hasDisplayLimit || hasComparableExclusions || isFallbackMode) {
-                html += '<div class="themisdb-display-note">';
-                if (hasDisplayLimit) {
-                    html += '<p><small>📝 Zeige die ' + summary.displayed_benchmarks + ' besten Testaufgaben von insgesamt ' + 
-                            summary.total_benchmarks + ' für eine bessere Visualisierung.</small></p>';
-                }
-                if (hasComparableExclusions) {
-                    html += '<p><small>⚖️ ' + Number(summary.excluded_non_comparable_tasks) + ' Aufgaben ohne ausreichende Engine-Abdeckung wurden für faire Vergleichbarkeit ausgeblendet.</small></p>';
-                }
-                if (isFallbackMode) {
-                    html += '<p><small>ℹ️ Keine Cross-Engine-Aufgaben gefunden – Darstellung nutzt Single-Engine-Fallback.</small></p>';
-                }
-                html += '</div>';
-            }
-            
-            $summaryContainer.html(html);
-        },
-
-        /**
-         * Generate performance insights
-         */
-        generateInsights: function() {
-            if (!this.currentData) return;
-
-            const $insightsContainer = $('#bv-insights');
-            const metric = $('#bv-metric-filter').val() || 'latency';
-            const category = $('#bv-category-filter').val() || 'all';
-            const description = this.currentData.description;
-
-            // Generate insights HTML
-            let html = '';
-
-            // Category-specific detailed description
-            if (description) {
-                html += '<div class="themisdb-insight-card info">';
-                html += '<h4>📊 ' + description.title + '</h4>';
-                html += '<p><strong>Getestete Operationen:</strong> ' + description.tests + '</p>';
-                html += '<p><strong>Ergebnisse:</strong> ' + description.results + '</p>';
-                if (description.stats_summary) {
-                    html += '<p><strong>Statistik:</strong> ' + description.stats_summary + '</p>';
-                }
-                html += '</div>';
-                
-                // Valid conclusions
-                if (description.conclusions && description.conclusions.valid) {
-                    html += '<div class="themisdb-insight-card success">';
-                    html += '<h4>✅ Gültige Schlussfolgerungen</h4>';
-                    html += '<ul>';
-                    description.conclusions.valid.forEach(function(conclusion) {
-                        html += '<li>' + conclusion + '</li>';
-                    });
-                    html += '</ul>';
-                    html += '</div>';
-                }
-                
-                // Invalid conclusions
-                if (description.conclusions && description.conclusions.invalid) {
-                    html += '<div class="themisdb-insight-card warning">';
-                    html += '<h4>⚠️ Ungültige Schlussfolgerungen</h4>';
-                    html += '<ul>';
-                    description.conclusions.invalid.forEach(function(conclusion) {
-                        html += '<li>' + conclusion + '</li>';
-                    });
-                    html += '</ul>';
-                    html += '</div>';
-                }
-            } else {
-                // Fallback to summary insight if no description available
-                if (this.currentData.summary) {
-                    const summary = this.currentData.summary;
-                    
-                    html += '<div class="themisdb-insight-card success">';
-                    html += '<h4>📊 Benchmark Summary</h4>';
-                    html += '<p><strong>' + summary.total_benchmarks + ' test tasks</strong> were executed in the ';
-                    html += '<strong>' + this.getCategoryName(category) + '</strong> category. ';
-                    
-                    if (metric === 'latency') {
-                        html += 'Average latency: <strong>' + summary.avg_time.toFixed(2) + ' ms</strong>. ';
-                        html += 'Best performance: <strong>' + Number(summary.best_value ?? summary.fastest).toFixed(2) + ' ms</strong>.';
-                    } else if (metric === 'throughput') {
-                        html += 'Average throughput: <strong>' + summary.avg_time.toFixed(0) + ' ops/sec</strong>. ';
-                        html += 'Peak throughput: <strong>' + Number(summary.best_value ?? summary.slowest).toFixed(0) + ' ops/sec</strong>.';
-                    } else {
-                        html += 'Average value: <strong>' + summary.avg_time.toFixed(2) + '</strong>.';
-                    }
-                    html += '</p></div>';
-                }
-
-                // Performance range insight
-                const summaryStats = this.currentData.summary || {};
-                const rangeBest = summaryStats.best_value !== undefined ? summaryStats.best_value : summaryStats.fastest;
-                const rangeWorst = summaryStats.worst_value !== undefined ? summaryStats.worst_value : summaryStats.slowest;
-                if (summaryStats.avg_time && rangeBest !== null && rangeBest !== undefined && rangeWorst !== null && rangeWorst !== undefined) {
-                    const range = Math.abs(Number(rangeWorst) - Number(rangeBest));
-                    const rangePercent = (range / Number(summaryStats.avg_time) * 100).toFixed(1);
-                    
-                    html += '<div class="themisdb-insight-card info">';
-                    html += '<h4>📈 Performance Variance</h4>';
-                    html += '<p>Performance varies by <strong>' + rangePercent + '%</strong> across different operations. ';
-                    
-                    if (metric === 'latency') {
-                        if (parseFloat(rangePercent) < 50) {
-                            html += 'ThemisDB shows <strong>consistent low-latency</strong> performance.';
-                        } else {
-                            html += 'Some operations are more complex and require more time.';
-                        }
-                    } else {
-                        html += 'Different operations have different throughput characteristics.';
-                    }
-                    html += '</p></div>';
-                }
-
-                // Key takeaway
-                html += '<div class="themisdb-insight-card warning">';
-                html += '<h4>💡 Key Takeaway</h4>';
-                html += '<p>These benchmarks show real-world performance on actual hardware. ';
-                html += 'Results may vary based on your specific hardware configuration, workload patterns, and data size. ';
-                html += 'Use these as a reference for understanding ThemisDB\'s performance characteristics.</p></div>';
-            }
-
-            $insightsContainer.html(html);
-        },
-
-        /**
-         * Get category display name
-         */
-        getCategoryName: function(category) {
-            const configured = (window.themisdbBV && themisdbBV.settings && themisdbBV.settings.category_labels)
-                ? themisdbBV.settings.category_labels
-                : {};
-            if (configured && configured[category]) {
-                return configured[category];
-            }
-            const names = {
-                
-                'vector_search': 'Vector Search & Embeddings',
-                'graph_traversal': 'Graph Traversal & PageRank',
-                'encryption': 'Encryption & HSM',
-                'compression': 'Compression',
-                'transaction': 'MVCC & Transactions',
-                'image_analysis': 'Image Analysis',
-                'advanced': 'Advanced Patterns & AQL',
-                'gpu': 'GPU Backends',
-                'content': 'Content Versioning & Indexing'
-            };
-            return names[category] || category;
-        },
-
-        /**
-         * Get category-specific insights
-         */
-        getCategoryInsight: function(category, metric) {
-            const insights = {
-                'vector_search': '<div class="themisdb-insight-card success"><h4>🎯 Vector Search Performance</h4>' +
-                    '<p>ThemisDB provides <strong>native vector search</strong> capabilities with competitive performance for ' +
-                    'similarity search, embeddings, and nearest-neighbor queries including GNN embeddings.</p></div>',
-                    
-                'graph_traversal': '<div class="themisdb-insight-card success"><h4>🕸️ Graph Processing</h4>' +
-                    '<p>ThemisDB\'s graph traversal algorithms are optimized for <strong>complex relationship queries</strong>, ' +
-                    'BFS/DFS operations, and graph analytics like PageRank with various graph sizes.</p></div>',
-                    
-                'encryption': '<div class="themisdb-insight-card success"><h4>🔒 Security Performance</h4>' +
-                    '<p>Encryption operations show that ThemisDB maintains <strong>strong security</strong> with HSM provider support while ' +
-                    'minimizing performance overhead through optimized cryptographic implementations.</p></div>',
-                    
-                'compression': '<div class="themisdb-insight-card success"><h4>📦 Compression Efficiency</h4>' +
-                    '<p>ThemisDB\'s compression algorithms balance <strong>storage savings</strong> with fast ' +
-                    'compression and decompression speeds for optimal data management.</p></div>',
-                    
-                'transaction': '<div class="themisdb-insight-card success"><h4>💼 ACID Transactions</h4>' +
-                    '<p>MVCC and transaction benchmarks demonstrate ThemisDB\'s <strong>reliable ACID guarantees</strong> ' +
-                    'with efficient concurrency control and minimal lock contention.</p></div>',
-                    
-                'image_analysis': '<div class="themisdb-insight-card success"><h4>🖼️ Image Processing</h4>' +
-                    '<p>ThemisDB\'s image analysis features show strong performance for <strong>AI-powered ' +
-                    'image operations</strong>, enabling multimedia database applications with low latency processing.</p></div>',
-                    
-                'advanced': '<div class="themisdb-insight-card success"><h4>🚀 Advanced Features</h4>' +
-                    '<p>Advanced patterns, hybrid AQL queries, changefeed throughput, and micro-optimization benchmarks showcase ' +
-                    'ThemisDB\'s <strong>multi-model capabilities</strong>, combining different data paradigms efficiently.</p></div>',
-                    
-                'gpu': '<div class="themisdb-insight-card success"><h4>⚡ GPU Acceleration</h4>' +
-                    '<p>GPU backend benchmarks demonstrate ThemisDB\'s ability to leverage <strong>hardware acceleration</strong> ' +
-                    'for compute-intensive operations, improving performance for complex queries.</p></div>',
-                    
-                'content': '<div class="themisdb-insight-card success"><h4>📝 Content Management</h4>' +
-                    '<p>Content versioning and index rebuild benchmarks show ThemisDB\'s <strong>robust data management</strong> ' +
-                    'capabilities for applications requiring version control and efficient index maintenance.</p></div>'
-            };
-            
-            return insights[category] || null;
-        },
-
-        /**
-         * Export data as CSV
-         */
-        exportCSV: function() {
-            if (!this.currentData) return;
-
-            let csv = 'Operation,';
-            csv += this.currentData.datasets.map(d => d.label).join(',') + '\n';
-
-            this.currentData.labels.forEach(function(label, index) {
-                csv += label + ',';
-                csv += this.currentData.datasets.map(d => d.data[index]).join(',') + '\n';
-            }.bind(this));
-
-            // Create download
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'themisdb-benchmarks-' + Date.now() + '.csv';
-            a.click();
-            window.URL.revokeObjectURL(url);
-        },
-
-        /**
-         * Export as PDF (basic implementation)
-         */
-        exportPDF: function() {
-            // For a full implementation, you would use a library like jsPDF
-            // For now, we'll just trigger print which can save as PDF
-            window.print();
-        },
-
-        /**
-         * Show a fallback state when rendering fails.
-         */
-        showFallbackChartState: function(message) {
-            const $loading = $('#bv-loading');
-            if ($loading.length) {
-                $loading.html('<div class="themisdb-insight-card warning"><h4>⚠️ Notice</h4><p>' + message + '</p></div>').show();
-            }
-            $('#themisdb-benchmark-chart').css('opacity', '0.35');
-            this.clearAutoRotate();
-        },
-
-        /**
-         * Show loading state
-         */
-        showLoading: function() {
-            $('#bv-loading').show();
-            $('#themisdb-benchmark-chart').css('opacity', '0.3');
-        },
-
-        /**
-         * Hide loading state
-         */
-        hideLoading: function() {
-            $('#bv-loading').hide();
-            $('#themisdb-benchmark-chart').css('opacity', '1');
-        },
-
-        /**
-         * Show error message
-         */
-        showError: function(message) {
-            const $insightsContainer = $('#bv-insights');
-            const html = '<div class="themisdb-insight-card warning">' +
-                        '<h4>⚠️ Error</h4>' +
-                        '<p>' + message + '</p>' +
-                        '</div>';
-            $insightsContainer.html(html);
-        }
     };
 
-    // Initialize on document ready
-    $(document).ready(function() {
-        if ($('.themisdb-benchmark-wrapper').length > 0) {
-            window.ThemisDBBenchmarks.init();
+    function filterData(source, options) {
+        let datasets = source.datasets.filter(dataset => options.engine === 'all' || dataset.label === options.engine);
+        const requested = options.compare.split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
+        if (requested.length) {
+            datasets = datasets.filter(dataset => dataset.label.toLowerCase() === 'themisdb' || requested.includes(dataset.label.toLowerCase()));
         }
-    });
+        datasets = datasets.filter(dataset => dataset.data.some(finite));
+        let indices = source.labels.map((_, index) => index).filter(index =>
+            source.labels[index].toLowerCase().includes(options.search.toLowerCase()) &&
+            datasets.some(dataset => finite(dataset.data[index]))
+        );
+        const higher = source.metric === 'throughput';
+        const primary = source.datasets.find(dataset => dataset.label === options.reference) ||
+            datasets.find(dataset => dataset.label.toLowerCase() === 'themisdb') || datasets[0];
+        if (options.sort === 'name') indices.sort((left, right) => source.labels[left].localeCompare(source.labels[right]));
+        else if (primary && options.sort !== 'source') {
+            indices.sort((left, right) => {
+                const a = primary.data[left], b = primary.data[right];
+                if (!finite(a)) return finite(b) ? 1 : 0;
+                if (!finite(b)) return -1;
+                const order = higher ? b - a : a - b;
+                return options.sort === 'worst' ? -order : order;
+            });
+        }
+        const total = indices.length;
+        if (options.top !== 'all') indices = indices.slice(0, Number(options.top));
+        return {
+            ...source,
+            labels: indices.map(index => source.labels[index]),
+            datasets: datasets.map(dataset => ({ ...dataset, data: indices.map(index => dataset.data[index]) })).filter(dataset => dataset.data.some(finite)),
+            total,
+            reference: primary?.label,
+        };
+    }
 
-})(jQuery);
+    function performanceFactor(data, source, engine, label, reference) {
+        if (source.source?.type !== 'demo' && source.summary?.task_comparison_verified?.[label] !== true) return null;
+        const index = source.labels.indexOf(label);
+        const baseline = source.datasets.find(dataset => dataset.label === reference)?.data[index];
+        const value = data.datasets.find(dataset => dataset.label === engine)?.data[data.labels.indexOf(label)];
+        if (!finite(value) || !finite(baseline) || value === 0 || baseline === 0) return null;
+        const ratio = source.metric === 'throughput' ? value / baseline : baseline / value;
+        return finite(ratio) && ratio > 0 ? ratio : null;
+    }
+
+    class Visualizer {
+        constructor(root) {
+            this.root = root;
+            this.config = JSON.parse(root.dataset.bvConfig);
+            this.root.dataset.bvTheme = this.config.settings.chart_theme === 'dark' ? 'dark' : 'light';
+            this.labels = this.config.labels;
+            this.chart = null;
+            this.request = null;
+            this.sequence = 0;
+            this.active = 0;
+            this.source = null;
+            this.data = null;
+            this.motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+            this.onMotionChange = () => this.renderChart();
+            this.motion.addEventListener('change', this.onMotionChange);
+            this.root.addEventListener('change', event => {
+                if (['category', 'metric'].includes(event.target.dataset.bv)) this.load();
+                else if (event.target.matches('select')) this.render();
+            });
+            this.root.addEventListener('input', event => {
+                if (event.target.dataset.bv === 'search') this.render();
+            });
+            this.root.addEventListener('click', event => {
+                const button = event.target.closest('button[data-bv]');
+                if (!button) return;
+                const action = button.dataset.bv;
+                if (action === 'refresh') this.load();
+                if (action === 'csv') this.exportCSV();
+                if (action === 'print') window.print();
+                if (action === 'previous' || action === 'next') {
+                    if (!this.data?.datasets.length) return;
+                    this.active = (this.active + (action === 'next' ? 1 : -1) + this.data.datasets.length) % this.data.datasets.length;
+                    this.renderChart();
+                    this.renderStats();
+                }
+            });
+            this.onKey = event => {
+                if (event.key === 'Escape' && this.el('options')?.open) {
+                    this.el('options').open = false;
+                    this.el('options').querySelector('summary').focus();
+                }
+            };
+            this.root.querySelector('details.themisdb-benchmark-options')?.setAttribute('data-bv', 'options');
+            this.root.addEventListener('keydown', this.onKey);
+            this.onOutside = event => {
+                if (!this.root.contains(event.target) && this.el('options')) this.el('options').open = false;
+            };
+            document.addEventListener('click', this.onOutside);
+            this.onBeforePrint = () => {
+                if (!this.data) return;
+                this.tableWasOpen = this.root.querySelector('.themisdb-benchmark-data').open;
+                this.root.querySelector('.themisdb-benchmark-data').open = true;
+            };
+            this.onAfterPrint = () => {
+                if (typeof this.tableWasOpen !== 'boolean') return;
+                this.root.querySelector('.themisdb-benchmark-data').open = this.tableWasOpen;
+                this.tableWasOpen = null;
+            };
+            window.addEventListener('beforeprint', this.onBeforePrint);
+            window.addEventListener('afterprint', this.onAfterPrint);
+            this.load();
+        }
+
+        el(name) { return this.root.querySelector('[data-bv="' + name + '"]'); }
+        value(name, fallback) { return this.el(name)?.value || fallback; }
+        text(name, value) { if (this.el(name)) this.el(name).textContent = value; }
+
+        async load() {
+            const sequence = ++this.sequence;
+            this.request?.abort();
+            this.request = new AbortController();
+            this.source = null;
+            this.clear();
+            this.root.dataset.bvState = 'loading';
+            this.root.setAttribute('aria-busy', 'true');
+            this.text('status', this.labels.loading);
+            const body = new URLSearchParams({
+                action: 'themisdb_bv_get_data', nonce: this.config.nonce,
+                category: this.value('category', this.config.settings.default_category),
+                metric: this.value('metric', this.config.settings.default_metric),
+            });
+            try {
+                const response = await fetch(this.config.ajax_url, { method: 'POST', body, signal: this.request.signal, credentials: 'same-origin' });
+                const payload = await response.json();
+                if (sequence !== this.sequence) return;
+                if (!response.ok || !payload.success) throw new Error(payload.data?.message || this.labels.error);
+                const source = payload.data;
+                if (!Array.isArray(source.labels) || !Array.isArray(source.datasets) || !unit(source.metric) ||
+                    source.labels.some(label => typeof label !== 'string') ||
+                    source.datasets.some(dataset => typeof dataset.label !== 'string' || !Array.isArray(dataset.data) ||
+                        dataset.data.length !== source.labels.length || dataset.data.some(value => value !== null && !finite(value)))) {
+                    throw new Error(this.labels.error);
+                }
+                this.source = source;
+                const select = this.el('engine');
+                if (select) {
+                    const previous = select.value;
+                    select.replaceChildren(new Option(this.labels.all_engines, 'all'), ...source.datasets.map(dataset => new Option(dataset.label, dataset.label)));
+                    if ([...select.options].some(option => option.value === previous)) select.value = previous;
+                }
+                const reference = this.el('reference');
+                if (reference) {
+                    const previous = reference.value;
+                    reference.replaceChildren(new Option(this.labels.automatic, 'auto'),
+                        ...source.datasets.map(dataset => new Option(dataset.label, dataset.label)));
+                    if ([...reference.options].some(option => option.value === previous)) reference.value = previous;
+                }
+                this.active = 0;
+                this.render();
+            } catch (error) {
+                if (error.name === 'AbortError' || sequence !== this.sequence) return;
+                console.error('ThemisDB Benchmark Visualizer:', error);
+                this.clear();
+                this.root.dataset.bvState = 'error';
+                this.text('status', error.message || this.labels.error);
+            } finally {
+                if (sequence === this.sequence) this.root.setAttribute('aria-busy', 'false');
+            }
+        }
+
+        clear() {
+            this.chart?.destroy();
+            this.chart = null;
+            this.data = null;
+            ['table', 'stats', 'source', 'active-engine'].forEach(name => this.el(name)?.replaceChildren());
+            if (this.el('nav')) this.el('nav').hidden = true;
+            if (this.el('chart-note')) this.el('chart-note').hidden = true;
+            if (this.el('analysis-note')) this.el('analysis-note').hidden = true;
+            ['csv', 'print'].forEach(name => { if (this.el(name)) this.el(name).disabled = true; });
+        }
+
+        render() {
+            if (!this.source) return;
+            this.data = filterData(this.source, {
+                engine: this.value('engine', 'all'), compare: this.source.source?.type === 'demo' ? '' : this.config.compare || '',
+                search: this.value('search', ''), top: this.value('top-n', this.config.settings.default_top_n),
+                sort: this.value('sort', 'best'), reference: this.value('reference', 'auto'),
+            });
+            if (!this.data.labels.length || !this.data.datasets.length) {
+                this.clear();
+                this.root.dataset.bvState = 'empty';
+                this.text('status', this.labels.empty);
+                return;
+            }
+            this.active = Math.min(this.active, this.data.datasets.length - 1);
+            this.root.dataset.bvState = 'ready';
+            const metric = this.data.metric;
+            this.text('title', this.labels.metrics[metric] + ' (' + unit(metric) + ')');
+            this.text('status', this.data.labels.length + ' / ' + this.data.total + ' ' + this.labels.tasks + '. ' +
+                (metric === 'throughput' ? this.labels.higher : this.labels.lower));
+            const comparable = this.data.datasets.length > 1 && this.data.labels.some((label, index) =>
+                this.data.summary?.task_comparison_verified?.[label] === true &&
+                this.data.datasets.filter(dataset => finite(dataset.data[index])).length > 1);
+            const provenance = this.data.source ? ' ' + this.data.source.file + (this.data.source.modified ? ' | ' + this.data.source.modified : '') : '';
+            const excluded = this.data.summary?.excluded_non_comparable_tasks;
+            this.text('source', (comparable ? this.labels.comparison : this.data.datasets.length > 1 ? this.labels.disjoint : this.labels.single) + provenance +
+                (excluded ? ' ' + this.labels.excluded.replace('%s', String(excluded)) : '') +
+                (this.data.summary?.unverified_records ? ' ' + this.labels.unverified : ''));
+            if (this.data.source?.type === 'demo') this.text('source', this.labels.demo + provenance);
+            if (this.el('nav')) this.el('nav').hidden = this.data.datasets.length < 2;
+            ['csv', 'print'].forEach(name => { if (this.el(name)) this.el(name).disabled = false; });
+            this.renderTable();
+            this.renderChart();
+            this.renderStats();
+        }
+
+        factor(engine, label) {
+            return performanceFactor(this.data, this.source, engine, label, this.data.reference);
+        }
+
+        renderChart() {
+            this.chart?.destroy();
+            this.chart = null;
+            const canvas = this.el('chart');
+            if (this.el('chart-note')) this.el('chart-note').hidden = !canvas || !this.data ||
+                this.value('chart-type', this.config.settings.default_chart_type) !== 'bar-isometric';
+            const requestedLog = this.value('scale', 'linear') === 'logarithmic';
+            const radar = this.value('chart-type', this.config.settings.default_chart_type) === 'radar';
+            const logarithmic = requestedLog && !radar;
+            const note = this.el('analysis-note');
+            if (note) {
+                note.textContent = [this.labels.factor_note, requestedLog ? (radar ? this.labels.radar_linear : this.labels.log_note) : ''].filter(Boolean).join(' ');
+                note.hidden = !this.data;
+            }
+            if (!canvas || !this.data) return;
+            try {
+                if (typeof Chart !== 'function') throw new Error('Chart.js is unavailable.');
+                const kind = this.value('chart-type', this.config.settings.default_chart_type);
+                const bar = kind === 'bar' || kind.startsWith('bar-');
+                const isometric = kind === 'bar-isometric';
+                const horizontal = kind === 'bar-horizontal' || (kind === 'bar' && (this.data.labels.length > 8 || this.root.clientWidth < 600));
+                const metric = this.data.metric;
+                const style = getComputedStyle(this.root);
+                const token = name => style.getPropertyValue('--bv-' + name).trim();
+                const colors = Array.from({ length: 6 }, (_, index) => token('series-' + (index + 1)));
+                const textColor = token('text');
+                const gridColor = token('grid');
+                const showTaskLabels = this.value('task-labels', 'hidden') === 'visible';
+                this.chart = new Chart(canvas, {
+                    type: bar ? 'bar' : kind === 'radar' ? 'radar' : 'line',
+                    plugins: isometric ? [isometricBars] : [],
+                    data: {
+                        labels: this.data.labels,
+                        datasets: this.data.datasets.map((dataset, index) => ({
+                            label: dataset.label, data: dataset.data.map(value => logarithmic && value === 0 ? null : value), spanGaps: false,
+                            backgroundColor: Chart.helpers.color(colors[index % colors.length]).alpha(kind === 'area' || kind === 'radar' ? 0.25 : 0.8).rgbString(),
+                            borderColor: colors[index % colors.length],
+                            borderWidth: index === this.active ? 2 : 1,
+                            fill: kind === 'area' || kind === 'radar',
+                            pointRadius: kind === 'line-dot' || kind === 'radar' ? 3 : 0,
+                            pointHitRadius: 10,
+                            stepped: kind === 'stepped' ? 'before' : false,
+                            categoryPercentage: isometric ? 0.7 : 0.8,
+                            barPercentage: isometric ? 0.65 : 0.9,
+                        })),
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, indexAxis: horizontal ? 'y' : 'x',
+                        animation: this.motion.matches ? false : { duration: 300 },
+                        layout: { padding: isometric ? { top: 10, right: 10 } : 0 },
+                        interaction: { mode: 'nearest', intersect: false },
+                        plugins: {
+                            legend: { position: 'bottom', labels: { color: textColor } },
+                            tooltip: {
+                                backgroundColor: token('surface'), titleColor: textColor, bodyColor: textColor,
+                                borderColor: token('border'), borderWidth: 1,
+                                callbacks: { label: context => {
+                                    const factor = this.factor(context.dataset.label, this.data.labels[context.dataIndex]);
+                                    return context.dataset.label + ': ' + format(context.raw) + ' ' + unit(metric) +
+                                        (factor !== null ? ' | ' + format(factor) + 'x ' + this.labels.factor + ' ' + this.data.reference : '');
+                                } },
+                            },
+                        },
+                        scales: kind === 'radar' ? { r: { beginAtZero: true, ticks: { color: textColor, backdropColor: 'transparent' }, pointLabels: { display: showTaskLabels, color: textColor }, grid: { color: gridColor } } } : {
+                            x: horizontal ? { type: logarithmic ? 'logarithmic' : 'linear', beginAtZero: !logarithmic, ticks: { color: textColor }, grid: { color: gridColor }, title: { display: true, text: unit(metric), color: textColor } } : {
+                                grid: { color: gridColor }, ticks: { display: showTaskLabels, color: textColor, maxRotation: 0, autoSkip: true, callback: (value) => this.shortLabel(this.data.labels[value]) },
+                            },
+                            y: horizontal ? { grid: { color: gridColor }, ticks: { display: showTaskLabels, color: textColor, autoSkip: true, callback: value => this.shortLabel(this.data.labels[value]) } } :
+                                { type: logarithmic ? 'logarithmic' : 'linear', beginAtZero: !logarithmic, ticks: { color: textColor }, grid: { color: gridColor }, title: { display: true, text: unit(metric), color: textColor } },
+                        },
+                    },
+                });
+            } catch (error) {
+                console.error('ThemisDB Benchmark Visualizer: chart rendering failed.', error);
+                this.text('status', this.labels.chart_error);
+                this.root.dataset.bvState = 'error';
+                this.root.querySelector('.themisdb-benchmark-data').open = true;
+            }
+        }
+
+        shortLabel(label) { return label.length > 34 ? label.slice(0, 33) + '\u2026' : label; }
+
+        renderTable() {
+            const container = this.el('table');
+            if (!container || !this.data) return;
+            const table = document.createElement('table');
+            const caption = table.createCaption();
+            caption.textContent = (this.data.source?.type === 'demo' ? this.labels.demo + ' ' : '') + this.labels.metrics[this.data.metric] + ' (' + unit(this.data.metric) + ')';
+            const head = table.createTHead().insertRow();
+            [this.labels.task, ...this.data.datasets.map(dataset => dataset.label)].forEach(label => {
+                const th = document.createElement('th');
+                th.scope = 'col'; th.textContent = label; head.append(th);
+            });
+            const body = table.createTBody();
+            this.data.labels.forEach((label, index) => {
+                const row = body.insertRow(), th = document.createElement('th');
+                th.scope = 'row'; th.textContent = label; row.append(th);
+                const sources = this.data.summary?.task_sources?.[label];
+                if (Array.isArray(sources) && sources.length) {
+                    const details = document.createElement('details'), summary = document.createElement('summary');
+                    summary.textContent = this.labels.variants + ' (' + sources.length + ')';
+                    details.append(summary);
+                    sources.forEach(source => { const p = document.createElement('p'); p.textContent = source; details.append(p); });
+                    th.append(details);
+                }
+                const protocols = this.data.summary?.task_protocols?.[label];
+                if (protocols) {
+                    const details = document.createElement('details'), summary = document.createElement('summary');
+                    summary.textContent = this.labels.protocol;
+                    details.append(summary);
+                    Object.entries(protocols).forEach(([engine, protocol]) => {
+                        const p = document.createElement('p');
+                        p.textContent = engine + ': ' + JSON.stringify(protocol);
+                        details.append(p);
+                    });
+                    th.append(details);
+                }
+                this.data.datasets.forEach(dataset => {
+                    const value = dataset.data[index];
+                    const factor = this.factor(dataset.label, label);
+                    row.insertCell().textContent = finite(value) ? format(value) + ' ' + unit(this.data.metric) +
+                        (factor !== null ? ' | ' + format(factor) + 'x ' + this.labels.factor + ' ' + this.data.reference : '') : this.labels.missing;
+                });
+            });
+            container.replaceChildren(table);
+        }
+
+        renderStats() {
+            if (!this.data) return;
+            const dataset = this.data.datasets[this.active];
+            this.text('active-engine', dataset.label);
+            const values = dataset.data.filter(finite);
+            const target = this.el('stats');
+            if (!target) return;
+            const best = this.data.metric === 'throughput' ? Math.max(...values) : Math.min(...values);
+            target.replaceChildren(...[
+                dataset.label,
+                this.labels.measured + ': ' + values.length,
+                this.labels.mean + ': ' + format(values.reduce((a, b) => a + b, 0) / values.length) + ' ' + unit(this.data.metric),
+                this.labels.best + ': ' + format(best) + ' ' + unit(this.data.metric),
+            ].map(text => { const span = document.createElement('span'); span.textContent = text; return span; }));
+        }
+
+        exportCSV() {
+            if (!this.data) return;
+            const rows = [[this.labels.task + ' (' + unit(this.data.metric) + ')', ...this.data.datasets.map(dataset => dataset.label)],
+                ...this.data.labels.map((label, index) => [label, ...this.data.datasets.map(dataset => dataset.data[index])])];
+            rows[0].push(...this.data.datasets.map(dataset => dataset.label + ' | ' + this.labels.factor + ' ' + this.data.reference));
+            this.data.labels.forEach((label, index) => rows[index + 1].push(...this.data.datasets.map(dataset => this.factor(dataset.label, label))));
+            if (this.data.source?.type === 'demo') rows.unshift([this.labels.demo]);
+            const csv = '\ufeff' + rows.map(row => row.map(csvCell).join(',')).join('\r\n');
+            const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+            const link = document.createElement('a');
+            link.href = url; link.download = (this.data.source?.type === 'demo' ? 'DEMO-synthetic-' : '') + 'themisdb-benchmarks-' + this.data.metric + '.csv';
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        dispose() {
+            this.request?.abort();
+            this.chart?.destroy();
+            document.removeEventListener('click', this.onOutside);
+            this.motion.removeEventListener('change', this.onMotionChange);
+            window.removeEventListener('beforeprint', this.onBeforePrint);
+            window.removeEventListener('afterprint', this.onAfterPrint);
+        }
+    }
+
+    if (typeof module !== 'undefined' && module.exports) module.exports = { filterData, finite, format, csvCell, prismFaces, performanceFactor };
+    if (typeof document === 'undefined') return;
+    const instances = new Map();
+    const initialize = () => document.querySelectorAll('[data-bv-config]').forEach(root => {
+        if (!instances.has(root)) instances.set(root, new Visualizer(root));
+    });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize);
+    else initialize();
+    new MutationObserver(() => {
+        instances.forEach((instance, root) => { if (!root.isConnected) { instance.dispose(); instances.delete(root); } });
+        initialize();
+    }).observe(document.body, { childList: true, subtree: true });
+})();

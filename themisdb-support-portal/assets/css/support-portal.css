@@ -6,17 +6,18 @@
    CSS Custom Properties
    -------------------------------------------------------------------------- */
 .themisdb-support-portal-wrap,
-.themisdb-support-login-wrap {
-    --tsp-primary:      #0073aa;
-    --tsp-primary-dark: #005a87;
+.themisdb-support-login-wrap,
+.themisdb-support-hub-wrap {
+    --tsp-primary:      var(--themisdb-ui-primary, #0073aa);
+    --tsp-primary-dark: var(--themisdb-ui-primary-hover, #005a87);
     --tsp-success:      #46b450;
     --tsp-warning:      #f0ad4e;
     --tsp-danger:       #dc3232;
-    --tsp-text:         #23282d;
-    --tsp-text-muted:   #666;
-    --tsp-border:       #dcdcde;
-    --tsp-bg:           #fff;
-    --tsp-bg-alt:       #f6f7f7;
+    --tsp-text:         var(--themisdb-ui-text, #23282d);
+    --tsp-text-muted:   var(--themisdb-ui-muted, #666);
+    --tsp-border:       var(--themisdb-ui-border, #dcdcde);
+    --tsp-bg:           var(--themisdb-ui-surface, #fff);
+    --tsp-bg-alt:       var(--themisdb-ui-surface-alt, #f6f7f7);
     --tsp-radius:       6px;
     --tsp-shadow:       0 2px 8px rgba(0,0,0,.08);
     --tsp-status-open:        #0073aa;
@@ -27,6 +28,10 @@
     --tsp-priority-normal: #0073aa;
     --tsp-priority-high:   #f0ad4e;
     --tsp-priority-urgent: #dc3232;
+}
+
+.themisdb-support-portal-wrap,
+.themisdb-support-login-wrap {
     width: 100%;
     max-width: none;
     min-height: 72vh;
@@ -169,14 +174,17 @@
     margin-top: 1.5rem;
 }
 
-.tv3-feature-tabs__nav {
+:where(.themisdb-support-hub-wrap) .tv3-feature-tabs__nav {
+    display: flex;
     padding: 0.9rem 0.9rem 0;
     gap: 0.5rem;
     flex-wrap: wrap;
     border-bottom: 1px solid rgba(124, 149, 175, 0.18);
 }
 
-.tv3-feature-tabs__link {
+:where(.themisdb-support-hub-wrap) .tv3-feature-tabs__link {
+    cursor: pointer;
+    font: inherit;
     border-radius: 999px;
     padding: 0.55rem 0.9rem;
     font-weight: 600;
@@ -186,19 +194,19 @@
     transition: all 0.18s ease;
 }
 
-.tv3-feature-tabs__link[aria-selected="true"],
-.tv3-feature-tabs__link--active {
+:where(.themisdb-support-hub-wrap) .tv3-feature-tabs__link[aria-selected="true"],
+:where(.themisdb-support-hub-wrap) .tv3-feature-tabs__link--active {
     background: linear-gradient(180deg, #1f5d99 0%, #184d7f 100%);
     border-color: #184d7f;
     color: #fff;
     box-shadow: 0 8px 18px rgba(24, 77, 127, 0.22);
 }
 
-.tv3-feature-tabs__panel {
+:where(.themisdb-support-hub-wrap) .tv3-feature-tabs__panel {
     padding: 1rem 1rem 1.2rem;
 }
 
-.tv3-feature-tabs__layout {
+:where(.themisdb-support-hub-wrap) .tv3-feature-tabs__layout {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
@@ -250,7 +258,7 @@
 @media (max-width: 880px) {
     .themisdb-support-hub-grid,
     .themisdb-support-hub-auth-grid,
-    .tv3-feature-tabs__layout {
+    :where(.themisdb-support-hub-wrap) .tv3-feature-tabs__layout {
         grid-template-columns: 1fr;
     }
 
@@ -767,6 +775,15 @@
     padding: 20px;
 }
 
+.themisdb-support-modal[hidden],
+:where(.themisdb-support-hub-wrap) [role="tabpanel"][hidden] {
+    display: none !important;
+}
+
+body.themisdb-order-overlay-open {
+    overflow: hidden;
+}
+
 .themisdb-support-modal-backdrop {
     position: absolute;
     inset: 0;
@@ -774,6 +791,7 @@
 }
 
 .themisdb-support-modal-content {
+    box-sizing: border-box;
     position: relative;
     background: var(--tsp-bg);
     border-radius: var(--tsp-radius);

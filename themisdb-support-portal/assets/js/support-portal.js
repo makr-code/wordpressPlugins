@@ -76,6 +76,10 @@
         $loginMessages.empty();
 
         var reader = new FileReader();
+        reader.onerror = reader.onabort = function () {
+            showMessage($loginMessages, 'error', settings.strings.file_read_error);
+            $loginBtn.prop('disabled', false).text(settings.strings.auth_with_license);
+        };
 
         reader.onload = function (evt) {
             var fileContent = evt.target.result;
@@ -276,28 +280,106 @@
     // Dashboard tabs
     // -------------------------------------------------------------------------
 
-    $(document).on('click', '[data-themisdb-dashboard-tab]', function () {
-        var $tab = $(this);
-        var $tabs = $tab.closest('[data-themisdb-dashboard-tabs]');
-        var target = $tab.data('themisdb-dashboard-tab');
+    function ownTabElements($root, selector) {
+        return $root.find(selector).filter(function () {
+            return $(this).closest('[data-themisdb-dashboard-tabs]')[0] === $root[0];
+        });
+    }
 
-        if (!$tabs.length || !target) {
+    function selectTab($tab, focus) {
+        var $root = $tab.closest('[data-themisdb-dashboard-tabs]');
+        var target = $tab.attr('aria-controls');
+        if (!$root.length || !target) {
             return;
         }
 
-        $tabs.find('[data-themisdb-dashboard-tab]').each(function () {
+        ownTabElements($root, '[role="tab"]').each(function () {
             var $button = $(this);
             var isActive = $button.is($tab);
             $button.toggleClass('tv3-feature-tabs__link--active', isActive);
             $button.attr('aria-selected', isActive ? 'true' : 'false');
+            $button.attr('tabindex', isActive ? '0' : '-1');
         });
 
-        $tabs.find('.tv3-feature-tabs__panel').each(function () {
+        ownTabElements($root, '[role="tabpanel"]').each(function () {
             var $panel = $(this);
-            var isTarget = $panel.attr('id') === 'themisdb-dashboard-panel-' + target;
+            var isTarget = $panel.attr('id') === target;
             $panel.toggleClass('tv3-feature-tabs__panel--hidden', !isTarget);
-            $panel.attr('hidden', isTarget ? null : 'hidden');
+            $panel.prop('hidden', !isTarget);
         });
+        if (focus) {
+            $tab.trigger('focus');
+        }
+    }
+
+    $(document).on('click', '[data-themisdb-dashboard-tabs] [role="tab"]', function () {
+        selectTab($(this), false);
+    });
+
+    $(document).on('keydown', '[data-themisdb-dashboard-tabs] [role="tab"]', function (event) {
+        var $tab = $(this);
+        var $tabs = ownTabElements($tab.closest('[data-themisdb-dashboard-tabs]'), '[role="tab"]');
+        var index = $tabs.index($tab);
+        if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+            index = (index + (event.key === 'ArrowRight' ? 1 : -1) + $tabs.length) % $tabs.length;
+        } else if (event.key === 'Home') {
+            index = 0;
+        } else if (event.key === 'End') {
+            index = $tabs.length - 1;
+        } else {
+            return;
+        }
+        event.preventDefault();
+        selectTab($tabs.eq(index), true);
+    });
+
+    function activateTabLink(hash) {
+        var tab = document.getElementById(hash.slice(1));
+        if (tab && tab.getAttribute('role') === 'tab' && $(tab).closest('[data-themisdb-dashboard-tabs]').length) {
+            selectTab($(tab), true);
+        }
+    }
+
+    $(document).on('click', 'a[href^="#themisdb-"]', function () {
+        activateTabLink(this.getAttribute('href'));
+    });
+    $(window).on('hashchange', function () { activateTabLink(window.location.hash); });
+    activateTabLink(window.location.hash);
+
+    // The hub must remain usable without the theme's optional overlay script.
+    var $orderOverlay = $('.themisdb-order-overlay');
+    var $orderOpener = $();
+    function closeOrderOverlay() {
+        $orderOverlay.prop('hidden', true).attr('aria-hidden', 'true');
+        $('body').removeClass('themisdb-order-overlay-open');
+        $orderOpener.trigger('focus');
+    }
+    $(document).on('click', '[data-themisdb-open-order-overlay]', function (event) {
+        event.preventDefault();
+        $orderOpener = $(this);
+        $orderOverlay.prop('hidden', false).attr('aria-hidden', 'false');
+        $('body').addClass('themisdb-order-overlay-open');
+        $orderOverlay.find('[data-themisdb-close-order-overlay]').filter('button').first().trigger('focus');
+    });
+    $(document).on('click', '[data-themisdb-close-order-overlay]', closeOrderOverlay);
+    $(document).on('keydown', function (event) {
+        if (!$orderOverlay.length || $orderOverlay.prop('hidden')) {
+            return;
+        }
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeOrderOverlay();
+        } else if (event.key === 'Tab') {
+            var $focusable = $orderOverlay.find('a[href], button:enabled, input:enabled, select:enabled, textarea:enabled, [tabindex="0"]').filter(':visible');
+            var first = $focusable[0], last = $focusable[$focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                $(last).trigger('focus');
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                $(first).trigger('focus');
+            }
+        }
     });
 
 }(jQuery));

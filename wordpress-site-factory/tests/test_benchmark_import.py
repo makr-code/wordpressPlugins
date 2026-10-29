@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import subprocess
+import sys
+import pytest
 from pathlib import Path
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "importers" / "benchmark_import.py"
@@ -98,3 +102,98 @@ def test_build_benchmark_catalog_skips_invalid_json(tmp_path):
     assert catalog["stats"]["failed_files"] == 1
     assert catalog["stats"]["total_records"] >= 1
     assert any(item["file_name"] == "bench_broken.smoke.json" for item in catalog["errors"])
+
+
+def publication_fixture():
+    path = MODULE_PATH.parents[2] / "themisdb-benchmark-visualizer" / "tests" / "publication-fixture.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_publication_metadata_survives_normalization():
+    protocol = publication_fixture()
+    row = benchmark_import.normalize_benchmark_record({
+        "name": "vector-query", "value": 1, "publication": protocol,
+    })
+    assert row["publication"] == protocol
+    assert benchmark_import.publication_errors(row["publication"], "latency") == []
+
+
+@pytest.mark.parametrize("field,value", [
+    ("recall_achieved", 0.4), ("origin", "external_reference"), ("scope", "micro"),
+    ("hardware_fingerprint", ""), ("license", ""), ("measured_queries", 0),
+    ("concurrency", True), ("version", 2), ("recall_target", float("nan")),
+])
+def test_incomplete_or_ineligible_protocol_is_not_comparable(field, value):
+    protocol = {**publication_fixture(), field: value}
+    assert benchmark_import.publication_errors(protocol, "latency")
+
+
+@pytest.mark.parametrize("value", [None, "bad", float("inf"), float("nan"), -1, True])
+def test_invalid_measurements_are_not_silently_zero(value):
+    with pytest.raises(ValueError):
+        benchmark_import.normalize_benchmark_record({"name": "task", "value": value})
+
+
+def test_catalog_exposes_publication_issues_without_relabeling_legacy_data(tmp_path):
+    path = tmp_path / "bench_vector.json"
+    path.write_text(json.dumps({"benchmarks": [
+        {"name": "BM_distance/64", "real_time": 1, "time_unit": "ns"},
+        {"name": "BM_distance/64_mean", "real_time": 99, "run_type": "aggregate"},
+        {"name": "BM_error", "real_time": 99, "error_occurred": True},
+    ]}), encoding="utf-8")
+    catalog = benchmark_import.build_benchmark_catalog(tmp_path)
+    assert len(catalog["records"]) == 1
+    assert catalog["publication_contract_version"] == 1
+    assert catalog["publication_issues"][0]["errors"] == ["publication metadata missing"]
+    assert "publication" not in catalog["records"][0]
+
+
+def test_bandwidth_is_not_memory():
+    assert benchmark_import.normalize_metric_name("bytes_per_second") == "bandwidth"
+
+
+def test_strict_publication_cli_preserves_existing_output_on_failure(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "bench_vector.json").write_text(json.dumps([{"name": "task", "value": 1}]), encoding="utf-8")
+    output = tmp_path / "catalog.json"
+    output.write_text("existing output", encoding="utf-8")
+    result = subprocess.run([
+        sys.executable, str(MODULE_PATH), "--source-dir", str(source),
+        "--output", str(output), "--require-publication",
+    ], capture_output=True, text=True)
+    assert result.returncode != 0
+    assert "Publication blocked" in result.stderr
+    assert output.read_text(encoding="utf-8") == "existing output"
+
+
+def test_strict_publication_cli_accepts_complete_fixture(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "bench_vector.json").write_text(json.dumps([{
+        "name": "vector-query", "value": 1, "workload": "vector_search",
+        "publication": publication_fixture(),
+    }]), encoding="utf-8")
+    output = tmp_path / "catalog.json"
+    result = subprocess.run([
+        sys.executable, str(MODULE_PATH), "--source-dir", str(source),
+        "--output", str(output), "--require-publication",
+    ], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(output.read_text(encoding="utf-8"))["publication_issues"] == []
+
+
+def test_metric_statistic_and_workload_are_part_of_publication_validation():
+    protocol = publication_fixture()
+    assert benchmark_import.publication_errors(protocol, "throughput")
+    assert benchmark_import.publication_errors(protocol, "latency", "all")
+    assert benchmark_import.publication_errors({**protocol, "top_k": 1001}, "latency")
+
+
+def test_legacy_flowchart_does_not_invent_a_winner():
+    graph = benchmark_import.build_mermaid_flowchart([
+        {"engine": "ThemisDB", "metric_value": 1},
+        {"engine": "PostgreSQL", "metric_value": 2},
+    ])
+    assert "Winner" not in graph
+    assert "n0 --> n1" not in graph

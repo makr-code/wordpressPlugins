@@ -6048,7 +6048,13 @@ document.addEventListener("DOMContentLoaded", function() {
         
         // Handle payment verification
         if ($action === 'verify' && $payment_id && check_admin_referer('verify_payment_' . $payment_id)) {
-            ThemisDB_Payment_Manager::verify_payment($payment_id);
+            if (!ThemisDB_Payment_Manager::verify_payment($payment_id)) {
+                $this->abort_with_log(
+                    __('Zahlungsbestätigung nicht abgeschlossen. Bitte Zahlung, Bestellstatus und Lizenz manuell prüfen.', 'themisdb-order-request'),
+                    'Admin payment verification failed',
+                    array('payment_id' => intval($payment_id))
+                );
+            }
             wp_redirect(admin_url('admin.php?page=themisdb-payments&verified=1'));
             exit;
         }
@@ -6589,12 +6595,20 @@ document.addEventListener("DOMContentLoaded", function() {
                 );
             }
 
+            $status_saved = true;
             if ($payload['payment_status'] === 'verified') {
-                ThemisDB_Payment_Manager::verify_payment($new_id, get_current_user_id());
+                $status_saved = ThemisDB_Payment_Manager::verify_payment($new_id, get_current_user_id());
             } elseif ($payload['payment_status'] === 'overdue') {
-                ThemisDB_Payment_Manager::mark_payment_overdue($new_id, $payload['notes']);
+                $status_saved = ThemisDB_Payment_Manager::mark_payment_overdue($new_id, $payload['notes']);
             } elseif ($payload['payment_status'] === 'failed') {
-                ThemisDB_Payment_Manager::mark_payment_failed($new_id, $payload['notes']);
+                $status_saved = ThemisDB_Payment_Manager::mark_payment_failed($new_id, $payload['notes']);
+            }
+            if (!$status_saved) {
+                $this->abort_with_log(
+                    __('Zahlung angelegt, aber Statusverarbeitung fehlgeschlagen. Bitte Zahlung, Bestellung und Lizenz manuell prüfen.', 'themisdb-order-request'),
+                    'Admin new payment status processing failed',
+                    array('payment_id' => intval($new_id))
+                );
             }
 
             wp_redirect(admin_url('admin.php?page=themisdb-payments&action=view&payment_id=' . $new_id . '&message=saved'));
@@ -9993,6 +10007,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
         delete_transient('themisdb_bank_preview_' . $token);
 
+        if (is_wp_error($import_id)) {
+            $context = (array) $import_id->get_error_data();
+            $this->abort_with_log(
+                $import_id->get_error_message() . ' ' . sprintf(__('Import-ID: %d', 'themisdb-order-request'), intval($context['import_id'] ?? 0)),
+                'Admin bank import processing failed',
+                $context
+            );
+        }
         if ($import_id) {
             wp_redirect(admin_url('admin.php?page=themisdb-bank-import&action=view&import_id=' . $import_id . '&imported=1'));
         } else {
@@ -10281,7 +10303,7 @@ document.addEventListener("DOMContentLoaded", function() {
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
-                                <p class="description"><?php esc_html_e('Nur ausstehende (pending) Zahlungen werden aufgelistet.', 'themisdb-order-request'); ?></p>
+                                <p class="description"><?php esc_html_e('Nur ausstehende (pending) Zahlungen werden aufgelistet. Betrag und Währung müssen zur positiven Bankbuchung passen (Toleranz: 1 Cent). Teilzahlungen, Überzahlungen und Fremdwährungen bitte separat prüfen.', 'themisdb-order-request'); ?></p>
                             </td>
                         </tr>
                     </table>
@@ -10314,6 +10336,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
         $success = ThemisDB_Bank_Import::assign_transaction($transaction_id, $payment_id);
 
+        if (is_wp_error($success)) {
+            $this->abort_with_log(
+                $success->get_error_message(),
+                'Admin bank transaction assignment failed',
+                array('transaction_id' => $transaction_id, 'payment_id' => $payment_id)
+            );
+        }
         if ($success) {
             wp_redirect(admin_url('admin.php?page=themisdb-bank-import&action=view&import_id=' . $import_id . '&assigned=1'));
         } else {
@@ -10331,7 +10360,7 @@ document.addEventListener("DOMContentLoaded", function() {
     private function bank_import_count_statuses(array $transactions) {
         $counts = array('total' => count($transactions), 'matched' => 0, 'unmatched' => 0, 'duplicate' => 0, 'skipped' => 0);
         foreach ($transactions as $tx) {
-            $s = $tx['match_status'];
+            $s = $tx['match_status'] === 'manual' ? 'matched' : $tx['match_status'];
             if (isset($counts[$s])) {
                 $counts[$s]++;
             }
@@ -10713,4 +10742,3 @@ document.addEventListener("DOMContentLoaded", function() {
         <?php
     }
 }
-

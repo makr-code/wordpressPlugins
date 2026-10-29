@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Plugin for ThemisDB.
- * Version: 1.0.1
+ * Version: 1.1.1
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -19,7 +19,7 @@
 ║ ThemisDB - Hybrid Database System                                   ║
 ╠═════════════════════════════════════════════════════════════════════╣
   File:            themisdb-support-portal.php                        ║
-    Version:         1.1.0                                              ║
+    Version:         1.1.1                                              ║
   Last Modified:   2026-03-15                                         ║
   Author:          makr-code                                      ║
 ╠═════════════════════════════════════════════════════════════════════╣
@@ -49,7 +49,7 @@ if (version_compare(PHP_VERSION, '7.4', '<')) {
 }
 
 // Plugin constants
-define('THEMISDB_SUPPORT_VERSION', '1.1.0');
+define('THEMISDB_SUPPORT_VERSION', '1.1.1');
 define('THEMISDB_SUPPORT_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_SUPPORT_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_SUPPORT_PLUGIN_FILE', __FILE__);
@@ -227,7 +227,7 @@ register_deactivation_hook(__FILE__, 'themisdb_support_portal_deactivate');
  * @return bool
  */
 function themisdb_support_should_render_frontend_ui($post = null) {
-    if (!is_singular('page')) {
+    if (!is_singular()) {
         return false;
     }
 
@@ -260,7 +260,7 @@ function themisdb_support_should_render_frontend_ui($post = null) {
     );
 
     $slug = sanitize_title((string) $post->post_name);
-    return in_array($slug, $embed_slugs, true) && shortcode_exists('themisdb_support_portal');
+    return $post->post_type === 'page' && in_array($slug, $embed_slugs, true) && shortcode_exists('themisdb_support_portal');
 }
 
 /**
@@ -275,12 +275,7 @@ function themisdb_support_maybe_embed_portal_into_page($content) {
     }
 
     $post = get_post();
-    if (!themisdb_support_should_render_frontend_ui($post)) {
-        return $content;
-    }
-
-    // Dedicated support pages are handled by the theme bridge to avoid a duplicate embed.
-    if (is_page('support') || is_page('kundenportal') || is_page('support-portal')) {
+    if (!$post instanceof WP_Post || !themisdb_support_should_render_frontend_ui($post)) {
         return $content;
     }
 
@@ -317,6 +312,14 @@ function themisdb_support_enqueue_scripts() {
         return;
     }
 
+    themisdb_support_enqueue_frontend_assets();
+}
+add_action('wp_enqueue_scripts', 'themisdb_support_enqueue_scripts');
+
+/**
+ * Allow themes to load the same assets/configuration for template-owned UI.
+ */
+function themisdb_support_enqueue_frontend_assets() {
     $theme_controls_presentation =
         wp_style_is('themisdb-style', 'enqueued') ||
         wp_style_is('themisdb-style', 'registered') ||
@@ -329,14 +332,15 @@ function themisdb_support_enqueue_scripts() {
     );
 
     if ($should_enqueue_frontend_style) {
-    wp_enqueue_style(
-        'themisdb-support-portal-style',
-        THEMISDB_SUPPORT_PLUGIN_URL . 'assets/css/support-portal.css',
-        array(),
-        THEMISDB_SUPPORT_VERSION
-    );
+        wp_enqueue_style(
+            'themisdb-support-portal-style',
+            THEMISDB_SUPPORT_PLUGIN_URL . 'assets/css/support-portal.css',
+            array(),
+            THEMISDB_SUPPORT_VERSION
+        );
     }
 
+    wp_enqueue_style('dashicons');
     wp_enqueue_script(
         'themisdb-support-portal-script',
         THEMISDB_SUPPORT_PLUGIN_URL . 'assets/js/support-portal.js',
@@ -348,6 +352,7 @@ function themisdb_support_enqueue_scripts() {
     wp_localize_script('themisdb-support-portal-script', 'themisdbSupport', array(
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce'   => wp_create_nonce('themisdb_support_nonce'),
+        'ownsOrderOverlay' => true,
         'strings' => array(
             'loading'               => __('Lädt...', 'themisdb-support-portal'),
             'error'                 => __('Ein Fehler ist aufgetreten', 'themisdb-support-portal'),
@@ -355,13 +360,13 @@ function themisdb_support_enqueue_scripts() {
             'verifying'             => __('Lizenz wird verifiziert...', 'themisdb-support-portal'),
             'submitting'            => __('Ticket wird übermittelt...', 'themisdb-support-portal'),
             'select_file'           => __('Bitte wählen Sie eine Lizenzdatei aus', 'themisdb-support-portal'),
+            'file_read_error'       => __('Die Lizenzdatei konnte nicht gelesen werden. Bitte wählen Sie die Datei erneut aus.', 'themisdb-support-portal'),
             'auth_with_license'     => __('Mit Lizenz anmelden', 'themisdb-support-portal'),
             'submit_ticket'         => __('Ticket senden', 'themisdb-support-portal'),
             'fill_required_fields'  => __('Bitte füllen Sie Betreff und Nachricht aus.', 'themisdb-support-portal'),
         ),
     ));
 }
-add_action('wp_enqueue_scripts', 'themisdb_support_enqueue_scripts');
 
 /**
  * Enqueue admin assets (only on this plugin's pages).
@@ -403,5 +408,3 @@ function themisdb_support_admin_enqueue_scripts($hook) {
     ));
 }
 add_action('admin_enqueue_scripts', 'themisdb_support_admin_enqueue_scripts');
-
-

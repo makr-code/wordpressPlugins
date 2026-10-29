@@ -6,11 +6,11 @@
 /* ── Container ────────────────────────────────────────────────────────────── */
 
 .themisdb-product-detail {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: inherit;
     max-width: 1100px;
     margin: 0 auto;
     padding: 0 16px;
-    color: #1d2327;
+    color: var(--themisdb-ui-text, #1d2327);
 }
 
 .themisdb-product-detail *,
@@ -29,12 +29,12 @@
     font-size: 1.35rem;
     font-weight: 700;
     margin: 0 0 0.25rem;
-    color: #1d2327;
+    color: var(--themisdb-ui-text, #1d2327);
 }
 
 .tpd-section-subtitle {
     font-size: 0.95rem;
-    color: #6b7280;
+    color: var(--themisdb-ui-muted, #6b7280);
     margin: 0 0 1.25rem;
 }
 
@@ -47,24 +47,24 @@
 }
 
 .tpd-edition-card {
-    border: 2px solid #dde1e7;
+    border: 2px solid var(--themisdb-ui-border, #dde1e7);
     border-radius: 10px;
     padding: 20px;
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
     position: relative;
-    background: #fff;
+    background: var(--themisdb-ui-surface, #fff);
     user-select: none;
 }
 
 .tpd-edition-card:hover {
-    border-color: #2271b1;
+    border-color: var(--themisdb-ui-primary, #2271b1);
     box-shadow: 0 2px 10px rgba(34, 113, 177, 0.15);
 }
 
 .tpd-edition-card--selected {
-    border-color: #2271b1;
-    background: #f0f6fc;
+    border-color: var(--themisdb-ui-primary, #2271b1);
+    background: var(--themisdb-ui-surface-alt, #f0f6fc);
     box-shadow: 0 0 0 3px rgba(34, 113, 177, 0.2);
 }
 
@@ -82,14 +82,14 @@
 
 .tpd-edition-desc {
     font-size: 0.875rem;
-    color: #6b7280;
+    color: var(--themisdb-ui-muted, #6b7280);
     margin: 0 0 12px;
 }
 
 .tpd-edition-price {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #1d2327;
+    color: var(--themisdb-ui-text, #1d2327);
 }
 
 .tpd-edition-price--free {
@@ -104,8 +104,8 @@
     letter-spacing: 0.05em;
     padding: 2px 7px;
     border-radius: 20px;
-    background: #2271b1;
-    color: #fff;
+    background: var(--themisdb-ui-primary, #2271b1);
+    color: var(--themisdb-ui-on-primary, #fff);
     position: absolute;
     top: 12px;
     right: 12px;
@@ -121,23 +121,23 @@
 
 .tpd-module-item,
 .tpd-training-item {
-    border: 2px solid #dde1e7;
+    border: 2px solid var(--themisdb-ui-border, #dde1e7);
     border-radius: 8px;
     padding: 14px 16px;
-    background: #fff;
+    background: var(--themisdb-ui-surface, #fff);
     transition: border-color 0.15s, background 0.15s;
     cursor: pointer;
 }
 
 .tpd-module-item:hover,
 .tpd-training-item:hover {
-    border-color: #2271b1;
+    border-color: var(--themisdb-ui-primary, #2271b1);
 }
 
 .tpd-module-item--selected,
 .tpd-training-item--selected {
-    border-color: #2271b1;
-    background: #f0f6fc;
+    border-color: var(--themisdb-ui-primary, #2271b1);
+    background: var(--themisdb-ui-surface-alt, #f0f6fc);
 }
 
 .tpd-item--disabled {
@@ -156,7 +156,7 @@
 .tpd-item-label input[type="checkbox"] {
     margin-top: 3px;
     flex-shrink: 0;
-    accent-color: #2271b1;
+    accent-color: var(--themisdb-ui-primary, #2271b1);
     width: 16px;
     height: 16px;
 }
@@ -174,7 +174,7 @@
 
 .tpd-item-desc {
     font-size: 0.82rem;
-    color: #6b7280;
+    color: var(--themisdb-ui-muted, #6b7280);
     margin: 0 0 6px;
 }
 
@@ -187,7 +187,7 @@
 
 .tpd-item-price {
     font-weight: 700;
-    color: #1d2327;
+    color: var(--themisdb-ui-text, #1d2327);
 }
 
 .tpd-item-price--free {
@@ -195,7 +195,7 @@
 }
 
 .tpd-item-duration {
-    color: #6b7280;
+    color: var(--themisdb-ui-muted, #6b7280);
 }
 
 /* Category grouping ─── */
@@ -209,19 +209,19 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #6b7280;
+    color: var(--themisdb-ui-muted, #6b7280);
     margin: 0 0 10px;
     padding-bottom: 4px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--themisdb-ui-surface-alt, #f0f0f0);
 }
 
 /* ── Support comparison table ─────────────────────────────────────────────── */
 
 .tpd-support-toggle {
     background: none;
-    border: 1px solid #2271b1;
+    border: 1px solid var(--themisdb-ui-primary, #2271b1);
     border-radius: 6px;
-    color: #2271b1;
+    color: var(--themisdb-ui-primary, #2271b1);
     font-size: 0.9rem;
     padding: 6px 14px;
     cursor: pointer;
@@ -230,8 +230,8 @@
 }
 
 .tpd-support-toggle:hover {
-    background: #2271b1;
-    color: #fff;
+    background: var(--themisdb-ui-primary, #2271b1);
+    color: var(--themisdb-ui-on-primary, #fff);
 }
 
 .tpd-support-table {
@@ -255,7 +255,7 @@
 }
 
 .tpd-support-table thead th {
-    background: #f8fafc;
+    background: var(--themisdb-ui-surface-alt, #f8fafc);
     font-weight: 700;
     white-space: nowrap;
 }
@@ -297,17 +297,17 @@
 }
 
 .tpd-pricing-box {
-    border: 2px solid #dde1e7;
+    border: 2px solid var(--themisdb-ui-border, #dde1e7);
     border-radius: 12px;
     padding: 20px;
-    background: #fff;
+    background: var(--themisdb-ui-surface, #fff);
 }
 
 .tpd-pricing-box-title {
     font-size: 1rem;
     font-weight: 700;
     margin: 0 0 12px;
-    color: #1d2327;
+    color: var(--themisdb-ui-text, #1d2327);
 }
 
 .tpd-price-summary {
@@ -321,7 +321,7 @@
     display: flex;
     justify-content: space-between;
     padding: 5px 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--themisdb-ui-surface-alt, #f0f0f0);
 }
 
 .tpd-price-summary li:last-child {
@@ -344,7 +344,7 @@
     justify-content: space-between;
     align-items: baseline;
     padding-top: 10px;
-    border-top: 2px solid #1d2327;
+    border-top: 2px solid var(--themisdb-ui-text, #1d2327);
     margin-top: 6px;
 }
 
@@ -356,7 +356,7 @@
 .tpd-total-amount {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #1d2327;
+    color: var(--themisdb-ui-text, #1d2327);
 }
 
 .tpd-total-note {
@@ -374,7 +374,7 @@
     text-align: center;
     padding: 12px 16px;
     background: #d0d0d0;
-    color: #fff;
+    color: var(--themisdb-ui-on-primary, #fff);
     font-size: 1rem;
     font-weight: 700;
     border-radius: 8px;
@@ -384,14 +384,14 @@
 }
 
 .tpd-order-btn--ready {
-    background: #2271b1;
+    background: var(--themisdb-ui-primary, #2271b1);
     pointer-events: auto;
 }
 
 .tpd-order-btn--ready:hover {
-    background: #135e96;
+    background: var(--themisdb-ui-primary-hover, #135e96);
     transform: translateY(-1px);
-    color: #fff;
+    color: var(--themisdb-ui-on-primary, #fff);
 }
 
 .tpd-order-btn--ready:active {
@@ -402,11 +402,11 @@
 
 .tpd-base-price-line {
     font-size: 0.85rem;
-    color: #6b7280;
+    color: var(--themisdb-ui-muted, #6b7280);
     margin-bottom: 8px;
 }
 
 .tpd-base-price {
     font-weight: 600;
-    color: #1d2327;
+    color: var(--themisdb-ui-text, #1d2327);
 }

@@ -2,7 +2,52 @@
 
 Vollständige End-to-End-Tests aller Lifecycle-Workflows: Tickets, Change-Requests, Terminations, SLA-Tracking, Mail-Log und Observability.
 
+## Schreibgeschuetzte Integrationsregression
+
+Fuer die lokale Integrationspruefung ohne Bestellungen, Ticket-Aenderungen,
+E-Mail-Versand oder externe Requests:
+
+```powershell
+& C:\xampp\php\php.exe .\themisdb-support-portal\tests\integration-test.php C:\xampp\htdocs\wordpress\wp-load.php
+node --test .\themisdb-support-portal\tests\browser.test.cjs
+```
+
+Die PHP-Pruefung verwendet eine bestehende Administrator-ID nur im laufenden
+CLI-Prozess, registriert die Order-Menues und rendert die Listen fuer Support,
+Bestellungen, Vertraege und Lizenzen. Beim Listenrendern sind Datenbankschreibzugriffe,
+E-Mails und HTTP gesperrt; das Speichern von Listenpraeferenzen wird per Testfilter
+abgefangen. Es werden keine Benutzer oder Sitzungen angelegt.
+
+Die Browserpruefung kombiniert eine echte lokale Supportseite mit einem
+abgefangenen, synthetischen Hub ohne Theme: verschachtelte Tabs, Tastatur,
+Sprunglinks, Auftragsdialog, Dateilesefehler, CSS-Isolation und mobile Breiten.
+AJAX der synthetischen Seiten wird abgefangen, nicht an WordPress gesendet.
+Die Tests brauchen das bereits im Repository verwendete Playwright.
+Abweichende Pfade sind ueber `PHP_BINARY`, `WORDPRESS_BOOTSTRAP` und
+`WORDPRESS_URL` konfigurierbar.
+
+Diese Regression ersetzt keine Tests von schreibenden Geschaeftsablaeufen.
+Die folgenden Lifecycle-E2E-Szenarien nur auf einer isolierten Testinstallation
+ausfuehren, da sie Daten und Benachrichtigungen erzeugen koennen.
+
 ## Struktur
+
+Fuer die isolierte Review-Logik steht zusaetzlich
+[`lifecycle.test.php`](../../themisdb-order-request/tests/lifecycle.test.php)
+bereit:
+
+```powershell
+& C:\xampp\php\php.exe .\themisdb-order-request\tests\lifecycle.test.php
+```
+
+Diese Suite braucht keine laufende WordPress-Installation. Sie prueft auch
+Scheduler-Ergebniszaehler und Fehlerweitergabe des Support-Wrappers, ohne
+echte Kuendigungen, PDF-Dateien oder E-Mails zu erzeugen. Umfang und Grenzen
+sind in der [Order-Dokumentation](../../themisdb-order-request/README.md#isolierte-lifecycle-regression)
+beschrieben. Der unten dokumentierte Legacy-Bash-Runner schreibt direkt in
+fest benannte `wp_*`-Tabellen, benutzt ein aelteres Schema und ersetzt keinen
+Test der aktuellen Plugin-Methoden. Nicht auf dieser lokalen Installation
+oder einer Installation mit Nutzdaten ausfuehren.
 
 - **`E2E_TEST_SCENARIOS.php`** — Dokumentation aller 5 Haupt-Szenarien mit erwarteten DB-Zuständen
 - **`e2e-test-runner.sh`** — Automatisierte Test-Ausführung via wp-cli

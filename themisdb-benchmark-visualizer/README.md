@@ -1,385 +1,355 @@
-# ThemisDB Benchmark Visualizer - WordPress Plugin
-
-A WordPress plugin for interactive visualization of ThemisDB performance benchmarks. Compare ThemisDB performance against PostgreSQL, MongoDB, Neo4j, and other leading databases directly on your WordPress website.
-
-## 📋 Overview
-
-This plugin is designed following the **TCO Calculator** template pattern and provides comprehensive benchmark visualization capabilities with all the features needed for professional database performance comparison.
-
-- **Shortcode-based Integration**: `[themisdb_benchmark_visualizer]`
-- **Admin Settings Page**: Customize default values and data sources
-- **Full Functionality**: All features for benchmark visualization
-- **WordPress-optimized**: Uses WordPress best practices
-
-## ✨ Features
-
-### Comprehensive Benchmark Visualization
-- 📊 **Interactive Charts**: Dynamic visualizations with Chart.js
-- 🔍 **Multiple Metrics**: Latency, Throughput, Memory Usage
-- 🎯 **Category Filters**: 
-  - Vector Search & Embeddings (GNN embeddings support)
-  - Graph Traversal & PageRank
-  - Encryption & HSM (Hardware Security Module)
-  - Compression
-  - MVCC & Transactions (lock contention analysis)
-  - Image Analysis (with latency metrics)
-  - Advanced Patterns & AQL (hybrid queries, changefeeds)
-  - GPU Backends (hardware acceleration)
-  - Content Versioning & Indexing
-- 📈 **Multiple Chart Types**: Bar, Line, and Radar charts
-- 🎛️ **Interactive Controls**: Category, metric, chart type, engine, Top-N and task search filters are rendered as a glass-overlay directly above the chart canvas
-- 🔄 **Real-time Data**: Parses actual benchmark results from Google Benchmark JSON files
-- 📊 **Statistics Dashboard**: View total benchmarks, files parsed, average/best/worst performance
-- 💡 **Performance Insights**: Automated analysis with category-specific recommendations
-- 🎨 **Smart Visualization**: Uses configurable Top-N defaults and auto-adjusts dense bar charts (horizontal mode + label truncation) for readability
-
-### WordPress Integration
-- 📝 **Shortcode**: Easy embedding via `[themisdb_benchmark_visualizer]`
-- ⚙️ **Admin Panel**: Settings page under Settings → Benchmark Visualizer
-- 🔗 **Plugin Action Links**: Direct access to settings from Plugins page
-- 🧹 **Clean Uninstallation**: Automatic cleanup when plugin is deleted
-- 🎨 **Theme-compatible**: Works with any WordPress theme
-- 📱 **Responsive**: Optimized for all screen sizes
-
-### Data Management
-- 💾 **Real Benchmark Data**: Reads normalized `benchmark_catalog.json` (recommended) or legacy benchmark JSON files
-- 📁 **19 Benchmark Files**: Comprehensive coverage of all ThemisDB features
-- 🧭 **Task-based Evaluation**: Metrics are grouped by benchmark test task (not mixed per raw variant row)
-- ⚖️ **Fair Comparability Filter**: Cross-engine views prefer tasks with at least two engines and flag excluded single-engine tasks
-- ⚙️ **Configurable Category Mapping**: Keep plugin logic generic and tune task-specific keyword mapping in WordPress admin settings
-- ⚡ **Smart Caching**: Configurable cache duration for optimal performance
-- 🔄 **Auto-refresh**: Optional automatic data updates
-- 📊 **Top Performers**: Displays best-performing benchmarks for clarity
-
-### Export & Sharing
-- 📥 **Export Functions**: CSV export
-- 🖨️ **Print Support**: Optimized print layout
-- 📄 **PDF Export**: Print-to-PDF functionality
-
-## 🚀 Installation
-
-### Method 1: Manual Installation
-
-1. **Download the Plugin**
-   ```bash
-   cd /path/to/wordpress/wp-content/plugins/
-   # Copy the plugin directory
-   cp -r /path/to/ThemisDB/tools/benchmark-visualizer-wordpress ./themisdb-benchmark-visualizer
-   ```
-
-2. **Activate the Plugin**
-   - Go to WordPress Admin → Plugins
-   - Find "ThemisDB Benchmark Visualizer"
-   - Click "Activate"
-
-3. **Configure Settings**
-   - Go to Settings → Benchmark Visualizer
-   - Configure your preferences
-   - Save changes
-
-### Method 2: ZIP Installation
-
-1. Create a ZIP file of the plugin directory
-2. In WordPress Admin, go to Plugins → Add New
-3. Click "Upload Plugin"
-4. Choose the ZIP file and click "Install Now"
-5. Activate the plugin
-
-## 📖 Usage
-
-### Basic Shortcode
-
-Display the benchmark visualizer with default settings:
-
-```php
-[themisdb_benchmark_visualizer]
-```
-
-### Shortcode with Parameters
-
-#### Filter by Category
-```php
-// Show only Vector Search benchmarks
-[themisdb_benchmark_visualizer category="vector_search"]
-
-// Show Graph Traversal benchmarks
-[themisdb_benchmark_visualizer category="graph_traversal"]
-
-// Show Encryption & HSM benchmarks
-[themisdb_benchmark_visualizer category="encryption"]
-
-// Show GPU Backend benchmarks
-[themisdb_benchmark_visualizer category="gpu"]
-
-// Show a concrete category by default
-[themisdb_benchmark_visualizer category="vector_search"]
-```
-
-**Available Categories:**
-- `vector_search` - Vector Search & GNN Embeddings
-- `graph_traversal` - Graph algorithms including PageRank
-- `encryption` - Encryption and HSM provider tests
-- `compression` - Data compression benchmarks
-- `transaction` - MVCC and lock contention tests
-- `image_analysis` - AI-powered image processing
-- `advanced` - Advanced patterns, AQL, changefeeds, hotspots
-- `gpu` - GPU backend acceleration tests
-- `content` - Content versioning and index rebuilding
-
-#### Specify Metric
-```php
-// Display latency metrics
-[themisdb_benchmark_visualizer metric="latency"]
-
-// Display throughput metrics
-[themisdb_benchmark_visualizer metric="throughput"]
-
-// Display memory usage
-[themisdb_benchmark_visualizer metric="memory"]
-```
-
-#### Choose Chart Type
-```php
-// Bar chart (default)
-[themisdb_benchmark_visualizer chart_type="bar"]
-
-// Line chart
-[themisdb_benchmark_visualizer chart_type="line"]
-
-// Radar chart for comparison
-[themisdb_benchmark_visualizer chart_type="radar"]
-```
-
-#### Compare Specific Databases
-```php
-// Compare with PostgreSQL and MongoDB
-[themisdb_benchmark_visualizer compare="postgresql,mongodb"]
-
-// Compare with Neo4j
-[themisdb_benchmark_visualizer compare="neo4j"]
-```
-
-#### Combined Parameters
-```php
-[themisdb_benchmark_visualizer 
-    category="vector_search" 
-    metric="latency" 
-    chart_type="bar"
-    compare="postgresql,mongodb"]
-```
-
-## ⚙️ Settings
-
-Access plugin settings at **Settings → Benchmark Visualizer**:
-
-### Data Source
-- **Benchmark Catalog JSON (recommended)**: Load normalized benchmark data from `benchmark_catalog.json`
-- **Local Files**: Legacy mode loading benchmark JSON files by file pattern
-- **GitHub Repository**: Fetch latest benchmarks from GitHub
-
-### Catalog Path
-- Optional absolute path to `benchmark_catalog.json`
-- Leave empty to auto-detect under `source-links/benchmarks/benchmark_results`
-
-### Build catalog file
-
-```bash
-python wordpress-site-factory/importers/build_benchmark_catalog.py \
-  --source-dir C:/Projects/wordpressPlugins/source-links/benchmarks/benchmark_results \
-  --output C:/Projects/wordpressPlugins/source-links/benchmarks/benchmark_results/benchmark_catalog.json \
-  --summary
-```
-
-### Default Values
-- **Default Category**: Initial category key to display (supports custom keys from your JSON category mapping)
-- **Default Metric**: Initial metric (latency, throughput, memory)
-- **Default Chart Type**: Initial visualization mode (bar, line, area, radar)
-- **Default Top-N**: Initial task subset size
-- **Default Comparison Databases**: Which databases to compare by default
-- **Chart Theme**: Light or dark theme for charts
-- **Strict Cross-Engine Comparability**: Compare only tasks with >=2 engines (recommended for fair ranking)
-- **Category Keyword Mapping (JSON)**: Map benchmark names/files to categories per deployment/task
-
-### Performance
-- **Cache Duration**: How long to cache benchmark data (1 hour to 1 week)
-
-## 🛠️ Technical Details
-
-### File Structure
-
-```
-themisdb-benchmark-visualizer/
-├── themisdb-benchmark-visualizer.php    # Main plugin file
-├── assets/
-│   ├── css/
-│   │   └── benchmark-visualizer.css     # Styling (based on TCO Calculator)
-│   └── js/
-│       └── benchmark-visualizer.js      # JavaScript logic with Chart.js
-├── templates/
-│   ├── visualizer.php                   # Main template
-│   └── admin-settings.php               # Admin settings page
-├── data/
-│   └── (benchmark data files)           # Local benchmark data
-├── README.md                            # This file
-└── LICENSE                              # MIT License
-```
-
-### Technologies Used
-
-- **PHP**: WordPress plugin development (7.4+)
-- **JavaScript**: ES5+ with jQuery
-- **Chart.js**: Version 4.4.0 for visualizations
-- **CSS3**: Modern, responsive styling
-- **WordPress API**: Settings API, Shortcode API, AJAX
-
-### Design Principles
-
-Based on the **TCO Calculator** design pattern:
-
-1. **Clean & Modern UI**: Minimalistic design with clear colors
-2. **Responsive Layout**: Mobile-first approach
-3. **Chart.js Integration**: Consistent visualizations
-4. **Interactive Elements**: Filters, dropdowns, dynamic updates
-5. **Export Functions**: CSV, PDF, Print support
-
-### CSS Classes (Reusable)
-
-```css
-.themisdb-benchmark-wrapper    /* Main container */
-.themisdb-section             /* Content sections */
-.themisdb-chart-container     /* Chart areas */
-.themisdb-btn-primary         /* Primary buttons */
-.themisdb-btn-secondary       /* Secondary buttons */
-.themisdb-filter-group        /* Filter controls */
-.themisdb-results-table       /* Results display */
-.themisdb-insights            /* Insights section */
-```
-
-### JavaScript API
-
-```javascript
-window.ThemisDBBenchmarks = {
-    init: function() { /* Initialize visualizer */ },
-    loadData: function() { /* Load benchmark data */ },
-    renderChart: function() { /* Render Chart.js visualization */ },
-    exportCSV: function() { /* Export data as CSV */ },
-    exportPDF: function() { /* Export as PDF */ }
-};
-```
-
-## 🔒 Security
-
-- **Nonce Verification**: All AJAX requests verified with WordPress nonces
-- **Capability Checks**: Admin functions require proper permissions
-- **Input Sanitization**: All user inputs sanitized
-- **Output Escaping**: All outputs properly escaped
-- **XSS Protection**: Protection against cross-site scripting
-
-## 🎨 Customization
-
-### Custom Styling
-
-Override plugin styles in your theme:
-
-```css
-/* In your theme's style.css */
-.themisdb-benchmark-wrapper {
-    /* Your custom styles */
-}
-```
-
-### Custom Data
-
-Add your own benchmark data in the `data/` directory using JSON format:
+# ThemisDB Benchmark Visualizer
+
+Version 1.5.0. Standalone WordPress shortcode for measured benchmark results.
+PHP 7.4+, WordPress 5.0+, and a modern browser with JavaScript are required.
+
+The plugin owns its markup, CSS, controls and JavaScript. It does not depend on
+ThemisDB Pulse, jQuery, Mermaid or a chart CDN. Chart.js 4.4.0 is bundled locally
+with its [MIT license](assets/vendor/Chart-LICENSE.md).
+
+## Installation and data sources
+
+1. Install the `themisdb-benchmark-visualizer` directory under WordPress plugins
+   and activate it. A directory junction to this repository also works.
+2. Open **Settings > Benchmark Visualizer**.
+3. Select **Benchmark Catalog JSON** and configure an absolute path to the
+   catalog, or leave it empty for automatic discovery under a sibling
+   `source-links/benchmarks/benchmark_results` directory.
+4. Insert `[themisdb_benchmark_visualizer]` in a page or template.
+
+The optional `THEMISDB_BENCHMARK_CATALOG` environment variable is another
+catalog discovery candidate. An explicitly configured path takes precedence;
+an invalid explicit path reports an error instead of loading a different file.
+
+**Local Files** supports Google Benchmark JSON files named `bench_*.json`.
+Discovery also checks the plugin's `data` directory and the
+`THEMISDB_BENCHMARK_DIR` environment variable. Legacy files are treated as
+ThemisDB results. Use the catalog format for cross-engine comparisons and
+explicit environment/dataset context.
+
+**GitHub Repository is not implemented.** Selecting it displays an explicit
+configuration error. The plugin does not fetch remote data, silently substitute
+local results or generate demonstration values.
+
+### Optional synthetic demo source
+
+Select **Settings > Benchmark Visualizer > Data Source > DEMO** and save to test
+the UI without actual benchmark files. This is opt-in: installing/updating the
+plugin does not change the selected source. Select **Benchmark Catalog JSON**
+again to return to real measurements.
+
+The deterministic generator supplies **VectorFox Demo**, **GraphNest Demo** and
+**NimbusMock Demo**, with 60 task configurations per category (`vector_search`,
+`graph_traversal`, `transaction`) and latency, throughput and memory values.
+Missing engine/task cells, multiple vector sizes and several latency orders of
+magnitude exercise sorting, filtering, all/Top-N, tooltips, navigation and tables.
+Other categories correctly show an empty state.
+
+These are mathematical test values, not results from an actual database or
+VectorDBBench run. A persistent demo notice, table caption, CSV notice and
+`DEMO-synthetic-` export filename make that distinction explicit. Engine names and
+task names also contain Demo/DEMO. The default real-engine comparison list is
+ignored in demo mode; the engine selector still works normally.
+
+Demo task grouping is restricted to the explicit built-in demo adapter. It does
+not mark synthetic data as publication-verified or relax the real catalog rules.
+Missing/invalid real sources never trigger a demo fallback.
+
+### Catalog format
 
 ```json
 {
-    "labels": ["Operation 1", "Operation 2"],
-    "datasets": [
-        {
-            "label": "ThemisDB",
-            "data": [2.3, 1.5],
-            "backgroundColor": "rgba(46, 164, 79, 0.8)"
-        }
-    ]
+  "records": [
+    {
+      "benchmark_name": "BM_SIMD_L2/64",
+      "engine": "ThemisDB",
+      "workload": "vector_search",
+      "dataset_size": "100000",
+      "environment": "reference-machine",
+      "threads": 1,
+      "metric_name": "latency",
+      "metric_unit": "ns",
+      "metric_value": 7.64,
+      "source_file": "bench_vector.json"
+    }
+  ]
 }
 ```
 
-## 🐛 Troubleshooting
+Missing/invalid files are errors. A valid catalog with no measurements matching
+the current filters is an empty state, not an error and not a zero-valued result.
 
-### Chart Not Displaying
+### Measurement rules
 
-1. Check browser console for JavaScript errors
-2. Verify Chart.js is loading correctly
-3. Ensure shortcode is properly formatted
-4. Check WordPress debug log
+- Operation names and numeric parameters remain distinct. SIMD L2, scalar L2 and
+  inner-product operations with the same vector dimension are not merged.
+- Available dataset size, environment and thread count are part of each task's
+  identity. Repeated legacy values for the same task, engine and source are
+  averaged. Controlled-run statistics are never averaged: duplicate values for
+  the same protocol/run/engine are rejected.
+- Only nonnegative finite numeric values with known units are accepted.
+  Missing values remain `null`; genuine measured zero remains zero.
+- Latency is normalized to **ms** from `ns`, `us`, `ms` or `s`. Tiny values are
+  preserved instead of rounded to zero.
+- Throughput is normalized to **ops/s** from `ops/s`, `ops/sec`, `items/s` or
+  `items_per_second`.
+- Memory occupancy is normalized to **MiB** from `bytes`, `B`, `KiB`, `MiB`,
+  `MB`, `GB` or `GiB`. Bandwidth such as `bytes_per_second` is not memory usage.
+- Legacy Google Benchmark error and aggregate rows are excluded. Latency uses
+  `real_time` (or `cpu_time`), throughput uses `items_per_second`, and memory
+  uses `memory_usage` or `bytes_used` in bytes.
+- Strict cross-engine mode retains protocol-matched tasks measured by at least
+  two engines when such tasks exist. Otherwise real single-engine/reference
+  measurements remain visible with an explicit notice. Excluded counts are shown.
+- Matching task names do not prove equal hardware or equally configured
+  databases. Check the original measurements before making performance claims.
 
-### Data Not Loading
+The task-source details show original measurement names and source basenames.
+They do not expose absolute server paths.
 
-1. Verify data source settings
-2. Check file permissions on data directory
-3. Clear WordPress cache
-4. Check AJAX request in browser network tab
+### Vector publication contract (v1)
 
-### Styling Issues
+The canonical machine-readable rules are in
+[benchmark-publication-contract.json](includes/benchmark-publication-contract.json).
+The Python catalog builder and PHP renderer both validate this same file.
+Adding a `publication` object to each catalog record does **not** make a
+microbenchmark an End-to-End benchmark: metadata must describe an actual,
+reproducible run. Existing records are not automatically upgraded.
 
-1. Clear browser cache
-2. Check for theme conflicts
-3. Verify CSS file is loading
-4. Check for CSS specificity issues
+The first supported comparison family is `vector_search`, using
+[VectorDBBench](https://github.com/zilliztech/VectorDBBench) as the target harness.
+This is our publication contract, not an ISO standard, an official VectorDBBench
+certification, or proof that the claimed measurements were independently audited.
 
-## 🤝 Contributing
+Required metadata groups:
 
-Contributions are welcome! Please follow these guidelines:
+| Group | Required fields / meaning |
+|-------|---------------------------|
+| Protocol | `version: 1`, `suite: "vectordbbench"`, `suite_version`, `scope: "end_to_end"`, `origin: "controlled_run"`, `protocol_id`, `experiment_id` |
+| Dataset | `dataset_id`, `dataset_sha256`, positive `vectors`, `dimensions`, `distance` (`cosine`, `l2`, `inner_product`), positive `top_k` not exceeding corpus size |
+| Resources | `hardware_fingerprint`, `execution_fingerprint`: lowercase SHA-256 digests of the published hardware and execution manifests |
+| Load | Positive `concurrency`, `cache_state` (`warm`/`cold`), nonnegative `warmup_queries`, positive `measured_queries`, `repetitions` |
+| Quality/statistic | `recall_target` in [0.01, 1], `recall_achieved` at least that target; latency `statistic` is `mean`/`p50`/`p95`/`p99`, throughput is `qps`, memory is `peak` |
+| Reproducibility | `engine_version`, `index_config`, `run_id`, timezone-qualified `measured_at`, HTTPS `source_url`, declared `license` |
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+`protocol_id` identifies a published, immutable methodology. It must define the
+query set and ground truth, metric timing boundaries, quality evaluation, filters,
+index tuning budget, timeouts/error policy, sampling and repetition aggregation.
+The hardware manifest documents CPU/GPU, RAM, storage, OS and resource limits.
+The execution manifest documents client placement, transport, durability,
+background load and cache preparation. Hash the exact published manifest bytes;
+identical hashes with different configurations are not acceptable.
 
-## 📄 License
+All `comparison_fields` in the contract **and `run_id`** must match across engines,
+in addition to task name, metric and existing task context. `run_id` identifies a
+shared measurement block within the experiment; individual engine execution IDs
+belong in the referenced run report. Engine versions, index configuration and
+achieved recall are recorded but may differ, provided the common recall target
+is reached. Different percentiles, corpora, hardware or load do not share bars
+for the same task. Percentiles must come from the specified query sample or the
+explicitly documented aggregation procedure, never an implicit average of p99s.
 
-This plugin is open source and available under the [MIT License](LICENSE).
+External reports (`origin: "external_reference"`), unknown protocols, missing
+metadata and below-target recall are **reference-only**. They remain visible,
+isolated by engine/source/protocol, but do not count as comparable tasks.
+The table exposes supplied protocol metadata or validation issues. The UI
+explicitly warns about reference/legacy measurements.
 
-## 🔗 Links
+Validation checks completeness and matching fields, **not the truth of a report,
+the contents of a remote URL, license suitability or statistically adequate sample
+sizes**. Choose measurement duration, repetitions and sample counts in the
+protocol before running; the schema's positive minima are only structural checks,
+not recommended statistical thresholds. Never publish credentials or private paths
+in metadata. An independent review of source artifacts remains required.
 
-- **GitHub Repository**: [makr-code/wordpressPlugins](https://github.com/makr-code/wordpressPlugins)
-- **Plugin Path**: `/tools/benchmark-visualizer-wordpress/`
-- **Documentation**: See `/docs/` directory in main repository
+The [synthetic test fixture](tests/publication-fixture.json) demonstrates the
+object shape only. It contains no real performance results and must not be used
+as published benchmark data.
 
-## 📞 Support
+## Shortcodes
 
-For issues, questions, or feature requests:
+```text
+[themisdb_benchmark_visualizer]
+[themisdb_benchmark_visualizer category="vector_search" metric="latency" chart_type="bar"]
+[themisdb_benchmark_visualizer category="all" compare="postgresql,mongodb" show_table="true"]
+[themisdb_benchmark_visualizer metric="memory" show_controls="false" show_chart="false"]
+```
 
-1. Open an issue on [GitHub](https://github.com/makr-code/wordpressPlugins/issues)
-2. Include plugin version and WordPress version
-3. Provide detailed description and steps to reproduce
+Multiple visualizers on the same page have independent configuration, controls,
+requests, charts and exports. Explicit shortcode parameters override admin
+defaults even when controls are hidden.
 
-## 🗺️ Roadmap
+| Parameter | Values / behavior |
+|-----------|-------------------|
+| `category` | `all` or a category from the admin keyword mapping |
+| `metric` | `latency`, `throughput`, `memory` |
+| `chart_type` | `bar`, `bar-horizontal`, `bar-vertical`, `bar-isometric`, `line`, `line-dot`, `stepped`, `area`, `radar` |
+| `compare` | Comma-separated engine names, case-insensitive; ThemisDB is retained. Empty means all available engines. No datasets are invented. |
+| `aspect_ratio` | Positive ratio such as `4:3` or `16:9`; chart height is bounded between 18 and 36 rem |
+| `show_header` | Show the plugin title; default `false` |
+| `show_controls` | Show the compact native options menu; default `true` |
+| `show_chart` | Show the chart; default `true` |
+| `show_nav` | Manual previous/next engine emphasis; default `true`, only shown for multiple visible engines |
+| `show_stats` | Show statistics of the active engine's visible tasks; default `false` |
+| `stats_mode` | `toolbar`, `cards`, `hidden` |
+| `show_table` | Open the data table initially; default `false`. The table remains available collapsed, and opens when the chart is disabled or unavailable. |
+| `show_overlay` | Compatibility parameter; obsolete decorative overlays are no longer rendered |
+| `show_mermaid` | Compatibility parameter; shows an explanation rather than inventing a system topology from timing data |
 
-### Future Enhancements
+Category mapping, chart theme, Top-N, comparison engines and the strict comparison
+filter are configurable in the existing WordPress settings page. The default
+category is `vector_search`. Custom categories can be added through the keyword
+mapping, without editing plugin source.
 
-- [ ] Historical benchmark comparison
-- [ ] Custom benchmark upload
-- [ ] More chart types (scatter, bubble)
-- [ ] Advanced filtering options
-- [ ] RESTful API integration
-- [ ] Multi-language support
-- [ ] Gutenberg block support
+## Interaction, export and caching
 
-## 📊 Version History
+### Chart gallery
 
-### Version 1.0.0 (Initial Release)
-- Interactive benchmark visualization
-- Multiple metrics support (latency, throughput, memory)
-- Category filtering
-- Chart.js integration
-- CSV export
-- WordPress admin integration
-- Responsive design
-- Based on TCO Calculator template
+All modes are available in **Diagramm-Optionen > Diagramm**, as admin defaults,
+and through the `chart_type` shortcode attribute, including with controls hidden:
 
----
+| Mode | Presentation |
+|------|--------------|
+| `bar` | Automatic orientation: horizontal for dense charts or small screens |
+| `bar-horizontal` | Always horizontal grouped bars |
+| `bar-vertical` | Always vertical grouped columns, including mobile |
+| `bar-isometric` | Vertical columns with shaded 30-degree projected depth faces (2.5D) |
+| `line` | Plain lines with no permanent point markers |
+| `line-dot` | Lines with visible measurement dots |
+| `stepped` | Step connections between discrete task positions |
+| `area` | Lines with translucent area fill |
+| `radar` | Radial comparison with translucent fills |
 
-**Powered by [ThemisDB](https://github.com/makr-code/wordpressPlugins)** - The Multi-Model Database with Native LLM Integration
+```text
+[themisdb_benchmark_visualizer chart_type="bar-isometric"]
+[themisdb_benchmark_visualizer chart_type="bar-vertical"]
+[themisdb_benchmark_visualizer chart_type="line-dot"]
+```
+
+Isometric depth is decorative, not a third measured variable or a rotatable 3D
+scene. The front top edge stays at the true value. Top/side shading derives from
+theme series colors, follows animation geometry and omits absent/zero values.
+A visible explanation accompanies this view. For precise comparison prefer the
+flat chart, tooltip or table. Use Top-10/20 for wider individual columns; all
+modes retain the same filtered rows and export values.
+
+Line/step connections follow the displayed task order (sorted by primary-engine
+performance), not an implicit time series. Missing values are not bridged. Point
+markers can be hidden without disabling nearest-point tooltips.
+
+### Analysis controls
+
+- **Werteskala:** linear (default) or logarithmic for Cartesian charts. Zero
+  measurements are omitted only from logarithmic plots; the original table/CSV
+  value is unchanged. No epsilon/pseudovalue is invented. Radar stays linear,
+  with an explicit notice, and the log selection resumes on switching back.
+- **Sortierung:** best first (default), worst first, task name A-Z, or original
+  source order. Sorting precedes Top-N. Missing reference values stay last for
+  both performance directions.
+- **Referenz-Engine:** automatic chooses visible ThemisDB, otherwise the first
+  visible engine. An explicit reference can be selected independently of the
+  visible engine filter; it supplies the sorting values and comparison baseline.
+  Selection changes do not refetch measurements.
+- **Performance factor:** shown per task in table cells/tooltips, with additional
+  CSV columns. Throughput factor is `engine / reference`; latency and memory
+  factor is `reference / engine`. Thus 1 is the baseline and greater than 1 is
+  better for that metric. A memory factor describes occupancy efficiency, not
+  query speed. There is no cross-task overall winner.
+- Factors require the task's verified publication protocol, or the explicit
+  synthetic demo source. Reference-only/legacy tasks, missing values, zeros and
+  non-finite ratios produce no factor (blank CSV field). Absolute measurements
+  remain unchanged. The explanatory note accompanies these controls.
+
+### Loading and export
+
+- Search tasks, select engines and choose Top-N or **All**. The server no longer
+  truncates results to thirty tasks.
+- Bars become horizontal for dense charts or small screens. Tooltips include
+  the real measurement and unit; the table keeps full task labels.
+- Task names on the chart axes (and radar point labels) are hidden by default
+  to leave room for the plot. **Testnamen im Diagramm > Einblenden** restores
+  them per instance without reloading measurements. Numeric scales, units,
+  engine legend, full tooltip names and table labels remain available.
+- There is no automatic engine rotation. Engine navigation is manual, and chart
+  animation respects reduced-motion preferences.
+- Superseded requests are aborted and sequence-checked. Loading, error and empty
+  states clear stale charts and exports instead of leaving previous results visible.
+- An unavailable/broken chart displays a diagnostic and opens the measurement
+  table. CSV remains available when data itself is valid.
+- CSV exports the visible filtered rows with units, quoted values, empty missing
+  cells and spreadsheet formula-prefix protection. **Drucken / PDF** uses the
+  browser's print dialog, not a separate PDF-generation service.
+- **Neu laden** reissues the request but respects the server cache; it is not an
+  administrator cache-purge action.
+- Cache keys include plugin version, category, metric, source configuration,
+  category mapping, comparison policy and source-file modification time/size.
+  Configured cache duration is bounded between one minute and seven days.
+  No live polling or remote GitHub synchronization is performed.
+
+## Theme integration
+
+Embed the shortcode; do not replace the data-loading or navigation implementation.
+CSS is scoped to `.themisdb-benchmark-wrapper`. The public `--themisdb-bv-*`
+tokens can be set on the component **or any ancestor**, independently of
+stylesheet order. Without theme tokens the plugin supplies complete light/dark
+defaults selected by the admin chart-theme setting. Explicit theme tokens take
+precedence over either default palette.
+
+```css
+.themisdb-benchmark-wrapper {
+    --themisdb-bv-surface: var(--my-theme-surface);
+    --themisdb-bv-text: var(--my-theme-text);
+    --themisdb-bv-muted: var(--my-theme-secondary-text);
+    --themisdb-bv-border: var(--my-theme-border);
+    --themisdb-bv-accent: var(--my-theme-link);
+    --themisdb-bv-series-1: var(--my-theme-brand);
+}
+```
+
+Additional tokens: `subtle` (buttons/stat cards), `hover`, `error`, `grid`,
+`series-1` through `series-6`, `radius`, `shadow`, `menu-shadow`, `font` and
+`color-scheme` (light/dark native form controls), each with the same
+`--themisdb-bv-` prefix. Color tokens accept standard resolved CSS colors
+(including hex and RGB), not gradients. Series colors, legend/axis labels,
+grid and tooltip colors are read from CSS when a chart is rendered; they are
+not hard-coded separately in JavaScript. After a runtime palette change,
+reload the view or change a chart option to redraw its canvas.
+
+Pulse maps these tokens to its own `--tv3-*` palette in the theme stylesheet.
+It does not disable the plugin stylesheet, replace markup or implement chart logic.
+The internal `--bv-*` properties remain available for existing direct overrides.
+
+Existing PHP filters remain available:
+
+- `themisdb_benchmark_visualizer_shortcode_atts`
+- `themisdb_benchmark_visualizer_shortcode_payload`
+- `themisdb_benchmark_visualizer_shortcode_html`
+- `themisdb_benchmark_visualizer_shortcode_html_output`
+- `themisdb_benchmark_visualizer_enqueue_frontend_style`
+
+The last filter defaults to `true`. Disable it only when the integrating theme
+intentionally supplies the complete component styles.
+
+Scripts initialize each `[data-bv-config]` component and discover dynamically
+inserted components. Removed components abort requests and destroy their chart.
+There is no shared `window.ThemisDBBenchmarks` singleton.
+
+## Validation
+
+Run from the repository root using its existing Playwright installation:
+
+```powershell
+node --test .\themisdb-benchmark-visualizer\tests\data.test.cjs .\themisdb-benchmark-visualizer\tests\browser.test.cjs
+& C:\xampp\php\php.exe .\themisdb-benchmark-visualizer\tests\test-wordpress.php C:\xampp\htdocs\wordpress\wp-load.php
+```
+
+The browser tests use the local active WordPress homepage and a standalone
+same-origin fixture with explicitly mocked measurement responses. Override
+`WORDPRESS_URL` if the installation URL differs. They cover independent
+instances, filters, chart types, reduced motion, request races, empty/error states,
+CSV and layout at 320, 390, 860 and 1440 pixels.
+
+The PHP checks cover unit conversion, identity/grouping, missing values,
+comparability, source errors, shortcode flags, unique IDs and local assets.
+They require this plugin to be active and a valid local catalog. Option overrides
+use temporary filters and do not change saved WordPress settings.

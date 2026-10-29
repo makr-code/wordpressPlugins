@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "fields": {
+    "version": {"type": "integer", "enum": [1]},
+    "suite": {"type": "string", "enum": ["vectordbbench"]},
+    "suite_version": {"type": "string"},
+    "scope": {"type": "string", "enum": ["end_to_end"]},
+    "origin": {"type": "string", "enum": ["controlled_run"]},
+    "protocol_id": {"type": "string"},
+    "experiment_id": {"type": "string"},
+    "dataset_id": {"type": "string"},
+    "dataset_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "hardware_fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "execution_fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "vectors": {"type": "integer", "minimum": 1},
+    "dimensions": {"type": "integer", "minimum": 1},
+    "distance": {"type": "string", "enum": ["cosine", "l2", "inner_product"]},
+    "top_k": {"type": "integer", "minimum": 1},
+    "concurrency": {"type": "integer", "minimum": 1},
+    "cache_state": {"type": "string", "enum": ["warm", "cold"]},
+    "statistic": {"type": "string", "enum": ["mean", "p50", "p95", "p99", "qps", "peak"]},
+    "recall_target": {"type": "number", "minimum": 0.01, "maximum": 1},
+    "recall_achieved": {"type": "number", "minimum": 0, "maximum": 1},
+    "warmup_queries": {"type": "integer", "minimum": 0},
+    "measured_queries": {"type": "integer", "minimum": 1},
+    "repetitions": {"type": "integer", "minimum": 1},
+    "engine_version": {"type": "string"},
+    "index_config": {"type": "string"},
+    "run_id": {"type": "string"},
+    "measured_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"},
+    "source_url": {"type": "string", "pattern": "^https://[^\\s]+$"},
+    "license": {"type": "string"}
+  },
+  "comparison_fields": [
+    "version", "suite", "suite_version", "scope", "origin", "protocol_id",
+    "experiment_id", "dataset_id", "dataset_sha256", "hardware_fingerprint",
+    "execution_fingerprint", "vectors", "dimensions", "distance", "top_k",
+    "concurrency", "cache_state", "statistic", "recall_target",
+    "warmup_queries", "measured_queries", "repetitions"
+  ]
+}

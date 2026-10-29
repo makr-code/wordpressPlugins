@@ -10,6 +10,10 @@
 	}
 
 	ready( function () {
+		if ( window.themisdbSupport && window.themisdbSupport.ownsOrderOverlay ) {
+			return;
+		}
+
 		var cfg = window.themisdbV3OrderOverlay || {};
 		var overlay = document.getElementById( 'themisdb-order-overlay' );
 		var openButtons = document.querySelectorAll( '[data-themisdb-open-order-overlay]' );

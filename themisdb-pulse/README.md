@@ -248,6 +248,42 @@ damit Installationen in Unterverzeichnissen funktionieren.
 
 ## Plugin-Kompatibilität
 
+### Support-/Order-Integration
+
+Der eigene Shop ist vorgesehen; WooCommerce dient nur als Ideengeber.
+Plugins liefern Funktion, Markup und Basisstile, Pulse liefert die visuelle
+Palette ueber `--themisdb-ui-*` auf den Shop-, Order-, Produkt-, Warenkorb-
+und Support-Wrappers. Diese Variablen werden aus den aktuellen `--tv3-*`-
+Farbwerten abgeleitet. Plugin-CSS wird nicht mehr durch Theme-Erkennung
+unterdrueckt; ohne Pulse gelten die eigenstaendigen Plugin-Defaults.
+
+Der Lizenzeinstieg ist `/products/`. Der Header verwendet
+`[themisdb_cart_button]` fuer das Warenkorbsymbol; Warenkorb und Checkout
+laufen in einem gemeinsamen plugin-eigenen Overlay, nicht auf separaten Seiten.
+`/support/` bleibt das Kundenportal. Shortcodes, Overlay-Verhalten und
+die Farbvariablen sind in der
+[Order-Dokumentation](../themisdb-order-request/README.md#wordpress-einbindung-eigener-shop-und-supportportal)
+beschrieben. Der mobile Breadcrumb bleibt innerhalb seiner Breite horizontal
+scrollbar, damit lange Shop-Ankerlisten die Seite nicht verbreitern.
+
+Pulse bezieht Support-Assets und lokalisierte Meldungen ueber
+`themisdb_support_enqueue_frontend_assets()` direkt vom Plugin, statt seine
+Konfiguration zu duplizieren. Automatische Portal-Einbettungen bleiben beim
+Plugin; der Theme-Content-Filter dient nur noch als Legacy-Fallback. Spezielle
+Support-Seitenvorlagen und das kontextbezogene Login-Overlay bleiben erhalten.
+Der Auftragsdialog im Support-Hub gehoert ebenfalls dem Plugin; Pulse
+aktiviert seinen alten Handler nur ohne die entsprechende Plugin-Kennung.
+
+### Benchmark-Design
+
+Pulse passt den eigenstaendigen Benchmark Visualizer ausschliesslich ueber
+`--themisdb-bv-*`-Tokens in `style.css` an die aktuelle `--tv3-*`-Farbpalette an.
+Das umfasst Oberflaechen, Texte, Bedienelemente, Diagrammreihen, Achsen und Tooltips
+sowie Schrift, Radius und Schatten. PHP, HTML, JavaScript und Layout bleiben
+beim Plugin; seine CSS-Datei muss aktiviert bleiben. Ohne Pulse verwendet das
+Plugin seine eigenen hellen/dunklen Standardfarben. Explizite Theme-Tokens haben
+Vorrang vor der im Plugin gespeicherten Standardpalette.
+
 Das Theme styled alle ThemisDB-Plugin-Ausgaben automatisch:
 
 | Plugin | Shortcode | CSS-Klasse |

@@ -71,6 +71,55 @@ Tags: full-site-editing, block-theme, custom-logo
     --tv3-ease-entrance: cubic-bezier(0.17, 0.84, 0.44, 1);
 }
 
+/* Plugins own their layout and behavior; Pulse supplies the shared palette. */
+.themisdb-shop-page,
+.themisdb-cart-button,
+.themisdb-checkout-dialog,
+.themisdb-checkout-frame,
+.themisdb-order-flow,
+.themisdb-product-detail,
+.themisdb-shopping-cart,
+.themisdb-my-orders,
+.themisdb-my-contracts,
+.themisdb-support-portal-wrap,
+.themisdb-support-login-wrap,
+.themisdb-support-hub-wrap {
+    --themisdb-ui-primary: var(--tv3-accent-primary);
+    --themisdb-ui-primary-hover: var(--tv3-azure-dark);
+    --themisdb-ui-on-primary: #fff;
+    --themisdb-ui-heading: var(--tv3-navy-deep);
+    --themisdb-ui-accent: var(--tv3-azure);
+    --themisdb-ui-text: var(--tv3-text-primary);
+    --themisdb-ui-muted: var(--tv3-text-secondary);
+    --themisdb-ui-border: var(--tv3-border-strong);
+    --themisdb-ui-surface: var(--tv3-surface-base);
+    --themisdb-ui-surface-alt: var(--tv3-surface-muted);
+}
+
+/* The plugin owns layout and behavior; Pulse supplies only presentation tokens. */
+.themisdb-benchmark-wrapper {
+    --themisdb-bv-surface: var(--tv3-surface-base);
+    --themisdb-bv-text: var(--tv3-text-primary);
+    --themisdb-bv-muted: var(--tv3-text-secondary);
+    --themisdb-bv-border: var(--tv3-border-strong);
+    --themisdb-bv-accent: var(--tv3-azure-dark);
+    --themisdb-bv-subtle: var(--tv3-surface-muted);
+    --themisdb-bv-hover: var(--tv3-azure-pale);
+    --themisdb-bv-error: var(--tv3-red);
+    --themisdb-bv-grid: var(--tv3-border-soft);
+    --themisdb-bv-series-1: var(--tv3-accent-primary);
+    --themisdb-bv-series-2: var(--tv3-teal);
+    --themisdb-bv-series-3: var(--tv3-navy-mid);
+    --themisdb-bv-series-4: var(--tv3-yellow);
+    --themisdb-bv-series-5: var(--tv3-red);
+    --themisdb-bv-series-6: var(--tv3-text-secondary);
+    --themisdb-bv-radius: 18px;
+    --themisdb-bv-shadow: var(--tv3-shadow-soft);
+    --themisdb-bv-menu-shadow: var(--tv3-shadow-soft);
+    --themisdb-bv-font: var(--wp--preset--font-family--system-sans, system-ui, sans-serif);
+    --themisdb-bv-color-scheme: light;
+}
+
 @keyframes tv3-fade-up {
     from {
         opacity: 0;
@@ -3922,7 +3971,7 @@ body.tv3-motion-reduced * {
     padding: 0;
     width: 100%;
     min-width: 0;
-    overflow: visible;
+    overflow-x: auto;
     white-space: nowrap;
 }
 

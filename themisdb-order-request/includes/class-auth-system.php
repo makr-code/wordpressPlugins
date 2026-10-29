@@ -285,6 +285,8 @@ class ThemisDB_Auth_System {
         </style>
         
         <script>
+        (function () {
+        function initializeLogin() {
         jQuery(document).ready(function($) {
             // Tab switching
             $('.tab-button').on('click', function() {
@@ -384,6 +386,13 @@ class ThemisDB_Auth_System {
                 reader.readAsText(fileInput.files[0]);
             });
         });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeLogin, { once: true });
+        } else {
+            initializeLogin();
+        }
+        }());
         </script>
         <?php
         return $this->finalize_shortcode_html('themisdb_login', ob_get_clean(), $payload, $atts);
@@ -512,4 +521,3 @@ class ThemisDB_Auth_System {
 
 // Initialize authentication system
 new ThemisDB_Auth_System();
-
