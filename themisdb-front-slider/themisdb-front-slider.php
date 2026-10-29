@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Titelseiten-Slider mit Timer, der die neuesten Artikel auf der Hauptseite darstellt. Shortcode: [themisdb_front_slider]
- * Version: 1.1.5
+ * Version: 1.1.6
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -403,7 +403,7 @@ function themisdb_fs_compact_markup( $html ) {
 }
 
 /**
- * Resolve a published podcast episode linked to a post via related_post_id.
+ * Resolve a published podcast episode linked to a post.
  *
  * @param int $post_id Post ID.
  * @return array{url:string,label:string,style:string}|null
@@ -432,7 +432,7 @@ function themisdb_fs_get_related_podcast_cta( $post_id ) {
             'update_post_term_cache' => false,
             'meta_query'             => array(
                 array(
-                    'key'     => 'related_post_id',
+                    'key'     => 'podcast_related_post_id',
                     'value'   => $post_id,
                     'compare' => '=',
                     'type'    => 'NUMERIC',
@@ -1510,5 +1510,4 @@ function themisdb_fs_settings_page() {
     </style>
     <?php
 }
-
 

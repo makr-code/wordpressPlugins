@@ -213,7 +213,7 @@ wp_reset_postdata();
             $latest_podcast_date = get_the_date( '', $latest_podcast_id );
             $latest_podcast_audio_url = (string) get_post_meta( $latest_podcast_id, 'audio_url', true );
 
-            $related_post_id = (int) get_post_meta( $latest_podcast_id, 'related_post_id', true );
+            $related_post_id = (int) get_post_meta( $latest_podcast_id, 'podcast_related_post_id', true );
             if ( $related_post_id > 0 ) {
                 $latest_podcast_related_url = get_permalink( $related_post_id );
                 $latest_podcast_related_title = get_the_title( $related_post_id );

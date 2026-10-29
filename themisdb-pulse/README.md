@@ -2,7 +2,7 @@
 
 **WordPress Block Theme (Full Site Editing)** für ThemisDB — inspiriert von [postgresql.org](https://www.postgresql.org/) und [Microsoft Azure](https://azure.microsoft.com/de-de/).
 
-Version: **3.4.0** | Requires WordPress: **6.3+** | PHP: **7.4+**
+Version: **3.4.0** | Requires WordPress: **7.1+** | PHP: **7.4+**
 
 ---
 
@@ -28,10 +28,10 @@ Version: **3.4.0** | Requires WordPress: **6.3+** | PHP: **7.4+**
 `themisdb-pulse` ist das **Master Block Theme** (Full Site Editing, FSE) für ThemisDB mit Azure-inspirierter Oberfläche und WordPress-nativer Editor-Architektur. Es bietet:
 
 - **PostgreSQL × Azure Fluent Design** — Navy `#003366` + Azure-Blau `#0078d4` + Cyan `#50e6ff`
-- **jQuery-gestützte Interaktionen** — Animierte Statistik-Counter, Scroll-Animationen, Tab-Panels, Accordion
+- **WordPress-native Oberfläche** — Navigation, Suche, Layout und Inhaltsblöcke basieren auf Gutenberg und `theme.json`
 - **Vollständige FSE-Unterstützung** — Site Editor, Global Styles, Template Editor
-- **9 Block Patterns** — inkl. **2 neue Patterns**: Pricing-Sektion und Tabbed Feature-Showcase
-- **Rückwärtskompatibilität** für alle ThemisDB-Plugins (CSS-Variablen-Aliases)
+- **Block Patterns** — wiederverwendbare Layouts für redaktionelle Inhalte
+- **Gezielte Integrationen** für ThemisDB-Funktionen, die WordPress-Core nicht bereitstellt
 - **Breiteres Layout** — Content: 800px, Wide: 1200px
 - **Robuste Sicherheit** — WP-Versionsinfo aus `<head>` entfernt, ABSPATH-Check
 
@@ -47,11 +47,9 @@ Version: **3.4.0** | Requires WordPress: **6.3+** | PHP: **7.4+**
 | **Announcement Bar** | Lila | Azure-Blau |
 | **Content-Breite** | 760px / 1100px | 800px / 1200px |
 | **Border-Radius** | 6–10px | 12px (einheitlich) |
-| **JavaScript** | Vanilla JS | Vanilla JS + jQuery-Animationen |
+| **JavaScript** | Vanilla JS | Nur erforderliche Frontend-Interaktionen |
 | **Neue Patterns** | – | `pricing-section`, `tabs-section` |
-| **Stat-Counter** | Statisch | Animiert (count-up via IntersectionObserver) |
-| **Scroll-Animationen** | – | Fade-in, Slide-up beim Scrollen |
-| **jQuery Tabs/Accordion** | – | `.themis-v3-tabs`, `.themis-v3-accordion` |
+| **Stat-Counter** | Statisch | Serverseitig gerenderte Inhaltszahlen |
 
 ### v3.4 – Zugänglichkeit & visuelle Verfeinerung
 
@@ -79,7 +77,7 @@ Version: **3.4.0** | Requires WordPress: **6.3+** | PHP: **7.4+**
 themisdb-pulse/
 ├── style.css                    # Theme-Header + CSS Custom Properties (--tv3-*)
 ├── theme.json                   # Design-Tokens: Palette, Typografie, Spacing, Layout
-├── functions.php                # Theme-Setup, jQuery-Enqueue, Pattern-Kategorien
+├── functions.php                # Theme-Setup, notwendige Integrationen, Pattern-Kategorien
 │
 ├── templates/
 │   ├── front-page.html          # ⭐ Azure-Style Landingpage (Hero + Stats + Features + Pricing)
@@ -107,7 +105,7 @@ themisdb-pulse/
 ├── patterns/
 │   ├── hero-home.php            # Vollbreite Hero (Navy+Cyan) mit CTAs + Docker-Snippet
 │   ├── feature-cards.php        # 6 Feature-Kacheln (3×2 Grid)
-│   ├── stats-bar.php            # 4 animierte Statistik-Zahlen (count-up)
+│   ├── stats-bar.php            # Serverseitig berechnete Inhaltszahlen
 │   ├── cta-download.php         # Download-Optionen (Docker/Binary/Compendium)
 │   ├── docs-grid.php            # 8 Docs/Ressourcen-Kacheln
 │   ├── query-showcase.php       # Code-Demo mit SQL/JSON/Python Tabs
@@ -116,11 +114,8 @@ themisdb-pulse/
 │   └── testimonial.php          # 3 Testimonial-Cards
 │
 └── assets/
-    ├── css/
-    │   └── editor.css           # Editor-Styles (Gutenberg)
-    └── js/
-        ├── navigation.js        # Vanilla JS: Mobile Menu, Scroll-Header, Copy-Buttons
-        └── animations.js        # jQuery: Counter-Animationen, Fade-in, Tabs, Accordion
+    ├── css/                     # Ergänzende Frontend-Styles
+    └── js/                      # Seiten- und blockbezogene Interaktionen
 ```
 
 ---
@@ -201,61 +196,12 @@ Alle Design-Tokens sind als CSS Custom Properties mit dem Präfix `--tv3-` defin
 --tv3-font-mono:     "Cascadia Code", "SFMono-Regular", Consolas, …
 ```
 
-### Rückwärtskompatibilität
+## WordPress-native Oberfläche
 
-Das Theme mappt alle v2-CSS-Variablen auf v3-Tokens:
-
-```css
---themis-primary:    var(--tv3-navy);
---themis-secondary:  var(--tv3-azure);
---primary-color:     var(--tv3-azure);
---themisdb-primary:  var(--tv3-navy);
-```
-
----
-
-## jQuery & Animationen
-
-### `assets/js/navigation.js` (Vanilla JS, kein jQuery)
-- Mobile-Menu Toggle (Aria-Labels)
-- Announcement Bar Dismiss (sessionStorage)
-- Scroll-aware Header (`is-scrolled` Klasse)
-- Code Copy Buttons
-- Active Nav Link Highlight
-
-### `assets/js/animations.js` (jQuery required)
-
-#### Animierte Statistik-Counter
-```html
-<span class="themis-v3-counter" data-target="500" data-suffix="K+">0</span>
-```
-
-#### Scroll Fade-in
-```html
-<div class="themis-v3-fade-in">Dieser Block blendet sich beim Scrollen ein</div>
-```
-
-#### jQuery Tabs
-```html
-<div class="themis-v3-tabs">
-    <ul>
-        <li><a href="#tab-1">Tab 1</a></li>
-        <li><a href="#tab-2">Tab 2</a></li>
-    </ul>
-    <div id="tab-1">Inhalt 1</div>
-    <div id="tab-2">Inhalt 2</div>
-</div>
-```
-
-#### jQuery Accordion
-```html
-<div class="themis-v3-accordion">
-    <h3>Frage 1</h3>
-    <div><p>Antwort 1</p></div>
-</div>
-```
-
----
+Navigation, Suche, Layout und Inhaltslisten verwenden Gutenberg-Core-Blöcke und
+`theme.json`, sofern keine spezielle ThemisDB-Funktion erforderlich ist.
+Zusätzliche Skripte werden nur für tatsächlich benötigte Theme- oder
+Plugin-Interaktionen geladen.
 
 ## Plugin-Kompatibilität
 
@@ -295,7 +241,7 @@ Das Theme styled alle ThemisDB-Plugin-Ausgaben automatisch:
 Datei `parts/announcement-bar.html` im Site Editor bearbeiten.
 
 ### Schritt 4: Stats-Counter konfigurieren
-Im `stats-bar`-Pattern die `data-target`-Werte der `.themis-v3-counter`-Elemente anpassen.
+Das `stats-bar`-Pattern berechnet die angezeigten Inhaltszahlen serverseitig.
 
 ### Schritt 5: Pricing-Sektion einbinden
 Im **Block-Inserter** → **ThemisDB v3 – Landing Page** → **Pricing Section** einfügen.
@@ -377,11 +323,10 @@ add_action( 'wp_enqueue_scripts', function() {
 - Initiales Release als alternatives WordPress Block Theme (FSE)
 - PostgreSQL × Azure Fluent Design (Navy + Azure-Blau + Cyan)
 - 7 Templates, 12 Template Parts, 9 Block Patterns
-- 2 neue Patterns: Pricing Section & jQuery Tab-Showcase
-- jQuery-Animationen: count-up Counter, Scroll Fade-in, Tabs, Accordion
+- 2 neue Patterns: Pricing Section & Tab-Showcase
 - Breiteres Layout (1200px wide), 12px Border-Radius
 - Vollständige Plugin-Kompatibilität (alle ThemisDB-Plugins)
-- `--tv3-*` CSS-Token-System + Rückwärtskompatibilität für `--themis-*`, `--themisdb-*`
+- `--tv3-*` CSS-Token-System
 
 ---
 

@@ -243,9 +243,55 @@ def slugify_text(value: str) -> str:
     return normalized or "document"
 
 
+def repair_mojibake_text(value: str) -> str:
+    text = str(value or "")
+    if not text:
+        return text
+    mojibake_markers = ("Ã", "Â", "â€", "â€œ", "â€", "â€˜", "â€™", "Â ", "Ã¼", "Ã¶", "Ã¤", "ÃŸ", "Ã–", "Ã©", "Ã¡", "Ã±", "�")
+    if not any(marker in text for marker in mojibake_markers):
+        return text
+
+    fixed = text
+    replacements = {
+        "Ã¼": "ü", "Ã¶": "ö", "Ã¤": "ä", "ÃŸ": "ß", "Ã–": "Ö", "Ã©": "é", "Ã¡": "á", "Ã±": "ñ",
+        "â€œ": "“", "â€": "”", "â€˜": "‘", "â€™": "’", "â€“": "–", "â€”": "—", "Â ": " ", "Â": "",
+        "Ã": "Â", "Ã": "Ä",
+    }
+    for bad, good in replacements.items():
+        fixed = fixed.replace(bad, good)
+    if fixed != text:
+        text = fixed
+
+    for encoding_name in ("latin-1", "cp1252"):
+        try:
+            candidate = text.encode(encoding_name, errors="ignore").decode("utf-8", errors="strict")
+        except Exception:
+            continue
+        if candidate and candidate != text and not any(marker in candidate for marker in mojibake_markers):
+            return candidate
+    return text
+
+
+def has_mojibake_signature(value: str) -> bool:
+    text = str(value or "")
+    if not text:
+        return False
+    markers = ("�", "Ã", "Â", "â€", "â€œ", "â€", "â€˜", "â€™", "Â ", "Ã¼", "Ã¶", "Ã¤", "ÃŸ", "Ã–", "Ã©", "Ã¡", "Ã±")
+    if any(marker in text for marker in markers):
+        return True
+    fallback = text.encode("utf-8", errors="ignore")
+    try:
+        candidate = fallback.decode("utf-8", errors="strict")
+        if candidate == text:
+            return False
+    except Exception:
+        return True
+    return False
+
+
 def extract_markdown_title(markdown_path: Path) -> str:
     try:
-        for line in markdown_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        for line in repair_mojibake_text(markdown_path.read_text(encoding="utf-8", errors="replace")).splitlines():
             stripped = line.strip()
             if stripped.startswith("# "):
                 return stripped[2:].strip()
@@ -868,7 +914,8 @@ def read_source_text(doc: Dict[str, Any]) -> str:
     if not source_path:
         return ""
     try:
-        return Path(source_path).read_text(encoding="utf-8", errors="replace")
+        text = Path(source_path).read_text(encoding="utf-8", errors="replace")
+        return repair_mojibake_text(text)
     except Exception:
         return ""
 
@@ -2063,6 +2110,10 @@ def lint_manifest_documents(manifest_path: Path = DOCS_CACHE_PATH, include_low_q
     for doc in selected:
         markdown = read_document_body(doc)
         lint = lint_markdown_document(markdown, current_relative_path=str(doc.get("relative_path") or ""), doc_lookup=build_document_link_lookup(all_docs), base_url=DEFAULT_BASE_URL)
+        quality_issue = has_mojibake_signature(markdown)
+        if quality_issue:
+            lint["ok"] = False
+            lint["issues"] = sorted(set(lint["issues"] + ["source_text_contains_mojibake_markers"]))
         result = {
             "title": doc.get("title"),
             "slug": doc.get("slug"),
@@ -2396,7 +2447,7 @@ def read_document_body(doc: Dict[str, Any]) -> str:
     source_path = resolve_document_source_path(doc)
     if source_path is not None:
         try:
-            return source_path.read_text(encoding="utf-8", errors="replace")
+            return repair_mojibake_text(source_path.read_text(encoding="utf-8", errors="replace"))
         except Exception:
             pass
 
@@ -2405,7 +2456,7 @@ def read_document_body(doc: Dict[str, Any]) -> str:
         try:
             path = Path(source_lookup)
             if path.exists() and path.is_file():
-                return path.read_text(encoding="utf-8", errors="replace")
+                return repair_mojibake_text(path.read_text(encoding="utf-8", errors="replace"))
         except Exception:
             pass
 
@@ -2414,7 +2465,7 @@ def read_document_body(doc: Dict[str, Any]) -> str:
         try:
             output_path = Path(output_lookup)
             if output_path.exists() and output_path.is_file():
-                return output_path.read_text(encoding="utf-8", errors="replace")
+                return repair_mojibake_text(output_path.read_text(encoding="utf-8", errors="replace"))
         except Exception:
             pass
     return ""
@@ -3048,6 +3099,8 @@ def run_import(
     update_only: bool = False,
     offset: int = 0,
     window_size: Optional[int] = None,
+    modules: Optional[List[str]] = None,
+    source_classes: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     if blog_sources_root is not None:
         all_docs = build_blog_documents_from_sources(blog_sources_root)
@@ -3058,7 +3111,17 @@ def run_import(
         source_label = str(manifest_path)
     filtered_docs = []
     skipped = []
+    module_filter = {str(item).strip().lower() for item in (modules or []) if str(item).strip()}
+    source_class_filter = {str(item).strip().lower() for item in (source_classes or []) if str(item).strip()}
     for doc in all_docs:
+        doc_module = str(doc.get("module") or "").strip().lower()
+        doc_source_class = str(doc.get("source_class") or doc.get("pipeline") or "public").strip().lower()
+        if module_filter and doc_module not in module_filter:
+            skipped.append({"title": doc.get("title"), "slug": doc.get("slug"), "reason": "module_filtered", "module": doc_module})
+            continue
+        if source_class_filter and doc_source_class not in source_class_filter:
+            skipped.append({"title": doc.get("title"), "slug": doc.get("slug"), "reason": "source_class_filtered", "source_class": doc_source_class})
+            continue
         suitability = doc.get("suitability") if isinstance(doc.get("suitability"), dict) else {}
         readiness = suitability.get("readiness") if isinstance(suitability, dict) else None
         if not include_low_quality and readiness and readiness != "ready":
@@ -3181,6 +3244,8 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None, help="Optional number of docs to process from the offset")
     parser.add_argument("--window-size", "--batch-size", dest="window_size", type=int, default=None, help="Sliding window size for batch processing; equivalent to --limit when set")
     parser.add_argument("--include-low-quality", action="store_true", help="Process docs classified as needs_review or blocked")
+    parser.add_argument("--module", action="append", default=[], help="Restrict the import to a specific source module (repeatable, e.g. --module website --module api)")
+    parser.add_argument("--source-class", action="append", default=[], help="Restrict the import to a source class such as public, developer, feature-teaser, internal (repeatable)")
     parser.add_argument("--update-only", action="store_true", help="Only update existing posts; skip creates when no post matches source slug/path/title")
     parser.add_argument("--json", action="store_true", help="Print JSON result")
     args = parser.parse_args()
@@ -3201,6 +3266,8 @@ def main() -> None:
         update_only=args.update_only,
         offset=args.offset,
         window_size=args.window_size,
+        modules=args.module,
+        source_classes=args.source_class,
     )
     if args.json:
         payload = {
@@ -3221,7 +3288,6 @@ def main() -> None:
         write_utf8(f"  - {entry['action']}: {entry['title']} ({entry['slug']})")
     for entry in result.get("failed", [])[:10]:
         write_utf8(f"  - failed: {entry.get('title')} ({entry.get('slug')}) -> {entry.get('error')}")
-
 
 if __name__ == "__main__":
     main()

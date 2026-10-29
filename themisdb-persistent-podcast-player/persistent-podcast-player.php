@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Plugin for ThemisDB.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -44,7 +44,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('PPP_VERSION', '1.0.1');
+define('PPP_VERSION', '1.0.2');
 define('PPP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PPP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('PPP_PLUGIN_FILE', __FILE__);
@@ -98,6 +98,7 @@ class Persistent_Podcast_Player {
         
         // Initialize plugin
         add_action('init', array($this, 'register_post_type'));
+        add_action('init', array($this, 'migrate_related_post_meta'), 20);
         add_action('rest_api_init', array($this, 'register_rest_routes'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
         add_action('wp_body_open', array($this, 'render_player'));
@@ -203,11 +204,92 @@ class Persistent_Podcast_Player {
             'show_in_rest' => true,
         ));
         
-        register_post_meta('pod_episode', 'related_post_id', array(
+        register_post_meta('pod_episode', 'podcast_related_post_id', array(
             'type' => 'integer',
             'single' => true,
             'show_in_rest' => true,
         ));
+    }
+
+    /**
+     * Move the old episode relationship field to its podcast-specific key.
+     */
+    public function migrate_related_post_meta() {
+        $migration_option = 'ppp_related_post_meta_migration';
+        if (1 === (int) get_option($migration_option, 0)) {
+            return;
+        }
+
+        global $wpdb;
+
+        $legacy_rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT pm.post_id, pm.meta_value
+                FROM {$wpdb->postmeta} AS pm
+                INNER JOIN {$wpdb->posts} AS p ON p.ID = pm.post_id
+                WHERE pm.meta_key = %s
+                    AND p.post_type = %s
+                ORDER BY pm.post_id ASC, pm.meta_id ASC",
+                'related_post_id',
+                'pod_episode'
+            )
+        );
+
+        if ('' !== $wpdb->last_error) {
+            error_log('[Persistent Podcast Player] Relationship metadata migration query failed: ' . $wpdb->last_error);
+            return;
+        }
+
+        $related_ids_by_episode = array();
+        $episodes_with_legacy_meta = array();
+        foreach ($legacy_rows as $row) {
+            $episode_id = absint($row->post_id);
+            $related_id = absint($row->meta_value);
+            if ($episode_id <= 0) {
+                continue;
+            }
+
+            $episodes_with_legacy_meta[$episode_id] = true;
+            if ($related_id > 0 && !isset($related_ids_by_episode[$episode_id])) {
+                $related_ids_by_episode[$episode_id] = $related_id;
+            }
+        }
+
+        foreach ($related_ids_by_episode as $episode_id => $related_id) {
+            update_post_meta($episode_id, 'podcast_related_post_id', $related_id);
+
+            if ($related_id !== absint(get_post_meta($episode_id, 'podcast_related_post_id', true))) {
+                error_log('[Persistent Podcast Player] Could not migrate relationship metadata for episode ' . $episode_id . '.');
+                continue;
+            }
+
+            delete_post_meta($episode_id, 'related_post_id');
+        }
+
+        foreach (array_diff_key($episodes_with_legacy_meta, $related_ids_by_episode) as $episode_id => $has_legacy_meta) {
+            delete_post_meta($episode_id, 'related_post_id');
+        }
+
+        $remaining = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*)
+                FROM {$wpdb->postmeta} AS pm
+                INNER JOIN {$wpdb->posts} AS p ON p.ID = pm.post_id
+                WHERE pm.meta_key = %s
+                    AND p.post_type = %s",
+                'related_post_id',
+                'pod_episode'
+            )
+        );
+
+        if ('' !== $wpdb->last_error) {
+            error_log('[Persistent Podcast Player] Relationship metadata migration verification failed: ' . $wpdb->last_error);
+            return;
+        }
+
+        if (0 === (int) $remaining) {
+            update_option($migration_option, 1, false);
+        }
     }
     
     /**
@@ -243,7 +325,7 @@ class Persistent_Podcast_Player {
                 
                 // Get custom fields
                 $audio_data = $this->resolve_episode_audio($post_id);
-                $related_post_id = get_post_meta($post_id, 'related_post_id', true);
+                $related_post_id = get_post_meta($post_id, 'podcast_related_post_id', true);
                 
                 // Get excerpt and permalink from related post
                 $excerpt = '';
@@ -415,7 +497,7 @@ class Persistent_Podcast_Player {
 
         <?php if ( 'pod_episode' === get_post_type( $post ) ) : ?>
             <?php
-            $related_post_id = (int) get_post_meta( $post->ID, 'related_post_id', true );
+            $related_post_id = (int) get_post_meta( $post->ID, 'podcast_related_post_id', true );
             $related_post_title = '';
             if ( $related_post_id > 0 ) {
                 $related_post_title = (string) get_the_title( $related_post_id );
@@ -426,7 +508,7 @@ class Persistent_Podcast_Player {
                 <strong><?php esc_html_e('Zugehoeriger Artikel (fuer Hero-CTA):', 'persistent-podcast-player'); ?></strong>
             </p>
             <p>
-                <input type="hidden" name="ppp_related_post_id" id="ppp_related_post_id" value="<?php echo esc_attr( $related_post_id ); ?>" />
+                <input type="hidden" name="ppp_podcast_related_post_id" id="ppp_podcast_related_post_id" value="<?php echo esc_attr( $related_post_id ); ?>" />
                 <input
                     type="text"
                     id="ppp_related_post_search"
@@ -553,17 +635,17 @@ class Persistent_Podcast_Player {
             return;
         }
 
-        if ( isset( $_POST['ppp_related_post_id'] ) ) {
-            $related_post_id = absint( wp_unslash( $_POST['ppp_related_post_id'] ) );
+        if ( isset( $_POST['ppp_podcast_related_post_id'] ) ) {
+            $related_post_id = absint( wp_unslash( $_POST['ppp_podcast_related_post_id'] ) );
             if ( $related_post_id > 0 ) {
                 $related_post = get_post( $related_post_id );
                 if ( $related_post instanceof WP_Post && 'publish' === $related_post->post_status && in_array( $related_post->post_type, array( 'post', 'page' ), true ) ) {
-                    update_post_meta( $post_id, 'related_post_id', $related_post_id );
+                    update_post_meta( $post_id, 'podcast_related_post_id', $related_post_id );
                 } else {
-                    delete_post_meta( $post_id, 'related_post_id' );
+                    delete_post_meta( $post_id, 'podcast_related_post_id' );
                 }
             } else {
-                delete_post_meta( $post_id, 'related_post_id' );
+                delete_post_meta( $post_id, 'podcast_related_post_id' );
             }
         }
         
@@ -1047,7 +1129,7 @@ jQuery(document).ready(function($) {
             return;
         }
 
-        $('#ppp_related_post_id').val(String(id));
+        $('#ppp_podcast_related_post_id').val(String(id));
         $('#ppp_related_post_search').val(title);
         $('#ppp_related_post_results').hide().empty();
         setRelatedState(id, title);
@@ -1055,7 +1137,7 @@ jQuery(document).ready(function($) {
 
     $('#ppp_related_post_clear').on('click', function(e) {
         e.preventDefault();
-        $('#ppp_related_post_id').val('0');
+        $('#ppp_podcast_related_post_id').val('0');
         $('#ppp_related_post_search').val('');
         $('#ppp_related_post_results').hide().empty();
         setRelatedState(0, '');
@@ -1438,5 +1520,3 @@ JS;
 
 // Initialize plugin
 Persistent_Podcast_Player::get_instance();
-
-

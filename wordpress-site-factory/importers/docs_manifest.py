@@ -13,7 +13,9 @@ from typing import Any, Dict, Iterable, List, Tuple
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DOCS_ROOT = ROOT.parent / "source-links" / "docs"
 PUBLIC_DOCS_ROOT = DEFAULT_DOCS_ROOT / "website"
-SOURCE_ROOT = PUBLIC_DOCS_ROOT if PUBLIC_DOCS_ROOT.exists() else DEFAULT_DOCS_ROOT
+# Default to the full documentation corpus so the importer includes the complete
+# source tree, not just the public landing-page subset under /website.
+SOURCE_ROOT = DEFAULT_DOCS_ROOT
 OUTPUT_DIR = ROOT / "output"
 DEFAULT_CACHE_PATH = OUTPUT_DIR / "docs_cache.json"
 TAXONOMY_PATH = ROOT / "config" / "taxonomy.json"
@@ -968,6 +970,55 @@ def iter_documents(root: Path) -> Iterable[Path]:
         yield path
 
 
+def infer_document_module(path: Path, text: str = "") -> str:
+    raw = (path.as_posix() + " " + str(text or "")).lower().replace("\\", "/")
+    if "source-links/docs/website" in raw or "/website/" in raw or "/pages/" in raw:
+        return "website"
+
+    path_text = path.as_posix().lower().replace("\\", "/")
+    relative = path_text
+    if "source-links/docs/" in relative:
+        relative = relative.split("source-links/docs/", 1)[1]
+    if relative.startswith("./"):
+        relative = relative[2:]
+
+    candidates = [segment.lower() for segment in relative.split("/") if segment and not segment.startswith("_")]
+    module_aliases = {
+        "website": ["website", "pages", "marketing", "landing"],
+        "api": ["api", "rest", "openapi", "rpc", "endpoint", "schema"],
+        "architecture": ["architecture", "design", "diagram", "roadmap", "adr", "blueprint"],
+        "security": ["security", "kritis", "air-gap", "airgap", "ddil", "sovereignty", "compliance"],
+        "benchmark": ["benchmark", "performance", "latency", "throughput", "metrics"],
+        "support": ["support", "help", "faq", "troubleshooting", "runbook", "operations"],
+        "reference": ["reference", "specification", "cli", "docs", "manual"],
+        "examples": ["example", "examples", "tutorial", "how-to", "guide", "quickstart"],
+        "integrations": ["integration", "integrations", "connector", "adapter", "plugin"],
+        "community": ["community", "contributing", "governance", "team"],
+        "release": ["release", "releases", "changelog", "version"],
+        "research": ["research", "analysis", "study", "insight", "whitepaper", "report"],
+    }
+
+    for module_name, keywords in module_aliases.items():
+        if any(keyword in raw for keyword in keywords):
+            return module_name
+        if any(keyword in candidates for keyword in keywords):
+            return module_name
+
+    if candidates:
+        for segment in candidates:
+            if segment not in {"docs", "website", "source-links"}:
+                return segment.replace("_", "-")
+    return "general"
+
+
+def group_documents_by_module(manifest: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    for document in manifest.get("documents", []):
+        module_name = str(document.get("module") or infer_document_module(Path(document.get("source_path") or document.get("relative_path") or ""), str(document.get("title") or ""))).strip() or "general"
+        grouped.setdefault(module_name, []).append(document)
+    return grouped
+
+
 def build_manifest(source_root: Path = SOURCE_ROOT) -> Dict[str, Any]:
     documents: List[Dict[str, Any]] = []
     total_size = 0
@@ -987,6 +1038,7 @@ def build_manifest(source_root: Path = SOURCE_ROOT) -> Dict[str, Any]:
         pipeline_counts[pipeline["source_class"]] = pipeline_counts.get(pipeline["source_class"], 0) + 1
 
         suitability = score_document_suitability(path, text, title, tags)
+        module_name = infer_document_module(path, text)
         documents.append({
             "title": title,
             "slug": slugify(title or rel),
@@ -1002,6 +1054,7 @@ def build_manifest(source_root: Path = SOURCE_ROOT) -> Dict[str, Any]:
             "source_class": pipeline["source_class"],
             "audience": pipeline["audience"],
             "pipeline": pipeline["pipeline"],
+            "module": module_name,
             "suitability": suitability,
         })
 

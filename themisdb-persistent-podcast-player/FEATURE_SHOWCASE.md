@@ -266,7 +266,7 @@ WordPress Plugin
   ├─ PHP Backend
   │   ├─ Custom Post Type (pod_episode)
   │   ├─ REST API Endpoint (/episodes)
-  │   ├─ Meta Fields (audio_url, related_post_id)
+  │   ├─ Meta Fields (audio_url, podcast_related_post_id)
   │   └─ HTML Rendering (wp_body_open)
   │
   ├─ JavaScript Frontend

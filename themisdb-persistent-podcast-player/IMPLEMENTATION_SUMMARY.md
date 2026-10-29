@@ -88,7 +88,7 @@ A **state-of-the-art WordPress podcast player plugin** that meets modern standar
 - ✅ REST API endpoint `/wp-json/persistent-player/v1/episodes`
 - ✅ Custom meta fields:
   - `audio_url` - URL to audio file
-  - `related_post_id` - Link to WordPress post
+  - `podcast_related_post_id` - Link to WordPress post
 - ✅ Related post integration with excerpts
 - ✅ Automatic excerpt generation with filter hook
 

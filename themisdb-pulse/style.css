@@ -5,8 +5,8 @@ Author: ThemisDB Team
 Author URI: https://github.com/makr-code
 Description: Moderne v3-Basis für redaktionelle Inhalte, lokale Qualitätssicherung und neue UI-Iterationen.
 Version: 3.4.0
-Requires at least: 6.3
-Tested up to: 6.7
+Requires at least: 7.1
+Tested up to: 7.1
 Requires PHP: 7.4
 License: MIT
 License URI: https://opensource.org/licenses/MIT
@@ -1442,7 +1442,6 @@ main pre.mermaid svg {
 }
 
 .tv3-showcase-tabs__nav {
-    list-style: none;
     padding: 0;
     margin: 0;
     display: flex;
@@ -1450,17 +1449,20 @@ main pre.mermaid svg {
     border-bottom: 1px solid #dde3ec;
 }
 
-.tv3-showcase-tabs__link {
+.tv3-showcase-tabs__nav button {
+    appearance: none;
     display: block;
     padding: 0.875rem 1.5rem;
+    background: transparent;
+    border: 0;
     font-size: 0.9rem;
     font-weight: 600;
     color: #6c7f96;
-    text-decoration: none;
     border-bottom: 2px solid transparent;
+    cursor: pointer;
 }
 
-.tv3-showcase-tabs__link--active {
+.tv3-showcase-tabs__nav button[aria-selected="true"] {
     color: #0078d4;
     border-bottom-color: #0078d4;
 }
@@ -1468,10 +1470,6 @@ main pre.mermaid svg {
 .tv3-showcase-tabs__panel {
     padding: 0;
     background: #0d1821;
-}
-
-.tv3-showcase-tabs__panel--hidden {
-    display: none;
 }
 
 .tv3-showcase-tabs__panel-head {
@@ -1592,7 +1590,6 @@ main pre.mermaid svg {
 }
 
 .tv3-feature-tabs__nav {
-    list-style: none;
     padding: 0;
     margin: 0;
     display: flex;
@@ -1601,28 +1598,27 @@ main pre.mermaid svg {
     overflow-x: auto;
 }
 
-.tv3-feature-tabs__link {
+.tv3-feature-tabs__nav button {
+    appearance: none;
     display: block;
     padding: 1rem 1.5rem;
+    background: transparent;
+    border: 0;
     font-size: 0.9rem;
     font-weight: 600;
     color: #6c7f96;
-    text-decoration: none;
     border-bottom: 2px solid transparent;
     white-space: nowrap;
+    cursor: pointer;
 }
 
-.tv3-feature-tabs__link--active {
+.tv3-feature-tabs__nav button[aria-selected="true"] {
     color: #0078d4;
     border-bottom-color: #0078d4;
 }
 
 .tv3-feature-tabs__panel {
     padding: 3rem;
-}
-
-.tv3-feature-tabs__panel--hidden {
-    display: none;
 }
 
 .tv3-feature-tabs__layout {
@@ -2159,27 +2155,6 @@ main .tv3-article-lead {
 a { color: var(--tv3-accent-primary); }
 a:hover,
 a:focus { color: var(--tv3-navy); }
-
-.tv3-skip-link {
-    position: absolute;
-    left: -9999px;
-    top: 0.75rem;
-    z-index: 200;
-    padding: 0.5rem 0.8rem;
-    border-radius: 8px;
-    background: #0f5a44;
-    color: #ffffff;
-    text-decoration: none;
-    font-size: 0.82rem;
-    font-weight: 700;
-}
-
-.tv3-skip-link:focus,
-.tv3-skip-link:focus-visible {
-    left: 1rem;
-    outline: 2px solid #ffffff;
-    outline-offset: 2px;
-}
 
 /* Keep the white header pinned to viewport top; compensate admin bar inside header. */
 html {
@@ -2860,16 +2835,6 @@ body.admin-bar .site-header .tv3-header-docs-row {
     justify-content: flex-end;
     gap: 0.5rem;
     flex-wrap: wrap;
-}
-
-body.tv3-nav-overlay-open {
-    overflow: hidden;
-    touch-action: none;
-}
-
-body.tv3-nav-overlay-open .site-header {
-    position: relative;
-    z-index: 10000;
 }
 
 body:has(.wp-block-navigation__responsive-container.is-menu-open) {
@@ -9815,5 +9780,3 @@ body.admin-bar .tv3-reading-progress__label {
         font-size: 0.63rem;
     }
 }
-
-

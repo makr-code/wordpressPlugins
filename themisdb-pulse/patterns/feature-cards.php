@@ -39,7 +39,7 @@
 	<p class="tv3-feature-section__lead"><?php echo esc_html( (string) $feature_copy['subtitle'] ); ?></p>
 	<!-- /wp:paragraph -->
 
-	<div class="wp-block-group tv3-feature-grid themis-v3-fade-in">
+	<div class="wp-block-group tv3-feature-grid">
 		<div class="wp-block-group tv3-feature-card">
 			<div class="wp-block-group tv3-feature-card__top tv3-feature-card__top--blue"></div>
 			<p class="tv3-feature-card__icon tv3-feature-card__icon--blue">&#128240;</p>

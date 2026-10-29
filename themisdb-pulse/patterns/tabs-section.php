@@ -5,8 +5,26 @@
  * Categories: themisdb-v3, themisdb-v3-landing
  * Keywords: tabs, features, showcase, interaction, capabilities
  * Viewport Width: 1280
- * Description: NEW in v3 – Tabbed feature section using jQuery UI Tabs (.themis-v3-tab-panel class). Shows Multi-Model, AI, and Performance tabs.
+ * Description: Feature section using the native WordPress Tabs block.
  */
+$get_page_link = static function ( $path, $class, $label ) {
+	$page = get_page_by_path( $path, OBJECT, get_post_types( array( 'public' => true ) ) );
+	if ( ! $page ) {
+		return '';
+	}
+
+	return sprintf(
+		'<a href="%1$s" class="%2$s">%3$s</a>',
+		esc_url( get_permalink( $page ) ),
+		esc_attr( $class ),
+		esc_html( $label )
+	);
+};
+
+$multi_model_link = $get_page_link( 'features/multi-model', 'tv3-feature-tabs__cta tv3-feature-tabs__cta--blue', 'Learn about Multi-Model →' );
+$ai_integration_link = $get_page_link( 'features/ai-integration', 'tv3-feature-tabs__cta tv3-feature-tabs__cta--navy', 'AI Integration Docs →' );
+$benchmarks_link = $get_page_link( 'benchmarks', 'tv3-feature-tabs__cta tv3-feature-tabs__cta--green', 'See Full Benchmarks →' );
+$docker_link = $get_page_link( 'docker', 'tv3-feature-tabs__cta tv3-feature-tabs__cta--cyan', 'Docker Documentation →' );
 ?>
 <!-- wp:group {"className":"tv3-tabs-section","layout":{"type":"constrained","contentSize":"1200px"}} -->
 <div class="wp-block-group tv3-tabs-section">
@@ -20,20 +38,25 @@
 	<!-- /wp:heading -->
 
 	<!-- wp:paragraph {"className":"tv3-tabs-section__lead"} -->
-	<p class="tv3-tabs-section__lead">Explore ThemisDB's core capabilities with interactive tabs powered by jQuery UI.</p>
+	<p class="tv3-tabs-section__lead">Explore ThemisDB's core capabilities with interactive tabs.</p>
 	<!-- /wp:paragraph -->
 
-	<!-- wp:group {"anchor":"tv3-features-tabs","className":"themis-v3-tabs tv3-feature-tabs","layout":{"type":"constrained"}} -->
-	<div id="tv3-features-tabs" class="wp-block-group themis-v3-tabs tv3-feature-tabs">
-		<ul class="tv3-feature-tabs__nav">
-			<li><a href="#tv3-tab-multimodel" class="tv3-feature-tabs__link tv3-feature-tabs__link--active">🗄️ Multi-Model</a></li>
-			<li><a href="#tv3-tab-ai" class="tv3-feature-tabs__link">🤖 AI/LLM</a></li>
-			<li><a href="#tv3-tab-performance" class="tv3-feature-tabs__link">⚡ Performance</a></li>
-			<li><a href="#tv3-tab-devops" class="tv3-feature-tabs__link">🐳 DevOps</a></li>
-		</ul>
+	<!-- wp:tabs {"anchor":"tv3-features-tabs","className":"tv3-feature-tabs"} -->
+	<div id="tv3-features-tabs" class="wp-block-tabs tv3-feature-tabs">
+		<!-- wp:tab-list {"className":"tv3-feature-tabs__nav","ariaLabel":"ThemisDB capabilities"} -->
+		<div role="tablist" aria-label="ThemisDB capabilities" class="wp-block-tab-list tv3-feature-tabs__nav">
+			<button>🗄️ Multi-Model</button>
+			<button>🤖 AI/LLM</button>
+			<button>⚡ Performance</button>
+			<button>🐳 DevOps</button>
+		</div>
+		<!-- /wp:tab-list -->
 
-		<!-- Multi-Model Tab -->
-		<div id="tv3-tab-multimodel" class="themis-v3-tab-panel tv3-feature-tabs__panel">
+		<!-- wp:tab-panels -->
+		<div class="wp-block-tab-panels">
+		<!-- wp:tab-panel {"label":"Multi-Model","className":"tv3-feature-tabs__panel"} -->
+		<div class="wp-block-tab-panel tv3-feature-tabs__panel">
+		<!-- wp:html -->
 			<div class="tv3-feature-tabs__layout">
 				<div>
 					<h3 class="tv3-feature-tabs__h3">One engine for all your data</h3>
@@ -44,7 +67,7 @@
 						<div class="tv3-feature-tabs__icon-item"><span class="tv3-feature-tabs__emoji">🕸️</span><span class="tv3-feature-tabs__label">Graph</span></div>
 						<div class="tv3-feature-tabs__icon-item"><span class="tv3-feature-tabs__emoji">📈</span><span class="tv3-feature-tabs__label">Time-Series</span></div>
 					</div>
-					<a href="/features/multi-model" class="tv3-feature-tabs__cta tv3-feature-tabs__cta--blue">Learn about Multi-Model →</a>
+					<?php echo $multi_model_link; ?>
 				</div>
 				<div class="tv3-feature-tabs__codebox">
 					<div class="tv3-feature-tabs__code-title">Example: Cross-model join</div>
@@ -57,10 +80,13 @@
 					<div><span class="tv3-code-keyword">WHERE</span>  u.active = <span class="tv3-code-string">true</span>;</div>
 				</div>
 			</div>
+		<!-- /wp:html -->
 		</div>
+		<!-- /wp:tab-panel -->
 
-		<!-- AI/LLM Tab -->
-		<div id="tv3-tab-ai" class="themis-v3-tab-panel tv3-feature-tabs__panel tv3-feature-tabs__panel--hidden">
+		<!-- wp:tab-panel {"label":"AI/LLM","className":"tv3-feature-tabs__panel"} -->
+		<div class="wp-block-tab-panel tv3-feature-tabs__panel">
+		<!-- wp:html -->
 			<div class="tv3-feature-tabs__layout">
 				<div>
 					<h3 class="tv3-feature-tabs__h3">AI at the database layer</h3>
@@ -71,7 +97,7 @@
 						<li class="tv3-feature-tabs__list-item"><span class="tv3-feature-tabs__check">✓</span> Semantic similarity operators</li>
 						<li class="tv3-feature-tabs__list-item tv3-feature-tabs__list-item--last"><span class="tv3-feature-tabs__check">✓</span> Real-time streaming via WebSocket</li>
 					</ul>
-					<a href="/features/ai-integration" class="tv3-feature-tabs__cta tv3-feature-tabs__cta--navy">AI Integration Docs →</a>
+					<?php echo $ai_integration_link; ?>
 				</div>
 				<div class="tv3-feature-tabs__codebox">
 					<div class="tv3-feature-tabs__code-title">Example: LLM-powered query</div>
@@ -84,10 +110,13 @@
 					<div><span class="tv3-code-keyword">WHERE</span> content <span class="tv3-code-number">&lt;-&gt;</span> embed(<span class="tv3-code-keyword">$1</span>) &lt; <span class="tv3-code-number">0.2</span>;</div>
 				</div>
 			</div>
+		<!-- /wp:html -->
 		</div>
+		<!-- /wp:tab-panel -->
 
-		<!-- Performance Tab -->
-		<div id="tv3-tab-performance" class="themis-v3-tab-panel tv3-feature-tabs__panel tv3-feature-tabs__panel--hidden">
+		<!-- wp:tab-panel {"label":"Performance","className":"tv3-feature-tabs__panel"} -->
+		<div class="wp-block-tab-panel tv3-feature-tabs__panel">
+		<!-- wp:html -->
 			<div class="tv3-feature-tabs__layout">
 				<div>
 					<h3 class="tv3-feature-tabs__h3">10× faster. Not a marketing claim.</h3>
@@ -106,7 +135,7 @@
 							<div class="tv3-feature-tabs__meter"><div class="tv3-feature-tabs__meter-fill tv3-feature-tabs__meter-fill--98"></div></div>
 						</div>
 					</div>
-					<a href="/benchmarks" class="tv3-feature-tabs__cta tv3-feature-tabs__cta--green">See Full Benchmarks →</a>
+					<?php echo $benchmarks_link; ?>
 				</div>
 				<div class="tv3-feature-tabs__benchmark-box">
 					<div class="tv3-feature-tabs__benchmark-title">Query Latency (ms) – 1M rows</div>
@@ -138,10 +167,13 @@
 					</div>
 				</div>
 			</div>
+		<!-- /wp:html -->
 		</div>
+		<!-- /wp:tab-panel -->
 
-		<!-- DevOps Tab -->
-		<div id="tv3-tab-devops" class="themis-v3-tab-panel tv3-feature-tabs__panel tv3-feature-tabs__panel--hidden">
+		<!-- wp:tab-panel {"label":"DevOps","className":"tv3-feature-tabs__panel"} -->
+		<div class="wp-block-tab-panel tv3-feature-tabs__panel">
+		<!-- wp:html -->
 			<div class="tv3-feature-tabs__layout">
 				<div>
 					<h3 class="tv3-feature-tabs__h3">Deploy anywhere in minutes</h3>
@@ -152,7 +184,7 @@
 						<li class="tv3-feature-tabs__list-item"><span class="tv3-feature-tabs__check">✓</span> Prometheus metrics + Grafana dashboards</li>
 						<li class="tv3-feature-tabs__list-item tv3-feature-tabs__list-item--last"><span class="tv3-feature-tabs__check">✓</span> GitHub Actions + CI/CD integration</li>
 					</ul>
-					<a href="/docker" class="tv3-feature-tabs__cta tv3-feature-tabs__cta--cyan">Docker Documentation →</a>
+					<?php echo $docker_link; ?>
 				</div>
 				<div class="tv3-feature-tabs__codebox">
 					<div class="tv3-feature-tabs__code-title">docker-compose.yml</div>
@@ -167,10 +199,13 @@
 					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="tv3-code-string">themisdb_data:/data</span></div>
 				</div>
 			</div>
+		<!-- /wp:html -->
 		</div>
-
+		<!-- /wp:tab-panel -->
+		</div>
+		<!-- /wp:tab-panels -->
 	</div>
-	<!-- /wp:group -->
+	<!-- /wp:tabs -->
 
 </div>
 <!-- /wp:group -->

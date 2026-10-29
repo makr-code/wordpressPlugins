@@ -19,8 +19,8 @@
 	<h2 class="wp-block-heading has-text-align-center tv3-testimonial-title">Trusted by developers worldwide</h2>
 	<!-- /wp:heading -->
 
-	<!-- wp:group {"className":"tv3-testimonial-grid tv3-testimonial-grid-shell themis-v3-fade-in","layout":{"type":"default"}} -->
-	<div class="wp-block-group tv3-testimonial-grid tv3-testimonial-grid-shell themis-v3-fade-in">
+	<!-- wp:group {"className":"tv3-testimonial-grid tv3-testimonial-grid-shell","layout":{"type":"default"}} -->
+	<div class="wp-block-group tv3-testimonial-grid tv3-testimonial-grid-shell">
 		<!-- wp:group {"className":"tv3-testimonial-card","layout":{"type":"constrained"}} -->
 		<div class="wp-block-group tv3-testimonial-card">
 			<!-- wp:paragraph {"className":"tv3-testimonial-stars"} -->

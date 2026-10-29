@@ -61,7 +61,7 @@ A **state-of-the-art** WordPress plugin that provides a modern, feature-rich pod
 - **Featured images** - Full thumbnail support
 - **REST API** - `/wp-json/persistent-player/v1/episodes` endpoint
 - **Related posts** - Link episodes to blog posts with excerpts
-- **Meta fields** - `audio_attachment_id` (primary), `audio_url` (legacy read-only fallback), and `related_post_id`
+- **Meta fields** - `audio_attachment_id` (primary), `audio_url` (legacy read-only fallback), and `podcast_related_post_id`
 
 ## Installation
 
@@ -78,14 +78,14 @@ A **state-of-the-art** WordPress plugin that provides a modern, feature-rich pod
 3. Enter the episode title and description
 4. Set a **featured image** (this will be used as the episode thumbnail)
 5. In the **Audio File** box, click **Select Audio File** and choose/upload your file from the WordPress Media Library
-6. Optional: add `related_post_id` as ID of the related WordPress post
+6. Optional: add `podcast_related_post_id` as ID of the related WordPress post
 6. Publish the episode
 
 ### Custom Fields
 
 - **audio_attachment_id**: WordPress media attachment ID for the selected audio file (primary source)
 - **audio_url**: Legacy fallback, wird weiterhin gelesen fuer Altbestaende, aber im Admin nicht mehr aktiv bearbeitet
-- **related_post_id**: The ID of a WordPress post that is related to this episode. If provided, the player will show the post's excerpt and a link to the post.
+- **podcast_related_post_id**: The ID of a WordPress post that is related to this episode. If provided, the player will show the post's excerpt and a link to the post.
 
 ### Featured Images
 

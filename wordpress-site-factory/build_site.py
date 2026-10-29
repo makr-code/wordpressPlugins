@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict
 
@@ -72,6 +73,19 @@ def validate_runtime_guard(config: Dict[str, Any], dry_run: bool = False, allow_
         )
 
 
+def safe_print_json(payload: Any) -> None:
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    try:
+        sys.stdout.write(text + "\n")
+        sys.stdout.flush()
+        return
+    except UnicodeEncodeError:
+        pass
+    fallback = json.dumps(payload, ensure_ascii=True, indent=2)
+    sys.stdout.write(fallback + "\n")
+    sys.stdout.flush()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build the ThemisDB public WordPress site from a central factory")
     parser.add_argument("--dry-run", action="store_true", help="Preview the setup without making API calls")
@@ -98,13 +112,13 @@ def main() -> None:
             "assets",
             "data",
         ])
-        print(json.dumps(manifest, ensure_ascii=False, indent=2))
+        safe_print_json(manifest)
         return
 
     if args.scan_docs:
         from importers.docs_manifest import build_manifest, SOURCE_ROOT
         manifest = build_manifest(SOURCE_ROOT)
-        print(json.dumps(manifest, ensure_ascii=False, indent=2))
+        safe_print_json(manifest)
         return
 
     validate_runtime_guard(config, dry_run=args.dry_run, allow_live=args.allow_live)

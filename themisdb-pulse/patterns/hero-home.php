@@ -15,7 +15,7 @@
 	<span aria-hidden="true" class="wp-block-cover__background has-background-dim-0 has-background-dim wp-block-cover__gradient-background has-background-gradient tv3-hero-gradient"></span>
 	<div class="wp-block-cover__inner-container tv3-hero-inner">
 		<!-- wp:paragraph {"align":"center","className":"tv3-hero-badge-wrap"} -->
-		<p class="has-text-align-center tv3-hero-badge-wrap"><a href="/docs/changelog" class="tv3-hero-badge themis-v3-slide-up"><span class="tv3-hero-badge-pill">NEW</span>Latest stories from the blog →</a></p>
+		<p class="has-text-align-center tv3-hero-badge-wrap"><a href="<?php echo esc_url( themisdb_v3_get_docs_url( 'changelog' ) ); ?>" class="tv3-hero-badge"><span class="tv3-hero-badge-pill">NEW</span>Latest stories from the blog →</a></p>
 		<!-- /wp:paragraph -->
 
 		<!-- wp:query {"queryId":1,"query":{"perPage":1,"pages":0,"offset":0,"postType":["post","page"],"order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false,"taxQuery":{"post_tag":["hero"]}},"className":"tv3-query-hero","layout":{"type":"default"}} -->
@@ -46,7 +46,7 @@
 					<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/downloads">⬇ Download Free</a></div>
 					<!-- /wp:button -->
 					<!-- wp:button {"className":"is-style-outline"} -->
-					<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="/docs/introduction">View Documentation →</a></div>
+					<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="<?php echo esc_url( themisdb_v3_get_docs_url( 'getting-started' ) ); ?>">View Documentation →</a></div>
 					<!-- /wp:button -->
 				</div>
 				<!-- /wp:buttons -->
@@ -64,7 +64,7 @@
 			<div class="wp-block-button"><a href="/downloads" class="wp-block-button__link wp-element-button has-md-font-size tv3-hero-btn-primary">⬇ Download Free</a></div>
 			<!-- /wp:button -->
 			<!-- wp:button {"className":"is-style-outline","style":{"color":{"text":"rgba(255,255,255,0.9)"},"border":{"radius":"8px","color":"rgba(255,255,255,0.35)","width":"1.5px"},"spacing":{"padding":{"top":"0.875rem","bottom":"0.875rem","left":"2rem","right":"2rem"}}},"fontSize":"md"} -->
-			<div class="wp-block-button is-style-outline"><a href="/docs/introduction" class="wp-block-button__link wp-element-button has-md-font-size tv3-hero-btn-secondary">View Documentation →</a></div>
+			<div class="wp-block-button is-style-outline"><a href="<?php echo esc_url( themisdb_v3_get_docs_url( 'getting-started' ) ); ?>" class="wp-block-button__link wp-element-button has-md-font-size tv3-hero-btn-secondary">View Documentation →</a></div>
 			<!-- /wp:button -->
 		</div>
 		<!-- /wp:buttons -->

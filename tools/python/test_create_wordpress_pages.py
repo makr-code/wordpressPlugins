@@ -19,6 +19,9 @@ def test_build_menu_item_plan_includes_docs_children():
     plan = build_menu_item_plan(pages)
 
     assert {item["title"] for item in plan} == {"Docs", "Getting Started", "API Reference", "Downloads"}
+    assert plan[0]["slug"] == "docs"
     assert plan[0]["parent"] is None
+    assert plan[1]["slug"] == "getting-started"
     assert plan[1]["parent"] == "docs"
+    assert plan[2]["slug"] == "api"
     assert plan[2]["parent"] == "docs"

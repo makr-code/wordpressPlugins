@@ -56,7 +56,7 @@ MAIN_MENU = [
         "children": [
             {
                 "title": "Getting Started",
-                "slug": "docs/getting-started",
+                "slug": "getting-started",
                 "template_file": "themisdb-pulse/templates/page-docs.html",
                 "menu_order": 10,
                 "shortcodes": [
@@ -65,7 +65,7 @@ MAIN_MENU = [
             },
             {
                 "title": "API Reference",
-                "slug": "docs/api",
+                "slug": "api",
                 "template_file": "themisdb-pulse/templates/page-docs.html",
                 "menu_order": 20,
                 "shortcodes": [
@@ -74,7 +74,7 @@ MAIN_MENU = [
             },
             {
                 "title": "Architecture Guide",
-                "slug": "docs/architecture",
+                "slug": "architecture",
                 "template_file": "themisdb-pulse/templates/page-docs.html",
                 "menu_order": 30,
                 "shortcodes": [
@@ -83,7 +83,7 @@ MAIN_MENU = [
             },
             {
                 "title": "SQL Guide",
-                "slug": "docs/sql",
+                "slug": "sql",
                 "template_file": "themisdb-pulse/templates/page-docs.html",
                 "menu_order": 40,
                 "shortcodes": [
@@ -92,7 +92,7 @@ MAIN_MENU = [
             },
             {
                 "title": "Docker Setup",
-                "slug": "docs/docker",
+                "slug": "docker",
                 "template_file": "themisdb-pulse/templates/page-docs.html",
                 "menu_order": 50,
                 "shortcodes": [
@@ -101,7 +101,7 @@ MAIN_MENU = [
             },
             {
                 "title": "Changelog",
-                "slug": "docs/changelog",
+                "slug": "changelog",
                 "template_file": "themisdb-pulse/templates/page-docs.html",
                 "menu_order": 60,
                 "shortcodes": [
@@ -286,6 +286,10 @@ def flatten_pages(pages: Iterable[dict], parent: Optional[str] = None) -> List[d
     for page in pages:
         item = dict(page)
         item["parent"] = parent
+        if parent and isinstance(item.get("slug"), str):
+            parent_prefix = f"{parent}/"
+            if item["slug"].startswith(parent_prefix):
+                item["slug"] = item["slug"][len(parent_prefix) :]
         result.append(item)
         for child in page.get("children", []):
             result.extend(flatten_pages([child], parent=item["slug"]))
@@ -611,14 +615,25 @@ def build_page_tree() -> List[dict]:
 def build_menu_item_plan(pages: Iterable[dict]) -> List[dict]:
     plan: List[dict] = []
     for page in pages:
+        page_slug = str(page.get("slug") or "")
+        parent_slug = page.get("parent")
+        if parent_slug and page_slug.startswith(f"{parent_slug}/"):
+            page_slug = page_slug[len(parent_slug) + 1 :]
+
         plan.append({
             "title": page["title"],
-            "slug": page["slug"],
+            "slug": page_slug,
             "menu_order": int(page.get("menu_order", 0)),
-            "parent": page.get("parent"),
+            "parent": parent_slug,
         })
         for child in page.get("children", []):
-            plan.extend(build_menu_item_plan([child]))
+            child_page = dict(child)
+            child_parent = page_slug if parent_slug is None else page_slug
+            child_page["parent"] = child_parent
+            child_slug = str(child_page.get("slug") or "")
+            if child_parent and child_slug.startswith(f"{child_parent}/"):
+                child_page["slug"] = child_slug[len(child_parent) + 1 :]
+            plan.extend(build_menu_item_plan([child_page]))
     return plan
 
 

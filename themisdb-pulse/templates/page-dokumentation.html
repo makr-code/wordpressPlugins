@@ -1,92 +1,12 @@
 <!-- wp:template-part {"slug":"header-docs","tagName":"header","area":"header"} /-->
 
-<!-- wp:template-part {"slug":"breadcrumbs","area":"uncategorized","tagName":"nav"} /-->
+<!-- wp:template-part {"slug":"breadcrumbs","area":"uncategorized","tagName":"div"} /-->
 
-<!-- wp:group {"className":"tv3-docs-page-shell","layout":{"type":"constrained","contentSize":"1200px"}} -->
-<div class="wp-block-group tv3-docs-page-shell">
-	<section class="tv3-docs-hero" aria-label="Documentation preview">
-		<div class="tv3-docs-hero-copy">
-			<p class="tv3-docs-kicker">Documentation hub</p>
-			<h1 class="tv3-docs-hero-title">Build with ThemisDB from first query to production.</h1>
-			<p class="tv3-docs-hero-text">Start with guided onboarding, expand into API and SQL usage, and keep deployment and operations aligned with the same product decisions.</p>
-			<div class="tv3-docs-cta-row">
-				<a class="tv3-docs-btn tv3-docs-btn-primary" href="/docs/introduction">Get started</a>
-				<a class="tv3-docs-btn tv3-docs-btn-secondary" href="/docs/api/overview">API overview</a>
-			</div>
-			<ul class="tv3-docs-meta-list">
-				<li>Install in minutes</li>
-				<li>Ship with clear APIs</li>
-				<li>Operate with confidence</li>
-			</ul>
-		</div>
-		<div class="tv3-docs-hero-panel">
-			<div class="tv3-docs-hero-panel-head">
-				<span>Featured guides</span>
-				<span class="tv3-docs-hero-panel-pill">Live</span>
-			</div>
-			<div class="tv3-docs-hero-slider" aria-label="Featured documentation cards">
-				<article class="tv3-docs-hero-slide">
-					<span class="tv3-docs-slide-label">Quick start</span>
-					<h2>Getting started</h2>
-					<p>Install, connect, and run your first data model with the supported setup flow.</p>
-					<a href="/docs/introduction">Read guide →</a>
-				</article>
-				<article class="tv3-docs-hero-slide">
-					<span class="tv3-docs-slide-label">Access</span>
-					<h2>REST & SQL</h2>
-					<p>Use SQL, REST, and GraphQL patterns with consistent controls and real-world examples.</p>
-					<a href="/docs/api/overview">Open API docs →</a>
-				</article>
-				<article class="tv3-docs-hero-slide">
-					<span class="tv3-docs-slide-label">Operations</span>
-					<h2>Deploy & tune</h2>
-					<p>Monitor performance, configure security, and run healthy production setups at scale.</p>
-					<a href="/docs/performance">Review operations →</a>
-				</article>
-			</div>
-		</div>
-	</section>
-
-	<section class="tv3-docs-structure" aria-label="Documentation pathways">
-		<div class="tv3-docs-section-head">
-			<p class="tv3-docs-kicker">Choose your path</p>
-			<h2 class="tv3-docs-section-title">Start with the topic that matches your goal.</h2>
-		</div>
-		<div class="tv3-docs-structure-grid">
-			<article class="tv3-docs-structure-card">
-				<span class="tv3-docs-structure-index">01</span>
-				<h3>Onboarding</h3>
-				<p>Setup guides, install flows, and first project steps.</p>
-				<a href="/docs/installation">Open onboarding →</a>
-			</article>
-			<article class="tv3-docs-structure-card">
-				<span class="tv3-docs-structure-index">02</span>
-				<h3>API & Data</h3>
-				<p>Learn the platform interfaces and data work patterns.</p>
-				<a href="/docs/api/rest">Review interfaces →</a>
-			</article>
-			<article class="tv3-docs-structure-card">
-				<span class="tv3-docs-structure-index">03</span>
-				<h3>Architecture</h3>
-				<p>Understand internals, replication, and high-level system design.</p>
-				<a href="/docs/architecture">Explore architecture →</a>
-			</article>
-			<article class="tv3-docs-structure-card">
-				<span class="tv3-docs-structure-index">04</span>
-				<h3>Operations</h3>
-				<p>Security, performance, and production enablement.</p>
-				<a href="/docs/security">See operations →</a>
-			</article>
-		</div>
-	</section>
-</div>
-<!-- /wp:group -->
-
-<!-- wp:group {"tagName":"main","anchor":"wp--skip-link--target","className":"site-main tv3-docs-main tv3-docs-main-shell","layout":{"type":"constrained","contentSize":"1200px"}} -->
+<!-- wp:group {"tagName":"main","anchor":"wp--skip-link--target","className":"site-main tv3-docs-main tv3-docs-main-shell tv3-page-dokumentation-main","layout":{"type":"constrained","contentSize":"1200px"}} -->
 <main id="wp--skip-link--target" class="wp-block-group site-main tv3-docs-main tv3-docs-main-shell tv3-page-dokumentation-main">
+	<!-- wp:post-title {"level":1,"className":"tv3-docs-page-title"} /-->
 	<!-- wp:shortcode -->[themisdb_v3_docs_cards limit="9" post_types="page,post" category="documentation,docs" priority_tag="frontpage-documentation,documentation,docs" excerpt_words="22"]<!-- /wp:shortcode -->
 	<!-- wp:spacer {"height":"24px"} --><div aria-hidden="true" class="wp-block-spacer" style="height:24px"></div><!-- /wp:spacer -->
-	<!-- wp:themisdb/mixed-cards {"limit":12,"postType":"page","category":"documentation,docs"} /-->
 </main>
 <!-- /wp:group -->
 

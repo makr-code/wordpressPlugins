@@ -5,7 +5,7 @@
  * Categories: themisdb-v3, themisdb-v3-landing
  * Keywords: query, sql, python, tabs, demo
  * Viewport Width: 1280
- * Description: Code demo section with SQL, JSON, and Python tabs powered by jQuery UI Tabs (.themis-v3-tabs class).
+ * Description: Code demo section with SQL, JSON, and Python tabs using the WordPress Tabs block.
  */
 ?>
 <!-- wp:group {"className":"tv3-showcase-section","layout":{"type":"constrained","contentSize":"1200px"}} -->
@@ -23,17 +23,24 @@
 	<p class="tv3-showcase-section__lead">SQL, JSON, or Python — ThemisDB adapts to your preferred query interface. Switch between tabs to see examples.</p>
 	<!-- /wp:paragraph -->
 
-	<!-- wp:group {"anchor":"tv3-showcase-tabs","className":"themis-v3-tabs tv3-showcase-tabs","layout":{"type":"constrained"}} -->
-	<div id="tv3-showcase-tabs" class="wp-block-group themis-v3-tabs tv3-showcase-tabs">
-		<ul class="tv3-showcase-tabs__nav">
-			<li><a href="#tv3-showcase-sql" class="tv3-showcase-tabs__link tv3-showcase-tabs__link--active">SQL</a></li>
-			<li><a href="#tv3-showcase-json" class="tv3-showcase-tabs__link">JSON API</a></li>
-			<li><a href="#tv3-showcase-python" class="tv3-showcase-tabs__link">Python SDK</a></li>
-		</ul>
-		<div id="tv3-showcase-sql" class="themis-v3-tab-panel tv3-showcase-tabs__panel">
+	<!-- wp:tabs {"anchor":"tv3-showcase-tabs","className":"tv3-showcase-tabs"} -->
+	<div id="tv3-showcase-tabs" class="wp-block-tabs tv3-showcase-tabs">
+		<!-- wp:tab-list {"className":"tv3-showcase-tabs__nav","ariaLabel":"Query examples"} -->
+		<div role="tablist" aria-label="Query examples" class="wp-block-tab-list tv3-showcase-tabs__nav">
+			<button>SQL</button>
+			<button>JSON API</button>
+			<button>Python SDK</button>
+		</div>
+		<!-- /wp:tab-list -->
+
+		<!-- wp:tab-panels -->
+		<div class="wp-block-tab-panels">
+		<!-- wp:tab-panel {"label":"SQL","className":"tv3-showcase-tabs__panel"} -->
+		<div class="wp-block-tab-panel tv3-showcase-tabs__panel">
+		<!-- wp:html -->
 			<div class="tv3-showcase-tabs__panel-head">
 				<span class="tv3-showcase-tabs__panel-label">SQL</span>
-				<button data-copy-selector="#tv3-showcase-sql code" class="tv3-code-copy-btn tv3-showcase-tabs__copy">Copy</button>
+				<button data-copy-selector="#tv3-showcase-tabs-tab-0 code" class="tv3-code-copy-btn tv3-showcase-tabs__copy">Copy</button>
 			</div>
 			<pre class="tv3-showcase-tabs__code"><code><span class="tv3-code-comment">-- Multi-model query: vector + relational + time-series</span>
 <span class="tv3-code-keyword">SELECT</span>
@@ -46,11 +53,15 @@
 <span class="tv3-code-keyword">WHERE</span>  e.cosine_distance(u.profile_vec, <span class="tv3-code-keyword">$1</span>) &lt; <span class="tv3-code-number">0.2</span>
 <span class="tv3-code-keyword">ORDER BY</span> similarity <span class="tv3-code-keyword">ASC</span>
 <span class="tv3-code-keyword">LIMIT</span>  <span class="tv3-code-number">10</span>;</code></pre>
+		<!-- /wp:html -->
 		</div>
-		<div id="tv3-showcase-json" class="themis-v3-tab-panel tv3-showcase-tabs__panel tv3-showcase-tabs__panel--hidden">
+		<!-- /wp:tab-panel -->
+		<!-- wp:tab-panel {"label":"JSON API","className":"tv3-showcase-tabs__panel"} -->
+		<div class="wp-block-tab-panel tv3-showcase-tabs__panel">
+		<!-- wp:html -->
 			<div class="tv3-showcase-tabs__panel-head">
 				<span class="tv3-showcase-tabs__panel-label">JSON API</span>
-				<button data-copy-selector="#tv3-showcase-json code" class="tv3-code-copy-btn tv3-showcase-tabs__copy">Copy</button>
+				<button data-copy-selector="#tv3-showcase-tabs-tab-1 code" class="tv3-code-copy-btn tv3-showcase-tabs__copy">Copy</button>
 			</div>
 			<pre class="tv3-showcase-tabs__code"><code><span class="tv3-code-keyword">POST</span> /api/v3/multi-query
 <span class="tv3-code-comment">Authorization: Bearer &lt;token&gt;</span>
@@ -73,11 +84,15 @@
   <span class="tv3-code-number">"join"</span>: <span class="tv3-code-string">"user_id"</span>,
   <span class="tv3-code-number">"limit"</span>: <span class="tv3-code-number">10</span>
 }</code></pre>
+		<!-- /wp:html -->
 		</div>
-		<div id="tv3-showcase-python" class="themis-v3-tab-panel tv3-showcase-tabs__panel tv3-showcase-tabs__panel--hidden">
+		<!-- /wp:tab-panel -->
+		<!-- wp:tab-panel {"label":"Python SDK","className":"tv3-showcase-tabs__panel"} -->
+		<div class="wp-block-tab-panel tv3-showcase-tabs__panel">
+		<!-- wp:html -->
 			<div class="tv3-showcase-tabs__panel-head">
 				<span class="tv3-showcase-tabs__panel-label">Python SDK</span>
-				<button data-copy-selector="#tv3-showcase-python code" class="tv3-code-copy-btn tv3-showcase-tabs__copy">Copy</button>
+				<button data-copy-selector="#tv3-showcase-tabs-tab-2 code" class="tv3-code-copy-btn tv3-showcase-tabs__copy">Copy</button>
 			</div>
 			<pre class="tv3-showcase-tabs__code"><code><span class="tv3-code-keyword">import</span> themisdb
 <span class="tv3-code-keyword">from</span> themisdb.ai <span class="tv3-code-keyword">import</span> embed
@@ -96,9 +111,13 @@ results = db.<span class="tv3-code-number">multi_query</span>(
 
 <span class="tv3-code-keyword">for</span> r <span class="tv3-code-keyword">in</span> results:
     <span class="tv3-code-keyword">print</span>(f<span class="tv3-code-string">"{r.name}: sim={r.similarity:.3f}, perf={r.avg_response_ms}ms"</span>)</code></pre>
+		<!-- /wp:html -->
 		</div>
+		<!-- /wp:tab-panel -->
+		</div>
+		<!-- /wp:tab-panels -->
 	</div>
-	<!-- /wp:group -->
+	<!-- /wp:tabs -->
 
 </div>
 <!-- /wp:group -->

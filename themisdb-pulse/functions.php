@@ -11,11 +11,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'THEMISDB_PULSE_VERSION', '3.4.0' );
 
-// Backward-compatibility alias for legacy references.
-if ( ! defined( 'THEMISDB_V3_VERSION' ) ) {
-    define( 'THEMISDB_V3_VERSION', THEMISDB_PULSE_VERSION );
-}
-
 // Required plugin map: slug => main plugin file path.
 define(
     'THEMISDB_PULSE_REQUIRED_PLUGINS',
@@ -23,11 +18,6 @@ define(
         'themisdb-quality-meter' => 'themisdb-quality-meter/themisdb-quality-meter.php',
     )
 );
-
-// Backward-compatibility alias for legacy references.
-if ( ! defined( 'THEMISDB_V3_REQUIRED_PLUGINS' ) ) {
-    define( 'THEMISDB_V3_REQUIRED_PLUGINS', THEMISDB_PULSE_REQUIRED_PLUGINS );
-}
 
 define( 'THEMISDB_PULSE_TEXT_DOMAIN', 'themisdb-pulse' );
 
@@ -697,6 +687,70 @@ function themisdb_v3_register_pattern_categories() {
 }
 
 add_action( 'after_setup_theme', 'themisdb_v3_ensure_default_nav_menus', 20 );
+add_shortcode( 'themisdb_v3_docs_link', 'themisdb_v3_docs_link_shortcode' );
+
+/**
+ * Return the canonical docs URL for a documented path using WordPress-native routing.
+ *
+ * @param string $path Path relative to /docs/ (for example: 'getting-started', 'api').
+ * @return string
+ */
+function themisdb_v3_get_docs_url( string $path = 'getting-started' ): string {
+    $path = trim( (string) $path, "/ \\t\n\r\0\x0B" );
+    if ( '' === $path ) {
+        $path = 'getting-started';
+    }
+
+    $page = get_page_by_path( 'docs/' . $path );
+    if ( $page instanceof WP_Post ) {
+        $permalink = get_permalink( $page );
+        if ( is_string( $permalink ) && '' !== $permalink ) {
+            return $permalink;
+        }
+    }
+
+    return home_url( '/docs/' . $path . '/' );
+}
+
+/**
+ * Render a WordPress-native docs link for block HTML template parts.
+ *
+ * @param array<string,string> $atts Shortcode attrs.
+ * @return string
+ */
+function themisdb_v3_docs_link_shortcode( $atts = array() ): string {
+    $atts = shortcode_atts(
+        array(
+            'slug'  => 'getting-started',
+            'label' => 'Documentation',
+            'class' => '',
+            'style' => '',
+        ),
+        $atts,
+        'themisdb_v3_docs_link'
+    );
+
+    $slug = trim( (string) $atts['slug'], "/ \t\n\r\0\x0B" );
+    if ( '' === $slug ) {
+        $slug = 'getting-started';
+    }
+
+    $href = esc_url( themisdb_v3_get_docs_url( $slug ) );
+    $label = wp_kses_post( $atts['label'] );
+    $class = trim( (string) $atts['class'] );
+    $style = trim( (string) $atts['style'] );
+
+    $attributes = array();
+    $attributes[] = 'href="' . $href . '"';
+    if ( '' !== $class ) {
+        $attributes[] = 'class="' . esc_attr( $class ) . '"';
+    }
+    if ( '' !== $style ) {
+        $attributes[] = 'style="' . esc_attr( $style ) . '"';
+    }
+
+    return '<a ' . implode( ' ', $attributes ) . '>' . $label . '</a>';
+}
 
 /**
  * Ensure the theme always has registered menus assigned for block navigation output.
@@ -3025,7 +3079,7 @@ function themisdb_v3_render_feature_cards_shortcode( $atts = array() ) {
 
     ob_start();
     ?>
-    <div class="wp-block-group tv3-feature-grid themis-v3-fade-in">
+    <div class="wp-block-group tv3-feature-grid">
         <?php foreach ( $posts as $index => $post_item ) : ?>
             <?php
             $tone    = $tones[ $index % count( $tones ) ];
@@ -4460,7 +4514,7 @@ function themisdb_v3_enqueue_mobile_header_nav_fix() {
         }
     ';
 
-    wp_register_style( 'themisdb-v3-mobile-header-nav-fix', false, array(), THEMISDB_V3_VERSION );
+    wp_register_style( 'themisdb-v3-mobile-header-nav-fix', false, array(), THEMISDB_PULSE_VERSION );
     wp_enqueue_style( 'themisdb-v3-mobile-header-nav-fix' );
     wp_add_inline_style( 'themisdb-v3-mobile-header-nav-fix', $css );
 }
@@ -4591,7 +4645,7 @@ function themisdb_v3_enqueue_live_search_overlay_styles() {
         }
     ';
 
-    wp_register_style( 'themisdb-v3-live-search-overlay-inline', false, array(), THEMISDB_V3_VERSION );
+    wp_register_style( 'themisdb-v3-live-search-overlay-inline', false, array(), THEMISDB_PULSE_VERSION );
     wp_enqueue_style( 'themisdb-v3-live-search-overlay-inline' );
     wp_add_inline_style( 'themisdb-v3-live-search-overlay-inline', $css );
 }
@@ -4609,21 +4663,21 @@ function themisdb_v3_enqueue_assets() {
     }
 
     $color_scheme_file     = get_template_directory() . '/assets/css/color-schemes.css';
-    $color_scheme_version  = file_exists( $color_scheme_file ) ? (string) filemtime( $color_scheme_file ) : THEMISDB_V3_VERSION;
+    $color_scheme_version  = file_exists( $color_scheme_file ) ? (string) filemtime( $color_scheme_file ) : THEMISDB_PULSE_VERSION;
     $compact_meta_js_file  = get_template_directory() . '/assets/js/compact-meta-layout.js';
-    $compact_meta_js_ver   = file_exists( $compact_meta_js_file ) ? (string) filemtime( $compact_meta_js_file ) : THEMISDB_V3_VERSION;
+    $compact_meta_js_ver   = file_exists( $compact_meta_js_file ) ? (string) filemtime( $compact_meta_js_file ) : THEMISDB_PULSE_VERSION;
     $kernthese_js_file     = get_template_directory() . '/assets/js/kernthese-highlight.js';
-    $kernthese_js_ver      = file_exists( $kernthese_js_file ) ? (string) filemtime( $kernthese_js_file ) : THEMISDB_V3_VERSION;
+    $kernthese_js_ver      = file_exists( $kernthese_js_file ) ? (string) filemtime( $kernthese_js_file ) : THEMISDB_PULSE_VERSION;
     $code_highlight_js_file = get_template_directory() . '/assets/js/code-highlight.js';
-    $code_highlight_js_ver  = file_exists( $code_highlight_js_file ) ? (string) filemtime( $code_highlight_js_file ) : THEMISDB_V3_VERSION;
+    $code_highlight_js_ver  = file_exists( $code_highlight_js_file ) ? (string) filemtime( $code_highlight_js_file ) : THEMISDB_PULSE_VERSION;
     $image_lightbox_js_file = get_template_directory() . '/assets/js/image-lightbox.js';
-    $image_lightbox_js_ver  = file_exists( $image_lightbox_js_file ) ? (string) filemtime( $image_lightbox_js_file ) : THEMISDB_V3_VERSION;
+    $image_lightbox_js_ver  = file_exists( $image_lightbox_js_file ) ? (string) filemtime( $image_lightbox_js_file ) : THEMISDB_PULSE_VERSION;
     $podcast_audio_js_file  = get_template_directory() . '/assets/js/podcast-audio-single.js';
-    $podcast_audio_js_ver   = file_exists( $podcast_audio_js_file ) ? (string) filemtime( $podcast_audio_js_file ) : THEMISDB_V3_VERSION;
+    $podcast_audio_js_ver   = file_exists( $podcast_audio_js_file ) ? (string) filemtime( $podcast_audio_js_file ) : THEMISDB_PULSE_VERSION;
     $login_overlay_js_file  = get_template_directory() . '/assets/js/login-overlay.js';
-    $login_overlay_js_ver   = file_exists( $login_overlay_js_file ) ? (string) filemtime( $login_overlay_js_file ) : THEMISDB_V3_VERSION;
+    $login_overlay_js_ver   = file_exists( $login_overlay_js_file ) ? (string) filemtime( $login_overlay_js_file ) : THEMISDB_PULSE_VERSION;
     $live_search_js_file    = get_template_directory() . '/assets/js/live-search.js';
-    $live_search_js_ver     = file_exists( $live_search_js_file ) ? (string) filemtime( $live_search_js_file ) : THEMISDB_V3_VERSION;
+    $live_search_js_ver     = file_exists( $live_search_js_file ) ? (string) filemtime( $live_search_js_file ) : THEMISDB_PULSE_VERSION;
 
     themisdb_v3_enqueue_live_search_overlay_styles();
 
@@ -4654,13 +4708,13 @@ function themisdb_v3_enqueue_assets() {
         'themisdb-v3-mixed-cards',
         get_template_directory_uri() . '/assets/js/mixed-cards.js',
         array(),
-        THEMISDB_V3_VERSION,
+        THEMISDB_PULSE_VERSION,
         true
     );
     if ( themisdb_v3_should_show_reading_progress() || is_front_page() || is_home() ) {
         $minutes_total = is_singular() ? themisdb_v3_get_read_time_minutes() : 0;
         $reading_progress_js_file = get_template_directory() . '/assets/js/reading-progress.js';
-        $reading_progress_js_ver  = file_exists( $reading_progress_js_file ) ? (string) filemtime( $reading_progress_js_file ) : THEMISDB_V3_VERSION;
+        $reading_progress_js_ver  = file_exists( $reading_progress_js_file ) ? (string) filemtime( $reading_progress_js_file ) : THEMISDB_PULSE_VERSION;
 
         wp_enqueue_script(
             'themisdb-v3-reading-progress',
@@ -4713,7 +4767,7 @@ function themisdb_v3_enqueue_assets() {
 
         // Quality feedback slider (nur auf Einzelseiten mit quality_meta)
         $qf_js_file = get_template_directory() . '/assets/js/quality-feedback.js';
-        $qf_js_ver  = file_exists( $qf_js_file ) ? (string) filemtime( $qf_js_file ) : THEMISDB_V3_VERSION;
+        $qf_js_ver  = file_exists( $qf_js_file ) ? (string) filemtime( $qf_js_file ) : THEMISDB_PULSE_VERSION;
         wp_enqueue_script(
             'themisdb-v3-quality-feedback',
             get_template_directory_uri() . '/assets/js/quality-feedback.js',
@@ -4762,14 +4816,14 @@ function themisdb_v3_enqueue_assets() {
                 'themisdb-support-portal-style',
                 THEMISDB_SUPPORT_PLUGIN_URL . 'assets/css/support-portal.css',
                 array(),
-                defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_V3_VERSION
+                defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_PULSE_VERSION
             );
 
             wp_enqueue_script(
                 'themisdb-support-portal-script',
                 THEMISDB_SUPPORT_PLUGIN_URL . 'assets/js/support-portal.js',
                 array( 'jquery' ),
-                defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_V3_VERSION,
+                defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_PULSE_VERSION,
                 true
             );
 
@@ -4800,14 +4854,14 @@ function themisdb_v3_enqueue_assets() {
             'themisdb-support-portal-style',
             THEMISDB_SUPPORT_PLUGIN_URL . 'assets/css/support-portal.css',
             array(),
-            defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_V3_VERSION
+            defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_PULSE_VERSION
         );
 
         wp_enqueue_script(
             'themisdb-support-portal-script',
             THEMISDB_SUPPORT_PLUGIN_URL . 'assets/js/support-portal.js',
             array( 'jquery' ),
-            defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_V3_VERSION,
+            defined( 'THEMISDB_SUPPORT_VERSION' ) ? THEMISDB_SUPPORT_VERSION : THEMISDB_PULSE_VERSION,
             true
         );
 
@@ -5062,14 +5116,6 @@ function themisdb_v3_apply_color_scheme_body_class( $classes ) {
     return array_values( $classes );
 }
 
-add_action( 'wp_body_open', 'themisdb_v3_render_skip_link', 5 );
-/**
- * Render a global skip link for keyboard and assistive technology users.
- */
-function themisdb_v3_render_skip_link() {
-    echo '<a class="tv3-skip-link" href="#wp--skip-link--target">' . esc_html__( 'Zum Inhalt springen', 'themisdb-v3' ) . '</a>';
-}
-
 add_action( 'wp_body_open', 'themisdb_v3_render_reading_progress_bar', 7 );
 /**
  * Render the global reading progress bar shell.
@@ -5080,14 +5126,6 @@ function themisdb_v3_render_reading_progress_bar() {
     }
 
     echo '<div class="tv3-reading-progress" aria-hidden="true"><span class="tv3-reading-progress__bar" data-tv3-reading-progress-bar></span><span class="tv3-reading-progress__label" data-tv3-reading-progress-label></span></div>';
-}
-
-add_action( 'wp_footer', 'themisdb_v3_print_skip_link_target_fallback', 99 );
-/**
- * Ensure a skip-link target exists even when customized templates omit the ID.
- */
-function themisdb_v3_print_skip_link_target_fallback() {
-    echo '<script>(function(){var main=document.querySelector("main");if(!main){return;}if(!main.id){main.id="wp--skip-link--target";}if(!main.hasAttribute("tabindex")){main.setAttribute("tabindex","-1");}})();</script>';
 }
 
 add_action( 'init', 'themisdb_v3_register_content_object_post_types', 5 );
@@ -5820,6 +5858,99 @@ function themisdb_v3_get_meta_id_list( $post_id, $meta_key ) {
     );
 }
 
+add_action( 'init', 'themisdb_v3_migrate_legacy_related_post_meta', 20 );
+/**
+ * Move legacy single-link metadata into the current relationship fields.
+ */
+function themisdb_v3_migrate_legacy_related_post_meta() {
+    $migration_option = 'themisdb_pulse_relationship_meta_migration';
+    if ( 1 === (int) get_option( $migration_option, 0 ) ) {
+        return;
+    }
+
+    global $wpdb;
+
+    $legacy_rows = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT pm.post_id, pm.meta_value
+            FROM {$wpdb->postmeta} AS pm
+            INNER JOIN {$wpdb->posts} AS p ON p.ID = pm.post_id
+            WHERE pm.meta_key = %s
+                AND p.post_type <> %s
+            ORDER BY pm.post_id ASC, pm.meta_id ASC",
+            'related_post_id',
+            'pod_episode'
+        )
+    );
+
+    if ( '' !== $wpdb->last_error ) {
+        error_log( '[ThemisDB Pulse] Relationship metadata migration query failed: ' . $wpdb->last_error );
+        return;
+    }
+
+    $legacy_by_post = array();
+    foreach ( $legacy_rows as $row ) {
+        $post_id = absint( $row->post_id );
+        if ( $post_id <= 0 ) {
+            continue;
+        }
+
+        if ( ! isset( $legacy_by_post[ $post_id ] ) ) {
+            $legacy_by_post[ $post_id ] = array();
+        }
+
+        $legacy_by_post[ $post_id ] = array_merge(
+            $legacy_by_post[ $post_id ],
+            themisdb_v3_normalize_id_list( $row->meta_value )
+        );
+    }
+
+    foreach ( $legacy_by_post as $post_id => $legacy_data ) {
+        $legacy_ids = array_values( array_unique( $legacy_data ) );
+
+        if ( empty( $legacy_ids ) ) {
+            delete_post_meta( $post_id, 'related_post_id' );
+            continue;
+        }
+
+        $related_ids = themisdb_v3_normalize_id_list(
+            array_merge(
+                themisdb_v3_get_meta_id_list( $post_id, 'related_object_ids' ),
+                $legacy_ids
+            )
+        );
+        update_post_meta( $post_id, 'related_object_ids', $related_ids );
+
+        if ( ! empty( array_diff( $legacy_ids, themisdb_v3_get_meta_id_list( $post_id, 'related_object_ids' ) ) ) ) {
+            error_log( '[ThemisDB Pulse] Could not migrate object relationship metadata for post ' . $post_id . '.' );
+            continue;
+        }
+
+        delete_post_meta( $post_id, 'related_post_id' );
+    }
+
+    $remaining = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT COUNT(*)
+            FROM {$wpdb->postmeta} AS pm
+            INNER JOIN {$wpdb->posts} AS p ON p.ID = pm.post_id
+            WHERE pm.meta_key = %s
+                AND p.post_type <> %s",
+            'related_post_id',
+            'pod_episode'
+        )
+    );
+
+    if ( '' !== $wpdb->last_error ) {
+        error_log( '[ThemisDB Pulse] Relationship metadata migration verification failed: ' . $wpdb->last_error );
+        return;
+    }
+
+    if ( 0 === (int) $remaining ) {
+        update_option( $migration_option, 1, false );
+    }
+}
+
 /**
  * Check whether post type is treated as content object (not post/page).
  *
@@ -5971,12 +6102,6 @@ function themisdb_v3_get_related_object_ids( $post_id ) {
 
     $ids = array_merge( $ids, themisdb_v3_normalize_id_list( $raw_single ) );
     $ids = array_merge( $ids, themisdb_v3_normalize_id_list( $raw_multi ) );
-
-    // Backward compatibility for older single-link meta.
-    $legacy_related = absint( get_post_meta( $post_id, 'related_post_id', true ) );
-    if ( $legacy_related > 0 ) {
-        $ids[] = $legacy_related;
-    }
 
     return array_values( array_unique( array_filter( $ids ) ) );
 }
@@ -8113,6 +8238,6 @@ add_action( 'after_setup_theme', function () {
     }
 
     if ( class_exists( 'ThemisDB_Theme_Updater' ) ) {
-        new ThemisDB_Theme_Updater( 'themisdb-theme-v3', THEMISDB_V3_VERSION );
+        new ThemisDB_Theme_Updater( 'themisdb-theme-v3', THEMISDB_PULSE_VERSION );
     }
 }, 100 );

@@ -29,6 +29,25 @@ def test_missing_site_config_is_nonfatal_and_uses_safe_defaults(monkeypatch, tmp
     assert docs_import.get_runtime_site_setting("rest_route_style", "wp-json") == "wp-json"
 
 
+def test_default_manifest_root_scans_full_docs_tree():
+    assert docs_manifest.DEFAULT_DOCS_ROOT.exists()
+    assert docs_manifest.SOURCE_ROOT == docs_manifest.DEFAULT_DOCS_ROOT
+
+
+def test_repair_mojibake_text_recovers_common_utf8_double_encoding():
+    raw = "Das ist ein Ã¼berwachter Text mit â€“ und Ã¤hnlichen Zeichen."
+    repaired = docs_import.repair_mojibake_text(raw)
+    assert "überwachter" in repaired.lower()
+    assert "–" in repaired
+    assert "ähnlichen" in repaired.lower()
+
+
+def test_mojibake_signature_detects_corrupted_source_text():
+    assert docs_import.has_mojibake_signature("Die Ã¼berwachung ist kritisch.")
+    assert docs_import.has_mojibake_signature("Das ist ein �berwachter Text.")
+    assert not docs_import.has_mojibake_signature("Die Überwachung ist kritisch.")
+
+
 def test_good_markdown_renders_structured_html():
     html = docs_import.markdown_to_html(
         load_fixture("good.md"),
@@ -322,6 +341,25 @@ def test_classify_document_source_separates_public_and_developer_content():
 
     feature_tags = docs_manifest.infer_tags(feature_path, "# Features\n\nThe platform has a feature catalog for vector search, graph queries, and deployment workflows.\n")
     assert "feature" in feature_tags or "architecture" in feature_tags
+
+
+def test_infer_document_module_groups_developer_docs_by_module():
+    developer_path = Path("source-links/docs/api/authentication.md")
+    website_path = Path("source-links/docs/website/pages/themisdb.md")
+    security_path = Path("source-links/docs/security/krisis.md")
+
+    assert docs_manifest.infer_document_module(developer_path) == "api"
+    assert docs_manifest.infer_document_module(website_path) == "website"
+    assert docs_manifest.infer_document_module(security_path) == "security"
+
+    grouped = docs_manifest.group_documents_by_module({
+        "documents": [
+            {"source_path": str(developer_path), "relative_path": "api/authentication.md", "title": "Authentication", "module": "api"},
+            {"source_path": str(website_path), "relative_path": "website/pages/themisdb.md", "title": "ThemisDB", "module": "website"},
+            {"source_path": str(security_path), "relative_path": "security/krisis.md", "title": "KRITIS", "module": "security"},
+        ]
+    })
+    assert set(grouped.keys()) == {"api", "website", "security"}
 
 
 def test_frontmatter_round_trip_keeps_metadata_and_hash():
