@@ -253,6 +253,10 @@ MIT License - See LICENSE file for details
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
+### Version 1.0.2 (2026-10-29)
+- Fixed matrix initialization and data rendering on the published Features page.
+- Fixed JavaScript syntax and runtime errors in the frontend.
+
 ### Version 1.0.0 (2026-02-11)
 - Initial release with 22+ features
 - Interactive filtering and sorting

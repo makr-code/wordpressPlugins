@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2] - 2026-10-29
+
+### Fixed
+- Load the frontend assets for pages containing the matrix markup.
+- Initialize the matrix using its rendered container and restore its loading state helpers.
+- Remove obsolete duplicate CSV export code that prevented the script from parsing.
+- Remove missing translation helper calls that stopped table rendering.
+
 ## [1.0.0] - 2026-02-11
 
 ### Added

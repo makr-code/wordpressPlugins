@@ -1,6 +1,6 @@
 /**
  * ThemisDB Feature Matrix JavaScript
- * Version 1.0.0 - Interactive feature comparison with sorting, filtering, CSV export, and mobile card view
+ * Version 1.0.2 - Interactive feature comparison with sorting, filtering, CSV export, and mobile card view
  */
 
 (function($) {
@@ -217,7 +217,7 @@
 
             let html = '<div class="' + tableClass + '"><table role="table">';
             html += '<thead><tr>';
-            html += '<th scope="col">' + this.translate('Feature') + '</th>';
+            html += '<th scope="col">Feature</th>';
 
             // Add column for each database with sortable headers
             const self = this;
@@ -227,7 +227,7 @@
                 const dbClass = 'db-' + db + (db === 'themisdb' && highlightThemis ? ' db-themisdb' : '');
                 const sortClass = self.sortColumn === db ? ' sorted-' + self.sortDirection : '';
                 const ariaSort = self.sortColumn === db ? self.sortDirection : 'none';
-                const ariaLabel = dbName + ' - ' + self.translate('click to sort');
+                const ariaLabel = dbName + ' - click to sort';
                 
                 html += '<th scope="col" class="sortable-header ' + dbClass + sortClass + '" data-column="' + db + '" role="button" tabindex="0" aria-sort="' + ariaSort + '" aria-label="' + self.escapeHtml(ariaLabel) + '">';
                 html += dbName;
@@ -462,48 +462,6 @@
         },
 
         /**
-         * Escape HTML
-         */
-        escapeHtml: function(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        },
-
-            let csv = 'Feature,ThemisDB,PostgreSQL,MongoDB,Neo4j,Category\n';
-
-            for (const categoryKey in this.features) {
-                const category = this.features[categoryKey];
-
-                for (const featureKey in category.features) {
-                    const feature = category.features[featureKey];
-                    
-                    csv += '"' + feature.name + '",';
-                    csv += feature.themisdb + ',';
-                    csv += feature.postgresql + ',';
-                    csv += feature.mongodb + ',';
-                    csv += feature.neo4j + ',';
-                    csv += '"' + category.name + '"\n';
-                }
-            }
-
-            // Create download
-            const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            
-            const today = new Date().toISOString().split('T')[0];
-            link.setAttribute('href', url);
-            link.setAttribute('download', 'themisdb-feature-comparison-' + today + '.csv');
-            link.style.visibility = 'hidden';
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        },
-
-        /**
          * Check if mobile view should be shown
          */
         showError: function(message) {
@@ -512,6 +470,14 @@
                         '<p><strong>⚠️ Error:</strong> ' + this.escapeHtml(message) + '</p>' +
                         '</div>';
             $tableContainer.html(html);
+        },
+
+        showLoading: function() {
+            $('#fm-loading').show();
+        },
+
+        hideLoading: function() {
+            $('#fm-loading').hide();
         },
 
         /**
@@ -531,8 +497,8 @@
 
     // Initialize on document ready
     $(document).ready(function() {
-        if ($('.matrix-table').length > 0) {
-            FeatureMatrix.init();
+        if ($('#fm-matrix-table').length > 0) {
+            window.ThemisDBFeatureMatrix.init();
         }
     });
 

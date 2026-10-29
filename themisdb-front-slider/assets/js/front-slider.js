@@ -39,6 +39,7 @@
         var dots        = Array.prototype.slice.call(wrapper.querySelectorAll('.themisdb-fs-dot'));
         var prevBtn     = wrapper.querySelector('.themisdb-fs-prev');
         var nextBtn     = wrapper.querySelector('.themisdb-fs-next');
+        var playPauseBtn = wrapper.querySelector('[data-tfs-play-pause]');
         var timerFill   = wrapper.querySelector('.themisdb-fs-timer-fill');
 
         if (!track || slides.length < 2) {
@@ -57,11 +58,11 @@
         var autoplay    = wrapper.getAttribute('data-autoplay') !== '0';
         var respectReduced = wrapper.getAttribute('data-respect-reduced-motion') !== '0';
         var prefersReduced = respectReduced && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var manuallyPaused = false;
 
         var timerID        = null;
         var timerStartedAt = null;
         var timerRemaining = interval;
-        var rafID          = null;
         var resizeRafID    = null;
         var imageBlendTimers = [];
         var imageBlendInterval = Math.max(7000, interval + 1800);
@@ -69,9 +70,13 @@
         if (prefersReduced) {
             wrapper.classList.add('is-reduced-motion');
             autoplay = false;
+            if (playPauseBtn) {
+                playPauseBtn.hidden = true;
+            }
         } else {
             wrapper.classList.remove('is-reduced-motion');
         }
+        track.setAttribute('aria-live', autoplay ? 'off' : 'polite');
 
         function assignSlideImageEffects() {
             slides.forEach(function (slide) {
@@ -129,7 +134,7 @@
 
         function startActiveSlideImageBlend() {
             stopImageBlendTimers();
-            if (prefersReduced) {
+            if (prefersReduced || manuallyPaused || document.hidden) {
                 return;
             }
 
@@ -157,20 +162,6 @@
             }, imageBlendInterval);
 
             imageBlendTimers.push(blendId);
-        }
-
-        /* ------------------------------------------------------------------
-         * Height: mirror the CSS custom property for slide height.
-         * The PHP template injects an inline style on the slide itself;
-         * here we just ensure the wrapper variable is in sync.
-         * ---------------------------------------------------------------- */
-        var imageHeight = parseInt(
-            getComputedStyle(slides[0]).getPropertyValue('--tfs-slide-height') || '420',
-            10
-        );
-        // If no CSS variable, fall back to the actual rendered height.
-        if (!imageHeight) {
-            imageHeight = slides[0].offsetHeight || 420;
         }
 
         /* ------------------------------------------------------------------
@@ -226,11 +217,7 @@
          * Autoplay timer
          * ---------------------------------------------------------------- */
         function startTimer() {
-            if (!autoplay || document.hidden) { return; }
-            if (timerID !== null) {
-                clearTimeout(timerID);
-                timerID = null;
-            }
+            if (!autoplay || manuallyPaused || document.hidden || timerID !== null) { return; }
             if (timerRemaining <= 0 || timerRemaining > interval) {
                 timerRemaining = interval;
             }
@@ -290,10 +277,6 @@
         }
 
         function cancelProgressAnimation() {
-            if (rafID) {
-                cancelAnimationFrame(rafID);
-                rafID = null;
-            }
             if (timerFill) {
                 // Freeze bar at its current painted position.
                 var currentWidth = timerFill.getBoundingClientRect().width;
@@ -318,6 +301,23 @@
         function resumeSlider() {
             startTimer();
             startActiveSlideImageBlend();
+        }
+
+        if (playPauseBtn) {
+            var pauseLabel = playPauseBtn.getAttribute('data-pause-label') || 'Pause automatic slide rotation';
+            var resumeLabel = playPauseBtn.getAttribute('data-resume-label') || 'Resume automatic slide rotation';
+            playPauseBtn.addEventListener('click', function () {
+                manuallyPaused = !manuallyPaused;
+                playPauseBtn.setAttribute('aria-pressed', manuallyPaused ? 'true' : 'false');
+                playPauseBtn.setAttribute('aria-label', manuallyPaused ? resumeLabel : pauseLabel);
+                playPauseBtn.setAttribute('title', manuallyPaused ? resumeLabel : pauseLabel);
+                track.setAttribute('aria-live', manuallyPaused ? 'polite' : 'off');
+                if (manuallyPaused) {
+                    pauseSlider();
+                } else {
+                    resumeSlider();
+                }
+            });
         }
 
         wrapper.addEventListener('mouseenter', pauseSlider);

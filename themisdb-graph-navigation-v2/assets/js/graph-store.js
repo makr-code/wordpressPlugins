@@ -3,114 +3,6 @@
 
     window.ThemisDBGraphV2 = window.ThemisDBGraphV2 || {};
 
-    const STORAGE_PREFIX = 'themisdbGraphV2';
-    const GRAPH_CACHE_TTL_MS = 30 * 60 * 1000;
-    const preparedGraphCache = new Map();
-
-    function getStorage() {
-        try {
-            if (!window.localStorage) {
-                return null;
-            }
-            const testKey = '__themisdb_graph_storage_test__';
-            window.localStorage.setItem(testKey, '1');
-            window.localStorage.removeItem(testKey);
-            return window.localStorage;
-        } catch (error) {
-            return null;
-        }
-    }
-
-    function getGraphCacheKey(rawGraph) {
-        const config = window.themisdbGraphV2 || {};
-        const graphFingerprint = rawGraph && rawGraph.nodes && rawGraph.nodes.length
-            ? `${rawGraph.nodes.length}:${rawGraph.links ? rawGraph.links.length : 0}`
-            : 'empty';
-        const versionKey = config.graphVersion || config.cacheKey || 'default';
-        const siteKey = (config.cacheKey || config.graphVersion || window.location.hostname || 'themisdb-graph') + ':' + versionKey + ':' + graphFingerprint;
-        return `${STORAGE_PREFIX}:graph:${siteKey}`;
-    }
-
-    function readGraphFromStorage(rawGraph) {
-        const storage = getStorage();
-        if (!storage) {
-            return rawGraph || null;
-        }
-
-        try {
-            const cacheKey = getGraphCacheKey(rawGraph || {});
-            const cached = storage.getItem(cacheKey);
-            if (!cached) {
-                return rawGraph || null;
-            }
-
-            const payload = JSON.parse(cached);
-            const hasValidPayload = payload && payload.graph && Array.isArray(payload.graph.nodes);
-            if (!hasValidPayload) {
-                return rawGraph || null;
-            }
-
-            const currentVersion = (window.themisdbGraphV2 && (window.themisdbGraphV2.graphVersion || window.themisdbGraphV2.cacheKey)) || null;
-            if (currentVersion && payload.version && String(payload.version) !== String(currentVersion)) {
-                storage.removeItem(cacheKey);
-                return rawGraph || null;
-            }
-
-            if (Number(payload.expiresAt || 0) < Date.now()) {
-                storage.removeItem(cacheKey);
-                return rawGraph || null;
-            }
-
-            return payload.graph;
-        } catch (error) {
-            return rawGraph || null;
-        }
-    }
-
-    function writeGraphToStorage(graph) {
-        const storage = getStorage();
-        if (!storage || !graph || !Array.isArray(graph.nodes)) {
-            return;
-        }
-
-        try {
-            storage.setItem(getGraphCacheKey(graph), JSON.stringify({
-                graph,
-                version: (window.themisdbGraphV2 && (window.themisdbGraphV2.graphVersion || window.themisdbGraphV2.cacheKey)) || null,
-                expiresAt: Date.now() + GRAPH_CACHE_TTL_MS,
-            }));
-        } catch (error) {
-            // Storage may be unavailable or full; fail silently and keep the runtime graph in memory.
-        }
-    }
-
-    function resolveRuntimeGraph(graph) {
-        if (!graph || !Array.isArray(graph.nodes)) {
-            return readGraphFromStorage(null) || { nodes: [], links: [] };
-        }
-
-        const cachedGraph = readGraphFromStorage(graph);
-        const activeGraph = cachedGraph || graph;
-        writeGraphToStorage(activeGraph);
-        return activeGraph;
-    }
-
-    function getPreparedGraph(graph, options) {
-        const cacheKey = JSON.stringify({
-            nodes: Array.isArray(graph && graph.nodes) ? graph.nodes.length : 0,
-            links: Array.isArray(graph && graph.links) ? graph.links.length : 0,
-            options: Object.assign({ maxVisibleNodes: 120, minDegree: 0, showExternal: true }, options || {}),
-        });
-
-        if (preparedGraphCache.has(cacheKey)) {
-            return preparedGraphCache.get(cacheKey);
-        }
-
-        const prepared = buildGraphModel(graph, options);
-        preparedGraphCache.set(cacheKey, prepared);
-        return prepared;
-    }
-
     function getReductionProfile(nodeCount, options) {
         const localOptions = Object.assign({
             maxVisibleNodes: 120,
@@ -202,32 +94,27 @@
             if (!localOptions.showExternal && isExternal) {
                 return false;
             }
-            if (selectedNodeId && preferred.has(nodeId)) {
-                return true;
-            }
-            if ((node.degree || 0) < reduction.minDegree) {
+            if ((node.degree || 0) < reduction.minDegree && nodeId !== selectedNodeId) {
                 return false;
             }
-            return !selectedNodeId || preferred.has(nodeId);
+            return true;
         });
 
         const ranked = filtered
-            .map((node) => ({ node, score: degreeScore(node) }))
-            .sort((a, b) => b.score - a.score || (b.node.degree || 0) - (a.node.degree || 0))
+            .map((node) => ({
+                node,
+                score: degreeScore(node),
+                priority: String(node.id) === selectedNodeId ? 2 : (preferred.has(String(node.id)) ? 1 : 0),
+            }))
+            .sort((a, b) => b.priority - a.priority || b.score - a.score || (b.node.degree || 0) - (a.node.degree || 0))
             .map((entry) => entry.node);
 
-        const rootNodes = ranked.filter((node) => String(node.type) === 'home' || String(node.type) === 'category' || String(node.type) === 'tag');
-        const contentNodes = ranked.filter((node) => !rootNodes.includes(node));
-        const topNodes = rootNodes.concat(contentNodes).slice(0, reduction.maxVisibleNodes);
+        const preferredNodes = ranked.filter((node) => preferred.has(String(node.id)));
+        const remainingNodes = ranked.filter((node) => !preferred.has(String(node.id)));
+        const rootNodes = remainingNodes.filter((node) => ['home', 'taxonomy', 'post_type', 'category', 'tag'].includes(String(node.type)));
+        const contentNodes = remainingNodes.filter((node) => !rootNodes.includes(node));
+        const topNodes = preferredNodes.concat(rootNodes, contentNodes).slice(0, reduction.maxVisibleNodes);
         const topNodeSet = new Set(topNodes.map((node) => String(node.id)));
-
-        if (selectedNodeId) {
-            const selectedNeighbors = new Set([selectedNodeId]);
-            (adjacency.get(selectedNodeId) || []).forEach((neighborId) => selectedNeighbors.add(String(neighborId)));
-            const expanded = nodes.filter((node) => selectedNeighbors.has(String(node.id)));
-            expanded.sort((a, b) => (b.degree || 0) - (a.degree || 0));
-            expanded.slice(0, reduction.maxVisibleNodes).forEach((node) => topNodeSet.add(String(node.id)));
-        }
 
         const visibleNodes = nodes.filter((node) => {
             const nodeId = String(node.id);
@@ -295,12 +182,8 @@
             && Number.isFinite(rect.left) && Number.isFinite(rect.top)
             && Number.isFinite(rect.width) && Number.isFinite(rect.height);
 
-        const container = activeCanvas && activeCanvas.parentElement ? activeCanvas.parentElement : null;
-        const scrollLeft = container && typeof container.scrollLeft === 'number' ? container.scrollLeft : 0;
-        const scrollTop = container && typeof container.scrollTop === 'number' ? container.scrollTop : 0;
-
-        const localX = hasViewportCoords ? (clientX - rect.left + scrollLeft) : (Number.isFinite(clientX) ? clientX : 0);
-        const localY = hasViewportCoords ? (clientY - rect.top + scrollTop) : (Number.isFinite(clientY) ? clientY : 0);
+        const localX = hasViewportCoords ? (clientX - rect.left) : (Number.isFinite(clientX) ? clientX : 0);
+        const localY = hasViewportCoords ? (clientY - rect.top) : (Number.isFinite(clientY) ? clientY : 0);
 
         let bestNode = null;
         let bestDistance = Number.POSITIVE_INFINITY;
@@ -372,9 +255,5 @@
         calculateVisibleGraph,
         getReductionProfile,
         resolveHitNode,
-        resolveRuntimeGraph,
-        readGraphFromStorage,
-        writeGraphToStorage,
-        getPreparedGraph,
     };
 })();

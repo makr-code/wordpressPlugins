@@ -160,6 +160,7 @@ const jsChecks = [
   { name: 'boot function', pattern: /function boot\s*\(/ },
   { name: 'goTo navigation', pattern: /function goTo\s*\(/ },
   { name: 'autoplay timer', pattern: /startTimer|stopTimer/ },
+  { name: 'manual autoplay pause control', pattern: /data-tfs-play-pause|manuallyPaused/ },
   { name: 'keyboard events', pattern: /ArrowLeft|ArrowRight/ },
   { name: 'touch/swipe events', pattern: /pointerdown|pointermove|pointerup/ },
   { name: 'ARIA management', pattern: /aria-hidden|aria-selected|tabindex/ }
@@ -184,6 +185,7 @@ const templateChecks = [
   { name: '.themisdb-fs-track', pattern: /class="themisdb-fs-track/ },
   { name: '.themisdb-fs-slide', pattern: /class="themisdb-fs-slide/ },
   { name: 'Navigation buttons', pattern: /themisdb-fs-prev|themisdb-fs-next/ },
+  { name: 'Autoplay pause button', pattern: /data-tfs-play-pause/ },
   { name: 'Dot pagination', pattern: /themisdb-fs-dots/ },
   { name: 'Timer bar', pattern: /themisdb-fs-timer-bar/ },
   { name: 'ARIA attributes', pattern: /role="|aria-/ }

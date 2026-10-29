@@ -2,7 +2,7 @@
 
 **WordPress Block Theme (Full Site Editing)** für ThemisDB — inspiriert von [postgresql.org](https://www.postgresql.org/) und [Microsoft Azure](https://azure.microsoft.com/de-de/).
 
-Version: **3.4.0** | Requires WordPress: **7.1+** | PHP: **7.4+**
+Version: **3.5.0** | Requires WordPress: **7.1+** | PHP: **7.4+**
 
 ---
 
@@ -16,10 +16,9 @@ Version: **3.4.0** | Requires WordPress: **7.1+** | PHP: **7.4+**
 6. [Template Parts](#template-parts)
 7. [Block Patterns](#block-patterns)
 8. [Design Tokens](#design-tokens)
-9. [jQuery & Animationen](#jquery--animationen)
-10. [Plugin-Kompatibilität](#plugin-kompatibilität)
-11. [Landingpage einrichten](#landingpage-einrichten)
-12. [Entwicklung](#entwicklung)
+9. [Plugin-Kompatibilität](#plugin-kompatibilität)
+10. [Landingpage einrichten](#landingpage-einrichten)
+11. [Entwicklung](#entwicklung)
 
 ---
 
@@ -57,6 +56,46 @@ Version: **3.4.0** | Requires WordPress: **7.1+** | PHP: **7.4+**
 - bessere Kontrastwerte für Buttons, Links, Formularfelder und Cards
 - reduzierter Motion-Fallback bei `prefers-reduced-motion`
 - weichere Schatten, klarere Card-Layouts und optische Einheiten für eine attraktivere Startseite und Inhaltsseiten
+
+### Einheitliche Seiten- und Beitragsgestaltung
+
+- Die Standard-Templates `page.html` und `single.html` nutzen denselben nativen
+  Template-Part `parts/content-header.html` mit Titel, Metadaten und optionalem
+  Beitragsbild und einem nativen Auszug. Er folgt der Hero-Slider-Komposition:
+  direkt unter dem Header, ueber die gesamte Breite, mit linksbuendigem Text und
+  optionalem Beitragsbild als abgedunkeltem Hintergrund. Ohne Bild bleibt der
+  Farbverlauf sichtbar; lange Titel und Auszuege vergroessern die Hoehe.
+- Beitraege nutzen Petrol, Seiten ein gedecktes Violett statt des Navy-Blaus der
+  Startseite. Beide bleiben statisch: keine Slider-Pfeile, kein Autoplay und
+  keine Abhaengigkeit vom Slider-Plugin. Die Farbvariablen
+  `--tv3-content-hero-start` / `--tv3-content-hero-end` sind gezielt anpassbar.
+- Wie die Startseite verwenden beide einen 1.200-px-Aussenrahmen. Fliesstext bleibt
+  in einer maximal 800 px breiten Lesespalte; Gutenberg-Bloecke mit `alignwide`
+  oder `alignfull` koennen die verfuegbare Inhaltsbreite nutzen.
+- Die Artikeloberflaechen folgen den vorhandenen `--tv3-*`-Tokens und damit dem
+  gewaehlten Farbschema; der Hero hat eigene kontrastreiche Farben. Der Artikel selbst ist keine zusaetzliche verschachtelte
+  Karte; gezielte Callouts, Medien und Plugin-Komponenten behalten ihre Gestaltung.
+- Breadcrumbs stehen einheitlich unter dem Inhaltskopf. Autoren, Qualitaet,
+  Medien, Schlagwoerter, Beitragsnavigation und Kommentare bleiben erhalten.
+  Dokumentations- und andere Spezial-Templates behalten ihre eigene Struktur.
+- Der gemeinsame Header bleibt einzeilig. Unter 1.200 px oeffnet die native
+  WordPress-Navigation ein Menue-Overlay statt die Produktlinks umzubrechen.
+  Die native Suchschaltflaeche klappt das Suchfeld ueber der Kopfzeile aus, ohne
+  deren Hoehe zu veraendern. Graph und Anmeldung bleiben erreichbar; lange
+  Seitennamen werden bei Platzmangel visuell gekuerzt.
+- Alles bleibt im Site Editor bearbeitbar. Gespeicherte benutzerdefinierte
+  Templates/Template-Parts haben wie in WordPress ueblich Vorrang vor Theme-Dateien.
+
+Layout-Pruefung gegen eine lokale WordPress-Installation (ohne Testdaten anzulegen):
+
+```powershell
+& C:\xampp\php\php.exe .\themisdb-pulse\tests\test-content-layout.php C:\xampp\htdocs\wordpress\wp-load.php
+node --test .\themisdb-pulse\tests\header-layout.test.cjs
+```
+
+Der Browser-Test verwendet das vorhandene Playwright im Repository und prueft
+Einzeiligkeit, Breakpoints sowie Oeffnen/Schliessen und Fokus von nativem Menue
+und Suche. Die Zielinstallation kann mit `WORDPRESS_URL` angepasst werden.
 
 ---
 
@@ -110,7 +149,7 @@ themisdb-pulse/
 │   ├── docs-grid.php            # 8 Docs/Ressourcen-Kacheln
 │   ├── query-showcase.php       # Code-Demo mit SQL/JSON/Python Tabs
 │   ├── pricing-section.php      # ⭐ NEU: Free vs Enterprise Pricing Cards
-│   ├── tabs-section.php         # ⭐ NEU: jQuery-Tabbed Feature-Showcase
+│   ├── tabs-section.php         # Feature-Showcase mit Gutenberg-Core-Tabs
 │   └── testimonial.php          # 3 Testimonial-Cards
 │
 └── assets/
@@ -161,12 +200,12 @@ Alle Patterns sind im **Site Editor → Patterns** und im **Block-Inserter** unt
 |---|---|---|
 | Hero – Home | `themisdb-v3/hero-home` | Startseiten-Hero |
 | Feature Cards | `themisdb-v3/feature-cards` | Features-Übersicht |
-| Stats Bar | `themisdb-v3/stats-bar` | Animierte Kennzahlen / Trust |
+| Stats Bar | `themisdb-v3/stats-bar` | Serverseitig berechnete Kennzahlen |
 | CTA – Download | `themisdb-v3/cta-download` | Download-Sektion |
 | Docs Grid | `themisdb-v3/docs-grid` | Ressourcen-Übersicht |
 | Query Showcase | `themisdb-v3/query-showcase` | Code-Demo Sektion |
 | **Pricing Section** | `themisdb-v3/pricing-section` | ⭐ NEU: Preisübersicht |
-| **Tabs Section** | `themisdb-v3/tabs-section` | ⭐ NEU: jQuery Tab-Panel |
+| **Tabs Section** | `themisdb-v3/tabs-section` | Gutenberg-Core-Tabs für Feature-Übersichten |
 | Testimonial | `themisdb-v3/testimonial` | Social Proof |
 
 ---
@@ -202,6 +241,10 @@ Navigation, Suche, Layout und Inhaltslisten verwenden Gutenberg-Core-Blöcke und
 `theme.json`, sofern keine spezielle ThemisDB-Funktion erforderlich ist.
 Zusätzliche Skripte werden nur für tatsächlich benötigte Theme- oder
 Plugin-Interaktionen geladen.
+
+Interne Theme-Links werden beim Rendern mit WordPress-APIs auf vorhandene
+Permalinks aufgelöst. Nicht zuordenbare Pfade verwenden weiterhin `home_url()`,
+damit Installationen in Unterverzeichnissen funktionieren.
 
 ## Plugin-Kompatibilität
 
@@ -288,9 +331,8 @@ Damit kann ein internes Ranking-System die Card-Flaeche direkt steuern, ohne Plu
 ## Entwicklung
 
 ### Anforderungen
-- WordPress 6.3+
+- WordPress 7.1+
 - PHP 7.4+
-- jQuery (von WordPress bereitgestellt – kein zusätzliches Setup nötig)
 - Node.js nicht erforderlich
 
 ### CSS-Anpassungen

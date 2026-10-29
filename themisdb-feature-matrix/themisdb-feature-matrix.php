@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Plugin for ThemisDB.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -19,7 +19,7 @@
 ║ ThemisDB - Hybrid Database System                                   ║
 ╠═════════════════════════════════════════════════════════════════════╣
   File:            themisdb-feature-matrix.php                        ║
-  Version:         1.0.1                                              ║
+  Version:         1.0.2                                              ║
   Last Modified:   2026-03-09 04:08:18                                ║
   Author:          makr-code                                            ║
 ╠═════════════════════════════════════════════════════════════════════╣
@@ -46,7 +46,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('THEMISDB_FM_VERSION', '1.0.1');
+define('THEMISDB_FM_VERSION', '1.0.2');
 define('THEMISDB_FM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_FM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('THEMISDB_FM_PLUGIN_FILE', __FILE__);
@@ -159,10 +159,15 @@ add_action('plugins_loaded', 'themisdb_matrix_init');
  * Enqueue assets
  */
 function themisdb_matrix_enqueue_assets() {
-    global $post;
-    
-    // Only load if shortcode is present
-    if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'themisdb_feature_matrix')) {
+    $post = get_queried_object();
+    if ( ! $post instanceof WP_Post ) {
+        return;
+    }
+
+    $has_shortcode = has_shortcode( $post->post_content, 'themisdb_feature_matrix' );
+    $has_matrix_markup = false !== strpos( $post->post_content, 'id="fm-matrix-table"' );
+
+    if ( ! $has_shortcode && ! $has_matrix_markup ) {
         return;
     }
     
@@ -295,5 +300,3 @@ function themisdb_matrix_get_color_scheme() {
     }
     return 'light';
 }
-
-

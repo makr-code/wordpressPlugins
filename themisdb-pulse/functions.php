@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'THEMISDB_PULSE_VERSION', '3.4.0' );
+define( 'THEMISDB_PULSE_VERSION', '3.5.0' );
 
 // Required plugin map: slug => main plugin file path.
 define(
@@ -350,7 +350,6 @@ add_action( 'add_meta_boxes', 'themisdb_v3_register_announcement_meta_box', 10, 
 add_action( 'save_post', 'themisdb_v3_save_announcement_meta_box', 10, 2 );
 add_action( 'save_post', 'themisdb_v3_sync_ai_coauthors_on_save', 20, 3 );
 add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue_plugin_base_styles', 5 );
-add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue_mobile_header_nav_fix', 99 );
 add_action( 'wp_enqueue_scripts', 'themisdb_v3_enqueue_icons_integration', 10 );
 add_action( 'wp_footer', 'themisdb_v3_inject_icon_helper_script', 99 );
 add_filter( 'style_loader_src', 'themisdb_v3_force_theme_style_cache_bust', 10, 2 );
@@ -4336,7 +4335,7 @@ function themisdb_v3_get_navigation_post_id_for_location( $location ) {
 
 add_filter( 'render_block', 'themisdb_v3_rewrite_root_relative_links', 20, 2 );
 /**
- * Rewrite root-relative links to proper site URLs for subdirectory installs.
+ * Resolve root-relative links to canonical WordPress URLs.
  *
  * @param string              $block_content Rendered block HTML.
  * @param array<string,mixed> $block         Parsed block.
@@ -4348,10 +4347,38 @@ function themisdb_v3_rewrite_root_relative_links( $block_content, $block ) {
     }
 
     return (string) preg_replace_callback(
-        '/href="\/(?!\/)([^"#]*)"/',
+        '/href="\/(?!\/)([^"]*)"/',
         static function ( $matches ) {
-            $path = isset( $matches[1] ) ? (string) $matches[1] : '';
-            $url  = '' === $path ? home_url( '/' ) : home_url( '/' . ltrim( $path, '/' ) );
+            static $resolved_urls = array();
+
+            $relative_url = '/' . ( isset( $matches[1] ) ? (string) $matches[1] : '' );
+            if ( isset( $resolved_urls[ $relative_url ] ) ) {
+                return 'href="' . esc_url( $resolved_urls[ $relative_url ] ) . '"';
+            }
+
+            $parts = wp_parse_url( $relative_url );
+            $path  = isset( $parts['path'] ) ? $parts['path'] : '/';
+            $url   = home_url( $path );
+
+            if ( '/' !== $path ) {
+                $post_id = url_to_postid( $url );
+                if ( ! $post_id ) {
+                    $page = get_page_by_path( trim( $path, '/' ), OBJECT, 'page' );
+                    $post_id = $page ? (int) $page->ID : 0;
+                }
+                if ( $post_id ) {
+                    $url = get_permalink( $post_id );
+                }
+            }
+
+            if ( ! empty( $parts['query'] ) ) {
+                $url .= '?' . $parts['query'];
+            }
+            if ( ! empty( $parts['fragment'] ) ) {
+                $url .= '#' . $parts['fragment'];
+            }
+
+            $resolved_urls[ $relative_url ] = $url;
             return 'href="' . esc_url( $url ) . '"';
         },
         $block_content
@@ -4477,46 +4504,6 @@ function themisdb_v3_enqueue_plugin_base_styles() {
         array(),
         (string) filemtime( $plugin_base_file )
     );
-}
-
-/**
- * Mobile-only hotfix: hide duplicated utility navigation row in header.
- *
- * This inline CSS is intentionally uncached per page response and protects
- * against stale theme stylesheet caches during iterative local development.
- */
-function themisdb_v3_enqueue_mobile_header_nav_fix() {
-    $css = '
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-open,
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container,
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-content,
-        .site-header .tv3-header-split-left .wp-block-navigation__responsive-container-close {
-            display: none !important;
-        }
-
-        .site-header .tv3-header-split-left .wp-block-navigation__container {
-            display: flex !important;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 0.35rem;
-        }
-
-        .site-header .tv3-header-split-left .wp-block-navigation-item__content {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.4rem 0.8rem;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.72);
-            border: 1px solid rgba(40, 77, 116, 0.12);
-            color: var(--tv3-navy);
-            font-weight: 700;
-        }
-    ';
-
-    wp_register_style( 'themisdb-v3-mobile-header-nav-fix', false, array(), THEMISDB_PULSE_VERSION );
-    wp_enqueue_style( 'themisdb-v3-mobile-header-nav-fix' );
-    wp_add_inline_style( 'themisdb-v3-mobile-header-nav-fix', $css );
 }
 
 function themisdb_v3_enqueue_live_search_overlay_styles() {

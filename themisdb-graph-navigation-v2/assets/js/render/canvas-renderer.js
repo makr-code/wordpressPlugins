@@ -20,12 +20,20 @@
         const colors = {
             related: { stroke: 'rgba(148, 163, 184, 0.82)', glow: 'rgba(148, 163, 184, 0.25)' },
             contains_type: { stroke: 'rgba(96, 165, 250, 0.9)', glow: 'rgba(96, 165, 250, 0.35)' },
+            contains_taxonomy: { stroke: 'rgba(244, 114, 182, 0.9)', glow: 'rgba(244, 114, 182, 0.35)' },
+            contains_menu: { stroke: 'rgba(167, 139, 250, 0.9)', glow: 'rgba(167, 139, 250, 0.32)' },
             has_item: { stroke: 'rgba(52, 211, 153, 0.9)', glow: 'rgba(52, 211, 153, 0.3)' },
             parent: { stroke: 'rgba(251, 191, 36, 0.9)', glow: 'rgba(251, 191, 36, 0.3)' },
+            parent_page: { stroke: 'rgba(251, 191, 36, 0.9)', glow: 'rgba(251, 191, 36, 0.3)' },
+            parent_term: { stroke: 'rgba(251, 191, 36, 0.9)', glow: 'rgba(251, 191, 36, 0.3)' },
+            parent_menu_item: { stroke: 'rgba(251, 191, 36, 0.9)', glow: 'rgba(251, 191, 36, 0.3)' },
             taxonomy: { stroke: 'rgba(244, 114, 182, 0.9)', glow: 'rgba(244, 114, 182, 0.28)' },
+            has_term: { stroke: 'rgba(244, 114, 182, 0.9)', glow: 'rgba(244, 114, 182, 0.28)' },
             category: { stroke: 'rgba(45, 212, 191, 0.9)', glow: 'rgba(45, 212, 191, 0.28)' },
             tag: { stroke: 'rgba(251, 146, 60, 0.9)', glow: 'rgba(251, 146, 60, 0.28)' },
             content: { stroke: 'rgba(59, 130, 246, 0.9)', glow: 'rgba(59, 130, 246, 0.28)' },
+            references: { stroke: 'rgba(96, 165, 250, 0.9)', glow: 'rgba(96, 165, 250, 0.35)' },
+            links_to: { stroke: 'rgba(167, 180, 252, 0.9)', glow: 'rgba(167, 180, 252, 0.3)' },
             has_link: { stroke: 'rgba(165, 180, 252, 0.9)', glow: 'rgba(165, 180, 252, 0.3)' },
             default: { stroke: 'rgba(167, 139, 250, 0.8)', glow: 'rgba(167, 139, 250, 0.2)' },
         };
@@ -51,6 +59,18 @@
     function createSceneGraph(graph, view, state) {
         const nodes = Array.isArray(graph && graph.nodes) ? graph.nodes : [];
         const links = Array.isArray(graph && graph.links) ? graph.links : [];
+        const selectedNodeId = state && state.selection ? String(state.selection.nodeId || '') : '';
+        const hoverNodeId = state && state.selection ? String(state.selection.hoverNodeId || '') : '';
+        const focusNodeIds = new Set([selectedNodeId, hoverNodeId].filter(Boolean));
+        const labelNodeIds = new Set(focusNodeIds);
+        links.forEach((link) => {
+            if (focusNodeIds.has(String(link.source))) {
+                labelNodeIds.add(String(link.target));
+            }
+            if (focusNodeIds.has(String(link.target))) {
+                labelNodeIds.add(String(link.source));
+            }
+        });
 
         const centerX = view.width / 2;
         const centerY = view.height / 2;
@@ -92,6 +112,9 @@
                 y: entry.y,
                 radius: Math.max(9, Number(node.size || 14)),
                 color: node.color || '#7c4dff',
+                showLabel: nodes.length <= 55
+                    || labelNodeIds.has(String(node.id))
+                    || ['home', 'taxonomy', 'post_type', 'menu'].includes(String(node.type || '')),
             };
         });
 
@@ -110,21 +133,20 @@
         const ratio = window.devicePixelRatio || 1;
         const selectedNodeId = state && state.selection ? state.selection.nodeId : null;
         const hoverNodeId = state && state.selection ? state.selection.hoverNodeId : null;
-        const panX = Number(state && state.viewport ? (state.viewport.panX || 0) : 0);
-        const panY = Number(state && state.viewport ? (state.viewport.panY || 0) : 0);
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width / ratio, canvas.height / ratio);
         ctx.fillStyle = 'rgba(15, 23, 42, 0.24)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, canvas.width / ratio, canvas.height / ratio);
 
         scene.groups.forEach((group) => {
             group.items.forEach((item) => {
                 if (item.type === 'edge') {
                     const style = item.style || edgeColorForType('related');
-                    const startX = (item.points[0].x - panX) * ratio;
-                    const startY = (item.points[0].y - panY) * ratio;
-                    const endX = (item.points[1].x - panX) * ratio;
-                    const endY = (item.points[1].y - panY) * ratio;
+                    const startX = item.points[0].x;
+                    const startY = item.points[0].y;
+                    const endX = item.points[1].x;
+                    const endY = item.points[1].y;
 
                     ctx.beginPath();
                     ctx.moveTo(startX, startY);
@@ -142,8 +164,8 @@
                 const isSelected = String(selectedNodeId || '') === String(node.id || '');
                 const isHovered = String(hoverNodeId || '') === String(node.id || '');
                 const radius = item.radius + (isSelected ? 4 : isHovered ? 3 : 0);
-                const centerX = (item.x - panX) * ratio;
-                const centerY = (item.y - panY) * ratio;
+                const centerX = item.x;
+                const centerY = item.y;
 
                 ctx.beginPath();
                 ctx.fillStyle = item.color;
@@ -161,11 +183,11 @@
                     ctx.stroke();
                 }
 
-                const showLabels = state && state.filters && state.filters.showLabels !== false;
+                const showLabels = item.showLabel && state && state.filters && state.filters.showLabels !== false;
                 if (showLabels) {
                     const label = truncateLabel(node.label || node.type || 'Node', 14);
-                    const textX = (item.x - panX) * ratio;
-                    const textY = ((item.y - panY) + item.radius + 20) * ratio;
+                    const textX = item.x;
+                    const textY = item.y + item.radius + 20;
                     const badgeColor = isSelected || isHovered ? 'rgba(15, 23, 42, 0.8)' : 'rgba(15, 23, 42, 0.7)';
                     ctx.font = '600 10px sans-serif';
                     const textMetrics = ctx.measureText(label);

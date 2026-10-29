@@ -7,6 +7,22 @@
         return Array.from(document.querySelectorAll('[data-graph-v2-canvas]'));
     }
 
+    function getContainerState(container) {
+        const baseState = window.ThemisDBGraphV2.state;
+        if (!container) {
+            return baseState;
+        }
+        if (!container.__themisdbGraphState) {
+            container.__themisdbGraphState = {
+                viewport: Object.assign({}, baseState.viewport, { zoom: 1, panX: 0, panY: 0 }),
+                selection: Object.assign({}, baseState.selection),
+                filters: Object.assign({}, baseState.filters),
+                layout: Object.assign({}, baseState.layout, { world: Object.assign({}, baseState.layout.world) }),
+            };
+        }
+        return container.__themisdbGraphState;
+    }
+
     function syncViewportToContainer(container, state) {
         if (!state || !state.viewport || !container) {
             return state;
@@ -15,9 +31,12 @@
         const rect = container.getBoundingClientRect ? container.getBoundingClientRect() : { width: 0, height: 0 };
         const width = Math.max(320, Math.floor(rect.width || state.viewport.width || 800));
         const height = Math.max(260, Math.floor(rect.height || state.viewport.height || 420));
+        const zoom = Math.max(0.35, Math.min(2.8, Number(state.viewport.zoom || 1)));
 
         state.viewport.width = width;
         state.viewport.height = height;
+        state.viewport.worldWidth = Math.max(width, Math.max(Math.floor(width * 2.2), Math.min(Math.floor(width + 600), 2000), 1600) * zoom);
+        state.viewport.worldHeight = Math.max(height, Math.max(Math.floor(height * 2.2), Math.min(Math.floor(height + 400), 1400), 1100) * zoom);
         return state;
     }
 
@@ -60,64 +79,137 @@
         return `${nodeIds}::${linkCount}`;
     }
 
-    function assignClusterTargets(nodes, state) {
-        const viewportWidth = Number(state && state.viewport ? state.viewport.width : 800) || 800;
-        const viewportHeight = Number(state && state.viewport ? state.viewport.height : 420) || 420;
+    function assignNetworkTargets(nodes, links, state, selectedNodeId) {
+        const viewportWidth = Number(state && state.viewport ? (state.viewport.worldWidth || state.viewport.width) : 800) || 800;
+        const viewportHeight = Number(state && state.viewport ? (state.viewport.worldHeight || state.viewport.height) : 420) || 420;
         const centerX = viewportWidth / 2;
         const centerY = viewportHeight / 2;
-
-        const clusterOrder = ['home', 'taxonomy', 'category', 'tag', 'page', 'post', 'generic', 'external_resource'];
-        const clusterBuckets = new Map();
-        nodes.forEach((node) => {
-            const type = String(node.type || 'generic');
-            const bucketKey = type === 'home'
-                ? 'home'
-                : (type === 'category' || type === 'tag' || type === 'taxonomy_term')
-                    ? 'taxonomy'
-                    : (type === 'page' || type === 'post')
-                        ? type
-                        : 'generic';
-            if (!clusterBuckets.has(bucketKey)) {
-                clusterBuckets.set(bucketKey, []);
+        const nodeById = new Map(nodes.map((node) => [String(node.id), node]));
+        const adjacency = new Map(nodes.map((node) => [String(node.id), []]));
+        (Array.isArray(links) ? links : []).forEach((link) => {
+            const source = String(link.source);
+            const target = String(link.target);
+            if (adjacency.has(source) && adjacency.has(target)) {
+                adjacency.get(source).push(target);
+                adjacency.get(target).push(source);
             }
-            clusterBuckets.get(bucketKey).push(node);
         });
 
-        const orderedBuckets = clusterOrder
-            .map((key) => ({ key, nodes: clusterBuckets.get(key) || [] }))
-            .filter((entry) => entry.nodes.length > 0);
+        const anchorId = nodeById.has(String(selectedNodeId)) ? String(selectedNodeId) : (nodes[0] ? String(nodes[0].id) : null);
+        const depthById = new Map();
+        const parentById = new Map();
+        const queue = anchorId ? [anchorId] : [];
+        if (anchorId) {
+            depthById.set(anchorId, 0);
+        }
 
-        const homeNodes = clusterBuckets.get('home') || [];
-        homeNodes.forEach((node, index) => {
-            node.tx = centerX + Math.cos(index * 1.2) * 12;
-            node.ty = centerY + Math.sin(index * 1.2) * 12;
+        for (let cursor = 0; cursor < queue.length; cursor += 1) {
+            const currentId = queue[cursor];
+            const neighbors = adjacency.get(currentId) || [];
+            neighbors.forEach((neighborId) => {
+                if (!depthById.has(neighborId)) {
+                    depthById.set(neighborId, depthById.get(currentId) + 1);
+                    parentById.set(neighborId, currentId);
+                    queue.push(neighborId);
+                }
+            });
+        }
+
+        const maxRadius = Math.max(220, Math.min(viewportWidth, viewportHeight) * 0.46);
+        const maxDepth = Math.max(1, ...depthById.values());
+        const ringSpacing = Math.min(150, maxRadius / Math.min(4, maxDepth));
+        const levels = new Map();
+        nodes.forEach((node) => {
+            const id = String(node.id);
+            if (!depthById.has(id)) {
+                depthById.set(id, 1);
+            }
+            const depth = depthById.get(id);
+            if (!levels.has(depth)) {
+                levels.set(depth, []);
+            }
+            levels.get(depth).push(node);
         });
 
-        const taxonomyOrbit = Math.min(viewportWidth, viewportHeight) * 0.24;
-        const contentOrbit = Math.min(viewportWidth, viewportHeight) * 0.42;
-
-        orderedBuckets.forEach((bucket) => {
-            if (bucket.key === 'home') {
+        const angleById = new Map();
+        angleById.set(anchorId, -Math.PI / 2);
+        Array.from(levels.keys()).sort((a, b) => a - b).forEach((depth) => {
+            const levelNodes = levels.get(depth);
+            levelNodes.sort((a, b) => {
+                const parentA = parentById.get(String(a.id)) || '';
+                const parentB = parentById.get(String(b.id)) || '';
+                return parentA.localeCompare(parentB) || String(a.id).localeCompare(String(b.id));
+            });
+            if (depth === 0) {
+                levelNodes.forEach((node) => angleById.set(String(node.id), -Math.PI / 2));
                 return;
             }
 
-            const orbitRadius = bucket.key === 'taxonomy' ? taxonomyOrbit : contentOrbit;
-            const group = bucket.nodes;
-            const startAngle = bucket.key === 'taxonomy' ? Math.PI * 0.25 : Math.PI * 0.9;
-            const angleStep = (Math.PI * 2) / Math.max(1, group.length);
-
-            group.forEach((node, index) => {
-                const localAngle = startAngle + (index * angleStep);
-                const radialOffset = 18 + ((index % 5) * 10);
-                node.tx = centerX + Math.cos(localAngle) * (orbitRadius + radialOffset);
-                node.ty = centerY + Math.sin(localAngle) * (orbitRadius * 0.72 + radialOffset * 0.5);
-            });
+            const baseRadius = Math.min(maxRadius, 88 + (depth - 1) * ringSpacing);
+            const minimumDistance = nodes.length > 100 ? 48 : 64;
+            let cursor = 0;
+            let ringIndex = 0;
+            while (cursor < levelNodes.length) {
+                const radius = Math.min(maxRadius, baseRadius + (ringIndex * minimumDistance * 1.25));
+                const capacity = Math.max(8, Math.floor((Math.PI * 2 * radius) / minimumDistance));
+                const nodesInRing = Math.min(capacity, levelNodes.length - cursor);
+                for (let index = 0; index < nodesInRing; index += 1) {
+                    const node = levelNodes[cursor + index];
+                    const angle = -Math.PI / 2 + ((index + 0.5) / nodesInRing) * Math.PI * 2;
+                    angleById.set(String(node.id), angle);
+                    node.tx = centerX + Math.cos(angle) * radius;
+                    node.ty = centerY + Math.sin(angle) * radius;
+                }
+                cursor += nodesInRing;
+                ringIndex += 1;
+            }
         });
 
-        const floatingNodes = nodes.filter((node) => !node.tx && !node.ty);
-        floatingNodes.forEach((node, index) => {
-            node.tx = centerX + Math.cos(index * 0.7) * contentOrbit;
-            node.ty = centerY + Math.sin(index * 0.7) * contentOrbit * 0.8;
+        nodes.forEach((node) => {
+            const id = String(node.id);
+            const depth = depthById.get(id) || 0;
+            if (depth === 0) {
+                node.tx = centerX;
+                node.ty = centerY;
+            } else if (!Number.isFinite(node.tx) || !Number.isFinite(node.ty)) {
+                const angle = angleById.get(id) ?? -Math.PI / 2;
+                const radius = Math.min(maxRadius, 88 + (depth - 1) * ringSpacing);
+                node.tx = centerX + Math.cos(angle) * radius;
+                node.ty = centerY + Math.sin(angle) * radius;
+            }
+        });
+
+        const targetPositions = nodes.map((node) => ({ x: node.tx, y: node.ty }));
+        const minimumDistance = nodes.length > 100 ? 48 : 64;
+        for (let iteration = 0; iteration < 36; iteration += 1) {
+            const forces = nodes.map(() => ({ x: 0, y: 0 }));
+            for (let i = 0; i < nodes.length; i += 1) {
+                for (let j = i + 1; j < nodes.length; j += 1) {
+                    const dx = nodes[j].tx - nodes[i].tx;
+                    const dy = nodes[j].ty - nodes[i].ty;
+                    const distance = Math.max(1, Math.hypot(dx, dy));
+                    if (distance < minimumDistance) {
+                        const force = (minimumDistance - distance) * 0.075 / distance;
+                        forces[i].x -= dx * force;
+                        forces[i].y -= dy * force;
+                        forces[j].x += dx * force;
+                        forces[j].y += dy * force;
+                    }
+                }
+            }
+            nodes.forEach((node, index) => {
+                if (String(node.id) === anchorId) {
+                    return;
+                }
+                const radialForce = 0.08;
+                node.tx += forces[index].x + ((targetPositions[index].x - node.tx) * radialForce);
+                node.ty += forces[index].y + ((targetPositions[index].y - node.ty) * radialForce);
+            });
+        }
+
+        nodes.forEach((node) => {
+            node.tx = Math.max(24, Math.min(viewportWidth - 24, node.tx));
+            node.ty = Math.max(24, Math.min(viewportHeight - 24, node.ty));
         });
     }
 
@@ -132,29 +224,58 @@
             });
         }
 
+        const previousPositions = new Map(previousById);
+        const positionsById = new Map();
+        previousPositions.forEach((node, id) => {
+            if (Number.isFinite(node.x) && Number.isFinite(node.y)) {
+                positionsById.set(id, { x: node.x, y: node.y });
+            }
+        });
+        const anchor = nodes.find((node) => String(node.id) === String(state.selection.nodeId))
+            || nodes.find((node) => String(node.type) === 'home')
+            || nodes[0];
+        const centerX = Number(state.viewport.worldWidth || state.viewport.width) / 2;
+        const centerY = Number(state.viewport.worldHeight || state.viewport.height) / 2;
+        const neighborMap = new Map(nodes.map((node) => [String(node.id), []]));
+        links.forEach((link) => {
+            const source = String(link.source);
+            const target = String(link.target);
+            if (neighborMap.has(source) && neighborMap.has(target)) {
+                neighborMap.get(source).push(target);
+                neighborMap.get(target).push(source);
+            }
+        });
+
         const animatedNodes = nodes.map((node) => {
             const prev = previousById.get(String(node.id));
-            const x = prev && Number.isFinite(prev.x) ? prev.x : Number(node.x || 0);
-            const y = prev && Number.isFinite(prev.y) ? prev.y : Number(node.y || 0);
+            let x = prev && Number.isFinite(prev.x) ? prev.x : Number(node.tx);
+            let y = prev && Number.isFinite(prev.y) ? prev.y : Number(node.ty);
+            if (!prev) {
+                const neighborPositions = (neighborMap.get(String(node.id)) || [])
+                    .map((id) => positionsById.get(id))
+                    .filter(Boolean);
+                if (neighborPositions.length) {
+                    x = neighborPositions.reduce((sum, position) => sum + position.x, 0) / neighborPositions.length;
+                    y = neighborPositions.reduce((sum, position) => sum + position.y, 0) / neighborPositions.length;
+                } else {
+                    x = (Number(node.tx) + centerX) / 2;
+                    y = (Number(node.ty) + centerY) / 2;
+                }
+            }
 
             return Object.assign({}, node, {
                 x,
                 y,
-                tx: Number(node.x || x),
-                ty: Number(node.y || y),
-                vx: prev && Number.isFinite(prev.vx) ? prev.vx : ((Math.random() - 0.5) * 0.8),
-                vy: prev && Number.isFinite(prev.vy) ? prev.vy : ((Math.random() - 0.5) * 0.8),
+                tx: Number(node.tx),
+                ty: Number(node.ty),
+                vx: prev && Number.isFinite(prev.vx) ? prev.vx : 0,
+                vy: prev && Number.isFinite(prev.vy) ? prev.vy : 0,
             });
         });
-
-        assignClusterTargets(animatedNodes, state);
 
         return {
             nodes: animatedNodes,
             links: links.map((link) => Object.assign({}, link)),
-            alpha: previous && Number.isFinite(previous.alpha) ? previous.alpha : 0.9,
-            alphaTarget: 0.08,
-            cooling: 0.985,
         };
     }
 
@@ -164,37 +285,31 @@
         }
 
         const nodes = simulation.nodes;
-        const effectiveDt = Math.max(0.6, Math.min(1.8, dt / 16.67));
-        const viewportWidth = Number(state && state.viewport ? state.viewport.width : 800) || 800;
-        const viewportHeight = Number(state && state.viewport ? state.viewport.height : 420) || 420;
-        const centerX = viewportWidth / 2;
-        const centerY = viewportHeight / 2;
+        const elapsed = Math.max(8, Math.min(40, dt)) / 1000;
+        const viewportWidth = Number(state && state.viewport ? (state.viewport.worldWidth || state.viewport.width) : 800) || 800;
+        const viewportHeight = Number(state && state.viewport ? (state.viewport.worldHeight || state.viewport.height) : 420) || 420;
+        const spring = 24;
+        const damping = Math.exp(-9 * elapsed);
+        let moving = false;
 
         nodes.forEach((node) => {
-            const targetX = Number.isFinite(Number(node.tx)) ? Number(node.tx) : Number(node.x || centerX);
-            const targetY = Number.isFinite(Number(node.ty)) ? Number(node.ty) : Number(node.y || centerY);
-            const currentX = Number(node.x || targetX);
-            const currentY = Number(node.y || targetY);
-            const easing = 0.14 * effectiveDt;
-            const dx = targetX - currentX;
-            const dy = targetY - currentY;
+            const dx = Number(node.tx) - Number(node.x);
+            const dy = Number(node.ty) - Number(node.y);
+            node.vx = (Number(node.vx || 0) + (dx * spring * elapsed)) * damping;
+            node.vy = (Number(node.vy || 0) + (dy * spring * elapsed)) * damping;
+            node.x += node.vx * elapsed;
+            node.y += node.vy * elapsed;
 
-            node.vx = (Number(node.vx || 0) * 0.72) + (dx * easing);
-            node.vy = (Number(node.vy || 0) * 0.72) + (dy * easing);
-
-            node.x = currentX + node.vx;
-            node.y = currentY + node.vy;
-
-            const padding = 20;
-            if (node.x < padding || node.x > viewportWidth - padding) {
-                node.vx *= -0.45;
-                node.x = Math.min(Math.max(node.x, padding), viewportWidth - padding);
-            }
-            if (node.y < padding || node.y > viewportHeight - padding) {
-                node.vy *= -0.45;
-                node.y = Math.min(Math.max(node.y, padding), viewportHeight - padding);
+            if (Math.abs(dx) > 0.6 || Math.abs(dy) > 0.6 || Math.abs(node.vx) > 3 || Math.abs(node.vy) > 3) {
+                moving = true;
+            } else {
+                node.x = Number(node.tx);
+                node.y = Number(node.ty);
+                node.vx = 0;
+                node.vy = 0;
             }
         });
+        return moving && viewportWidth > 0 && viewportHeight > 0;
     }
 
     function stopGraphAnimation(container) {
@@ -207,6 +322,7 @@
             cancelAnimationFrame(running.frameId);
         }
         running.running = false;
+        running.frameId = 0;
     }
 
     function startGraphAnimation(container, rawGraph, state, forceRebuild) {
@@ -220,15 +336,17 @@
         const signature = computeGraphSignature(baseGraph);
         const existing = graphAnimations.get(container);
         const needsRebuild = forceRebuild || !existing || existing.signature !== signature;
+        if (needsRebuild && existing && existing.frameId) {
+            cancelAnimationFrame(existing.frameId);
+            existing.running = false;
+        }
         const simulation = needsRebuild
             ? buildAnimatedGraph(baseGraph, existing, state)
             : existing;
 
-        assignClusterTargets(simulation.nodes, state);
         simulation.signature = signature;
         simulation.running = true;
         simulation.lastFrameTime = performance.now();
-        simulation.alpha = forceRebuild ? 0.85 : Math.max(0.2, Number(simulation.alpha || 0.6));
         graphAnimations.set(container, simulation);
 
         if (!needsRebuild && existing && existing.frameId) {
@@ -243,9 +361,14 @@
 
             const dt = Math.max(8, Math.min(40, timestamp - (current.lastFrameTime || timestamp)));
             current.lastFrameTime = timestamp;
-            stepAnimatedGraph(current, state, dt);
+            const stillMoving = stepAnimatedGraph(current, state, dt);
             renderGraph(container, { nodes: current.nodes, links: current.links }, state);
-            current.frameId = requestAnimationFrame(tick);
+            if (stillMoving) {
+                current.frameId = requestAnimationFrame(tick);
+            } else {
+                current.frameId = 0;
+                current.running = false;
+            }
         };
 
         simulation.frameId = requestAnimationFrame(tick);
@@ -261,67 +384,6 @@
         }
 
         return shell.id;
-    }
-
-    function pruneDuplicateGraphInstances() {
-        const shellMap = new Map();
-        document.querySelectorAll('[data-graph-v2-shell]').forEach((shell) => {
-            const key = getShellId(shell) || shell.getAttribute('data-graph-v2-target') || shell.getAttribute('id') || `shell-${Math.random().toString(36).slice(2, 10)}`;
-            const current = shellMap.get(key);
-            if (!current) {
-                shellMap.set(key, shell);
-                return;
-            }
-
-            const shouldKeep = current.getAttribute('data-graph-v2-expanded') === '1' || (!current.dataset || current.dataset.graphV2Expanded !== '1');
-            const candidateKeeps = shell.getAttribute('data-graph-v2-expanded') === '1';
-            if (candidateKeeps && !shouldKeep) {
-                current.remove();
-                shellMap.set(key, shell);
-                return;
-            }
-
-            if (!candidateKeeps && shouldKeep) {
-                shell.remove();
-                return;
-            }
-
-            if (current.getBoundingClientRect && shell.getBoundingClientRect) {
-                const currentRect = current.getBoundingClientRect();
-                const shellRect = shell.getBoundingClientRect();
-                if (shellRect.width * shellRect.height > currentRect.width * currentRect.height) {
-                    current.remove();
-                    shellMap.set(key, shell);
-                    return;
-                }
-            }
-
-            shell.remove();
-        });
-
-        const toggleMap = new Map();
-        document.querySelectorAll('[data-graph-v2-toggle]').forEach((toggle) => {
-            const target = (toggle.dataset.graphV2Target || toggle.getAttribute('aria-controls') || '').trim();
-            const key = target || toggle.className || `toggle-${Math.random().toString(36).slice(2, 10)}`;
-            const current = toggleMap.get(key);
-            if (!current) {
-                toggleMap.set(key, toggle);
-                return;
-            }
-
-            if (toggle.classList.contains('themisdb-graph-v2-toggle--compact') && !current.classList.contains('themisdb-graph-v2-toggle--compact')) {
-                current.remove();
-                toggleMap.set(key, toggle);
-                return;
-            }
-
-            if (!toggle.classList.contains('themisdb-graph-v2-toggle--compact') && current.classList.contains('themisdb-graph-v2-toggle--compact')) {
-                toggle.remove();
-                return;
-            }
-
-            toggle.remove();
-        });
     }
 
     function getLinkedToggles(shell) {
@@ -362,7 +424,7 @@
         }
 
         const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 900;
-        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
+        const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 1280;
         const safeGap = 12;
         const maxWidth = Math.min(820, Math.max(260, viewportWidth - (safeGap * 2)));
         const maxHeight = Math.min(560, Math.max(260, viewportHeight - (safeGap * 2)));
@@ -372,7 +434,6 @@
         shell.style.setProperty('left', 'auto', 'important');
         shell.style.setProperty('right', safeGap + 'px', 'important');
         shell.style.setProperty('bottom', safeGap + 'px', 'important');
-        shell.style.setProperty('inset', 'auto', 'important');
         shell.style.setProperty('margin', '0', 'important');
         shell.style.setProperty('transform', 'none', 'important');
         shell.style.setProperty('max-width', 'calc(100vw - ' + (safeGap * 2) + 'px)', 'important');
@@ -386,7 +447,6 @@
             canvas.style.setProperty('max-height', '100%', 'important');
             canvas.style.setProperty('overflow', 'auto', 'important');
             canvas.style.setProperty('width', '100%', 'important');
-            canvas.style.setProperty('height', '100%', 'important');
         }
     }
 
@@ -444,7 +504,7 @@
         shell.style.setProperty('visibility', 'visible', 'important');
         shell.style.setProperty('opacity', '1', 'important');
         shell.style.setProperty('z-index', '2147483647', 'important');
-        shell.style.setProperty('display', shouldOpen ? 'block' : 'none', 'important');
+        shell.style.setProperty('display', shouldOpen ? 'flex' : 'none', 'important');
 
         if (canvas) {
             canvas.hidden = !shouldOpen;
@@ -452,8 +512,8 @@
 
         requestAnimationFrame(() => {
             clampGraphShellToViewport(shell);
-            if (shouldOpen && canvas && window.ThemisDBGraphV2 && window.ThemisDBGraphV2.state) {
-                centerGraphViewport(canvas, window.ThemisDBGraphV2.state);
+            if (shouldOpen && canvas) {
+                centerGraphViewport(canvas, getContainerState(canvas));
             }
         });
     }
@@ -494,12 +554,22 @@
         }
 
         const visibleGraph = graphData && Array.isArray(graphData.nodes) ? graphData : { nodes: [], links: [] };
-        const totalNodes = Number((graphData && graphData.stats && graphData.stats.totalNodes) || visibleGraph.nodes.length || 0);
-        const totalLinks = Number((graphData && graphData.stats && graphData.stats.totalLinks) || (graphData && graphData.links ? graphData.links.length : 0) || 0);
+        const completeGraph = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : visibleGraph;
+        const totalNodes = Number((graphData && graphData.stats && graphData.stats.totalNodes)
+            || (completeGraph.stats && completeGraph.stats.nodeCount)
+            || visibleGraph.nodes.length
+            || 0);
+        const totalLinks = Number((graphData && graphData.stats && graphData.stats.totalLinks)
+            || (completeGraph.stats && completeGraph.stats.linkCount)
+            || (completeGraph.links ? completeGraph.links.length : 0)
+            || 0);
         const visibleNodes = Array.isArray(visibleGraph.nodes) ? visibleGraph.nodes.length : 0;
         const visibleLinks = Array.isArray(visibleGraph.links) ? visibleGraph.links.length : 0;
         const reduction = graphData && graphData.stats && graphData.stats.reduction ? graphData.stats.reduction : null;
-        const modeLabel = reduction && reduction.active ? ('Reduced: ' + (reduction.strategy || 'dynamic')) : 'Full view';
+        const isFocused = visibleNodes < totalNodes;
+        const modeLabel = reduction && reduction.active
+            ? ('Reduced: ' + (reduction.strategy || 'dynamic'))
+            : (isFocused ? 'Focused view' : 'Full view');
 
         overlay.innerHTML = [
             '<span class="themisdb-graph-v2-stats__item"><strong>' + visibleNodes + '</strong> / ' + totalNodes + ' nodes</span>',
@@ -531,6 +601,7 @@
             '  <h3 class="themisdb-graph-v2-node-panel__title">Node</h3>',
             '  <div class="themisdb-graph-v2-node-panel__meta"></div>',
             '  <div class="themisdb-graph-v2-node-panel__actions"></div>',
+            '  <div class="themisdb-graph-v2-node-panel__related"></div>',
             '</div>'
         ].join('');
 
@@ -540,7 +611,7 @@
                 panel.hidden = true;
                 const canvas = shell.querySelector('[data-graph-v2-canvas]');
                 if (canvas) {
-                    const state = window.ThemisDBGraphV2.state;
+                    const state = getContainerState(canvas);
                     state.selection.nodeId = null;
                     state.selection.hoverNodeId = null;
                     startGraphAnimation(canvas, window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] }, state, true);
@@ -552,7 +623,133 @@
         return panel;
     }
 
-    function updateNodeInfoPanel(shell, node) {
+    function ensureGraphNavigationTools(shell, container, graphData, state) {
+        if (!shell || !container) {
+            return null;
+        }
+
+        const labels = (window.themisdbGraphV2 && window.themisdbGraphV2.labels) || {};
+        let toolbar = shell.querySelector('.themisdb-graph-v2-navigation');
+        if (!toolbar) {
+            toolbar = document.createElement('div');
+            toolbar.className = 'themisdb-graph-v2-navigation';
+            toolbar.innerHTML = [
+                '<label class="screen-reader-text" for="' + escapeHtml(getShellId(shell)) + '-search">' + escapeHtml(labels.search || 'Search graph') + '</label>',
+                '<input id="' + escapeHtml(getShellId(shell)) + '-search" type="search" data-graph-v2-search autocomplete="off" placeholder="' + escapeHtml(labels.searchPlaceholder || 'Search nodes…') + '" />',
+                '<div class="themisdb-graph-v2-navigation__actions">',
+                '  <button type="button" data-graph-v2-back aria-label="' + escapeHtml(labels.back || 'Previous selection') + '" title="' + escapeHtml(labels.back || 'Previous selection') + '" disabled>‹</button>',
+                '  <button type="button" data-graph-v2-forward aria-label="' + escapeHtml(labels.forward || 'Next selection') + '" title="' + escapeHtml(labels.forward || 'Next selection') + '" disabled>›</button>',
+                '</div>',
+                '<div class="themisdb-graph-v2-search-results" data-graph-v2-search-results role="listbox" hidden></div>',
+                '<span class="screen-reader-text" data-graph-v2-search-status aria-live="polite"></span>',
+            ].join('');
+            const canvas = shell.querySelector('[data-graph-v2-canvas]');
+            shell.insertBefore(toolbar, canvas || null);
+        }
+
+        const search = toolbar.querySelector('[data-graph-v2-search]');
+        const results = toolbar.querySelector('[data-graph-v2-search-results]');
+        const status = toolbar.querySelector('[data-graph-v2-search-status]');
+        const back = toolbar.querySelector('[data-graph-v2-back]');
+        const forward = toolbar.querySelector('[data-graph-v2-forward]');
+        const history = container.__themisdbGraphNavigation || { entries: [], index: -1 };
+        if (history.entries.length === 0 && state.selection.nodeId) {
+            history.entries.push(String(state.selection.nodeId));
+            history.index = 0;
+        }
+
+        const updateHistoryButtons = () => {
+            if (back) {
+                back.disabled = history.index <= 0;
+            }
+            if (forward) {
+                forward.disabled = history.index < 0 || history.index >= history.entries.length - 1;
+            }
+        };
+
+        const selectNode = (nodeId, recordHistory = true) => {
+            const node = (graphData.nodes || []).find((candidate) => String(candidate.id) === String(nodeId));
+            if (!node) {
+                return;
+            }
+
+            if (recordHistory && String(history.entries[history.index] || '') !== String(node.id)) {
+                history.entries = history.entries.slice(0, history.index + 1);
+                history.entries.push(String(node.id));
+                history.index = history.entries.length - 1;
+            }
+            container.__themisdbGraphNavigation = history;
+            updateHistoryButtons();
+            state.selection.nodeId = String(node.id);
+            state.selection.hoverNodeId = String(node.id);
+            updateNodeInfoPanel(shell, node, graphData, selectNode);
+            centerGraphViewport(container, state);
+            startGraphAnimation(container, graphData, state, true);
+        };
+
+        if (search && !search.dataset.bound) {
+            search.addEventListener('input', () => {
+                const query = search.value.trim().toLocaleLowerCase();
+                results.replaceChildren();
+                if (!query) {
+                    results.hidden = true;
+                    status.textContent = '';
+                    return;
+                }
+
+                const matches = (graphData.nodes || [])
+                    .filter((node) => String(node.label || '').toLocaleLowerCase().includes(query)
+                        || String(node.type || '').toLocaleLowerCase().includes(query))
+                    .filter((node) => state.filters.showExternal || String(node.type) !== 'external_resource')
+                    .slice(0, 10);
+                matches.forEach((node) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'themisdb-graph-v2-search-result';
+                    button.setAttribute('role', 'option');
+                    button.textContent = node.label + ' · ' + String(node.type || 'node').replace(/_/g, ' ');
+                    button.addEventListener('click', () => {
+                        selectNode(node.id);
+                        results.hidden = true;
+                        search.value = node.label || '';
+                        status.textContent = (labels.selected || 'Selected') + ': ' + (node.label || '');
+                    });
+                    results.appendChild(button);
+                });
+                results.hidden = matches.length === 0;
+                status.textContent = matches.length
+                    ? (labels.results || 'Search results') + ': ' + matches.length
+                    : (labels.noResults || 'No matching nodes');
+            });
+            search.dataset.bound = 'true';
+        }
+
+        if (back && !back.dataset.bound) {
+            back.addEventListener('click', () => {
+                if (history.index > 0) {
+                    history.index -= 1;
+                    selectNode(history.entries[history.index], false);
+                }
+            });
+            back.dataset.bound = 'true';
+        }
+        if (forward && !forward.dataset.bound) {
+            forward.addEventListener('click', () => {
+                if (history.index < history.entries.length - 1) {
+                    history.index += 1;
+                    selectNode(history.entries[history.index], false);
+                }
+            });
+            forward.dataset.bound = 'true';
+        }
+
+        container.__themisdbGraphNavigation = history;
+        container.__themisdbGraphNavigation.select = selectNode;
+        updateHistoryButtons();
+        return container.__themisdbGraphNavigation;
+    }
+
+    function updateNodeInfoPanel(shell, node, graphData, selectNode) {
         const panel = ensureNodeInfoPanel(shell);
         if (!panel) {
             return;
@@ -566,7 +763,8 @@
         const titleEl = panel.querySelector('.themisdb-graph-v2-node-panel__title');
         const metaEl = panel.querySelector('.themisdb-graph-v2-node-panel__meta');
         const actionsEl = panel.querySelector('.themisdb-graph-v2-node-panel__actions');
-        if (!titleEl || !metaEl || !actionsEl) {
+        const relatedEl = panel.querySelector('.themisdb-graph-v2-node-panel__related');
+        if (!titleEl || !metaEl || !actionsEl || !relatedEl) {
             return;
         }
 
@@ -574,7 +772,7 @@
         const type = String(node.type || 'node').replace(/_/g, ' ');
         const degree = Number(node.degree || 0);
         const url = node.url || '';
-        const description = node.metadata && typeof node.metadata === 'object' && node.metadata.description ? node.metadata.description : (node.description || 'Related WordPress content item');
+        const description = node.metadata && typeof node.metadata === 'object' && node.metadata.excerpt ? node.metadata.excerpt : '';
 
         titleEl.textContent = label;
         metaEl.innerHTML = [
@@ -582,12 +780,33 @@
             '  <div><dt>Type</dt><dd>' + escapeHtml(type) + '</dd></div>',
             '  <div><dt>Degree</dt><dd>' + escapeHtml(String(degree)) + '</dd></div>',
             '  <div><dt>URL</dt><dd>' + (url ? '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Open page</a>' : 'No direct URL') + '</dd></div>',
+            description ? '  <div class="themisdb-graph-v2-node-panel__description"><dt>About</dt><dd>' + escapeHtml(description) + '</dd></div>' : '',
             '</dl>'
         ].join('');
 
         actionsEl.innerHTML = url
             ? '<a class="themisdb-graph-v2-node-panel__button" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Open node</a>'
             : '<span class="themisdb-graph-v2-node-panel__button is-disabled">No direct link</span>';
+
+        const nodeMap = new Map((graphData && graphData.nodes || []).map((candidate) => [String(candidate.id), candidate]));
+        const neighbors = (node.neighbors || [])
+            .map((nodeId) => nodeMap.get(String(nodeId)))
+            .filter(Boolean)
+            .slice(0, 8);
+        relatedEl.replaceChildren();
+        if (neighbors.length) {
+            const heading = document.createElement('h4');
+            heading.textContent = 'Connected nodes';
+            relatedEl.appendChild(heading);
+            neighbors.forEach((neighbor) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'themisdb-graph-v2-node-panel__related-link';
+                button.textContent = neighbor.label + ' · ' + String(neighbor.type || 'node').replace(/_/g, ' ');
+                button.addEventListener('click', () => selectNode && selectNode(neighbor.id));
+                relatedEl.appendChild(button);
+            });
+        }
 
         panel.hidden = false;
     }
@@ -608,7 +827,7 @@
 
         let canvas = container.querySelector('canvas');
         if (!canvas && window.ThemisDBGraphV2.GraphView && window.ThemisDBGraphV2.GraphView.ensureCanvas) {
-            canvas = window.ThemisDBGraphV2.GraphView.ensureCanvas(container);
+            canvas = window.ThemisDBGraphV2.GraphView.ensureCanvas(container, getContainerState(container));
         }
 
         return canvas || container.querySelector('canvas');
@@ -679,7 +898,7 @@
                 renderContainer.style.pointerEvents = 'auto';
             }
 
-            const state = window.ThemisDBGraphV2.state;
+            const state = getContainerState(renderContainer);
             const graphData = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] };
             state.viewport.width = Math.max(320, renderContainer.clientWidth || renderContainer.getBoundingClientRect().width || 720);
             state.viewport.height = Math.max(320, renderContainer.clientHeight || renderContainer.getBoundingClientRect().height || 420);
@@ -702,6 +921,12 @@
     }
 
     function normalizeGraphOverlayPlacement() {
+        document.querySelectorAll('[data-graph-v2-shell]').forEach((shell) => {
+            if (shell.parentElement !== document.body) {
+                document.body.appendChild(shell);
+            }
+        });
+
         document.querySelectorAll('.themisdb-graph-v2-overlay').forEach((overlay) => {
             overlay.style.setProperty('position', 'static', 'important');
             overlay.style.setProperty('top', 'auto', 'important');
@@ -721,7 +946,6 @@
             shell.style.setProperty('left', 'auto', 'important');
             shell.style.setProperty('right', '12px', 'important');
             shell.style.setProperty('bottom', '12px', 'important');
-            shell.style.setProperty('inset', 'auto', 'important');
             shell.style.setProperty('margin', '0', 'important');
             shell.style.setProperty('transform', 'none', 'important');
             shell.style.setProperty('z-index', '2147483647', 'important');
@@ -796,7 +1020,7 @@
                 return;
             }
 
-            const state = window.ThemisDBGraphV2.state;
+            const state = getContainerState(canvas);
             const graphData = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] };
             state.viewport.width = Math.max(320, canvas.clientWidth || canvas.getBoundingClientRect().width || 720);
             state.viewport.height = Math.max(320, canvas.clientHeight || canvas.getBoundingClientRect().height || 420);
@@ -834,92 +1058,29 @@
             return null;
         }
 
+        const matches = new Set();
         const currentUrl = normalizeNodeUrl(window.location.href);
         const currentPath = normalizeNodeUrl(window.location.pathname || '/');
-        const currentOrigin = (window.location.origin || '').replace(/\/$/, '');
-        const candidateSet = new Set();
-
         if (currentUrl) {
-            candidateSet.add(currentUrl);
+            matches.add(currentUrl);
         }
         if (currentPath) {
-            candidateSet.add(currentPath);
-            candidateSet.add(currentOrigin + currentPath);
-            candidateSet.add(currentPath.replace(/\/$/, ''));
+            matches.add(currentPath);
+            matches.add((window.location.origin || '') + currentPath);
         }
 
-        const rootPath = currentPath ? currentPath.replace(/\/$/, '') : '';
-        const pathParts = rootPath ? rootPath.split('/').filter(Boolean) : [];
-        const slugCandidates = new Set();
-        if (pathParts.length) {
-            slugCandidates.add(pathParts[pathParts.length - 1]);
-            slugCandidates.add(pathParts.join('/'));
-        }
-
-        const matchesNode = (node) => {
-            const urls = [
-                node && node.url,
-                node && node.permalink,
-                node && node.href,
-                node && node.link,
-                node && node.linkUrl,
-                node && node.metadata && node.metadata.url,
-                node && node.metadata && node.metadata.permalink,
-                node && node.metadata && node.metadata.href,
-            ].filter(Boolean);
-
-            const slugs = [
-                node && node.slug,
-                node && node.post_name,
-                node && node.path,
-                node && node.pathname,
-                node && node.metadata && node.metadata.slug,
-                node && node.metadata && node.metadata.path,
-                node && node.metadata && node.metadata.pathname,
-            ].filter(Boolean);
-
-            for (const candidateUrl of urls) {
+        const candidates = Array.from(matches);
+        for (const node of graphData.nodes) {
+            const candidateUrls = [node.url, node.permalink, node.href, node.link].filter(Boolean);
+            for (const candidateUrl of candidateUrls) {
                 const normalized = normalizeNodeUrl(candidateUrl);
                 if (!normalized) {
                     continue;
                 }
 
-                if (candidateSet.has(normalized)
-                    || candidateSet.has(normalized.replace(/\/$/, ''))
-                    || currentUrl.endsWith(normalized)
-                    || normalized.endsWith(currentPath)
-                    || (rootPath && normalized.endsWith('/' + rootPath))) {
-                    return true;
+                if (candidates.includes(normalized) || normalized.endsWith(currentPath) || currentUrl.endsWith(normalized)) {
+                    return String(node.id);
                 }
-            }
-
-            for (const slug of slugs) {
-                const normalizedSlug = String(slug).trim().replace(/^\//, '').replace(/\/$/, '');
-                if (!normalizedSlug) {
-                    continue;
-                }
-                if (slugCandidates.has(normalizedSlug)
-                    || slugCandidates.has(normalizedSlug.replace(/\/$/, ''))
-                    || currentPath.endsWith('/' + normalizedSlug)
-                    || currentUrl.endsWith('/' + normalizedSlug)) {
-                    return true;
-                }
-            }
-
-            const nodeLabel = String(node && (node.label || node.title || node.name) || '').trim();
-            if (nodeLabel && pathParts.length) {
-                const labelSlug = nodeLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-                if (labelSlug && slugCandidates.has(labelSlug)) {
-                    return true;
-                }
-            }
-
-            return false;
-        };
-
-        for (const node of graphData.nodes) {
-            if (matchesNode(node)) {
-                return String(node.id);
             }
         }
 
@@ -930,103 +1091,16 @@
         return null;
     }
 
-    function layoutRadial(nodes, width, height, selectedNodeId) {
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const minDimension = Math.max(180, Math.min(width, height));
-        const radiusBase = minDimension * 0.28;
-
-        const bucketMap = new Map();
-        nodes.forEach((node) => {
-            const type = String(node.type || 'generic');
-            const key = type === 'home'
-                ? 'home'
-                : (type === 'category' || type === 'tag' || type === 'taxonomy_term')
-                    ? 'taxonomy'
-                    : (type === 'page' || type === 'post')
-                        ? 'content'
-                        : 'generic';
-            if (!bucketMap.has(key)) {
-                bucketMap.set(key, []);
-            }
-            bucketMap.get(key).push(node);
-        });
-
-        const positioned = nodes.map((node) => ({ ...node }));
-        const selectedNode = selectedNodeId
-            ? positioned.find((node) => String(node.id) === String(selectedNodeId)) || null
-            : null;
-        if (selectedNode) {
-            selectedNode.x = centerX;
-            selectedNode.y = centerY;
-            selectedNode.tx = centerX;
-            selectedNode.ty = centerY;
-        }
-
-        const homeNodes = bucketMap.get('home') || [];
-        const taxonomyNodes = bucketMap.get('taxonomy') || [];
-        const contentNodes = bucketMap.get('content') || [];
-        const genericNodes = bucketMap.get('generic') || [];
-
-        const ringMap = [
-            { key: 'home', nodes: homeNodes, radius: 0, angleOffset: 0 },
-            { key: 'taxonomy', nodes: taxonomyNodes, radius: radiusBase + 32, angleOffset: Math.PI * 0.20 },
-            { key: 'content', nodes: contentNodes, radius: radiusBase + 110, angleOffset: Math.PI * 0.85 },
-            { key: 'generic', nodes: genericNodes, radius: radiusBase + 190, angleOffset: Math.PI * 1.5 },
-        ];
-
-        ringMap.forEach(({ nodes: ringNodes, radius, angleOffset }) => {
-            if (!ringNodes || !ringNodes.length) {
-                return;
-            }
-
-            ringNodes.forEach((node, index) => {
-                const total = Math.max(1, ringNodes.length);
-                const localAngle = angleOffset + (index / total) * (Math.PI * 2);
-                const x = centerX + Math.cos(localAngle) * radius;
-                const y = centerY + Math.sin(localAngle) * (radius * 0.72);
-                const target = positioned.find((candidate) => String(candidate.id) === String(node.id));
-                if (target) {
-                    target.x = x;
-                    target.y = y;
-                    target.tx = x;
-                    target.ty = y;
-                }
-            });
-        });
-
+    function layoutNetwork(nodes, links, width, height, selectedNodeId) {
+        const positioned = nodes.map((node) => Object.assign({}, node));
+        assignNetworkTargets(positioned, links, {
+            viewport: { worldWidth: width, worldHeight: height },
+        }, selectedNodeId);
         positioned.forEach((node) => {
-            if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) {
-                const count = Math.max(1, positioned.length);
-                const angle = ((Number(node.level || 0) + 1) * 1.17) + (count * 0.13);
-                const radius = radiusBase + 240 + ((Number(node.level || 0) % 5) * 36);
-                node.x = centerX + Math.cos(angle) * radius;
-                node.y = centerY + Math.sin(angle) * radius * 0.78;
-                node.tx = node.x;
-                node.ty = node.y;
-            }
+            node.x = node.tx;
+            node.y = node.ty;
         });
-
         return positioned;
-    }
-
-    function createLayoutWorker() {
-        if (!window.Worker) {
-            return null;
-        }
-
-        const assetUrl = (window.themisdbGraphV2 && window.themisdbGraphV2.assetUrl) ? window.themisdbGraphV2.assetUrl : '';
-        const workerUrl = assetUrl ? (assetUrl + 'assets/js/workers/layout-worker.js') : '';
-
-        if (!workerUrl) {
-            return null;
-        }
-
-        try {
-            return new Worker(workerUrl);
-        } catch (error) {
-            return null;
-        }
     }
 
     function getGraphState(state) {
@@ -1043,63 +1117,21 @@
 
     function buildVisibleGraph(graphData, state) {
         const effectiveState = getGraphState(state);
-        const preparedGraph = window.ThemisDBGraphV2.GraphStore && typeof window.ThemisDBGraphV2.GraphStore.getPreparedGraph === 'function'
-            ? window.ThemisDBGraphV2.GraphStore.getPreparedGraph(graphData, {
-                selectedNodeId: effectiveState.selection.nodeId,
-                minDegree: effectiveState.filters.minDegree,
-                maxVisibleNodes: effectiveState.filters.maxVisibleNodes,
-                showExternal: effectiveState.filters.showExternal,
-            })
-            : (window.ThemisDBGraphV2.GraphStore ? window.ThemisDBGraphV2.GraphStore.buildGraphModel(graphData) : graphData);
+        const model = window.ThemisDBGraphV2.GraphStore ? window.ThemisDBGraphV2.GraphStore.buildGraphModel(graphData) : graphData;
         const visible = window.ThemisDBGraphV2.GraphStore
-            ? window.ThemisDBGraphV2.GraphStore.calculateVisibleGraph(preparedGraph, {
+            ? window.ThemisDBGraphV2.GraphStore.calculateVisibleGraph(model, {
                 selectedNodeId: effectiveState.selection.nodeId,
                 minDegree: effectiveState.filters.minDegree,
                 maxVisibleNodes: effectiveState.filters.maxVisibleNodes,
                 showExternal: effectiveState.filters.showExternal,
             })
-            : preparedGraph;
+            : model;
 
-        const width = effectiveState.viewport.width || 800;
-        const height = effectiveState.viewport.height || 420;
-            const positionedNodes = layoutRadial(visible.nodes, width, height, effectiveState.selection.nodeId || resolveCurrentPageNodeId(graphData, effectiveState));
+        const width = effectiveState.viewport.worldWidth || effectiveState.viewport.width || 800;
+        const height = effectiveState.viewport.worldHeight || effectiveState.viewport.height || 420;
+        const selectedNodeId = effectiveState.selection.nodeId || resolveCurrentPageNodeId(graphData, effectiveState);
+        const positionedNodes = layoutNetwork(visible.nodes, visible.links, width, height, selectedNodeId);
         return Object.assign({}, visible, { nodes: positionedNodes });
-    }
-
-    function layoutGraph(graphData, state) {
-        const effectiveState = getGraphState(state);
-        const visible = buildVisibleGraph(graphData, effectiveState);
-        const worker = createLayoutWorker();
-        if (!worker) {
-            return Promise.resolve(visible);
-        }
-
-        return new Promise((resolve) => {
-            const width = effectiveState.viewport.width || 800;
-            const height = effectiveState.viewport.height || 420;
-
-            worker.onmessage = function (event) {
-                const payload = event.data || {};
-                worker.terminate();
-                if (payload && payload.type === 'layout-ready') {
-                    resolve(Object.assign({}, visible, { nodes: Array.isArray(payload.nodes) ? payload.nodes : visible.nodes }));
-                    return;
-                }
-                resolve(visible);
-            };
-
-            worker.onerror = function () {
-                worker.terminate();
-                resolve(visible);
-            };
-
-            worker.postMessage({
-                nodes: visible.nodes,
-                centerX: width / 2,
-                centerY: height / 2,
-                radiusBase: Math.min(width, height) * 0.22,
-            });
-        });
     }
 
     function renderGraph(container, graphData, state) {
@@ -1149,7 +1181,7 @@
         }
 
         const canvas = window.ThemisDBGraphV2.GraphView && window.ThemisDBGraphV2.GraphView.ensureCanvas
-            ? window.ThemisDBGraphV2.GraphView.ensureCanvas(container)
+            ? window.ThemisDBGraphV2.GraphView.ensureCanvas(container, state)
             : (container.querySelector('canvas') || document.createElement('canvas'));
 
         if (!canvas) {
@@ -1174,11 +1206,9 @@
 
         const toCanvasPoint = (event) => {
             const rect = canvas.getBoundingClientRect();
-            const scrollLeft = container && typeof container.scrollLeft === 'number' ? container.scrollLeft : 0;
-            const scrollTop = container && typeof container.scrollTop === 'number' ? container.scrollTop : 0;
             return {
-                x: event.clientX - rect.left + scrollLeft,
-                y: event.clientY - rect.top + scrollTop,
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top,
             };
         };
 
@@ -1227,15 +1257,15 @@
             }
 
             if (panPointerId === event.pointerId && lastPanPoint) {
-                const dx = point.x - lastPanPoint.x;
-                const dy = point.y - lastPanPoint.y;
+                const dx = event.clientX - lastPanPoint.x;
+                const dy = event.clientY - lastPanPoint.y;
                 const nextScrollLeft = Math.max(0, (container.scrollLeft || 0) - dx);
                 const nextScrollTop = Math.max(0, (container.scrollTop || 0) - dy);
                 container.scrollLeft = nextScrollLeft;
                 container.scrollTop = nextScrollTop;
                 state.viewport.panX = nextScrollLeft;
                 state.viewport.panY = nextScrollTop;
-                lastPanPoint = point;
+                lastPanPoint = { x: event.clientX, y: event.clientY };
                 hasPanned = true;
                 scheduleGraphRender(container, getAnimationGraph(container, rawGraph, state), state);
                 return;
@@ -1257,7 +1287,7 @@
 
             if (!hitNode) {
                 panPointerId = event.pointerId;
-                lastPanPoint = toCanvasPoint(event);
+                lastPanPoint = { x: event.clientX, y: event.clientY };
                 hasPanned = false;
                 canvas.setPointerCapture(event.pointerId);
                 canvas.style.cursor = 'grabbing';
@@ -1327,7 +1357,13 @@
             } else {
                 state.selection.nodeId = String(hitNode.id);
                 state.selection.hoverNodeId = String(hitNode.id);
-                updateNodeInfoPanel(container.closest('[data-graph-v2-shell]'), hitNode);
+                const navigation = container.__themisdbGraphNavigation;
+                if (navigation && typeof navigation.select === 'function') {
+                    navigation.select(hitNode.id);
+                    return;
+                } else {
+                    updateNodeInfoPanel(container.closest('[data-graph-v2-shell]'), hitNode, rawGraph);
+                }
             }
             scheduleGraphRender(container, nextGraph, state);
             startGraphAnimation(container, rawGraph, state, true);
@@ -1369,8 +1405,8 @@
                 node.vy = Number(node.vy || 0) * 0.75;
             });
 
-            const nextWorldWidth = Math.max(state.viewport.width * 2.2, 1600) * nextZoom;
-            const nextWorldHeight = Math.max(state.viewport.height * 2.2, 1100) * nextZoom;
+            const nextWorldWidth = Math.max(state.viewport.width, Math.max(state.viewport.width * 2.2, 1600) * nextZoom);
+            const nextWorldHeight = Math.max(state.viewport.height, Math.max(state.viewport.height * 2.2, 1100) * nextZoom);
             state.viewport.worldWidth = nextWorldWidth;
             state.viewport.worldHeight = nextWorldHeight;
             const canvas = container.querySelector('canvas');
@@ -1385,45 +1421,9 @@
     function bootstrapGraph() {
         normalizeGraphOverlayPlacement();
         window.addEventListener('resize', normalizeGraphOverlayPlacement, { passive: true });
-        pruneDuplicateGraphInstances();
 
-        const state = window.ThemisDBGraphV2.state;
         const containers = getContainers();
-        const rawGraphData = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] };
-        const graphData = window.ThemisDBGraphV2.GraphStore && typeof window.ThemisDBGraphV2.GraphStore.resolveRuntimeGraph === 'function'
-            ? window.ThemisDBGraphV2.GraphStore.resolveRuntimeGraph(rawGraphData)
-            : rawGraphData;
-        const activePageNodeId = resolveCurrentPageNodeId(graphData, state);
-        if (activePageNodeId) {
-            state.selection.nodeId = String(activePageNodeId);
-            state.selection.hoverNodeId = String(activePageNodeId);
-        }
-
-        const ensureFocusedNode = () => {
-            const currentFocusNodeId = resolveCurrentPageNodeId(graphData, state);
-            if (currentFocusNodeId) {
-                state.selection.nodeId = String(currentFocusNodeId);
-                state.selection.hoverNodeId = String(currentFocusNodeId);
-            }
-        };
-
-        ensureFocusedNode();
-
-        const shells = Array.from(document.querySelectorAll('[data-graph-v2-shell]'));
-        if (shells.length > 1) {
-            const keepShell = shells.find((shell) => shell.getAttribute('data-graph-v2-expanded') === '1') || shells[0];
-            shells.forEach((shell) => {
-                if (shell === keepShell) {
-                    return;
-                }
-                const parent = shell.closest('.themisdb-graph-v2-overlay');
-                if (parent) {
-                    parent.remove();
-                } else {
-                    shell.remove();
-                }
-            });
-        }
+        const graphData = window.themisdbGraphV2 && window.themisdbGraphV2.graph ? window.themisdbGraphV2.graph : { nodes: [], links: [] };
 
         document.querySelectorAll('[data-graph-v2-toggle]').forEach((toggle) => {
             toggle.style.display = 'inline-flex';
@@ -1443,36 +1443,7 @@
         });
 
         document.querySelectorAll('[data-graph-v2-shell]').forEach((shell) => {
-            shell.style.display = shell.getAttribute('data-graph-v2-expanded') === '1' ? 'block' : 'none';
-        });
-
-        if (document.querySelector('.themisdb-graph-v2-toggle--compact')) {
-            document.querySelectorAll('.themisdb-graph-v2-toggle:not(.themisdb-graph-v2-toggle--compact):not(.themisdb-graph-v2-header-toggle)').forEach((toggle) => {
-                toggle.style.display = 'none';
-                toggle.setAttribute('aria-hidden', 'true');
-            });
-        }
-
-        document.querySelectorAll('[data-graph-v2-shell]').forEach((shell) => {
-            const shellId = getShellId(shell);
-            if (!shellId) {
-                return;
-            }
-
-            const linked = getLinkedToggles(shell);
-            const compactToggle = linked.find((toggle) => toggle.classList.contains('themisdb-graph-v2-toggle--compact'));
-            if (!compactToggle) {
-                return;
-            }
-
-            linked.forEach((toggle) => {
-                if (toggle === compactToggle) {
-                    return;
-                }
-                if (!toggle.classList.contains('themisdb-graph-v2-toggle--compact')) {
-                    toggle.style.display = 'none';
-                }
-            });
+            shell.style.display = shell.getAttribute('data-graph-v2-expanded') === '1' ? 'flex' : 'none';
         });
 
         if (!containers.length) {
@@ -1480,10 +1451,17 @@
         }
 
         containers.forEach((container) => {
+            const state = getContainerState(container);
+            const activePageNodeId = resolveCurrentPageNodeId(graphData, state);
+            if (activePageNodeId) {
+                state.selection.nodeId = String(activePageNodeId);
+                state.selection.hoverNodeId = String(activePageNodeId);
+            }
             syncViewportToContainer(container, state);
 
             const shell = container.closest('[data-graph-v2-shell]');
             if (shell) {
+                ensureGraphNavigationTools(shell, container, graphData, state);
                 bindToggleButton(shell, container);
                 injectHeaderBrandTrigger(shell);
                 if (shell.getAttribute('data-graph-v2-expanded') === '1') {
@@ -1493,16 +1471,8 @@
                 return;
             }
 
-            layoutGraph(graphData, state).then((visibleGraph) => {
-                renderGraph(container, visibleGraph, state);
-                startGraphAnimation(container, graphData, state, true);
-                bindInteraction(container, graphData, state);
-            }).catch(() => {
-                const fallback = buildVisibleGraph(graphData, state);
-                renderGraph(container, fallback, state);
-                startGraphAnimation(container, graphData, state, true);
-                bindInteraction(container, graphData, state);
-            });
+            startGraphAnimation(container, graphData, state, true);
+            bindInteraction(container, graphData, state);
         });
     }
 

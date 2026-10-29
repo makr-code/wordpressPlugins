@@ -62,6 +62,7 @@ A **state-of-the-art** WordPress plugin that provides a modern, feature-rich pod
 - **REST API** - `/wp-json/persistent-player/v1/episodes` endpoint
 - **Related posts** - Link episodes to blog posts with excerpts
 - **Meta fields** - `audio_attachment_id` (primary), `audio_url` (legacy read-only fallback), and `podcast_related_post_id`
+- Existing episode links stored as `related_post_id` are migrated automatically to `podcast_related_post_id`.
 
 ## Installation
 

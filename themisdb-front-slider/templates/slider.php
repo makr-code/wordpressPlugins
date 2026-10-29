@@ -281,6 +281,22 @@ $empty_shell_class = empty( $slides ) ? ' themisdb-fs-empty' : '';
     <div class="themisdb-fs-controls" aria-hidden="false">
         <button class="themisdb-fs-btn themisdb-fs-prev la-slider-arrow la-slider-arrow-prev" aria-label="<?php echo esc_attr( $previous_label ); ?>" aria-controls="<?php echo esc_attr( $slider_id ); ?>"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
         <button class="themisdb-fs-btn themisdb-fs-next la-slider-arrow la-slider-arrow-next" aria-label="<?php echo esc_attr( $next_label ); ?>" aria-controls="<?php echo esc_attr( $slider_id ); ?>"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+        <?php if ( $autoplay ) : ?>
+        <button
+            type="button"
+            class="themisdb-fs-btn themisdb-fs-pause"
+            data-tfs-play-pause
+            data-pause-label="<?php echo esc_attr__( 'Automatische Wiedergabe pausieren', 'themisdb-front-slider' ); ?>"
+            data-resume-label="<?php echo esc_attr__( 'Automatische Wiedergabe fortsetzen', 'themisdb-front-slider' ); ?>"
+            aria-label="<?php echo esc_attr__( 'Automatische Wiedergabe pausieren', 'themisdb-front-slider' ); ?>"
+            aria-controls="<?php echo esc_attr( $slider_id ); ?>"
+            aria-pressed="false"
+            title="<?php echo esc_attr__( 'Automatische Wiedergabe pausieren', 'themisdb-front-slider' ); ?>"
+        >
+            <svg class="themisdb-fs-pause-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5h3v14H8zM15 5h3v14h-3z"></path></svg>
+            <svg class="themisdb-fs-play-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 4v16l13-8z"></path></svg>
+        </button>
+        <?php endif; ?>
         <div class="themisdb-fs-dots la-slider-dots" role="tablist" aria-label="<?php echo esc_attr( $pagination_label ); ?>"><?php for ( $i = 0; $i < $slide_index; $i++ ) : ?><button class="themisdb-fs-dot la-slider-dot<?php echo ( 0 === $i ) ? ' is-active' : ''; ?>" role="tab" aria-selected="<?php echo ( 0 === $i ) ? 'true' : 'false'; ?>" aria-label="<?php echo esc_attr( sprintf( $slide_label_format, $i + 1, $slide_index ) ); ?>" data-index="<?php echo esc_attr( $i ); ?>"></button><?php endfor; ?></div>
         <div class="themisdb-fs-timer-bar" aria-hidden="true"><div class="themisdb-fs-timer-fill la-hero-progress-bar"></div></div>
     </div>

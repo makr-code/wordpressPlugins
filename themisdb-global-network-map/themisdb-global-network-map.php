@@ -2,8 +2,8 @@
 /**
  * Plugin Name: ThemisDB Global Network Map
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Description: Canvas-based world heatmap showing live ThemisDB runtime locations derived from WordPress DB homecalls and geocache entries.
- * Version: 0.2.1
+ * Description: WebGPU globe with GeoJSON continents and geolocated ThemisDB homecall telemetry.
+ * Version: 0.3.0
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('THEMISDB_GNM_VERSION', '0.2.0');
+define('THEMISDB_GNM_VERSION', '0.3.0');
 define('THEMISDB_GNM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_GNM_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -42,7 +42,7 @@ class ThemisDB_Global_Network_Map {
         $geo_cache_table = $wpdb->prefix . 'themisdb_gnm_geo_cache';
         $charset_collate = $wpdb->get_charset_collate();
 
-        $homecalls_sql = "CREATE TABLE IF NOT EXISTS $homecalls_table (
+        $homecalls_sql = "CREATE TABLE $homecalls_table (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             instance_id varchar(128) DEFAULT NULL,
             ip_address varchar(45) NOT NULL,
@@ -53,7 +53,7 @@ class ThemisDB_Global_Network_Map {
             lat decimal(9,6) DEFAULT NULL,
             lon decimal(9,6) DEFAULT NULL,
             instances int(11) unsigned NOT NULL DEFAULT 1,
-            load float unsigned NOT NULL DEFAULT 0,
+            `load` float unsigned NOT NULL DEFAULT 0,
             status varchar(32) NOT NULL DEFAULT 'active',
             is_active tinyint(1) NOT NULL DEFAULT 1,
             source varchar(64) DEFAULT 'homecall',
@@ -66,7 +66,7 @@ class ThemisDB_Global_Network_Map {
             KEY idx_instance (instance_id)
         ) $charset_collate;";
 
-        $geo_sql = "CREATE TABLE IF NOT EXISTS $geo_cache_table (
+        $geo_sql = "CREATE TABLE $geo_cache_table (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             ip_address varchar(45) NOT NULL,
             city varchar(120) DEFAULT NULL,
@@ -87,6 +87,12 @@ class ThemisDB_Global_Network_Map {
         dbDelta($homecalls_sql);
         dbDelta($geo_sql);
 
+        foreach (array($homecalls_table, $geo_cache_table) as $table) {
+            if (!$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table)))) {
+                error_log('ThemisDB Global Network Map: failed to create telemetry tables.');
+                return;
+            }
+        }
         update_option('themisdb_gnm_db_version', THEMISDB_GNM_VERSION, false);
         add_option('themisdb_gnm_mode', THEMISDB_GNM_MODE_AUTO, '', 'no');
         add_option('themisdb_gnm_allow_demo_fallback', '1', '', 'no');
@@ -95,23 +101,34 @@ class ThemisDB_Global_Network_Map {
     }
 
     public static function deactivate() {
-        delete_option('themisdb_gnm_db_version');
-        delete_option('themisdb_gnm_mode');
-        delete_option('themisdb_gnm_allow_demo_fallback');
-        delete_option('themisdb_gnm_max_nodes');
-        delete_option('themisdb_gnm_cache_ttl');
-
         delete_transient('themisdb_gnm_production_nodes_250');
         delete_transient('themisdb_gnm_production_nodes_500');
         delete_transient('themisdb_gnm_production_nodes_1000');
-        wp_cache_flush();
     }
 
     private function __construct() {
         add_shortcode('themisdb_global_network_map', array($this, 'render_shortcode'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+        add_action('init', array($this, 'maybe_upgrade'));
         add_action('wp_ajax_themisdb_gnm_geojson', array($this, 'ajax_geojson'));
         add_action('wp_ajax_nopriv_themisdb_gnm_geojson', array($this, 'ajax_geojson'));
+        add_action('rest_api_init', function () {
+            register_rest_route('themisdb-gnm/v1', '/nodes', array(
+                'methods' => 'GET',
+                'permission_callback' => '__return_true',
+                'callback' => array($this, 'rest_nodes'),
+                'args' => array(
+                    'mode' => array('default' => 'auto', 'type' => 'string', 'enum' => array('auto', 'production', 'demo')),
+                    'max_nodes' => array('default' => 250, 'type' => 'integer', 'minimum' => 1, 'maximum' => 1000),
+                ),
+            ));
+        });
+    }
+
+    public function maybe_upgrade() {
+        if (get_option('themisdb_gnm_db_version') !== THEMISDB_GNM_VERSION) {
+            self::activate();
+        }
     }
 
     public function ajax_geojson() {
@@ -182,83 +199,22 @@ class ThemisDB_Global_Network_Map {
     }
 
     public function enqueue_assets() {
-        if (!is_admin()) {
-            global $post;
-            $has_shortcode = is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'themisdb_global_network_map');
-
-            if (!$has_shortcode && !is_front_page()) {
-                return;
-            }
-
-            $css_version = THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/css/themisdb-global-network-map.css') . '.' . time();
-            $js_version = THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/js/themisdb-global-network-map.js') . '.' . time();
-
-            wp_enqueue_style(
-                'themisdb-global-network-map-style',
-                THEMISDB_GNM_PLUGIN_URL . 'assets/css/themisdb-global-network-map.css',
-                array(),
-                $css_version
-            );
-
-            $three_file = THEMISDB_GNM_PLUGIN_DIR . 'assets/vendor/three.min.js';
-            $three_url = file_exists($three_file)
-                ? THEMISDB_GNM_PLUGIN_URL . 'assets/vendor/three.min.js'
-                : 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-            $three_version = file_exists($three_file) ? filemtime($three_file) : 'r128';
-
-            wp_enqueue_script(
-                'themisdb-global-network-map-three',
-                $three_url,
-                array(),
-                $three_version,
-                true
-            );
-
-            wp_enqueue_script(
-                'themisdb-global-network-map-script',
-                THEMISDB_GNM_PLUGIN_URL . 'assets/js/themisdb-global-network-map.js',
-                array('themisdb-global-network-map-three'),
-                $js_version,
-                true
-            );
-
-            $atts = array(
-                'mode' => get_option('themisdb_gnm_mode', THEMISDB_GNM_MODE_AUTO),
-                'max_nodes' => (int) get_option('themisdb_gnm_max_nodes', 250),
-                'theme' => 'ocean',
-                'show_controls' => true,
-            );
-
-            $geojson_path = THEMISDB_GNM_PLUGIN_DIR . 'assets/data/world.geojson';
-            $geojson_url = THEMISDB_GNM_PLUGIN_URL . 'assets/data/world.geojson';
-            $geojson = null;
-            if (file_exists($geojson_path)) {
-                $geojson_size = filesize($geojson_path);
-                if ($geojson_size !== false && $geojson_size <= 25 * 1024 * 1024) {
-                    $geojson_raw = file_get_contents($geojson_path);
-                    if ($geojson_raw !== false) {
-                        $decoded_geojson = json_decode($geojson_raw, true);
-                        if (is_array($decoded_geojson)) {
-                            $geojson = $decoded_geojson;
-                        }
-                    }
-                }
-            }
-
-            wp_localize_script('themisdb-global-network-map-script', 'themisdbGnmData', array(
-                'nodes' => $this->get_network_nodes($atts['mode'], $atts['max_nodes']),
-                'title' => '',
-                'mode' => $this->normalize_mode($atts['mode']),
-                'theme' => sanitize_key($atts['theme']),
-                'showControls' => !empty($atts['show_controls']) ? 1 : 0,
-                'threeUrl' => $three_url,
-                'geojson' => null,
-                'geojsonUrl' => '',
-                'geojsonAjaxUrl' => '',
-                'hasLocalGeojson' => 0,
-                'allowDemoFallback' => (bool) get_option('themisdb_gnm_allow_demo_fallback', true) ? 1 : 0,
-                'debugProjection' => 0,
-            ));
+        wp_register_style(
+            'themisdb-global-network-map-style',
+            THEMISDB_GNM_PLUGIN_URL . 'assets/css/themisdb-global-network-map.css',
+            array(),
+            THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/css/themisdb-global-network-map.css')
+        );
+        wp_register_script(
+            'themisdb-global-network-map-script',
+            THEMISDB_GNM_PLUGIN_URL . 'assets/dist/network-map.js',
+            array(),
+            THEMISDB_GNM_VERSION . '.' . filemtime(THEMISDB_GNM_PLUGIN_DIR . 'assets/dist/network-map.js'),
+            true
+        );
+        global $post;
+        if (is_front_page() || (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'themisdb_global_network_map'))) {
+            wp_enqueue_style('themisdb-global-network-map-style');
         }
     }
 
@@ -279,45 +235,53 @@ class ThemisDB_Global_Network_Map {
         $atts['show_legend'] = filter_var($atts['show_legend'], FILTER_VALIDATE_BOOLEAN);
         $atts['show_controls'] = filter_var($atts['show_controls'], FILTER_VALIDATE_BOOLEAN);
         $atts['mode'] = $this->normalize_mode($atts['mode']);
-        $atts['max_nodes'] = max(1, (int) $atts['max_nodes']);
+        $atts['max_nodes'] = max(1, min(1000, (int) $atts['max_nodes']));
+
+        if (!wp_script_is('themisdb-global-network-map-script', 'registered')) {
+            $this->enqueue_assets();
+        }
 
         wp_enqueue_script('themisdb-global-network-map-script');
         wp_enqueue_style('themisdb-global-network-map-style');
 
-        $this->maybe_enqueue_local_data_for_shortcode($atts);
+        $config = array(
+            'geojsonUrl' => THEMISDB_GNM_PLUGIN_URL . 'assets/data/world.geojson',
+            'nodesUrl' => add_query_arg(array('mode' => $atts['mode'], 'max_nodes' => $atts['max_nodes']), rest_url('themisdb-gnm/v1/nodes')),
+            'theme' => in_array($atts['theme'], array('ocean', 'aurora', 'night'), true) ? $atts['theme'] : 'ocean',
+            'refreshSeconds' => max(30, (int) get_option('themisdb_gnm_cache_ttl', 120)),
+        );
 
         ob_start();
         include THEMISDB_GNM_PLUGIN_DIR . 'templates/map.php';
-        return ob_get_clean();
+        // Keep wpautop from inserting paragraphs into shortcode controls in block content.
+        return str_replace(array("\r", "\n"), '', ob_get_clean());
     }
 
-    private function maybe_enqueue_local_data_for_shortcode($atts) {
-        $nodes = $this->get_network_nodes($atts['mode'], $atts['max_nodes']);
-
-        if (!wp_script_is('themisdb-global-network-map-script', 'enqueued')) {
-            return;
+    public function rest_nodes($request) {
+        $mode = $this->normalize_mode($request['mode']);
+        $limit = max(1, min(1000, (int) $request['max_nodes']));
+        $nodes = $this->get_network_nodes($mode, $limit);
+        if (is_wp_error($nodes)) {
+            return $nodes;
         }
-
-        $three_file = THEMISDB_GNM_PLUGIN_DIR . 'assets/vendor/three.min.js';
-        $three_url = file_exists($three_file)
-            ? THEMISDB_GNM_PLUGIN_URL . 'assets/vendor/three.min.js'
-            : 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-
-        $data = array(
+        $source = $mode === THEMISDB_GNM_MODE_DEMO ? 'demo' : 'production';
+        if (!empty($nodes) && !empty($nodes[0]['is_demo'])) {
+            $source = 'demo';
+        }
+        return rest_ensure_response(array(
             'nodes' => $nodes,
-            'title' => sanitize_text_field($atts['title']),
-            'mode' => $this->normalize_mode($atts['mode']),
-            'theme' => sanitize_key($atts['theme']),
-            'showControls' => !empty($atts['show_controls']),
-            'threeUrl' => $three_url,
-            'geojson' => null,
-            'geojsonUrl' => '',
-            'geojsonAjaxUrl' => '',
-            'hasLocalGeojson' => 0,
-            'allowDemoFallback' => (bool) get_option('themisdb_gnm_allow_demo_fallback', true),
-        );
+            'source' => $source,
+            'generatedAt' => gmdate('c'),
+            'maxNodes' => $limit,
+        ));
+    }
 
-        wp_localize_script('themisdb-global-network-map-script', 'themisdbGnmData', $data);
+    private function database_error() {
+        return new WP_Error(
+            'themisdb_gnm_database_error',
+            __('The network telemetry could not be read from the database.', 'themisdb-global-network-map'),
+            array('status' => 503)
+        );
     }
 
     public function get_network_nodes($mode = THEMISDB_GNM_MODE_AUTO, $max_nodes = 0) {
@@ -328,16 +292,15 @@ class ThemisDB_Global_Network_Map {
         }
 
         $production_nodes = $this->get_production_nodes($max_nodes);
+        if (is_wp_error($production_nodes)) {
+            return $production_nodes;
+        }
 
         if (!empty($production_nodes)) {
             return $production_nodes;
         }
 
-        if (THEMISDB_GNM_MODE_PRODUCTION === $mode) {
-            $allow_fallback = (bool) get_option('themisdb_gnm_allow_demo_fallback', true);
-            if ($allow_fallback) {
-                return $this->get_demo_nodes($max_nodes);
-            }
+        if (THEMISDB_GNM_MODE_PRODUCTION === $mode || !get_option('themisdb_gnm_allow_demo_fallback', true)) {
             return array();
         }
 
@@ -345,27 +308,46 @@ class ThemisDB_Global_Network_Map {
     }
 
     private function get_production_nodes($max_nodes = 0) {
-        $cache_key = 'themisdb_gnm_production_nodes_' . (int) $max_nodes;
+        $limit = max(1, min(1000, ((int) $max_nodes > 0 ? (int) $max_nodes : 250)));
+        $cache_key = 'themisdb_gnm_v3_nodes_' . $limit;
         $cache_ttl = max(30, (int) get_option('themisdb_gnm_cache_ttl', 120));
         $cached = get_transient($cache_key);
-        if (is_array($cached) && !empty($cached)) {
+        if (is_array($cached)) {
             return $cached;
         }
 
         global $wpdb;
         $homecalls_table = $wpdb->prefix . 'themisdb_gnm_homecalls';
-        $homecalls_table = esc_sql($homecalls_table);
-        $homecalls_check = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->prefix . 'themisdb_gnm_homecalls'));
+        $homecalls_check = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($homecalls_table)));
+        if ($wpdb->last_error) {
+            return $this->database_error();
+        }
         if (empty($homecalls_check)) {
-            return array();
+            return new WP_Error('themisdb_gnm_missing_tables', __('The network map tables are missing. Reactivate the plugin to create them.', 'themisdb-global-network-map'), array('status' => 503));
         }
 
-        $limit = max(1, ((int) $max_nodes > 0 ? (int) $max_nodes : 250));
+        $geo_cache_table = $wpdb->prefix . 'themisdb_gnm_geo_cache';
+        $geo_cache_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($geo_cache_table)));
+        if ($wpdb->last_error) {
+            return $this->database_error();
+        }
+        $geo_fields = $geo_cache_exists ? ', g.lat AS geo_lat, g.lon AS geo_lon, g.city AS geo_city, g.region AS geo_region, g.country AS geo_country' : '';
+        $geo_join = $geo_cache_exists ? " LEFT JOIN $geo_cache_table g ON g.ip_address = h.ip_address AND g.geo_status = 'resolved'" : '';
         $query = $wpdb->prepare(
-            "SELECT id, instance_id, ip_address, network, city, region, country, lat, lon, instances, load, status, is_active, source, updated_at, created_at FROM $homecalls_table WHERE is_active = 1 ORDER BY updated_at DESC, created_at DESC LIMIT %d",
+            "SELECT h.* $geo_fields FROM $homecalls_table h $geo_join
+             WHERE h.is_active = 1 AND NOT EXISTS (
+                SELECT 1 FROM $homecalls_table newer
+                WHERE ((h.instance_id IS NOT NULL AND h.instance_id <> '' AND newer.instance_id = h.instance_id)
+                    OR ((h.instance_id IS NULL OR h.instance_id = '') AND (newer.instance_id IS NULL OR newer.instance_id = '') AND newer.ip_address = h.ip_address))
+                AND (newer.updated_at > h.updated_at OR (newer.updated_at = h.updated_at AND newer.id > h.id))
+             )
+             ORDER BY h.updated_at DESC, h.id DESC LIMIT %d",
             $limit
         );
         $rows = $wpdb->get_results($query, ARRAY_A);
+        if ($wpdb->last_error) {
+            return $this->database_error();
+        }
 
         if (empty($rows)) {
             return array();
@@ -374,14 +356,13 @@ class ThemisDB_Global_Network_Map {
         $aggregated = array();
 
         foreach ($rows as $row) {
-            $row = array_map('stripslashes_deep', $row);
             $ip = isset($row['ip_address']) ? sanitize_text_field($row['ip_address']) : '';
 
             if (empty($ip) && empty($row['network'])) {
                 continue;
             }
 
-            $geo = $this->resolve_geo_for_ip($ip, $row);
+            $geo = $this->resolve_geo_for_row($row);
 
             $lat = $this->sanitize_coordinate($geo['lat'] ?? $row['lat'] ?? null, 'lat');
             $lon = $this->sanitize_coordinate($geo['lon'] ?? $row['lon'] ?? null, 'lon');
@@ -389,8 +370,8 @@ class ThemisDB_Global_Network_Map {
                 continue;
             }
 
-            $network = isset($row['network']) ? sanitize_text_field($row['network']) : ($ip ? $ip . '/32' : 'unknown');
-            $key = $ip ? $ip : $network;
+            $network = !empty($row['network']) ? sanitize_text_field($row['network']) : '';
+            $key = $lat . ':' . $lon . ':' . $network;
             if (!isset($aggregated[$key])) {
                 $aggregated[$key] = array(
                     'network' => $network,
@@ -422,49 +403,15 @@ class ThemisDB_Global_Network_Map {
         $nodes = array_map(array($this, 'normalize_node'), $nodes);
         $nodes = $this->filter_valid_nodes($nodes);
 
-        if (!empty($nodes)) {
-            set_transient($cache_key, $nodes, $cache_ttl);
-        }
+        set_transient($cache_key, $nodes, $cache_ttl);
 
         return $nodes;
     }
 
-    private function resolve_geo_for_ip($ip, $row = array()) {
-        if (empty($ip) || !filter_var($ip, FILTER_VALIDATE_IP)) {
-            return array();
-        }
-
-        global $wpdb;
-        $geo_cache_table = $wpdb->prefix . 'themisdb_gnm_geo_cache';
-        $geo_cache_table = esc_sql($geo_cache_table);
-        $cache_query = $wpdb->prepare(
-            "SELECT * FROM $geo_cache_table WHERE ip_address = %s ORDER BY updated_at DESC LIMIT 1",
-            $ip
-        );
-        $cached = $wpdb->get_row($cache_query, ARRAY_A);
-
-        if (!empty($cached) && !empty($cached['lat']) && !empty($cached['lon'])) {
-            return array(
-                'lat' => $this->sanitize_coordinate($cached['lat'], 'lat'),
-                'lon' => $this->sanitize_coordinate($cached['lon'], 'lon'),
-                'city' => sanitize_text_field($cached['city'] ?? ''),
-                'region' => sanitize_text_field($cached['region'] ?? ''),
-                'country' => sanitize_text_field($cached['country'] ?? ''),
-            );
-        }
-
+    private function resolve_geo_for_row($row) {
         $lat = $this->sanitize_coordinate($row['lat'] ?? null, 'lat');
         $lon = $this->sanitize_coordinate($row['lon'] ?? null, 'lon');
         if ($lat !== null && $lon !== null) {
-            $this->store_geo_cache($ip, array(
-                'city' => sanitize_text_field($row['city'] ?? ''),
-                'region' => sanitize_text_field($row['region'] ?? ''),
-                'country' => sanitize_text_field($row['country'] ?? ''),
-                'lat' => $lat,
-                'lon' => $lon,
-                'geo_status' => 'resolved',
-                'source' => 'homecall',
-            ));
             return array(
                 'lat' => $lat,
                 'lon' => $lon,
@@ -474,43 +421,15 @@ class ThemisDB_Global_Network_Map {
             );
         }
 
-        return array();
-    }
-
-    private function store_geo_cache($ip, $geo_data) {
-        if (empty($ip) || !filter_var($ip, FILTER_VALIDATE_IP)) {
-            return;
-        }
-
-        global $wpdb;
-        $geo_cache_table = $wpdb->prefix . 'themisdb_gnm_geo_cache';
-        $geo_cache_table = esc_sql($geo_cache_table);
-        $city = isset($geo_data['city']) ? sanitize_text_field($geo_data['city']) : '';
-        $region = isset($geo_data['region']) ? sanitize_text_field($geo_data['region']) : '';
-        $country = isset($geo_data['country']) ? sanitize_text_field($geo_data['country']) : '';
-        $lat = $this->sanitize_coordinate($geo_data['lat'] ?? null, 'lat');
-        $lon = $this->sanitize_coordinate($geo_data['lon'] ?? null, 'lon');
-        $geo_status = isset($geo_data['geo_status']) ? sanitize_key($geo_data['geo_status']) : 'resolved';
-        $source = isset($geo_data['source']) ? sanitize_key($geo_data['source']) : 'cache';
-
-        if ($lat === null || $lon === null) {
-            return;
-        }
-
-        $wpdb->query($wpdb->prepare(
-            "INSERT INTO $geo_cache_table (ip_address, city, region, country, lat, lon, geo_status, source, updated_at)
-             VALUES (%s, %s, %s, %s, %f, %f, %s, %s, %s)
-             ON DUPLICATE KEY UPDATE city = VALUES(city), region = VALUES(region), country = VALUES(country), lat = VALUES(lat), lon = VALUES(lon), geo_status = VALUES(geo_status), source = VALUES(source), updated_at = VALUES(updated_at)",
-            $ip,
-            $city,
-            $region,
-            $country,
-            $lat,
-            $lon,
-            $geo_status,
-            $source,
-            current_time('mysql')
-        ));
+        $lat = $this->sanitize_coordinate($row['geo_lat'] ?? null, 'lat');
+        $lon = $this->sanitize_coordinate($row['geo_lon'] ?? null, 'lon');
+        return $lat !== null && $lon !== null ? array(
+            'lat' => $lat,
+            'lon' => $lon,
+            'city' => sanitize_text_field($row['geo_city'] ?? ''),
+            'region' => sanitize_text_field($row['geo_region'] ?? ''),
+            'country' => sanitize_text_field($row['geo_country'] ?? ''),
+        ) : array();
     }
 
     private function normalize_node($node) {
@@ -534,7 +453,8 @@ class ThemisDB_Global_Network_Map {
             'instances' => max(1, (int) ($node['instances'] ?? 1)),
             'load' => min(100, max(0, (float) ($node['load'] ?? 0))),
             'status' => sanitize_key($node['status'] ?? 'active'),
-            'updated_at' => sanitize_text_field($node['updated_at'] ?? current_time('mysql')),
+            'updated_at' => sanitize_text_field($node['updated_at'] ?? ''),
+            'is_demo' => !empty($node['is_demo']),
         );
     }
 
@@ -567,11 +487,14 @@ class ThemisDB_Global_Network_Map {
             $nodes = array_slice($nodes, 0, $limit);
         }
 
-        return array_values(array_map(array($this, 'normalize_node'), $nodes));
+        return array_values(array_map(function ($node) {
+            $node['is_demo'] = true;
+            return $this->normalize_node($node);
+        }, $nodes));
     }
 
     private function sanitize_coordinate($value, $kind) {
-        if ($value === null || $value === '') {
+        if (!is_numeric($value)) {
             return null;
         }
 

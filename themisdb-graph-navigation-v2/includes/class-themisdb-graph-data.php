@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) {
 
 final class ThemisDB_Graph_Data {
     public function get_graph_data() {
-        $cache_key = 'themisdb_graph_v2_payload';
+        $cache_key = 'themisdb_graph_v2_payload_v6';
         $cached = ThemisDB_Graph_Cache::get($cache_key);
         if (false !== $cached) {
             return $cached;
@@ -41,11 +41,14 @@ final class ThemisDB_Graph_Data {
         }
 
         $items = array_filter(array_map('trim', (array) $items));
+        $public_types = get_post_types(array('public' => true), 'names');
+        $items = array_intersect(array_values(array_unique($items)), $public_types);
+        $items = array_values(array_diff($items, array('attachment', 'revision', 'nav_menu_item')));
         if (empty($items)) {
             return array('post', 'page');
         }
 
-        return array_values(array_unique($items));
+        return $items;
     }
 
     private function get_selected_taxonomies() {
@@ -57,17 +60,19 @@ final class ThemisDB_Graph_Data {
         }
 
         $items = array_filter(array_map('trim', (array) $items));
+        $public_taxonomies = get_taxonomies(array('public' => true), 'names');
+        $items = array_values(array_intersect(array_unique($items), $public_taxonomies));
         if (empty($items)) {
             return array('category', 'post_tag');
         }
 
-        return array_values(array_unique($items));
+        return $items;
     }
 
     private function get_limit($name, $fallback) {
         $option_key = preg_replace('/^themisdb_graph_nav_v2_/', '', (string) $name);
         $value = (int) ThemisDB_Graph_Settings::get($option_key, $fallback);
-        return max(5, $value);
+        return min(200, max(5, $value));
     }
 
     private function build_graph() {
@@ -80,13 +85,11 @@ final class ThemisDB_Graph_Data {
 
         $add_node = function ($id, $label, $type, $url = '', $level = 0, $metadata = array()) use (&$nodes) {
             $node_id = (string) $id;
-            foreach ($nodes as $node) {
-                if ((string) $node['id'] === $node_id) {
-                    return;
-                }
+            if (isset($nodes[$node_id])) {
+                return;
             }
 
-            $nodes[] = array(
+            $nodes[$node_id] = array(
                 'id' => $node_id,
                 'label' => $label,
                 'type' => $type,
@@ -120,160 +123,207 @@ final class ThemisDB_Graph_Data {
         $add_node($home_id, $home_label, 'home', home_url('/'), 0, array('kind' => 'root'));
 
         $include_taxonomy = in_array($mode, array('all', 'taxonomy', 'content'), true);
-        $include_posts = in_array($mode, array('all', 'content', 'posts'), true);
-        $include_pages = in_array($mode, array('all', 'content', 'pages'), true);
-
-        $categories = get_categories(array('hide_empty' => false));
         if ($include_taxonomy) {
-            foreach ($categories as $category) {
-                $cat_id = 'cat_' . $category->term_id;
-                $add_node($cat_id, $category->name, 'category', get_category_link($category->term_id), 1, array('count' => $category->count));
-                $add_link($home_id, $cat_id, 'contains', 0.35, 'taxonomy');
-            }
-        }
-
-        $tags = get_tags(array('hide_empty' => false));
-        if ($include_taxonomy) {
-            foreach ($tags as $tag) {
-                $tag_id = 'tag_' . $tag->term_id;
-                $add_node($tag_id, $tag->name, 'tag', get_tag_link($tag->term_id), 1, array('count' => $tag->count));
-                $add_link($home_id, $tag_id, 'tagged', 0.25, 'taxonomy');
-            }
-        }
-
-        if ($include_taxonomy) {
-            $taxonomies = get_taxonomies(array('public' => true), 'objects');
-            foreach ($taxonomies as $taxonomy) {
-                if (in_array($taxonomy->name, array('category', 'post_tag', 'nav_menu', 'link_category'), true)) {
+            $taxonomy_objects = get_taxonomies(array('public' => true), 'objects');
+            foreach ($selected_taxonomies as $taxonomy_name) {
+                if (!isset($taxonomy_objects[$taxonomy_name]) || in_array($taxonomy_name, array('nav_menu', 'link_category'), true)) {
                     continue;
                 }
 
-                if (!empty($selected_taxonomies) && !in_array($taxonomy->name, $selected_taxonomies, true)) {
-                    continue;
-                }
-
-                $terms = get_terms(array(
-                    'taxonomy' => $taxonomy->name,
-                    'hide_empty' => false,
+                $taxonomy = $taxonomy_objects[$taxonomy_name];
+                $taxonomy_node_id = 'taxonomy_' . sanitize_key($taxonomy_name);
+                $taxonomy_label = !empty($taxonomy->labels->name) ? $taxonomy->labels->name : $taxonomy->label;
+                $add_node($taxonomy_node_id, $taxonomy_label ?: ucfirst($taxonomy_name), 'taxonomy', '', 1, array(
+                    'taxonomy' => $taxonomy_name,
                 ));
+                $add_link($home_id, $taxonomy_node_id, 'contains_taxonomy', 0.35, 'taxonomy');
+                $terms = get_terms(array('taxonomy' => $taxonomy_name, 'hide_empty' => false));
                 if (is_wp_error($terms)) {
                     continue;
                 }
 
                 foreach ($terms as $term) {
-                    $term_id = $taxonomy->name . '_' . $term->term_id;
-                    $add_node($term_id, $term->name, 'taxonomy_term', get_term_link($term), 1, array('taxonomy' => $taxonomy->name));
-                    $add_link($home_id, $term_id, 'taxonomy_relates', 0.2, 'taxonomy');
+                    $term_id = $this->get_term_node_id($taxonomy_name, $term->term_id);
+                    $term_type = 'category' === $taxonomy_name ? 'category' : ('post_tag' === $taxonomy_name ? 'tag' : 'taxonomy_term');
+                    $term_url = get_term_link($term);
+                    $add_node($term_id, $term->name, $term_type, is_wp_error($term_url) ? '' : $term_url, 1, array(
+                        'count' => (int) $term->count,
+                        'taxonomy' => $taxonomy_name,
+                        'parent' => (int) $term->parent,
+                    ));
+                    $add_link($taxonomy_node_id, $term_id, 'has_term', 0.45, 'taxonomy');
+
+                    if (!empty($term->parent)) {
+                        $parent_id = $this->get_term_node_id($taxonomy_name, $term->parent);
+                        $parent_term = get_term((int) $term->parent, $taxonomy_name);
+                        if ($parent_term && !is_wp_error($parent_term)) {
+                            $parent_url = get_term_link($parent_term);
+                            $add_node($parent_id, $parent_term->name, $term_type, is_wp_error($parent_url) ? '' : $parent_url, 1, array(
+                                'count' => (int) $parent_term->count,
+                                'taxonomy' => $taxonomy_name,
+                                'parent' => (int) $parent_term->parent,
+                            ));
+                            $add_link($parent_id, $term_id, 'parent_term', 0.75, 'taxonomy');
+                        }
+                    }
                 }
             }
         }
 
-        $posts = array();
-        if ($include_posts) {
-            $posts = get_posts(array(
-                'numberposts' => $this->get_limit('themisdb_graph_nav_v2_post_limit', 30),
-                'post_type' => in_array('posts', $selected_post_types, true) ? 'post' : $selected_post_types,
+        $content_types = $selected_post_types;
+        if ('taxonomy' === $mode) {
+            $content_types = array();
+        } elseif ('pages' === $mode) {
+            $content_types = in_array('page', $selected_post_types, true) ? array('page') : array();
+        } elseif ('posts' === $mode) {
+            $content_types = array_values(array_diff($selected_post_types, array('page')));
+        }
+
+        $content_items = array();
+        $registered_post_types = get_post_types(array('public' => true), 'objects');
+        foreach ($content_types as $type_name) {
+            if (!isset($registered_post_types[$type_name])) {
+                continue;
+            }
+
+            $post_type = $registered_post_types[$type_name];
+            $is_page = 'page' === $type_name;
+            $items = get_posts(array(
+                'numberposts' => $this->get_limit($is_page ? 'page_limit' : 'post_limit', $is_page ? 20 : 30),
+                'post_type' => $type_name,
                 'post_status' => 'publish',
+                'orderby' => 'date',
+                'order' => 'DESC',
+                'no_found_rows' => true,
             ));
-        }
-
-        $pages = array();
-        if ($include_pages) {
-            $pages = get_posts(array(
-                'numberposts' => $this->get_limit('themisdb_graph_nav_v2_page_limit', 20),
-                'post_type' => 'page',
-                'post_status' => 'publish',
-            ));
-        }
-
-        foreach ($posts as $post) {
-            $post_id = 'post_' . $post->ID;
-            $add_node($post_id, $post->post_title, 'post', get_permalink($post->ID), 2, array('date' => $post->post_date));
-
-            $categories_for_post = get_the_category($post->ID);
-            foreach ($categories_for_post as $category) {
-                $cat_id = 'cat_' . $category->term_id;
-                $add_link($cat_id, $post_id, 'has_post', 0.65, 'taxonomy');
-            }
-
-            $tags_for_post = get_the_tags($post->ID);
-            if (!empty($tags_for_post)) {
-                foreach ($tags_for_post as $tag) {
-                    $tag_id = 'tag_' . $tag->term_id;
-                    $add_link($tag_id, $post_id, 'has_tag', 0.55, 'taxonomy');
+            $taxonomies_for_type = $include_taxonomy
+                ? array_values(array_intersect(get_object_taxonomies($type_name, 'names'), $selected_taxonomies))
+                : array();
+            $terms_by_post = array();
+            if ($items && $taxonomies_for_type) {
+                $terms = wp_get_object_terms(wp_list_pluck($items, 'ID'), $taxonomies_for_type, array('fields' => 'all_with_object_id'));
+                if (!is_wp_error($terms)) {
+                    foreach ($terms as $term) {
+                        $object_id = (int) ($term->object_id ?? 0);
+                        if ($object_id) {
+                            $terms_by_post[$object_id][$term->taxonomy][] = $term;
+                        }
+                    }
                 }
             }
 
-            $this->connect_internal_content_links($post_id, $post->post_content, $add_link);
-        }
+            $type_node_id = 'post_type_' . $type_name;
+            if ($items) {
+                $add_node($type_node_id, $post_type->labels->name ?: ucfirst($type_name), 'post_type', '', 1, array('postType' => $type_name));
+                $add_link($home_id, $type_node_id, 'contains_type', 0.35, 'content');
+            }
 
-        foreach ($pages as $page) {
-            $page_id = 'page_' . $page->ID;
-            $add_node($page_id, $page->post_title, 'page', get_permalink($page->ID), 1, array('date' => $page->post_date));
-            $add_link($home_id, $page_id, 'page_of', 0.30, 'taxonomy');
-            $this->connect_internal_content_links($page_id, $page->post_content, $add_link);
-        }
-
-        if ($mode !== 'posts' && $mode !== 'pages') {
-            $post_types = get_post_types(array('public' => true, '_builtin' => false), 'objects');
-            foreach ($post_types as $post_type) {
-                $type_name = $post_type->name;
-                if (!empty($selected_post_types) && !in_array($type_name, $selected_post_types, true) && !in_array($type_name, array('post', 'page'), true)) {
-                    continue;
-                }
-
-                $items = get_posts(array(
-                    'numberposts' => $this->get_limit('themisdb_graph_nav_v2_post_limit', 30),
-                    'post_type' => $type_name,
-                    'post_status' => 'publish',
+            foreach ($items as $item) {
+                $node_id = $this->get_post_node_id($item);
+                $content_items[$node_id] = $item;
+                $add_node($node_id, $item->post_title, $type_name, get_permalink($item->ID), $is_page ? 1 : 2, array(
+                    'date' => $item->post_date,
+                    'excerpt' => wp_trim_words(wp_strip_all_tags($item->post_excerpt ?: $item->post_content), 28),
+                    'postType' => $type_name,
                 ));
 
-                if (empty($items)) {
-                    continue;
+                if ($is_page) {
+                    $ancestor_node_id = null;
+                    foreach (array_reverse(get_post_ancestors($item->ID)) as $ancestor_id) {
+                        $ancestor = get_post($ancestor_id);
+                        if (!$ancestor || 'publish' !== $ancestor->post_status) {
+                            continue;
+                        }
+                        $current_ancestor_id = $this->get_post_node_id($ancestor);
+                        $add_node($current_ancestor_id, $ancestor->post_title, 'page', get_permalink($ancestor->ID), 1, array(
+                            'date' => $ancestor->post_date,
+                            'postType' => 'page',
+                        ));
+                        if ($ancestor_node_id) {
+                            $add_link($ancestor_node_id, $current_ancestor_id, 'parent_page', 0.75, 'hierarchy');
+                        } else {
+                            $add_link($type_node_id, $current_ancestor_id, 'page_of', 0.45, 'content');
+                        }
+                        $ancestor_node_id = $current_ancestor_id;
+                    }
+                    $parent_node_id = $this->get_post_node_id($item);
+                    if ($ancestor_node_id && $ancestor_node_id !== $parent_node_id) {
+                        $add_link($ancestor_node_id, $parent_node_id, 'parent_page', 0.75, 'hierarchy');
+                    } elseif (!$ancestor_node_id) {
+                        $add_link($type_node_id, $parent_node_id, 'page_of', 0.45, 'content');
+                    }
+                } else {
+                    $add_link($type_node_id, $node_id, 'has_item', 0.5, 'content');
                 }
 
-                $type_node_id = 'post_type_' . $type_name;
-                $add_node($type_node_id, $post_type->labels->name ?: ucfirst($type_name), 'post_type', '', 1, array('postType' => $type_name));
-                $add_link($home_id, $type_node_id, 'contains_type', 0.20, 'content');
-
-                foreach ($items as $item) {
-                    $custom_id = $type_name . '_' . $item->ID;
-                    $add_node($custom_id, $item->post_title, $type_name, get_permalink($item->ID), 2, array('date' => $item->post_date));
-                    $add_link($type_node_id, $custom_id, 'has_item', 0.5, 'content');
-                    $this->connect_internal_content_links($custom_id, $item->post_content, $add_link);
+                foreach ($taxonomies_for_type as $taxonomy_name) {
+                    foreach ($terms_by_post[(int) $item->ID][$taxonomy_name] ?? array() as $term) {
+                        $term_node_id = $this->get_term_node_id($taxonomy_name, $term->term_id);
+                        $term_type = 'category' === $taxonomy_name ? 'category' : ('post_tag' === $taxonomy_name ? 'tag' : 'taxonomy_term');
+                        $term_url = get_term_link($term);
+                        $add_node($term_node_id, $term->name, $term_type, is_wp_error($term_url) ? '' : $term_url, 1, array(
+                            'count' => (int) $term->count,
+                            'taxonomy' => $taxonomy_name,
+                        ));
+                        $add_link($term_node_id, $this->get_post_node_id($item), 'has_term', 0.65, 'taxonomy');
+                    }
                 }
             }
         }
 
-        $menus = wp_get_nav_menus();
-        if (!empty($menus)) {
-            foreach ($menus as $menu) {
-                $menu_id = 'menu_' . $menu->term_id;
-                $add_node($menu_id, $menu->name, 'menu', '', 1, array('menuSlug' => $menu->slug));
-                $add_link($home_id, $menu_id, 'contains_menu', 0.25, 'navigation');
+        $include_external = (bool) ThemisDB_Graph_Settings::get('include_external', true);
+        foreach ($content_items as $node_id => $item) {
+            $this->connect_content_links(
+                $node_id,
+                $item->post_content,
+                $add_node,
+                $add_link,
+                $selected_post_types,
+                $selected_taxonomies,
+                $include_external
+            );
+        }
 
-                $items = wp_get_nav_menu_items($menu->term_id);
-                if (!is_array($items)) {
-                    continue;
-                }
+        if (in_array($mode, array('all', 'content'), true)) {
+            $menus = wp_get_nav_menus();
+            if (!empty($menus)) {
+                foreach ($menus as $menu) {
+                    $menu_id = 'menu_' . $menu->term_id;
+                    $add_node($menu_id, $menu->name, 'menu', '', 1, array('menuSlug' => $menu->slug));
+                    $add_link($home_id, $menu_id, 'contains_menu', 0.25, 'navigation');
 
-                foreach ($items as $item) {
-                    if (empty($item->url)) {
+                    $items = wp_get_nav_menu_items($menu->term_id);
+                    if (!is_array($items)) {
                         continue;
                     }
 
-                    $item_id = 'menu_item_' . $item->ID;
-                    $add_node($item_id, $item->title ?: 'Menu item', 'menu_item', $item->url, 2, array('menuId' => $menu_id));
-                    $add_link($menu_id, $item_id, 'has_item', 0.4, 'navigation');
+                    foreach ($items as $item) {
+                        if (empty($item->url)) {
+                            continue;
+                        }
 
-                    if (false !== strpos($item->url, home_url())) {
-                        $path = str_replace(home_url(), '', $item->url);
-                        $path = trim($path, '/');
-                        if ($path !== '') {
-                            $linked_node = $this->resolve_link_target($path, $add_node, $add_link);
-                            if ($linked_node) {
-                                $add_link($item_id, $linked_node, 'links_to', 0.4, 'navigation');
-                            }
+                        $item_id = 'menu_item_' . $item->ID;
+                        $item_url = esc_url_raw($item->url);
+                        $add_node($item_id, $item->title ?: 'Menu item', 'menu_item', $item_url, 2, array(
+                            'menuId' => $menu_id,
+                            'parentMenuItem' => (int) $item->menu_item_parent,
+                        ));
+                        $parent_item_id = (int) $item->menu_item_parent;
+                        if ($parent_item_id) {
+                            $add_link('menu_item_' . $parent_item_id, $item_id, 'parent_menu_item', 0.7, 'navigation');
+                        } else {
+                            $add_link($menu_id, $item_id, 'has_item', 0.4, 'navigation');
+                        }
+
+                        $linked_node = $this->resolve_link_target(
+                            $item_url,
+                            $add_node,
+                            $selected_post_types,
+                            $selected_taxonomies,
+                            $include_external
+                        );
+                        if ($linked_node && $linked_node !== $item_id) {
+                            $add_link($item_id, $linked_node, 'links_to', 0.4, 'navigation');
                         }
                     }
                 }
@@ -281,85 +331,147 @@ final class ThemisDB_Graph_Data {
         }
 
         return array(
-            'nodes' => $nodes,
+            'nodes' => array_values($nodes),
             'links' => $links,
         );
     }
 
-    private function connect_internal_content_links($node_id, $content, $add_link) {
+    private function connect_content_links($node_id, $content, $add_node, $add_link, $post_types, $taxonomies, $include_external) {
         if (empty($content)) {
             return;
         }
 
-        preg_match_all('/https?:\/\/[^\s"\')>]+|\/[^\s"\')>]+/i', (string) $content, $matches);
-        if (empty($matches[0])) {
+        preg_match_all('/<a\b[^>]*\bhref\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))/i', (string) $content, $matches, PREG_SET_ORDER);
+        if (empty($matches)) {
             return;
         }
 
-        foreach ($matches[0] as $match) {
-            $normalized = trim($match, " \n\r\t\"'()[]{}");
-            if ($normalized === '' || false !== strpos($normalized, '://') && false === strpos($normalized, home_url())) {
+        foreach ($matches as $match) {
+            $url = html_entity_decode($match[1] ?: ($match[2] ?: $match[3]), ENT_QUOTES, get_bloginfo('charset') ?: 'UTF-8');
+            $url = trim($url);
+            if ($url === '' || preg_match('/^(?:#|mailto:|tel:|javascript:|data:)/i', $url)) {
                 continue;
             }
 
-            $path = preg_replace('#^https?:\/\/' . preg_quote(home_url(), '#') . '#i', '', $normalized);
-            $path = preg_replace('#^https?:\/\/[^\/]+#i', '', $normalized);
-            $path = trim($path, '/');
-            if ($path === '') {
-                continue;
-            }
-
-            $target = $this->resolve_link_target($path, function ($id, $label, $type, $url = '', $level = 0, $metadata = array()) {}, $add_link);
+            $target = $this->resolve_link_target($url, $add_node, $post_types, $taxonomies, $include_external);
             if ($target) {
                 $add_link($node_id, $target, 'references', 0.3, 'content');
             }
         }
     }
 
-    private function resolve_link_target($path, $add_node, $add_link) {
-        if ($path === '' || false !== strpos($path, '?')) {
-            $path = strtok($path, '?');
-        }
-
-        $normalized = trim((string) $path, '/');
-        if ($normalized === '') {
+    private function resolve_link_target($url, $add_node, $post_types, $taxonomies, $include_external) {
+        $url = esc_url_raw(html_entity_decode((string) $url, ENT_QUOTES, get_bloginfo('charset') ?: 'UTF-8'));
+        if ($url === '') {
             return null;
         }
 
-        $lookup = array(
-            'home' => 'home',
-            'page' => 'page',
-            'category' => 'category',
-            'tag' => 'tag',
+        $parts = wp_parse_url($url);
+        if (!is_array($parts)) {
+            return null;
+        }
+        if (isset($parts['user']) || isset($parts['pass'])) {
+            return null;
+        }
+
+        $scheme = strtolower($parts['scheme'] ?? (is_ssl() ? 'https' : 'http'));
+        if (!in_array($scheme, array('http', 'https'), true)) {
+            return null;
+        }
+
+        $site = wp_parse_url(home_url('/'));
+        $host = strtolower($parts['host'] ?? ($site['host'] ?? ''));
+        $site_host = strtolower($site['host'] ?? '');
+        $default_port = 'https' === $scheme ? 443 : 80;
+        $port = (int) ($parts['port'] ?? $default_port);
+        $site_port = (int) ($site['port'] ?? ('https' === ($site['scheme'] ?? $scheme) ? 443 : 80));
+        $path = rawurldecode($parts['path'] ?? '/');
+        $site_path = untrailingslashit(rawurldecode($site['path'] ?? ''));
+        $same_site = $host === $site_host && (
+            $port === $site_port
+            || (in_array($port, array(80, 443), true) && in_array($site_port, array(80, 443), true))
         );
 
-        $post = get_page_by_path($normalized, OBJECT, array('page', 'post'));
-        if ($post) {
-            $prefix = $post->post_type === 'page' ? 'page_' : 'post_';
-            $id = $prefix . $post->ID;
-            $add_node($id, $post->post_title, $post->post_type, get_permalink($post->ID), 1, array('date' => $post->post_date));
-            return $id;
+        if ($same_site) {
+            if ($site_path !== '' && $path !== $site_path && 0 !== strpos($path, $site_path . '/')) {
+                return null;
+            }
+
+            $relative_path = trim($path, '/');
+            if ($site_path !== '' && 0 === strpos($path, $site_path . '/')) {
+                $relative_path = trim(substr($path, strlen($site_path)), '/');
+            } elseif ($site_path !== '' && untrailingslashit($path) === $site_path) {
+                $relative_path = '';
+            }
+
+            $post_id = url_to_postid($url);
+            $post = $post_id ? get_post($post_id) : null;
+            if (!$post && $relative_path !== '') {
+                $post = get_page_by_path($relative_path, OBJECT, $post_types);
+            }
+            if ($post && 'publish' === $post->post_status && in_array($post->post_type, $post_types, true)) {
+                $id = $this->get_post_node_id($post);
+                $add_node($id, $post->post_title, $post->post_type, get_permalink($post->ID), 1, array(
+                    'date' => $post->post_date,
+                    'postType' => $post->post_type,
+                ));
+                return $id;
+            }
+
+            if ($relative_path === '') {
+                return 'home';
+            }
+
+            $segments = array_reverse(array_filter(explode('/', $relative_path)));
+            foreach ($segments as $segment) {
+                foreach ($taxonomies as $taxonomy_name) {
+                    $term = get_term_by('slug', sanitize_title($segment), $taxonomy_name);
+                    if (!$term || is_wp_error($term)) {
+                        continue;
+                    }
+                    $term_id = $this->get_term_node_id($taxonomy_name, $term->term_id);
+                    $term_type = 'category' === $taxonomy_name ? 'category' : ('post_tag' === $taxonomy_name ? 'tag' : 'taxonomy_term');
+                    $term_url = get_term_link($term);
+                    $add_node($term_id, $term->name, $term_type, is_wp_error($term_url) ? '' : $term_url, 1, array(
+                        'count' => (int) $term->count,
+                        'taxonomy' => $taxonomy_name,
+                    ));
+                    return $term_id;
+                }
+            }
+
+            return null;
         }
 
-        $term = get_term_by('slug', $normalized, 'category');
-        if ($term) {
-            $id = 'cat_' . $term->term_id;
-            $add_node($id, $term->name, 'category', get_category_link($term->term_id), 1, array('count' => $term->count));
-            return $id;
+        if (!$include_external || empty($parts['host'])) {
+            return null;
         }
 
-        $term_tag = get_term_by('slug', $normalized, 'post_tag');
-        if ($term_tag) {
-            $id = 'tag_' . $term_tag->term_id;
-            $add_node($id, $term_tag->name, 'tag', get_tag_link($term_tag->term_id), 1, array('count' => $term_tag->count));
-            return $id;
+        $authority = $host . ($port !== $default_port ? ':' . $port : '');
+        $external_url = esc_url_raw($scheme . '://' . $authority . ($parts['path'] ?? '/') . (isset($parts['query']) ? '?' . $parts['query'] : ''));
+        $external_id = 'external_' . substr(sha1($authority . ($parts['path'] ?? '/')), 0, 16);
+        $label = $host;
+        $path_segments = array_filter(explode('/', trim($parts['path'] ?? '', '/')));
+        if ($path_segments) {
+            $label .= ' / ' . sanitize_text_field(rawurldecode(end($path_segments)));
         }
+        $add_node($external_id, $label, 'external_resource', $external_url, 2, array(
+            'host' => $host,
+            'path' => $parts['path'] ?? '/',
+        ));
 
-        $home_path = trim(parse_url(home_url('/'), PHP_URL_PATH) ?: '/', '/');
-        if ($home_path !== '' && $normalized === $home_path) {
-            return 'home';
-        }
+        return $external_id;
+    }
 
-        return null;
+    private function get_post_node_id($post) {
+        $prefix = 'page' === $post->post_type ? 'page' : ('post' === $post->post_type ? 'post' : sanitize_key($post->post_type));
+        return $prefix . '_' . (int) $post->ID;
+    }
+
+    private function get_term_node_id($taxonomy, $term_id) {
+        $prefix = 'category' === $taxonomy
+            ? 'cat'
+            : ('post_tag' === $taxonomy ? 'tag' : 'term_' . sanitize_key($taxonomy));
+        return $prefix . '_' . (int) $term_id;
     }
 }

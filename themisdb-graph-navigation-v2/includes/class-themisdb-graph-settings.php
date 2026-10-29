@@ -13,7 +13,6 @@ final class ThemisDB_Graph_Settings {
 
     public static function default_values() {
         return array(
-            'enable_gpu' => true,
             'max_visible_nodes' => 120,
             'include_external' => true,
             'cache_seconds' => HOUR_IN_SECONDS,
@@ -39,16 +38,6 @@ final class ThemisDB_Graph_Settings {
     }
 
     public static function register_settings() {
-        register_setting(
-            'themisdb_graph_nav_v2_group',
-            self::option_name('enable_gpu'),
-            array(
-                'type' => 'boolean',
-                'default' => self::default_values()['enable_gpu'],
-                'sanitize_callback' => 'rest_sanitize_boolean',
-            )
-        );
-
         register_setting(
             'themisdb_graph_nav_v2_group',
             self::option_name('max_visible_nodes'),
@@ -170,15 +159,6 @@ final class ThemisDB_Graph_Settings {
                 do_settings_sections('themisdb_graph_nav_v2_group');
                 ?>
                 <table class="form-table" role="presentation">
-                    <tr>
-                        <th scope="row"><?php esc_html_e('Prefer WebGPU', 'themisdb-graph-navigation-v2'); ?></th>
-                        <td>
-                            <label>
-                                <input type="checkbox" name="themisdb_graph_nav_v2_enable_gpu" value="1" <?php checked((bool) ThemisDB_Graph_Settings::get('enable_gpu', true), true); ?> />
-                                <?php esc_html_e('Enable WebGPU when available in the browser.', 'themisdb-graph-navigation-v2'); ?>
-                            </label>
-                        </td>
-                    </tr>
                     <tr>
                         <th scope="row"><?php esc_html_e('Max visible nodes', 'themisdb-graph-navigation-v2'); ?></th>
                         <td>

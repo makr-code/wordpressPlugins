@@ -580,6 +580,11 @@
             "area": "uncategorized"
         },
         {
+            "name": "content-header",
+            "title": "Content Header",
+            "area": "uncategorized"
+        },
+        {
             "name": "breadcrumbs",
             "title": "Breadcrumbs",
             "area": "uncategorized"

@@ -2,8 +2,8 @@
 /**
  * Plugin Name: ThemisDB Graph Navigation V2
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
- * Description: Semantic graph navigation for heterogeneous WordPress content with a compact overlay and optional WebGPU acceleration.
- * Version: 2.0.0
+ * Description: Interactive knowledge graph navigation for published WordPress content and relationships.
+ * Version: 2.1.8
  * Author: makr-code
  * License: MIT
  * License URI: https://opensource.org/licenses/MIT
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('THEMISDB_GRAPH_NAV_V2_VERSION', '2.0.15');
+define('THEMISDB_GRAPH_NAV_V2_VERSION', '2.1.8');
 define('THEMISDB_GRAPH_NAV_V2_DIR', plugin_dir_path(__FILE__));
 define('THEMISDB_GRAPH_NAV_V2_URL', plugin_dir_url(__FILE__));
 
@@ -26,7 +26,6 @@ require_once THEMISDB_GRAPH_NAV_V2_DIR . 'includes/class-themisdb-graph-settings
 final class ThemisDB_Graph_Runtime_Config {
     public static function defaults() {
         return array(
-            'enable_gpu' => false,
             'max_visible_nodes' => 120,
             'include_external' => true,
         );
@@ -40,11 +39,8 @@ final class ThemisDB_Graph_Runtime_Config {
 
     public static function build() {
         $graph = new ThemisDB_Graph_Data();
-        $graph_payload = $graph->get_graph_data();
         $config = array(
-            'graph' => $graph_payload,
-            'graphVersion' => md5(wp_json_encode($graph_payload) . '|' . home_url() . '|' . get_current_blog_id() . '|' . get_option('db_version') . '|' . THEMISDB_GRAPH_NAV_V2_VERSION),
-            'cacheKey' => md5(home_url() . '|' . get_current_blog_id() . '|' . get_option('db_version') . '|' . THEMISDB_GRAPH_NAV_V2_VERSION),
+            'graph' => $graph->get_graph_data(),
             'assetUrl' => THEMISDB_GRAPH_NAV_V2_URL,
             'renderer' => array(
                 'preferWebGPU' => false,
@@ -55,6 +51,13 @@ final class ThemisDB_Graph_Runtime_Config {
             ),
             'labels' => array(
                 'title' => __('Graph Navigation', 'themisdb-graph-navigation-v2'),
+                'search' => __('Search graph', 'themisdb-graph-navigation-v2'),
+                'searchPlaceholder' => __('Search nodes…', 'themisdb-graph-navigation-v2'),
+                'back' => __('Previous selection', 'themisdb-graph-navigation-v2'),
+                'forward' => __('Next selection', 'themisdb-graph-navigation-v2'),
+                'selected' => __('Selected', 'themisdb-graph-navigation-v2'),
+                'results' => __('Search results', 'themisdb-graph-navigation-v2'),
+                'noResults' => __('No matching nodes', 'themisdb-graph-navigation-v2'),
             ),
             'settings' => array(
                 'maxVisibleNodes' => (int) self::get('max_visible_nodes', 120),
@@ -122,17 +125,9 @@ function themisdb_graph_nav_v2_enqueue_assets() {
     );
 
     wp_enqueue_script(
-        'themisdb-graph-nav-v2-webgpu',
-        THEMISDB_GRAPH_NAV_V2_URL . 'assets/js/render/webgpu-renderer.js',
-        array('themisdb-graph-nav-v2-state', 'themisdb-graph-nav-v2-store', 'themisdb-graph-nav-v2-canvas-renderer', 'themisdb-graph-nav-v2-graph-view'),
-        THEMISDB_GRAPH_NAV_V2_VERSION,
-        true
-    );
-
-    wp_enqueue_script(
         'themisdb-graph-nav-v2-script',
         THEMISDB_GRAPH_NAV_V2_URL . 'assets/js/themisdb-graph-v2.js',
-        array('themisdb-graph-nav-v2-state', 'themisdb-graph-nav-v2-store', 'themisdb-graph-nav-v2-canvas-renderer', 'themisdb-graph-nav-v2-graph-view', 'themisdb-graph-nav-v2-webgpu'),
+        array('themisdb-graph-nav-v2-state', 'themisdb-graph-nav-v2-store', 'themisdb-graph-nav-v2-canvas-renderer', 'themisdb-graph-nav-v2-graph-view'),
         THEMISDB_GRAPH_NAV_V2_VERSION,
         true
     );
@@ -165,7 +160,6 @@ function themisdb_graph_nav_v2_direct_runtime_assets() {
         'graph-store.js',
         'render/canvas-renderer.js',
         'render/graph-view.js',
-        'render/webgpu-renderer.js',
         'themisdb-graph-v2.js',
     );
 
@@ -175,6 +169,10 @@ function themisdb_graph_nav_v2_direct_runtime_assets() {
 }
 
 function themisdb_graph_nav_v2_shortcode($atts = array()) {
+    $GLOBALS['themisdb_graph_nav_v2_instance_count'] = isset($GLOBALS['themisdb_graph_nav_v2_instance_count'])
+        ? (int) $GLOBALS['themisdb_graph_nav_v2_instance_count'] + 1
+        : 1;
+
     $atts = shortcode_atts(array(
         'title' => __('Graph Navigation', 'themisdb-graph-navigation-v2'),
         'button_text' => __('Graph anzeigen', 'themisdb-graph-navigation-v2'),
@@ -232,7 +230,7 @@ function themisdb_graph_nav_v2_render_footer_overlay() {
         return;
     }
 
-    if (!empty($GLOBALS['themisdb_graph_nav_v2_rendered'])) {
+    if (!empty($GLOBALS['themisdb_graph_nav_v2_rendered']) || !empty($GLOBALS['themisdb_graph_nav_v2_instance_count'])) {
         return;
     }
 
@@ -278,8 +276,8 @@ class ThemisDB_Graph_Navigation_V2_Widget extends WP_Widget {
 
     public function update($new_instance, $old_instance) {
         $instance = array();
-        $instance['title'] = sanitize_text_field($new_instance['title']);
-        $instance['button_text'] = sanitize_text_field($new_instance['button_text']);
+        $instance['title'] = sanitize_text_field($new_instance['title'] ?? '');
+        $instance['button_text'] = sanitize_text_field($new_instance['button_text'] ?? '');
         return $instance;
     }
 }
@@ -299,6 +297,10 @@ function themisdb_graph_nav_v2_register_widget_area() {
 add_action('widgets_init', 'themisdb_graph_nav_v2_register_widget_area');
 
 function themisdb_graph_nav_v2_flush_cache() {
+    ThemisDB_Graph_Cache::clear('themisdb_graph_v2_payload_v6');
+    ThemisDB_Graph_Cache::clear('themisdb_graph_v2_payload_v5');
+    ThemisDB_Graph_Cache::clear('themisdb_graph_v2_payload_v4');
+    ThemisDB_Graph_Cache::clear('themisdb_graph_v2_payload_v3');
     ThemisDB_Graph_Cache::clear('themisdb_graph_v2_payload');
 }
 
@@ -317,6 +319,24 @@ register_deactivation_hook(__FILE__, 'themisdb_graph_nav_v2_deactivate');
 
 add_action('save_post', 'themisdb_graph_nav_v2_flush_cache');
 add_action('deleted_post', 'themisdb_graph_nav_v2_flush_cache');
+add_action('trashed_post', 'themisdb_graph_nav_v2_flush_cache');
+add_action('untrashed_post', 'themisdb_graph_nav_v2_flush_cache');
 add_action('created_term', 'themisdb_graph_nav_v2_flush_cache');
 add_action('edited_term', 'themisdb_graph_nav_v2_flush_cache');
 add_action('delete_term', 'themisdb_graph_nav_v2_flush_cache');
+add_action('wp_create_nav_menu', 'themisdb_graph_nav_v2_flush_cache');
+add_action('wp_update_nav_menu', 'themisdb_graph_nav_v2_flush_cache');
+add_action('wp_update_nav_menu_item', 'themisdb_graph_nav_v2_flush_cache');
+add_action('wp_delete_nav_menu', 'themisdb_graph_nav_v2_flush_cache');
+add_action('update_option_permalink_structure', 'themisdb_graph_nav_v2_flush_cache');
+add_action('update_option_home', 'themisdb_graph_nav_v2_flush_cache');
+add_action('update_option_siteurl', 'themisdb_graph_nav_v2_flush_cache');
+add_action('activated_plugin', 'themisdb_graph_nav_v2_flush_cache');
+add_action('deactivated_plugin', 'themisdb_graph_nav_v2_flush_cache');
+add_action('switch_theme', 'themisdb_graph_nav_v2_flush_cache');
+
+foreach (array_keys(ThemisDB_Graph_Settings::default_values()) as $setting_key) {
+    $option_name = ThemisDB_Graph_Settings::option_name($setting_key);
+    add_action('update_option_' . $option_name, 'themisdb_graph_nav_v2_flush_cache');
+    add_action('add_option_' . $option_name, 'themisdb_graph_nav_v2_flush_cache');
+}

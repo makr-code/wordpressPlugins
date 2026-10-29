@@ -122,6 +122,7 @@ final class ThemisDB_Graph_Normalizer {
     protected static function resolve_cluster_id($type) {
         $map = array(
             'home' => 'root',
+            'taxonomy' => 'taxonomy',
             'category' => 'taxonomy',
             'tag' => 'taxonomy',
             'post' => 'content',
@@ -135,6 +136,7 @@ final class ThemisDB_Graph_Normalizer {
     protected static function resolve_color_for_type($type) {
         $map = array(
             'home' => '#7c4dff',
+            'taxonomy' => '#f472b6',
             'category' => '#4ecdc4',
             'tag' => '#ff9f43',
             'post' => '#4cd964',
@@ -148,6 +150,7 @@ final class ThemisDB_Graph_Normalizer {
     protected static function get_node_size($type, $degree) {
         $base = array(
             'home' => 24,
+            'taxonomy' => 20,
             'category' => 18,
             'tag' => 16,
             'post' => 14,
@@ -163,13 +166,14 @@ final class ThemisDB_Graph_Normalizer {
         $type = isset($node['type']) ? (string) $node['type'] : 'generic';
         $type_rank = array(
             'home' => 0,
-            'category' => 1,
-            'tag' => 2,
-            'page' => 3,
-            'post' => 4,
-            'taxonomy_term' => 5,
-            'external_resource' => 6,
-            'generic' => 7,
+            'taxonomy' => 1,
+            'category' => 2,
+            'tag' => 3,
+            'page' => 4,
+            'post' => 5,
+            'taxonomy_term' => 6,
+            'external_resource' => 7,
+            'generic' => 8,
         );
 
         $metadata = is_array($node['metadata'] ?? null) ? $node['metadata'] : array();

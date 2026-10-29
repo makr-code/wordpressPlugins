@@ -1,0 +1,28 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_headers.c>
+        RewriteEngine On
+        RewriteCond %{HTTP:Accept-Encoding} \bgzip\b [NC]
+        RewriteCond %{HTTP:Accept-Encoding} !\bgzip\s*;\s*q=0(\.0*)?\s*(,|$) [NC]
+        RewriteCond %{REQUEST_FILENAME}.gz -f
+        RewriteRule ^network-map\.js$ network-map.js.gz [L]
+    </IfModule>
+</IfModule>
+
+<IfModule mod_mime.c>
+    AddEncoding gzip .gz
+    <Files "network-map.js.gz">
+        ForceType text/javascript
+    </Files>
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "^network-map\.js(\.gz)?$">
+        Header merge Vary Accept-Encoding
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_env.c>
+    <Files "network-map.js.gz">
+        SetEnv no-gzip 1
+    </Files>
+</IfModule>

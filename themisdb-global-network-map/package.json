@@ -1,16 +1,19 @@
 {
   "name": "themisdb-global-network-map",
-  "version": "1.0.0",
+  "version": "0.3.0",
   "description": "This plugin renders a global network node map for ThemisDB runtime instances. It is intended to consume production homecall telemetry and geodata from WordPress, while still providing a safe demo fallback when production data is unavailable or intentionally disabled.",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "node build.mjs",
+    "test": "node --test tests/*.test.js"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "license": "MIT",
+  "type": "module",
   "dependencies": {
-    "three": "0.128.0"
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }

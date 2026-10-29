@@ -3,14 +3,16 @@
 
     window.ThemisDBGraphV2 = window.ThemisDBGraphV2 || {};
 
-    function getCanvasSize(container) {
+    function getCanvasSize(container, state) {
         const shell = container && container.closest ? container.closest('[data-graph-v2-shell]') : null;
         const rect = container && container.getBoundingClientRect ? container.getBoundingClientRect() : { width: 0, height: 0 };
         const shellRect = shell && shell.getBoundingClientRect ? shell.getBoundingClientRect() : { width: 0, height: 0 };
         const visibleWidth = Math.max(Math.floor(rect.width || shellRect.width || container.offsetWidth || 800), 320);
         const visibleHeight = Math.max(Math.floor(rect.height || shellRect.height || container.offsetHeight || 420), 260);
-        const worldWidth = Math.max(Math.floor(visibleWidth * 2.2), Math.min(Math.floor(visibleWidth + 600), 2000), 1600);
-        const worldHeight = Math.max(Math.floor(visibleHeight * 2.2), Math.min(Math.floor(visibleHeight + 400), 1400), 1100);
+        const viewportState = state || container.__themisdbGraphState || window.ThemisDBGraphV2.state;
+        const zoom = Math.max(0.35, Math.min(2.8, Number(viewportState && viewportState.viewport ? viewportState.viewport.zoom || 1 : 1)));
+        const worldWidth = Math.max(visibleWidth, Math.max(Math.floor(visibleWidth * 2.2), Math.min(Math.floor(visibleWidth + 600), 2000), 1600) * zoom);
+        const worldHeight = Math.max(visibleHeight, Math.max(Math.floor(visibleHeight * 2.2), Math.min(Math.floor(visibleHeight + 400), 1400), 1100) * zoom);
 
         return {
             width: Math.floor(worldWidth),
@@ -20,18 +22,17 @@
         };
     }
 
-    function ensureCanvas(container) {
+    function ensureCanvas(container, state) {
         const existing = container.querySelector('canvas');
-        const { width, height, viewportWidth, viewportHeight } = getCanvasSize(container);
+        const { width, height, viewportWidth, viewportHeight } = getCanvasSize(container, state);
         const ratio = window.devicePixelRatio || 1;
+        const viewportState = state || container.__themisdbGraphState || window.ThemisDBGraphV2.state;
 
         const syncCanvasDimension = (canvas) => {
-            const desiredWidth = Math.max(1, Math.floor(width * ratio));
-            const desiredHeight = Math.max(1, Math.floor(height * ratio));
-            const visibleWidth = Math.max(320, Math.floor(viewportWidth || width / 2.2));
-            const visibleHeight = Math.max(260, Math.floor(viewportHeight || height / 2.2));
-            const cssWidth = Math.max(width, visibleWidth + 600, 1600);
-            const cssHeight = Math.max(height, visibleHeight + 400, 1100);
+            const desiredWidth = Math.max(1, Math.round(width * ratio));
+            const desiredHeight = Math.max(1, Math.round(height * ratio));
+            const cssWidth = Math.max(width, Math.floor(viewportWidth || 320));
+            const cssHeight = Math.max(height, Math.floor(viewportHeight || 260));
 
             if (canvas.width !== desiredWidth || canvas.height !== desiredHeight || canvas.style.width !== cssWidth + 'px' || canvas.style.height !== cssHeight + 'px') {
                 canvas.width = desiredWidth;
@@ -42,11 +43,11 @@
                 canvas.style.setProperty('height', cssHeight + 'px', 'important');
             }
 
-            if (window.ThemisDBGraphV2 && window.ThemisDBGraphV2.state) {
-                window.ThemisDBGraphV2.state.viewport.width = visibleWidth;
-                window.ThemisDBGraphV2.state.viewport.height = visibleHeight;
-                window.ThemisDBGraphV2.state.viewport.worldWidth = cssWidth;
-                window.ThemisDBGraphV2.state.viewport.worldHeight = cssHeight;
+            if (viewportState && viewportState.viewport) {
+                viewportState.viewport.width = viewportWidth;
+                viewportState.viewport.height = viewportHeight;
+                viewportState.viewport.worldWidth = cssWidth;
+                viewportState.viewport.worldHeight = cssHeight;
             }
 
             return canvas;
@@ -86,8 +87,9 @@
         const rect = container.getBoundingClientRect ? container.getBoundingClientRect() : { width: 0, height: 0 };
         const width = Math.max(320, Math.floor(rect.width || container.clientWidth || container.offsetWidth || 800));
         const height = Math.max(260, Math.floor(rect.height || container.clientHeight || container.offsetHeight || 420));
-        const worldWidth = Math.max(Math.floor(width * 2.2), Math.min(Math.floor(width + 600), 2000), 1600);
-        const worldHeight = Math.max(Math.floor(height * 2.2), Math.min(Math.floor(height + 400), 1400), 1100);
+        const zoom = Math.max(0.35, Math.min(2.8, Number(state && state.viewport ? state.viewport.zoom || 1 : 1)));
+        const worldWidth = Math.max(width, Math.max(Math.floor(width * 2.2), Math.min(Math.floor(width + 600), 2000), 1600) * zoom);
+        const worldHeight = Math.max(height, Math.max(Math.floor(height * 2.2), Math.min(Math.floor(height + 400), 1400), 1100) * zoom);
 
         if (state && state.viewport) {
             state.viewport.width = width;
@@ -106,9 +108,9 @@
 
         const observer = new ResizeObserver(() => {
             syncViewportFromContainer(container, state || window.ThemisDBGraphV2.state);
-            const canvas = container.querySelector('canvas') || ensureCanvas(container);
+            const canvas = container.querySelector('canvas') || ensureCanvas(container, state);
             if (canvas) {
-                ensureCanvas(container);
+                ensureCanvas(container, state);
             }
         });
 
@@ -125,15 +127,15 @@
         attachResizeObserver(container, state || window.ThemisDBGraphV2.state);
         syncViewportFromContainer(container, state || window.ThemisDBGraphV2.state);
 
-        const canvas = ensureCanvas(container);
-        const renderer = window.ThemisDBGraphV2.CanvasRenderer;
         const activeState = state || window.ThemisDBGraphV2.state;
+        const canvas = ensureCanvas(container, activeState);
+        const renderer = window.ThemisDBGraphV2.CanvasRenderer;
         const rendererConfig = window.themisdbGraphV2 && window.themisdbGraphV2.renderer ? window.themisdbGraphV2.renderer : {};
         const preferWebGPU = Boolean(rendererConfig.preferWebGPU === true);
         const allowWebGPU = Boolean(rendererConfig.allowExperimentalWebGPU === true);
         const webGPUBlocked = Boolean(window.ThemisDBGraphV2 && window.ThemisDBGraphV2.WebGPUBlocked);
         const hasWebGPU = Boolean(window.navigator && 'gpu' in navigator && window.ThemisDBGraphV2 && window.ThemisDBGraphV2.WebGPURenderer);
-        const viewportIsLargeEnough = (activeState && activeState.viewport && activeState.viewport.width >= 320 && activeState.viewport.height >= 220) || true;
+        const viewportIsLargeEnough = Boolean(activeState && activeState.viewport && activeState.viewport.width >= 320 && activeState.viewport.height >= 220);
         const shouldUseWebGPU = !webGPUBlocked && allowWebGPU && preferWebGPU && hasWebGPU && viewportIsLargeEnough;
 
         if (shouldUseWebGPU) {

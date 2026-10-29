@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/makr-code/wordpressPlugins
  * Update URI: https://github.com/makr-code/wordpressPlugins
  * Description: Titelseiten-Slider mit Timer, der die neuesten Artikel auf der Hauptseite darstellt. Shortcode: [themisdb_front_slider]
- * Version: 1.1.6
+ * Version: 1.1.7
  * Author: makr-code
  * Author URI: https://github.com/makr-code/wordpressPlugins
  * License: MIT
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define('THEMISDB_FS_VERSION', '1.1.5');
+define('THEMISDB_FS_VERSION', '1.1.7');
 define( 'THEMISDB_FS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'THEMISDB_FS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'THEMISDB_FS_PLUGIN_FILE', __FILE__ );
@@ -1379,6 +1379,7 @@ function themisdb_fs_settings_page() {
                                 <input type="checkbox" name="themisdb_fs_options[respect_reduced_motion]" value="1" <?php checked( $respect_reduced_motion ); ?>>
                                 <?php esc_html_e( 'Systemeinstellung „Bewegung reduzieren" respektieren', 'themisdb-front-slider' ); ?>
                             </label>
+                            <p class="description"><?php esc_html_e( 'Bei aktivem Autoplay können Besucher die Wiedergabe direkt am Slider pausieren oder fortsetzen.', 'themisdb-front-slider' ); ?></p>
                         </td>
                     </tr>
                 </table>
@@ -1510,4 +1511,3 @@ function themisdb_fs_settings_page() {
     </style>
     <?php
 }
-

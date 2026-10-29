@@ -28,7 +28,7 @@
                 : true,
         },
         layout: {
-            mode: 'radial',
+            mode: 'network',
             world: {
                 centerX: 0,
                 centerY: 0,

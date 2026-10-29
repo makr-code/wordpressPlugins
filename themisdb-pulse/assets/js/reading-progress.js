@@ -234,6 +234,10 @@
                     return false;
                 }
 
+                if (node.closest('.tv3-content-header')) {
+                    return false;
+                }
+
                 if (node.querySelector('img, figure, table, ul, ol, blockquote, pre')) {
                     return false;
                 }
@@ -503,11 +507,14 @@
 
             var href = (liItem.querySelector('a') || link).getAttribute('href') || '';
             var label = (liItem.textContent || '').replace(/\s+/g, ' ').trim();
-            if (href === '/' && label.toLowerCase() === 'start') {
+            var isHomeBreadcrumb = liItem.hasAttribute('data-tv3-home-breadcrumb')
+                || liItem.classList.contains('tv3-breadcrumbs-item--home')
+                || (href === '/' && label.toLowerCase() === 'start');
+            if (isHomeBreadcrumb) {
                 liItem.setAttribute('data-tv3-home-breadcrumb', '1');
             }
 
-            var entryId = (href === '/' && label.toLowerCase() === 'start') ? '__start__' : ('breadcrumb:' + (href || label || 'item'));
+            var entryId = isHomeBreadcrumb ? '__start__' : ('breadcrumb:' + (href || label || 'item'));
             if (seenIds[entryId]) {
                 liItem.remove();
                 return;
@@ -597,10 +604,14 @@
             var nav = document.querySelector('.tv3-hero-context-nav, [data-tv3-anchor-nav], .tv3-breadcrumbs-shell');
             if (nav) {
                 var rect = nav.getBoundingClientRect();
-                return rect.bottom - 18;
+                var viewportHeight = window.innerHeight || 800;
+                return Math.max(
+                    Math.min(rect.bottom + 24, viewportHeight * 0.4),
+                    viewportHeight * 0.2
+                );
             }
 
-            return window.innerHeight * 0.28;
+            return (window.innerHeight || 800) * 0.25;
         }
 
         items.forEach(function (entry) {
@@ -650,12 +661,7 @@
             });
 
             if (window.scrollY <= 50) {
-                var isFrontpageBreadcrumbContext = !!document.querySelector('.tv3-breadcrumbs-frontpage') || document.body.classList.contains('home') || document.body.classList.contains('front-page');
-                if (isFrontpageBreadcrumbContext && generatedAnchorItems.length) {
-                    current = generatedAnchorItems[generatedAnchorItems.length - 1].id;
-                } else {
-                    current = '__start__';
-                }
+                current = '__start__';
             } else {
                 for (var i = 1; i < items.length; i++) {
                     var item = items[i];
@@ -685,6 +691,7 @@
 
         window.addEventListener('scroll', scheduleUpdate, { passive: true });
         window.addEventListener('resize', scheduleUpdate);
+        window.addEventListener('hashchange', scheduleUpdate);
         scheduleUpdate();
 
         nav.setAttribute('data-tv3-anchor-ready', '1');
